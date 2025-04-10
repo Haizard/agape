@@ -1,0 +1,305 @@
+{
+  "info": {
+    "name": "CRUD Operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Student",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/students",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "students"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"class\": \"{{class}}\"\n}"
+        },
+        "description": "Create a new student record."
+      }
+    },
+    {
+      "name": "Read Student",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/students/{{student_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "students",
+            "{{student_id}}"
+          ]
+        },
+        "description": "Retrieve a student record by ID."
+      }
+    },
+    {
+      "name": "Update Student",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/students/{{student_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "students",
+            "{{student_id}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"class\": \"{{class}}\"\n}"
+        },
+        "description": "Update an existing student record."
+      }
+    },
+    {
+      "name": "Delete Student",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/students/{{student_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "students",
+            "{{student_id}}"
+          ]
+        },
+        "description": "Delete a student record by ID."
+      }
+    },
+    {
+      "name": "Create Exam",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/exams",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "exams"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{exam_name}}\",\n  \"date\": \"{{exam_date}}\",\n  \"subject\": \"{{subject}}\"\n}"
+        },
+        "description": "Create a new exam record."
+      }
+    },
+    {
+      "name": "Read Exam",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/exams/{{exam_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "exams",
+            "{{exam_id}}"
+          ]
+        },
+        "description": "Retrieve an exam record by ID."
+      }
+    },
+    {
+      "name": "Update Exam",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/exams/{{exam_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "exams",
+            "{{exam_id}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{exam_name}}\",\n  \"date\": \"{{exam_date}}\",\n  \"subject\": \"{{subject}}\"\n}"
+        },
+        "description": "Update an existing exam record."
+      }
+    },
+    {
+      "name": "Delete Exam",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/exams/{{exam_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "exams",
+            "{{exam_id}}"
+          ]
+        },
+        "description": "Delete an exam record by ID."
+      }
+    },
+    {
+      "name": "Create Result",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{student_id}}\",\n  \"exam_id\": \"{{exam_id}}\",\n  \"score\": \"{{score}}\"\n}"
+        },
+        "description": "Create a new result record."
+      }
+    },
+    {
+      "name": "Read Result",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{result_id}}"
+          ]
+        },
+        "description": "Retrieve a result record by ID."
+      }
+    },
+    {
+      "name": "Update Result",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{result_id}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{student_id}}\",\n  \"exam_id\": \"{{exam_id}}\",\n  \"score\": \"{{score}}\"\n}"
+        },
+        "description": "Update an existing result record."
+      }
+    },
+    {
+      "name": "Delete Result",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{result_id}}"
+          ]
+        },
+        "description": "Delete a result record by ID."
+      }
+    }
+  ]
+}

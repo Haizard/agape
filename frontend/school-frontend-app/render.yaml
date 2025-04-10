@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: st-john-vianey-frontend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REACT_APP_API_URL
+        value: https://st-john-vianey-api.onrender.com/api
+      - key: REACT_APP_USE_MOCK_DATA
+        value: false
+    autoDeploy: true
+    healthCheckPath: /

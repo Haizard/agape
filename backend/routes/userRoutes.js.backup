@@ -1,0 +1,338 @@
+const express = require('express');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const mongoose = require('mongoose'); // Add this line
+const User = require('../models/User');
+const Teacher = require('../models/Teacher');
+const { authenticateToken, authorizeRole } = require('../middleware/auth');
+
+// Login route
+router.post('/login', async (req, res) => {
+  try {
+    const { emailOrUsername, password } = req.body;
+    console.log('Login attempt for:', emailOrUsername);
+
+    if (!emailOrUsername || !password) {
+      return res.status(400).json({
+        message: 'Email/username and password are required',
+        received: { emailOrUsername: !!emailOrUsername, password: !!password }
+      });
+    }
+
+    console.log('Mongoose connection state:', mongoose.connection.readyState);
+
+    // Check if the input is an email or username
+    const isEmail = emailOrUsername.includes('@');
+
+    // Find user by email or username
+    const query = isEmail ? { email: emailOrUsername } : { username: emailOrUsername };
+    console.log('Looking for user with query:', query);
+
+    const user = await User.findOne(query);
+    if (!user) {
+      console.log('User not found:', emailOrUsername);
+      return res.status(401).json({ message: 'Invalid email/username or password' });
+    }
+
+    try {
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      console.log('Password comparison result:', passwordMatch);
+
+      if (!passwordMatch) {
+        console.log('Password mismatch for user:', emailOrUsername);
+        return res.status(401).json({ message: 'Invalid email/username or password' });
+      }
+    } catch (bcryptError) {
+      console.error('Error comparing passwords:', bcryptError);
+      return res.status(500).json({ message: 'Error verifying password', error: bcryptError.message });
+    }
+
+    // Use a consistent JWT secret key with a fallback
+    const jwtSecret = process.env.JWT_SECRET || 'kjjf6565i87utgfu64erd';
+    console.log('Using JWT secret for token generation:', jwtSecret ? 'Secret is set' : 'Using fallback secret');
+
+    // Make sure the role is correctly set
+    console.log(`Generating token for user ${user.username} with role: ${user.role}`);
+
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        role: user.role,
+        email: user.email,
+        username: user.username
+      },
+      jwtSecret,
+      { expiresIn: '24h' } // 24h expiration
+    );
+
+    console.log('Generated token for user:', {
+      userId: user._id,
+      role: user.role,
+      email: user.email
+    });
+
+    const refreshToken = jwt.sign(
+      { userId: user._id, role: user.role, email: user.email },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: '7d' } // Refresh token expires in 7 days
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true, // Only send over HTTPS
+      sameSite: 'strict', // Prevent CSRF attacks
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Send response with explicit role information
+    const responseData = {
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        username: user.username
+      }
+    };
+
+    console.log('Sending login response with role:', user.role);
+    res.json(responseData);
+
+  } catch (error) {
+    console.error('Login error:', error);
+
+    // Provide more detailed error information
+    const errorResponse = {
+      message: 'Server error during login',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+
+    console.error('Sending error response:', errorResponse);
+    res.status(500).json(errorResponse);
+  }
+});
+
+const userService = require('../services/userService');
+
+// Registration route (admin only)
+router.post('/register', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    // Create user with appropriate profile based on role
+    const result = await userService.createUserWithProfile(req.body);
+
+    // Generate tokens
+    const token = jwt.sign(
+      { userId: result.user._id, role: result.user.role, email: result.user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: result.user._id, role: result.user.role, email: result.user.email },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: '7d' } // Refresh token expires in 7 days
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true, // Only send over HTTPS
+      sameSite: 'strict', // Prevent CSRF attacks
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    res.status(201).json({
+      message: 'User registered successfully with appropriate profile',
+      token,
+      user: result.user,
+      profile: result.profile
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    console.error('Error stack:', error.stack);
+
+    // Provide more detailed error information
+    const errorResponse = {
+      message: 'Server error during registration',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+
+    res.status(500).json(errorResponse);
+  }
+});
+
+// Refresh token route
+router.post('/refresh-token', (req, res) => {
+  const refreshToken = req.cookies.refreshToken; // Assuming refresh token is stored in a cookie
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'No refresh token provided' });
+  }
+
+  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid refresh token' });
+    }
+
+    // Generate a new access token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.json({ token });
+  });
+});
+
+// Update user
+router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log(`PUT /api/users/${req.params.id} - Updating user with data:`, req.body);
+
+    // Check if user exists
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      console.log(`User not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if email already exists (for another user)
+    if (req.body.email && req.body.email !== user.email) {
+      const existingUser = await User.findOne({
+        email: req.body.email,
+        _id: { $ne: req.params.id }
+      });
+      if (existingUser) {
+        console.log(`Another user with email ${req.body.email} already exists`);
+        return res.status(400).json({ message: 'Another user with this email already exists' });
+      }
+    }
+
+    // Check if username already exists (for another user)
+    if (req.body.username && req.body.username !== user.username) {
+      const existingUsername = await User.findOne({
+        username: req.body.username,
+        _id: { $ne: req.params.id }
+      });
+      if (existingUsername) {
+        console.log(`Another user with username ${req.body.username} already exists`);
+        return res.status(400).json({ message: 'Another user with this username already exists' });
+      }
+    }
+
+    // Prepare update data
+    const updateData = {
+      username: req.body.username,
+      email: req.body.email,
+      role: req.body.role,
+      status: req.body.status
+    };
+
+    // Update password if provided
+    if (req.body.password && req.body.password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(req.body.password, salt);
+    }
+
+    // Update the user
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    ).select('-password');
+
+    console.log('User updated successfully:', updatedUser);
+    res.json(updatedUser);
+  } catch (error) {
+    console.error(`Error updating user ${req.params.id}:`, error);
+    res.status(400).json({
+      message: 'Failed to update user',
+      error: error.message
+    });
+  }
+});
+
+// Delete user
+router.delete('/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log(`DELETE /api/users/${req.params.id} - Deleting user`);
+
+    // Check if user exists
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      console.log(`User not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Don't allow deleting the last admin user
+    if (user.role === 'admin') {
+      const adminCount = await User.countDocuments({ role: 'admin' });
+      if (adminCount <= 1) {
+        console.log('Cannot delete the last admin user');
+        return res.status(400).json({ message: 'Cannot delete the last admin user' });
+      }
+    }
+
+    // Delete the user
+    await User.findByIdAndDelete(req.params.id);
+    console.log(`User ${req.params.id} deleted successfully`);
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error(`Error deleting user ${req.params.id}:`, error);
+    res.status(500).json({
+      message: 'Failed to delete user',
+      error: error.message
+    });
+  }
+});
+
+// Get all users with optional filtering
+router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log('GET /api/users - Fetching users with query:', req.query);
+
+    // Build query based on parameters
+    const query = {};
+
+    // Filter by role if provided
+    if (req.query.role) {
+      query.role = req.query.role;
+    }
+
+    // Get all users matching the query
+    const users = await User.find(query).select('-password');
+
+    // If withoutTeacherProfile flag is set, filter out users who already have a teacher profile
+    if (req.query.withoutTeacherProfile === 'true') {
+      console.log('Filtering users without teacher profiles');
+
+      // Get all teacher profiles with their userIds
+      const teachers = await Teacher.find({}, 'userId');
+      const teacherUserIds = teachers.map(teacher => teacher.userId?.toString());
+
+      // Filter out users who already have a teacher profile
+      const filteredUsers = users.filter(user =>
+        !teacherUserIds.includes(user._id.toString())
+      );
+
+      console.log(`Found ${filteredUsers.length} users without teacher profiles`);
+      return res.json(filteredUsers);
+    }
+
+    console.log(`Found ${users.length} users`);
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({
+      message: 'Failed to fetch users',
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;

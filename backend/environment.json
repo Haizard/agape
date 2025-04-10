@@ -1,0 +1,84 @@
+{
+  "id": "school-management-system",
+  "name": "School Management System",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000/api",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2U1NGM2OWY3YmM3Y2JjY2FmYjAzNTciLCJyb2xlIjoiYWRtaW4iLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJpYXQiOjE3NDMzMTcyNDEsImV4cCI6MTc0MzMyMDg0MX0.99e_sp4GGRLnRKvYfcKb_vzKBFeTwFClO9iHC01E1ZY",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "name",
+      "value": "John Doe",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "email",
+      "value": "john.doe@example.com",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "password",
+      "value": "password123",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "role",
+      "value": "student",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "exam_name",
+      "value": "Midterm Exam",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "exam_date",
+      "value": "2025-04-15",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "exam_duration",
+      "value": "90",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "student_id",
+      "value": "1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "exam_id",
+      "value": "1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "result_id",
+      "value": "1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "score",
+      "value": "85",
+      "type": "default",
+      "enabled": true
+    }
+  ]
+}

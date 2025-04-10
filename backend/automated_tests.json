@@ -1,0 +1,186 @@
+{
+  "info": {
+    "name": "Automated Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Test Create Result",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test(\"Response has correct content type\", function () {",
+              "    pm.response.to.have.header(\"Content-Type\", \"application/json; charset=utf-8\");",
+              "});",
+              "pm.test(\"Response body contains expected fields\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('student_id');",
+              "    pm.expect(jsonData).to.have.property('exam_id');",
+              "    pm.expect(jsonData).to.have.property('score');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{student_id}}\",\n  \"exam_id\": \"{{exam_id}}\",\n  \"score\": \"{{score}}\"\n}"
+        },
+        "description": "Automated test for creating a new result record."
+      }
+    },
+    {
+      "name": "Test Read Result",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response has correct content type\", function () {",
+              "    pm.response.to.have.header(\"Content-Type\", \"application/json; charset=utf-8\");",
+              "});",
+              "pm.test(\"Response body contains expected fields\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('student_id');",
+              "    pm.expect(jsonData).to.have.property('exam_id');",
+              "    pm.expect(jsonData).to.have.property('score');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{result_id}}"
+          ]
+        },
+        "description": "Automated test for retrieving a result record by ID."
+      }
+    },
+    {
+      "name": "Test Update Result",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response has correct content type\", function () {",
+              "    pm.response.to.have.header(\"Content-Type\", \"application/json; charset=utf-8\");",
+              "});",
+              "pm.test(\"Response body contains expected fields\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('student_id');",
+              "    pm.expect(jsonData).to.have.property('exam_id');",
+              "    pm.expect(jsonData).to.have.property('score');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{result_id}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{student_id}}\",\n  \"exam_id\": \"{{exam_id}}\",\n  \"score\": \"{{score}}\"\n}"
+        },
+        "description": "Automated test for updating an existing result record."
+      }
+    },
+    {
+      "name": "Test Delete Result",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 204\", function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{result_id}}"
+          ]
+        },
+        "description": "Automated test for deleting a result record by ID."
+      }
+    }
+  ]
+}

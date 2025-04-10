@@ -1,0 +1,42 @@
+{
+  "name": "Student Management",
+  "item": [
+    {
+      "name": "Create Student",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/students",
+        "headers": {
+          "Authorization": "Bearer {{authToken}}"
+        },
+        "body": {
+          "raw": {
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "student1@school.com",
+            "dateOfBirth": "2005-01-01",
+            "gender": "Male",
+            "phoneNumber": "1234567890",
+            "address": "123 School Street",
+            "class": "10",
+            "section": "A",
+            "rollNumber": "ST2023001",
+            "parentName": "Parent Name",
+            "parentEmail": "parent@example.com",
+            "parentPhone": "0987654321"
+          }
+        }
+      }
+    },
+    {
+      "name": "Get All Students",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/students",
+        "headers": {
+          "Authorization": "Bearer {{authToken}}"
+        }
+      }
+    }
+  ]
+}

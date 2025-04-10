@@ -1,0 +1,21 @@
+{
+  "ignore": [
+    ".git",
+    "node_modules/**/node_modules",
+    "dist",
+    "coverage",
+    "test",
+    "*.test.js"
+  ],
+  "verbose": true,
+  "watch": [
+    "*.js",
+    "routes/",
+    "models/",
+    "controllers/"
+  ],
+  "ext": "js,json",
+  "delay": "2500",
+  "restartable": "rs"
+}
+

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Download</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Download Result PDF</h1>
+        
+        <div class="form-group">
+            <label for="type">Report Type:</label>
+            <select id="type">
+                <option value="student">Student Report</option>
+                <option value="class">Class Report</option>
+            </select>
+        </div>
+        
+        <div id="studentFields">
+            <div class="form-group">
+                <label for="studentId">Student ID:</label>
+                <input type="text" id="studentId" placeholder="Enter student ID">
+            </div>
+        </div>
+        
+        <div id="classFields" style="display: none;">
+            <div class="form-group">
+                <label for="classId">Class ID:</label>
+                <input type="text" id="classId" placeholder="Enter class ID">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="examId">Exam ID:</label>
+            <input type="text" id="examId" placeholder="Enter exam ID">
+        </div>
+        
+        <div class="form-group">
+            <label for="token">Authentication Token:</label>
+            <input type="text" id="token" placeholder="Enter your authentication token">
+            <small>(Get this from localStorage.getItem('token') in the browser console)</small>
+        </div>
+        
+        <button onclick="downloadPDF()">Download PDF</button>
+        
+        <div id="message" class="message" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Toggle between student and class fields
+        document.getElementById('type').addEventListener('change', function() {
+            const type = this.value;
+            document.getElementById('studentFields').style.display = type === 'student' ? 'block' : 'none';
+            document.getElementById('classFields').style.display = type === 'class' ? 'block' : 'none';
+        });
+
+        // Function to show a message
+        function showMessage(text, isError = false) {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = text;
+            messageElement.className = 'message ' + (isError ? 'error' : 'success');
+            messageElement.style.display = 'block';
+        }
+
+        // Function to download the PDF
+        function downloadPDF() {
+            // Get form values
+            const type = document.getElementById('type').value;
+            const studentId = document.getElementById('studentId').value;
+            const classId = document.getElementById('classId').value;
+            const examId = document.getElementById('examId').value;
+            const token = document.getElementById('token').value;
+
+            // Validate inputs
+            if (!examId) {
+                showMessage('Exam ID is required', true);
+                return;
+            }
+
+            if (type === 'student' && !studentId) {
+                showMessage('Student ID is required', true);
+                return;
+            }
+
+            if (type === 'class' && !classId) {
+                showMessage('Class ID is required', true);
+                return;
+            }
+
+            if (!token) {
+                showMessage('Authentication token is required', true);
+                return;
+            }
+
+            // Determine the ID to use
+            const id = type === 'student' ? studentId : classId;
+
+            // Construct the URL
+            const baseURL = 'http://localhost:5000'; // Change this to your production backend URL in production
+            const pdfUrl = `${baseURL}/api/pdf/${type}/${id}/${examId}?token=${token}`;
+
+            // Show loading message
+            showMessage('Downloading PDF...');
+
+            // Create an iframe to download the PDF
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+
+            // Set up event listeners to detect success or failure
+            iframe.onload = function() {
+                // Check if the iframe loaded a PDF
+                try {
+                    const contentType = iframe.contentDocument.contentType;
+                    if (contentType && contentType.includes('application/pdf')) {
+                        showMessage('PDF downloaded successfully!');
+                    } else {
+                        // Try to get error message from the response
+                        const errorText = iframe.contentDocument.body.textContent;
+                        showMessage('Error: ' + (errorText || 'Failed to download PDF'), true);
+                    }
+                } catch (e) {
+                    // If we can't access the iframe content, assume it's a PDF download
+                    showMessage('PDF download initiated. Check your downloads folder.');
+                }
+            };
+
+            iframe.onerror = function() {
+                showMessage('Error: Failed to download PDF', true);
+            };
+
+            // Set the iframe source to the PDF URL
+            iframe.src = pdfUrl;
+
+            // Also open in a new tab as a fallback
+            window.open(pdfUrl, '_blank');
+        }
+
+        // Function to get token from localStorage
+        function getTokenFromLocalStorage() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                document.getElementById('token').value = token;
+                showMessage('Token loaded from localStorage');
+            }
+        }
+
+        // Try to get the token when the page loads
+        window.onload = getTokenFromLocalStorage;
+    </script>
+</body>
+</html>

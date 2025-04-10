@@ -1,0 +1,52 @@
+services:
+  # Backend API Service
+  - type: web
+    name: st-john-vianey-api
+    runtime: node
+    rootDir: backend
+    region: ohio
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGODB_URI
+        fromDatabase:
+          name: st-john-vianey-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: USE_MOCK_DATA
+        value: "false"
+
+  # Frontend Service
+  - type: web
+    name: st-john-vianey-frontend
+    runtime: node
+    rootDir: frontend/school-frontend-app
+    region: ohio
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REACT_APP_API_URL
+        value: https://st-john-vianey-api.onrender.com/api
+      - key: REACT_APP_USE_MOCK_DATA
+        value: "false"
+
+# Database
+databases:
+  - name: st-john-vianey-db
+    plan: free
+    region: ohio
+    databaseName: john_vianey
+    ipAllowList: []  # only allow internal connections

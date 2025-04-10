@@ -1,0 +1,126 @@
+{
+  "info": {
+    "name": "Academic Years Management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Academic Year",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/academic-years",
+          "host": ["{{base_url}}"],
+          "path": ["api", "academic-years"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"2023-2024\",\n    \"startDate\": \"2023-09-01T00:00:00.000Z\",\n    \"endDate\": \"2024-06-30T00:00:00.000Z\",\n    \"isActive\": true\n}"
+        }
+      }
+    },
+    {
+      "name": "Get All Academic Years",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/academic-years",
+          "host": ["{{base_url}}"],
+          "path": ["api", "academic-years"]
+        }
+      }
+    },
+    {
+      "name": "Update Academic Year",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/academic-years/{{academic_year_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "academic-years", "{{academic_year_id}}"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"name\": \"2023-2024 Updated\",\n    \"isActive\": false\n}"
+        }
+      }
+    },
+    {
+      "name": "Delete Academic Year",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/academic-years/{{academic_year_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "academic-years", "{{academic_year_id}}"]
+        }
+      }
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your_admin_token_here",
+      "type": "string"
+    },
+    {
+      "key": "academic_year_id",
+      "value": "academic_year_id_here",
+      "type": "string"
+    }
+  ]
+}

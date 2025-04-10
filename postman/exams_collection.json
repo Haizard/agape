@@ -1,0 +1,33 @@
+{
+  "name": "Exam Management",
+  "item": [
+    {
+      "name": "Create Exam",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/exams",
+        "headers": {
+          "Authorization": "Bearer {{authToken}}"
+        },
+        "body": {
+          "raw": {
+            "title": "Math Final",
+            "subject": "Mathematics",
+            "totalMarks": 100,
+            "date": "2024-01-20T00:00:00.000Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "Get All Exams",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/exams",
+        "headers": {
+          "Authorization": "Bearer {{authToken}}"
+        }
+      }
+    }
+  ]
+}

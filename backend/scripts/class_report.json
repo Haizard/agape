@@ -1,0 +1,79 @@
+{
+  "reportTitle": "Midterm Exam Class Result Report",
+  "schoolName": "St. John Vianney Secondary School",
+  "academicYear": "2023-2024",
+  "examName": "Midterm Exam",
+  "examDate": "10/14/2023 - 10/19/2023",
+  "classDetails": {
+    "name": "Form 1 A Science",
+    "totalStudents": 1,
+    "classTeacher": "John Smith"
+  },
+  "subjectStatistics": [
+    {
+      "name": "Mathematics",
+      "teacher": "John Smith",
+      "totalMarks": 60,
+      "averageMarks": "60.00",
+      "grades": {
+        "A": 0,
+        "B": 0,
+        "C": 1,
+        "D": 0,
+        "F": 0
+      },
+      "highestMarks": 60,
+      "lowestMarks": 60
+    },
+    {
+      "name": "English",
+      "teacher": "John Smith",
+      "totalMarks": 36,
+      "averageMarks": "36.00",
+      "grades": {
+        "A": 0,
+        "B": 0,
+        "C": 0,
+        "D": 0,
+        "F": 1
+      },
+      "highestMarks": 36,
+      "lowestMarks": 36
+    },
+    {
+      "name": "Physics",
+      "teacher": "John Smith",
+      "totalMarks": 76,
+      "averageMarks": "76.00",
+      "grades": {
+        "A": 0,
+        "B": 1,
+        "C": 0,
+        "D": 0,
+        "F": 0
+      },
+      "highestMarks": 76,
+      "lowestMarks": 76
+    }
+  ],
+  "studentResults": [
+    {
+      "name": "Alice Johnson",
+      "rollNumber": "S001",
+      "totalMarks": 172,
+      "averageMarks": "57.33",
+      "division": "I",
+      "rank": 1
+    }
+  ],
+  "summary": {
+    "classAverage": "57.33",
+    "divisions": {
+      "0": 0,
+      "I": 1,
+      "II": 0,
+      "III": 0,
+      "IV": 0
+    }
+  }
+}

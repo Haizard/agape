@@ -1,0 +1,493 @@
+:root {
+  /* Updated color palette */
+  --primary-color: #3f51b5;
+  --primary-dark: #002984;
+  --primary-light: #757de8;
+  --secondary-color: #ff9800;
+  --secondary-dark: #c66900;
+  --secondary-light: #ffc947;
+  --background-light: #f8f9fa;
+  --background-paper: #ffffff;
+  --text-primary: #212121;
+  --text-secondary: #757575;
+  --text-white: #ffffff;
+  --success-color: #4caf50;
+  --success-dark: #2e7d32;
+  --error-color: #f44336;
+  --error-dark: #d32f2f;
+  --warning-color: #ff9800;
+  --warning-dark: #ed6c02;
+  --info-color: #03a9f4;
+  --info-dark: #0288d1;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(45deg, var(--primary-color) 30%, var(--primary-light) 90%);
+  --gradient-secondary: linear-gradient(45deg, var(--secondary-color) 30%, var(--secondary-light) 90%);
+  --gradient-header: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  --gradient-sidebar: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.15);
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  --transition-bounce: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-circle: 50%;
+}
+
+.App {
+  min-height: 100vh;
+  background-color: var(--background-light);
+}
+
+/* Add these styles */
+.public-page {
+  min-height: 100vh;
+  padding-top: 80px; /* Height of AppBar */
+}
+
+@media (max-width: 600px) {
+  .public-page {
+    padding-top: 70px; /* Height of AppBar on mobile */
+  }
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.5s var(--transition-bounce);
+  will-change: opacity, transform;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.5s var(--transition-bounce);
+  will-change: opacity, transform;
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.5s var(--transition-bounce);
+  will-change: opacity, transform;
+}
+
+.zoom-in {
+  animation: zoomIn 0.5s var(--transition-bounce);
+  will-change: opacity, transform;
+}
+
+.bounce {
+  animation: bounce 0.5s var(--transition-bounce);
+  will-change: transform;
+}
+
+.pulse {
+  animation: pulse 1.5s infinite;
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(50px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-50px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-20px); }
+  60% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Main Content Wrapper */
+.main-content {
+  padding: 24px;
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Drawer Styles */
+.MuiDrawer-paper {
+  background-color: var(--primary-color) !important;
+  color: var(--text-primary) !important;
+  border: none !important;
+  transition: all 0.3s ease-in-out !important;
+}
+
+.MuiDrawer-paper .MuiListItem-root {
+  margin: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.MuiDrawer-paper .MuiListItem-root:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  transform: translateX(5px);
+}
+
+.MuiDrawer-paper .MuiListItemIcon-root {
+  color: white !important;
+  min-width: 40px !important;
+}
+
+.MuiDrawer-paper .MuiListItemText-root {
+  margin-left: -8px;
+}
+
+/* AppBar Styles */
+.MuiAppBar-root {
+  background: linear-gradient(90deg, var(--primary-dark) 0%, var(--primary-color) 100%) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1200 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+}
+
+/* Card and Paper Styles */
+.MuiPaper-root {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.MuiPaper-root:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Dashboard Cards */
+.dashboard-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* Content Container */
+.content-container {
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+  .main-content {
+    padding: 16px 8px;
+  }
+
+  .content-container {
+    padding: 8px;
+  }
+
+  .dashboard-card {
+    padding: 12px;
+  }
+
+  .MuiDrawer-paper {
+    width: 240px !important;
+  }
+
+  .dashboard-card .MuiTypography-h5 {
+    font-size: 1rem !important;
+  }
+
+  .dashboard-card .MuiTypography-body1 {
+    font-size: 0.875rem !important;
+  }
+
+  .MuiGrid-container {
+    padding: 8px !important;
+  }
+
+  .MuiGrid-item {
+    padding: 8px !important;
+  }
+}
+
+/* Table Styles */
+.table-container {
+  margin: 24px auto;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  overflow-x: auto;
+}
+
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .table-toolbar .MuiTextField-root {
+    width: 100%;
+  }
+}
+
+/* Card Grid Styles */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  padding: 24px;
+}
+
+@media (max-width: 600px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+/* Form Styles */
+.form-container {
+  max-width: 800px;
+  margin: 24px auto;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.form-field-full {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.form-section {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  grid-column: 1 / -1;
+}
+
+.form-section-title {
+  margin-bottom: 16px !important;
+  color: var(--primary-color) !important;
+}
+
+/* Responsive Form Adjustments */
+@media (max-width: 600px) {
+  .form-container {
+    padding: 16px;
+    margin: 16px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+}
+
+/* Status Indicators */
+.status-chip {
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-chip.success {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: var(--success-color);
+}
+
+.status-chip.warning {
+  background-color: rgba(255, 152, 0, 0.1);
+  color: var(--warning-color);
+}
+
+.status-chip.error {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: var(--error-color);
+}
+
+/* Login page styles */
+.login-page {
+  background-size: cover;
+  background-position: center;
+  min-height: 100vh;
+}
+
+@media (max-width: 600px) {
+  .login-page {
+    background-position: top center;
+  }
+}
+
+/* Material UI component transitions */
+.MuiTextField-root,
+.MuiButton-root,
+.MuiPaper-root,
+.MuiCard-root,
+.MuiChip-root,
+.MuiListItem-root {
+  transition: all var(--transition-normal) !important;
+}
+
+/* Responsive grid layout for two components per row on small devices */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  width: 100%;
+  padding: 16px;
+}
+
+@media (max-width: 960px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .responsive-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 8px;
+  }
+}
+
+/* Staggered animation for grid items */
+.staggered-item {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInStaggered 0.5s var(--transition-bounce) forwards;
+}
+
+.staggered-item:nth-child(1) { animation-delay: 0.1s; }
+.staggered-item:nth-child(2) { animation-delay: 0.2s; }
+.staggered-item:nth-child(3) { animation-delay: 0.3s; }
+.staggered-item:nth-child(4) { animation-delay: 0.4s; }
+.staggered-item:nth-child(5) { animation-delay: 0.5s; }
+.staggered-item:nth-child(6) { animation-delay: 0.6s; }
+.staggered-item:nth-child(7) { animation-delay: 0.7s; }
+.staggered-item:nth-child(8) { animation-delay: 0.8s; }
+
+@keyframes fadeInStaggered {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Add these new styles */
+.carousel-image {
+  width: 100%;
+  height: 70vh;
+  object-fit: cover;
+}
+
+.news-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+}
+
+.news-card:hover {
+  transform: translateY(-5px);
+}
+
+.stats-section {
+  background: linear-gradient(45deg, var(--primary-color), var(--primary-dark));
+  padding: 4rem 0;
+  color: white;
+}
+
+.stat-number {
+  font-size: 3rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.stat-label {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .carousel-image {
+    height: 50vh;
+  }
+
+  .stat-number {
+    font-size: 2rem;
+  }
+
+  .stat-label {
+    font-size: 1rem;
+  }
+}
+
+
+
+

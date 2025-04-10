@@ -1,0 +1,489 @@
+import axios from 'axios';
+
+/**
+ * Unified API Service
+ *
+ * A centralized API service that handles all API requests with consistent error handling,
+ * response formatting, and authentication. This replaces multiple overlapping API services
+ * and provides a single point of entry for all API calls.
+ */
+class UnifiedApiService {
+  constructor() {
+    // Create axios instance with default config
+    this.api = axios.create({
+      baseURL: process.env.REACT_APP_API_URL || '/api',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      // Add timeout to prevent long-running requests
+      timeout: 10000
+    });
+
+    // Add request interceptor for authentication
+    this.api.interceptors.request.use(
+      (config) => {
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+
+        // If token exists, add it to the headers
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        return config;
+      },
+      (error) => {
+        console.error('Request error:', error);
+        return Promise.reject(error);
+      }
+    );
+
+    // Add response interceptor for error handling
+    this.api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        // Handle different error types consistently
+        if (error.response) {
+          // Server responded with a status code outside of 2xx range
+          const status = error.response.status;
+
+          // Handle authentication errors
+          if (status === 401) {
+            // Clear token and redirect to login
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+            return Promise.reject(new Error('Your session has expired. Please log in again.'));
+          }
+
+          // Handle forbidden errors
+          if (status === 403) {
+            return Promise.reject(new Error('You do not have permission to perform this action.'));
+          }
+
+          // Handle not found errors
+          if (status === 404) {
+            return Promise.reject(new Error('The requested resource was not found.'));
+          }
+
+          // Handle validation errors
+          if (status === 422) {
+            const validationErrors = error.response.data.errors || [];
+            const errorMessage = validationErrors.map(err => err.msg).join(', ');
+            return Promise.reject(new Error(`Validation error: ${errorMessage}`));
+          }
+
+          // Handle server errors
+          if (status >= 500) {
+            return Promise.reject(new Error('A server error occurred. Please try again later.'));
+          }
+
+          // Handle other errors
+          return Promise.reject(new Error(error.response.data.message || 'An error occurred'));
+        } else if (error.request) {
+          // The request was made but no response was received
+          return Promise.reject(new Error('No response received from server. Please check your internet connection.'));
+        } else {
+          // Something happened in setting up the request
+          return Promise.reject(new Error('An error occurred while setting up the request.'));
+        }
+      }
+    );
+  }
+
+  /**
+   * Generic request method
+   * @param {string} method - HTTP method (get, post, put, delete)
+   * @param {string} url - API endpoint
+   * @param {object} data - Request data (for POST, PUT)
+   * @param {object} config - Additional axios config
+   * @returns {Promise} - Promise with response data
+   */
+  async request(method, url, data = null, config = {}) {
+    try {
+      const response = await this.api({
+        method,
+        url,
+        data,
+        ...config
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error(`API ${method.toUpperCase()} ${url} error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * GET request
+   * @param {string} url - API endpoint
+   * @param {object} config - Additional axios config
+   * @returns {Promise} - Promise with response data
+   */
+  async get(url, config = {}) {
+    return this.request('get', url, null, config);
+  }
+
+  /**
+   * POST request
+   * @param {string} url - API endpoint
+   * @param {object} data - Request data
+   * @param {object} config - Additional axios config
+   * @returns {Promise} - Promise with response data
+   */
+  async post(url, data, config = {}) {
+    return this.request('post', url, data, config);
+  }
+
+  /**
+   * PUT request
+   * @param {string} url - API endpoint
+   * @param {object} data - Request data
+   * @param {object} config - Additional axios config
+   * @returns {Promise} - Promise with response data
+   */
+  async put(url, data, config = {}) {
+    return this.request('put', url, data, config);
+  }
+
+  /**
+   * PATCH request
+   * @param {string} url - API endpoint
+   * @param {object} data - Request data
+   * @param {object} config - Additional axios config
+   * @returns {Promise} - Promise with response data
+   */
+  async patch(url, data, config = {}) {
+    return this.request('patch', url, data, config);
+  }
+
+  /**
+   * DELETE request
+   * @param {string} url - API endpoint
+   * @param {object} config - Additional axios config
+   * @returns {Promise} - Promise with response data
+   */
+  async delete(url, config = {}) {
+    return this.request('delete', url, null, config);
+  }
+
+  /**
+   * Upload file
+   * @param {string} url - API endpoint
+   * @param {FormData} formData - Form data with file
+   * @param {function} progressCallback - Callback for upload progress
+   * @returns {Promise} - Promise with response data
+   */
+  async uploadFile(url, formData, progressCallback = null) {
+    const config = {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    };
+
+    if (progressCallback) {
+      config.onUploadProgress = (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        progressCallback(percentCompleted);
+      };
+    }
+
+    return this.post(url, formData, config);
+  }
+
+  /**
+   * Download file
+   * @param {string} url - API endpoint
+   * @param {string} filename - Name to save the file as
+   * @param {function} progressCallback - Callback for download progress
+   * @returns {Promise} - Promise that resolves when download is complete
+   */
+  async downloadFile(url, filename, progressCallback = null) {
+    const config = {
+      responseType: 'blob'
+    };
+
+    if (progressCallback) {
+      config.onDownloadProgress = (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        progressCallback(percentCompleted);
+      };
+    }
+
+    try {
+      const response = await this.api.get(url, config);
+
+      // Create a download link and trigger the download
+      const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      return true;
+    } catch (error) {
+      console.error(`File download error for ${url}:`, error);
+      throw error;
+    }
+  }
+
+  // ===== DOMAIN-SPECIFIC API METHODS =====
+
+  // ----- ACADEMIC MANAGEMENT -----
+
+  /**
+   * Get current academic year
+   * @returns {Promise} - Promise with current academic year data
+   */
+  async getCurrentAcademicYear() {
+    // Always use the new-academic-years endpoint for better compatibility
+    return this.get('/new-academic-years/active');
+  }
+
+  /**
+   * Get all academic years
+   * @returns {Promise} - Promise with all academic years
+   */
+  async getAcademicYears() {
+    // Always use the new-academic-years endpoint for better compatibility
+    return this.get('/new-academic-years');
+  }
+
+  /**
+   * Get academic year terms
+   * @param {string} academicYearId - Academic year ID
+   * @returns {Promise} - Promise with academic year terms
+   */
+  async getAcademicYearTerms(academicYearId) {
+    // Always use the new-academic-years endpoint for better compatibility
+    return this.get(`/new-academic-years/${academicYearId}/terms`);
+  }
+
+  /**
+   * Update academic year terms
+   * @param {string} academicYearId - Academic year ID
+   * @param {Array} terms - Array of term objects
+   * @returns {Promise} - Promise with updated academic year
+   */
+  async updateAcademicYearTerms(academicYearId, terms) {
+    // Always use the new-academic-years endpoint for better compatibility
+    return this.put(`/new-academic-years/${academicYearId}/terms`, { terms });
+  }
+
+  /**
+   * Get classes for an academic year
+   * @param {string} academicYearId - Academic year ID
+   * @returns {Promise} - Promise with classes for the academic year
+   */
+  async getClassesByAcademicYear(academicYearId) {
+    return this.get(`/classes?academicYear=${academicYearId}`);
+  }
+
+  /**
+   * Get subjects for a class
+   * @param {string} classId - Class ID
+   * @returns {Promise} - Promise with subjects for the class
+   */
+  async getSubjectsByClass(classId) {
+    return this.get(`/subjects/class/${classId}`);
+  }
+
+  /**
+   * Get subject combinations
+   * @param {string} educationLevel - Education level (O_LEVEL or A_LEVEL)
+   * @returns {Promise} - Promise with subject combinations
+   */
+  async getSubjectCombinations(educationLevel) {
+    return this.get(`/subject-combinations?educationLevel=${educationLevel}`);
+  }
+
+  // ----- EXAM MANAGEMENT -----
+
+  /**
+   * Get exams for a class
+   * @param {string} classId - Class ID
+   * @param {string} academicYearId - Academic year ID
+   * @returns {Promise} - Promise with exams for the class
+   */
+  async getExamsByClass(classId, academicYearId) {
+    return this.get(`/exams?class=${classId}&academicYear=${academicYearId}`);
+  }
+
+  /**
+   * Create a new exam
+   * @param {object} examData - Exam data
+   * @returns {Promise} - Promise with created exam
+   */
+  async createExam(examData) {
+    return this.post('/exams', examData);
+  }
+
+  /**
+   * Get exam types
+   * @returns {Promise} - Promise with exam types
+   */
+  async getExamTypes() {
+    return this.get('/exam-types');
+  }
+
+  // ----- RESULT MANAGEMENT -----
+
+  /**
+   * Get O-Level results for a student and exam
+   * @param {string} studentId - Student ID
+   * @param {string} examId - Exam ID
+   * @returns {Promise} - Promise with O-Level results
+   */
+  async getOLevelStudentResults(studentId, examId) {
+    return this.get(`/o-level-results/student/${studentId}/${examId}`);
+  }
+
+  /**
+   * Get A-Level results for a student and exam
+   * @param {string} studentId - Student ID
+   * @param {string} examId - Exam ID
+   * @returns {Promise} - Promise with A-Level results
+   */
+  async getALevelStudentResults(studentId, examId) {
+    return this.get(`/a-level-results/student/${studentId}/${examId}`);
+  }
+
+  /**
+   * Get O-Level results for a class and exam
+   * @param {string} classId - Class ID
+   * @param {string} examId - Exam ID
+   * @returns {Promise} - Promise with O-Level class results
+   */
+  async getOLevelClassResults(classId, examId) {
+    return this.get(`/o-level-results/class/${classId}/${examId}`);
+  }
+
+  /**
+   * Get A-Level results for a class and exam
+   * @param {string} classId - Class ID
+   * @param {string} examId - Exam ID
+   * @returns {Promise} - Promise with A-Level class results
+   */
+  async getALevelClassResults(classId, examId) {
+    return this.get(`/a-level-results/class/${classId}/${examId}`);
+  }
+
+  /**
+   * Save O-Level marks
+   * @param {array} marksData - Array of marks data
+   * @returns {Promise} - Promise with saved marks
+   */
+  async saveOLevelMarks(marksData) {
+    return this.post('/o-level-results/batch', marksData);
+  }
+
+  /**
+   * Save A-Level marks
+   * @param {array} marksData - Array of marks data
+   * @returns {Promise} - Promise with saved marks
+   */
+  async saveALevelMarks(marksData) {
+    return this.post('/a-level-results/batch', marksData);
+  }
+
+  /**
+   * Save character assessment
+   * @param {object} assessmentData - Character assessment data
+   * @returns {Promise} - Promise with saved assessment
+   */
+  async saveCharacterAssessment(assessmentData) {
+    return this.post('/character-assessments', assessmentData);
+  }
+
+  /**
+   * Generate O-Level student result PDF
+   * @param {string} studentId - Student ID
+   * @param {string} examId - Exam ID
+   * @returns {Promise} - Promise with PDF blob
+   */
+  async generateOLevelStudentResultPDF(studentId, examId) {
+    return this.api.get(`/o-level-results/student/${studentId}/${examId}/pdf`, {
+      responseType: 'blob'
+    }).then(response => response.data);
+  }
+
+  /**
+   * Generate A-Level student result PDF
+   * @param {string} studentId - Student ID
+   * @param {string} examId - Exam ID
+   * @returns {Promise} - Promise with PDF blob
+   */
+  async generateALevelStudentResultPDF(studentId, examId) {
+    return this.api.get(`/a-level-results/student/${studentId}/${examId}/pdf`, {
+      responseType: 'blob'
+    }).then(response => response.data);
+  }
+
+  // ----- STUDENT MANAGEMENT -----
+
+  /**
+   * Get students by class
+   * @param {string} classId - Class ID
+   * @returns {Promise} - Promise with students in the class
+   */
+  async getStudentsByClass(classId) {
+    return this.get(`/students?class=${classId}`);
+  }
+
+  /**
+   * Get student details
+   * @param {string} studentId - Student ID
+   * @returns {Promise} - Promise with student details
+   */
+  async getStudentDetails(studentId) {
+    return this.get(`/students/${studentId}`);
+  }
+
+  /**
+   * Update student education level
+   * @param {string} studentId - Student ID
+   * @param {string} educationLevel - Education level (O_LEVEL or A_LEVEL)
+   * @returns {Promise} - Promise with updated student
+   */
+  async updateStudentEducationLevel(studentId, educationLevel) {
+    return this.put(`/students/${studentId}/education-level`, { educationLevel });
+  }
+
+  /**
+   * Update student form level
+   * @param {string} studentId - Student ID
+   * @param {number} form - Form level (1-6)
+   * @returns {Promise} - Promise with updated student
+   */
+  async updateStudentForm(studentId, form) {
+    return this.put(`/students/${studentId}/form`, { form });
+  }
+
+  // ----- COMMUNICATION -----
+
+  /**
+   * Send result SMS to parent
+   * @param {string} studentId - Student ID
+   * @param {string} examId - Exam ID
+   * @returns {Promise} - Promise with SMS status
+   */
+  async sendResultSMS(studentId, examId) {
+    return this.post(`/sms/result-notification`, { studentId, examId });
+  }
+
+  /**
+   * Send batch result SMS to parents
+   * @param {string} classId - Class ID
+   * @param {string} examId - Exam ID
+   * @returns {Promise} - Promise with SMS status
+   */
+  async sendBatchResultSMS(classId, examId) {
+    return this.post(`/sms/batch-result-notification`, { classId, examId });
+  }
+}
+
+// Create and export a singleton instance
+const unifiedApi = new UnifiedApiService();
+export default unifiedApi;

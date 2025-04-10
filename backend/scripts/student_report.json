@@ -1,0 +1,44 @@
+{
+  "reportTitle": "Midterm Exam Result Report",
+  "schoolName": "St. John Vianney Secondary School",
+  "academicYear": "2023-2024",
+  "examName": "Midterm Exam",
+  "examDate": "10/14/2023 - 10/19/2023",
+  "studentDetails": {
+    "name": "Alice Johnson",
+    "rollNumber": "S001",
+    "class": "Form 1 A Science",
+    "gender": "F"
+  },
+  "subjectResults": [
+    {
+      "subject": "Mathematics",
+      "marks": 60,
+      "grade": "C",
+      "points": 3,
+      "remarks": "Good"
+    },
+    {
+      "subject": "English",
+      "marks": 36,
+      "grade": "F",
+      "points": 5,
+      "remarks": "Fail"
+    },
+    {
+      "subject": "Physics",
+      "marks": 76,
+      "grade": "B",
+      "points": 2,
+      "remarks": "Very Good"
+    }
+  ],
+  "summary": {
+    "totalMarks": 172,
+    "averageMarks": "57.33",
+    "totalPoints": 10,
+    "bestSevenPoints": 10,
+    "division": "I",
+    "rank": "N/A"
+  }
+}

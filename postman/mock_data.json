@@ -1,0 +1,107 @@
+{
+  "info": {
+    "name": "Mock Data",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Mock Create Result",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{mock_student_id}}\",\n  \"exam_id\": \"{{mock_exam_id}}\",\n  \"score\": \"{{mock_score}}\"\n}"
+        },
+        "description": "Mock data for creating a new result record."
+      }
+    },
+    {
+      "name": "Mock Read Result",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{mock_result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{mock_result_id}}"
+          ]
+        },
+        "description": "Mock data for retrieving a result record by ID."
+      }
+    },
+    {
+      "name": "Mock Update Result",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{mock_result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{mock_result_id}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"student_id\": \"{{mock_student_id}}\",\n  \"exam_id\": \"{{mock_exam_id}}\",\n  \"score\": \"{{mock_score}}\"\n}"
+        },
+        "description": "Mock data for updating an existing result record."
+      }
+    },
+    {
+      "name": "Mock Delete Result",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/results/{{mock_result_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "results",
+            "{{mock_result_id}}"
+          ]
+        },
+        "description": "Mock data for deleting a result record by ID."
+      }
+    }
+  ]
+}
