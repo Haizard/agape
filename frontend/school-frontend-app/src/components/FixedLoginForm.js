@@ -88,7 +88,10 @@ const FixedLoginForm = ({ onClose }) => {
       console.log('Attempting login for:', emailOrUsername);
 
       // Direct API call with explicit credentials
-      const response = await fetch('http://localhost:5000/api/users/login', {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const loginUrl = `${apiUrl}/users/login`.replace('/api/api/', '/api/');
+      console.log('Using login URL:', loginUrl);
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

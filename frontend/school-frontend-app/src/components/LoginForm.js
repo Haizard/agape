@@ -88,7 +88,10 @@ const LoginForm = ({ onClose }) => {
 
       try {
         // First try with fetch to bypass any axios issues
-        const fetchResponse = await fetch('http://localhost:5000/api/users/login', {
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+        const loginUrl = `${apiUrl}/users/login`.replace('/api/api/', '/api/');
+        console.log('Using login URL:', loginUrl);
+        const fetchResponse = await fetch(loginUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
