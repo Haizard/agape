@@ -88,8 +88,14 @@ const LoginForm = ({ onClose }) => {
 
       try {
         // First try with fetch to bypass any axios issues
+        // Get the base API URL
         const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-        const loginUrl = `${apiUrl}/users/login`.replace('/api/api/', '/api/');
+        // Ensure the URL ends with /api
+        const baseUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+        // Remove any double /api/api
+        const cleanBaseUrl = baseUrl.replace('/api/api', '/api');
+        // Construct the login URL
+        const loginUrl = `${cleanBaseUrl}/users/login`;
         console.log('Using login URL:', loginUrl);
         const fetchResponse = await fetch(loginUrl, {
           method: 'POST',
