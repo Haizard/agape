@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
@@ -23,7 +24,8 @@ const api = axios.create({
 // Add request interceptor to add auth token and handle caching
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // Get token using our utility function
+    const token = getAuthToken();
     if (token) {
       // Ensure Authorization header is properly set
       config.headers.Authorization = `Bearer ${token}`;
@@ -37,7 +39,7 @@ api.interceptors.request.use(
         data: config.data
       });
     } else {
-      console.warn('No token found in localStorage');
+      console.warn('No token found in storage');
     }
 
     // Add timestamp to prevent caching
@@ -100,7 +102,37 @@ api.interceptors.response.use(
     // Handle authentication errors
     if (error.response?.status === 403 || error.response?.status === 401) {
       console.log('Authentication error detected');
-      // You could redirect to login or clear token here
+
+      // Check if this is a login request
+      if (originalRequest.url.includes('/login')) {
+        console.log('Login request failed with auth error');
+        return Promise.reject(error);
+      }
+
+      // For other requests, try to refresh token or logout
+      try {
+        // Attempt to refresh token (if you have a refresh token endpoint)
+        // const refreshResponse = await axios.post('/api/refresh-token');
+        // if (refreshResponse.data.token) {
+        //   const newToken = refreshResponse.data.token;
+        //   storeAuthToken(newToken);
+        //   originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        //   return axios(originalRequest);
+        // }
+
+        // If no refresh token or refresh failed, logout
+        console.log('Authentication failed, logging out');
+        logout();
+
+        // Redirect to login page
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      } catch (refreshError) {
+        console.error('Error during token refresh:', refreshError);
+        logout();
+        window.location.href = '/login';
+      }
     }
 
     // Implement retry logic for network errors and 5xx errors

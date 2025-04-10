@@ -11,7 +11,7 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../services/api';
 
 const EducationLevelManagement = () => {
   const [educationLevels, setEducationLevels] = useState([]);
@@ -36,12 +36,19 @@ const EducationLevelManagement = () => {
   const fetchEducationLevels = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/education-levels');
+      setError('');
+      console.log('Fetching education levels...');
+      const response = await api.get('/api/education-levels');
+      console.log('Education levels response:', response.data);
       setEducationLevels(response.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching education levels:', error);
-      setError('Failed to fetch education levels');
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      setError('Failed to fetch education levels. Please try again.');
       setLoading(false);
     }
   };
@@ -106,11 +113,11 @@ const EducationLevelManagement = () => {
 
       if (editMode && selectedLevel) {
         // Update existing education level
-        await axios.put(`/api/education-levels/${selectedLevel._id}`, formData);
+        await api.put(`/api/education-levels/${selectedLevel._id}`, formData);
         setSuccess('Education level updated successfully');
       } else {
         // Create new education level
-        await axios.post('/api/education-levels', formData);
+        await api.post('/api/education-levels', formData);
         setSuccess('Education level created successfully');
       }
 
@@ -127,7 +134,7 @@ const EducationLevelManagement = () => {
   const handleDelete = async () => {
     try {
       setLoading(true);
-      await axios.delete(`/api/education-levels/${selectedLevel._id}`);
+      await api.delete(`/api/education-levels/${selectedLevel._id}`);
       fetchEducationLevels();
       handleCloseDeleteDialog();
       setSuccess('Education level deleted successfully');

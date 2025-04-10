@@ -1,6 +1,7 @@
 import axios from 'axios';
 import store from '../store/index';
 import { logout } from '../store/slices/userSlice';
+import { getAuthToken, storeAuthToken, logout as authLogout } from '../utils/authUtils';
 
 const axiosInstance = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
@@ -23,9 +24,19 @@ axiosInstance.interceptors.request.use(
       };
     }
 
-    const token = store.getState().user?.user?.token;
+    // Try to get token from Redux store first
+    let token = store.getState().user?.user?.token;
+
+    // If not in Redux, try localStorage
+    if (!token) {
+      token = getAuthToken();
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Added token to request headers');
+    } else {
+      console.warn('No authentication token found');
     }
     return config;
   },
@@ -42,22 +53,41 @@ axiosInstance.interceptors.response.use(
 
     if (response?.status === 401) {
       try {
+        console.log('Attempting to refresh token...');
         const refreshResponse = await axiosInstance.post('/api/refresh-token');
         if (refreshResponse.data.token) {
+          const newToken = refreshResponse.data.token;
+
+          // Store in Redux
           store.dispatch({
             type: 'user/setUser',
             payload: {
               ...store.getState().user.user,
-              token: refreshResponse.data.token
+              token: newToken
             }
           });
-          config.headers.Authorization = `Bearer ${refreshResponse.data.token}`;
+
+          // Store in localStorage
+          storeAuthToken(newToken);
+
+          // Update request headers
+          config.headers.Authorization = `Bearer ${newToken}`;
+          console.log('Token refreshed successfully');
+
+          // Retry the original request
           return axiosInstance(config);
         }
+
+        console.log('Token refresh failed, logging out');
+        // Logout from both Redux and localStorage
         store.dispatch(logout());
+        authLogout();
         window.location.href = '/';
       } catch (refreshError) {
+        console.error('Error refreshing token:', refreshError);
+        // Logout from both Redux and localStorage
         store.dispatch(logout());
+        authLogout();
         window.location.href = '/';
       }
     }

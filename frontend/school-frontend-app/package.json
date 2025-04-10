@@ -41,7 +41,12 @@
     "build": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "lint": "eslint src --fix"
+    "lint": "eslint src --fix",
+    "use-production-api": "node scripts/use-production-api.js",
+    "use-local-api": "node scripts/use-local-api.js",
+    "test-api": "node scripts/test-api-connection.js",
+    "dev:prod-api": "npm run use-production-api && npm run dev",
+    "dev:local-api": "npm run use-local-api && npm run dev"
   },
   "engines": {
     "node": ">=16.0.0"

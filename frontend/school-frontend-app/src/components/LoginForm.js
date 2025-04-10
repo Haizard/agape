@@ -17,6 +17,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { setUser } from '../store/slices/userSlice';
 import api from '../services/api';
 import PropTypes from 'prop-types';
+import { storeAuthToken, storeUserData, getRoleRoute } from '../utils/authUtils';
 
 const LoginForm = ({ onClose }) => {
   const [emailOrUsername, setEmailOrUsername] = useState('');
@@ -39,19 +40,19 @@ const LoginForm = ({ onClose }) => {
       return;
     }
 
-    // Store token and user data in localStorage
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+    // Store token and user data using our utility functions
+    storeAuthToken(token);
+    storeUserData(user);
 
     // Log token for debugging
-    console.log('Token stored:', token);
+    console.log('Token stored successfully');
 
     // Log user data for debugging
-    console.log('User data:', user);
+    console.log('User data stored successfully');
     console.log('User role:', user.role);
 
     // Set api default authorization header
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
     // Dispatch user to Redux store with complete user data including role
     const userData = { ...user, token };
@@ -61,17 +62,8 @@ const LoginForm = ({ onClose }) => {
     // Close the login modal
     onClose();
 
-    // Navigate to the appropriate route based on user role
-    const roleRoutes = {
-      admin: '/admin',
-      teacher: '/teacher',
-      student: '/student',
-      parent: '/parent'
-    };
-
-    // Normalize role to lowercase for case-insensitive comparison
-    const normalizedRole = user.role.toLowerCase();
-    const targetRoute = roleRoutes[normalizedRole] || '/';
+    // Navigate to the appropriate route based on user role using our utility function
+    const targetRoute = getRoleRoute();
     console.log(`Redirecting to ${targetRoute} based on role: ${user.role}`);
     navigate(targetRoute, { replace: true });
 

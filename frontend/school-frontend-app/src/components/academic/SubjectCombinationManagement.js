@@ -12,7 +12,7 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../services/api';
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -53,12 +53,19 @@ const SubjectCombinationManagement = () => {
   const fetchCombinations = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/subject-combinations');
+      setError('');
+      console.log('Fetching subject combinations...');
+      const response = await api.get('/api/subject-combinations');
+      console.log('Subject combinations response:', response.data);
       setCombinations(response.data);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching subject combinations:', error);
-      setError('Failed to fetch subject combinations');
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      setError('Failed to fetch subject combinations. Please try again.');
       setLoading(false);
     }
   };
@@ -67,7 +74,7 @@ const SubjectCombinationManagement = () => {
     try {
       console.log('Fetching subjects for A_LEVEL and BOTH...');
       // Get subjects with educationLevel A_LEVEL or BOTH
-      const response = await axios.get('/api/subjects');
+      const response = await api.get('/api/subjects');
 
       // Filter subjects to include only those with educationLevel A_LEVEL or BOTH
       const filteredSubjects = response.data.filter(subject =>
@@ -79,7 +86,11 @@ const SubjectCombinationManagement = () => {
       return filteredSubjects; // Return the data for potential use by the caller
     } catch (error) {
       console.error('Error fetching subjects:', error);
-      setError('Failed to fetch subjects');
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      setError('Failed to fetch subjects. Please try again.');
       return []; // Return empty array in case of error
     }
   };
@@ -178,7 +189,7 @@ const SubjectCombinationManagement = () => {
       if (editMode && selectedCombination) {
         // Update existing subject combination
         try {
-          const response = await axios.put(`/api/subject-combinations/${selectedCombination._id}`, formData);
+          const response = await api.put(`/api/subject-combinations/${selectedCombination._id}`, formData);
           console.log('Update response:', response.data);
           setSuccess('Subject combination updated successfully');
           fetchCombinations();
@@ -191,7 +202,7 @@ const SubjectCombinationManagement = () => {
       } else {
         // Create new subject combination
         try {
-          const response = await axios.post('/api/subject-combinations', formData);
+          const response = await api.post('/api/subject-combinations', formData);
           console.log('Create response:', response.data);
           setSuccess('Subject combination created successfully');
           fetchCombinations();
@@ -213,7 +224,7 @@ const SubjectCombinationManagement = () => {
   const handleDelete = async () => {
     try {
       setLoading(true);
-      await axios.delete(`/api/subject-combinations/${selectedCombination._id}`);
+      await api.delete(`/api/subject-combinations/${selectedCombination._id}`);
       fetchCombinations();
       handleCloseDeleteDialog();
       setSuccess('Subject combination deleted successfully');

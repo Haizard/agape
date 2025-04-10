@@ -19,7 +19,7 @@ import {
   FormControlLabel
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../services/api';
 
 const ExamTypeManagement = () => {
   const [examTypes, setExamTypes] = useState([]);
@@ -34,15 +34,22 @@ const ExamTypeManagement = () => {
 
   const fetchExamTypes = async () => {
     try {
-      const response = await axios.get('/api/exam-types');
+      console.log('Fetching exam types...');
+      const response = await api.get('/api/exam-types');
+      console.log('Exam types response:', response.data);
       setExamTypes(response.data);
     } catch (error) {
       console.error('Error fetching exam types:', error);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
     }
   };
 
   useEffect(() => {
     fetchExamTypes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleOpen = (examType = null) => {
@@ -75,9 +82,9 @@ const ExamTypeManagement = () => {
     e.preventDefault();
     try {
       if (selectedExamType) {
-        await axios.put(`/api/exam-types/${selectedExamType._id}`, formData);
+        await api.put(`/api/exam-types/${selectedExamType._id}`, formData);
       } else {
-        await axios.post('/api/exam-types', formData);
+        await api.post('/api/exam-types', formData);
       }
       fetchExamTypes();
       handleClose();
@@ -89,7 +96,7 @@ const ExamTypeManagement = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this exam type?')) {
       try {
-        await axios.delete(`/api/exam-types/${id}`);
+        await api.delete(`/api/exam-types/${id}`);
         fetchExamTypes();
       } catch (error) {
         console.error('Error deleting exam type:', error);
@@ -164,7 +171,7 @@ const ExamTypeManagement = () => {
             type="number"
             label="Max Marks"
             value={formData.maxMarks}
-            onChange={(e) => setFormData({ ...formData, maxMarks: parseInt(e.target.value) })}
+            onChange={(e) => setFormData({ ...formData, maxMarks: Number.parseInt(e.target.value, 10) })}
             margin="normal"
           />
           <FormControlLabel
