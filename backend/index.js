@@ -69,7 +69,8 @@ const app = express();
 // Configure CORS with specific options
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://st-john-vianey-frontend.onrender.com'
+  'https://st-john-vianey-frontend.onrender.com',
+  'https://agape-seminary-school-system.onrender.com'
 ];
 
 app.use(cors({
