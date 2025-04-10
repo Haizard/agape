@@ -2,6 +2,7 @@
   "name": "school-frontend-app",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://haizard.github.io/agape",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -41,7 +42,9 @@
     "build": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "lint": "eslint src --fix"
+    "lint": "eslint src --fix",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -68,6 +71,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "gh-pages": "^6.3.0",
     "http-proxy-middleware": "^2.0.6"
   }
 }
