@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/agape/static/css/main.4efb37a3.css",
+    "main.js": "/agape/static/js/main.c238d76d.js",
+    "static/js/52.57104bb4.chunk.js": "/agape/static/js/52.57104bb4.chunk.js",
+    "static/js/760.4004c8c4.chunk.js": "/agape/static/js/760.4004c8c4.chunk.js",
+    "static/js/239.55fc41ba.chunk.js": "/agape/static/js/239.55fc41ba.chunk.js",
+    "static/js/206.a7632fb5.chunk.js": "/agape/static/js/206.a7632fb5.chunk.js",
+    "index.html": "/agape/index.html"
+  },
+  "entrypoints": [
+    "static/css/main.4efb37a3.css",
+    "static/js/main.c238d76d.js"
+  ]
+}
