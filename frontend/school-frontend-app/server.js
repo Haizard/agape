@@ -14,8 +14,8 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https://st-john-vianey-api.onrender.com"],
-      connectSrc: ["'self'", "https://st-john-vianey-api.onrender.com"]
+      imgSrc: ["'self'", "data:", "https://agape-seminary-school-system.onrender.com"],
+      connectSrc: ["'self'", "https://agape-seminary-school-system.onrender.com", "https://agape-seminary-school-system.onrender.com/api", "http://localhost:5000", "http://localhost:5000/api"]
     }
   },
   crossOriginEmbedderPolicy: false
