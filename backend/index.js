@@ -105,10 +105,28 @@ console.log(`CORS configured for environment: ${process.env.NODE_ENV || 'develop
 // Handle preflight requests
 app.options('*', cors());
 
-// Health check endpoint
+// Health check endpoints
 app.get('/api/health', (req, res) => {
   console.log('Health check request received');
   res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
+// Authentication test endpoint
+app.get('/api/auth-test', (req, res) => {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  console.log('Auth test request received with header:', authHeader);
+
+  if (!authHeader) {
+    return res.status(401).json({ status: 'error', message: 'No authorization header found' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ status: 'error', message: 'No token found in authorization header' });
+  }
+
+  // We're not actually verifying the token here, just checking if it exists
+  res.status(200).json({ status: 'ok', message: 'Authorization header found', token_present: true });
 });
 
 // Parse JSON request bodies
