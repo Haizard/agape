@@ -8,7 +8,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: REACT_APP_API_URL
-        value: https://agape-seminary-school-system.onrender.com/api
+        value: https://agape-seminary-school.onrender.com/api
       - key: REACT_APP_USE_MOCK_DATA
         value: false
     autoDeploy: true
