@@ -55,35 +55,43 @@ const AcademicResultsSection = ({ report }) => {
   return (
     <Box>
       {/* Section Header */}
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Typography variant="h4" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+      <Box sx={{ mb: 3, textAlign: 'center', border: '2px solid #000', p: 2 }}>
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
           ACADEMIC RESULTS
         </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Typography variant="subtitle1">
-          {report.examName || 'Examination'} - {report.academicYear || 'Academic Year'}
+        <Divider sx={{ mb: 2, borderColor: '#000' }} />
+        <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+          {report.examName || 'Mid-Term Examination'} - {report.academicYear || 'Academic Year 2023-2024'}
         </Typography>
       </Box>
 
       {/* Subject Results Tabs */}
-      <Paper elevation={2} sx={{ mb: 4, borderRadius: 2 }}>
+      <Paper elevation={1} sx={{ mb: 3, borderRadius: 0, border: '1px solid #000' }}>
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
           centered
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          sx={{ borderBottom: 2, borderColor: '#000' }}
+          TabIndicatorProps={{ style: { backgroundColor: '#000' } }}
         >
-          <Tab icon={<SchoolIcon />} label="Principal Subjects" />
-          <Tab icon={<MenuBookIcon />} label="Subsidiary Subjects" />
+          <Tab
+            icon={<SchoolIcon />}
+            label="Principal Subjects"
+            sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}
+          />
+          <Tab
+            icon={<MenuBookIcon />}
+            label="Subsidiary Subjects"
+            sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}
+          />
         </Tabs>
 
         {/* Principal Subjects Tab */}
         {tabValue === 0 && (
           <Box sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ color: 'primary.main' }}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #000', pb: 1 }}>
               Principal Subjects
             </Typography>
-            <Divider sx={{ mb: 2 }} />
 
             {report.principalSubjects && report.principalSubjects.length > 0 ? (
               <TableContainer>
@@ -133,10 +141,9 @@ const AcademicResultsSection = ({ report }) => {
         {/* Subsidiary Subjects Tab */}
         {tabValue === 1 && (
           <Box sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ color: 'primary.main' }}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid #000', pb: 1 }}>
               Subsidiary Subjects
             </Typography>
-            <Divider sx={{ mb: 2 }} />
 
             {report.subsidiarySubjects && report.subsidiarySubjects.length > 0 ? (
               <TableContainer>
@@ -185,11 +192,10 @@ const AcademicResultsSection = ({ report }) => {
       </Paper>
 
       {/* Performance Summary */}
-      <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-        <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+      <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 0, border: '1px solid #000' }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid #000', pb: 1 }}>
           PERFORMANCE SUMMARY
         </Typography>
-        <Divider sx={{ mb: 3 }} />
 
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
@@ -246,11 +252,10 @@ const AcademicResultsSection = ({ report }) => {
       </Paper>
 
       {/* A-Level Division Guide */}
-      <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-        <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+      <Paper elevation={1} sx={{ p: 3, borderRadius: 0, border: '1px solid #000' }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid #000', pb: 1 }}>
           A-LEVEL DIVISION GUIDE
         </Typography>
-        <Divider sx={{ mb: 2 }} />
         <Typography variant="body2" paragraph>
           A-LEVEL Division is calculated based on best 3 principal subjects:
         </Typography>
