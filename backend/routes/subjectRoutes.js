@@ -58,6 +58,56 @@ router.post('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (
   }
 });
 
+// Create multiple subjects (bulk creation)
+router.post('/bulk', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log('POST /api/subjects/bulk - Creating multiple subjects');
+
+    if (!Array.isArray(req.body)) {
+      return res.status(400).json({ message: 'Request body must be an array of subjects' });
+    }
+
+    console.log(`Attempting to create ${req.body.length} subjects`);
+
+    // Create subjects in bulk
+    const results = [];
+    const errors = [];
+
+    for (const subjectData of req.body) {
+      try {
+        // Check if subject with same code already exists
+        const existingSubject = await Subject.findOne({ code: subjectData.code });
+        if (existingSubject) {
+          console.log(`Subject with code ${subjectData.code} already exists, skipping`);
+          errors.push({ code: subjectData.code, error: 'Subject with this code already exists' });
+          continue;
+        }
+
+        const subject = new Subject(subjectData);
+        const newSubject = await subject.save();
+        results.push(newSubject);
+        console.log(`Created subject: ${newSubject.name} (${newSubject.code})`);
+      } catch (error) {
+        console.error(`Error creating subject ${subjectData.code}:`, error);
+        errors.push({ code: subjectData.code, error: error.message });
+      }
+    }
+
+    res.status(201).json({
+      message: `Created ${results.length} subjects successfully, ${errors.length} failed`,
+      created: results,
+      errors: errors
+    });
+  } catch (error) {
+    console.error('Error in bulk subject creation:', error);
+    res.status(500).json({
+      message: error.message,
+      code: error.code,
+      name: error.name
+    });
+  }
+});
+
 // Update subject
 router.put('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
