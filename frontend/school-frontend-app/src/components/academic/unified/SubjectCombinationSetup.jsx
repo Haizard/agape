@@ -427,12 +427,12 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
           name: 'Physics, Chemistry, Mathematics',
           code: 'PCM',
           description: 'Science combination with Physics, Chemistry, and Mathematics',
-          principalSubjects: [
+          subjects: [
             findSubjectByName('physics'),
             findSubjectByName('chemistry'),
             findSubjectByName('mathematics')
           ].filter(Boolean),
-          subsidiarySubjects: [
+          compulsorySubjects: [
             findSubjectByName('english'),
             findSubjectByName('general studies')
           ].filter(Boolean)
@@ -441,12 +441,12 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
           name: 'Physics, Geography, Mathematics',
           code: 'PGM',
           description: 'Science combination with Physics, Geography, and Mathematics',
-          principalSubjects: [
+          subjects: [
             findSubjectByName('physics'),
             findSubjectByName('geography'),
             findSubjectByName('mathematics')
           ].filter(Boolean),
-          subsidiarySubjects: [
+          compulsorySubjects: [
             findSubjectByName('english'),
             findSubjectByName('general studies')
           ].filter(Boolean)
@@ -455,12 +455,12 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
           name: 'History, Geography, Kiswahili',
           code: 'HGK',
           description: 'Arts combination with History, Geography, and Kiswahili',
-          principalSubjects: [
+          subjects: [
             findSubjectByName('history'),
             findSubjectByName('geography'),
             findSubjectByName('kiswahili')
           ].filter(Boolean),
-          subsidiarySubjects: [
+          compulsorySubjects: [
             findSubjectByName('english'),
             findSubjectByName('general studies')
           ].filter(Boolean)
@@ -469,12 +469,12 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
           name: 'Chemistry, Biology, Mathematics',
           code: 'CBM',
           description: 'Science combination with Chemistry, Biology, and Mathematics',
-          principalSubjects: [
+          subjects: [
             findSubjectByName('chemistry'),
             findSubjectByName('biology'),
             findSubjectByName('mathematics')
           ].filter(Boolean),
-          subsidiarySubjects: [
+          compulsorySubjects: [
             findSubjectByName('english'),
             findSubjectByName('general studies')
           ].filter(Boolean)
@@ -483,7 +483,7 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
 
       // Validate combinations
       const validCombinations = combinations.filter(
-        combo => combo.principalSubjects.length === 3 && combo.subsidiarySubjects.length > 0
+        combo => combo.subjects.length === 3 && combo.compulsorySubjects.length > 0
       );
 
       if (validCombinations.length === 0) {
@@ -606,17 +606,17 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
 
             <Grid item xs={12} md={6}>
               <Typography variant="subtitle2" gutterBottom>
-                Principal Subjects ({formData.principalSubjects.length} selected)
+                Principal Subjects ({formData.subjects ? formData.subjects.length : 0} selected)
               </Typography>
 
               <Paper variant="outlined" sx={{ p: 2, minHeight: 100 }}>
-                {formData.principalSubjects.length === 0 ? (
+                {!formData.subjects || formData.subjects.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
                     No principal subjects selected
                   </Typography>
                 ) : (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {formData.principalSubjects.map(subjectId => (
+                    {formData.subjects.map(subjectId => (
                       <Chip
                         key={subjectId}
                         label={getSubjectName(subjectId)}
@@ -641,17 +641,17 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
 
             <Grid item xs={12} md={6}>
               <Typography variant="subtitle2" gutterBottom>
-                Subsidiary Subjects ({formData.subsidiarySubjects.length} selected)
+                Subsidiary Subjects ({formData.compulsorySubjects ? formData.compulsorySubjects.length : 0} selected)
               </Typography>
 
               <Paper variant="outlined" sx={{ p: 2, minHeight: 100 }}>
-                {formData.subsidiarySubjects.length === 0 ? (
+                {!formData.compulsorySubjects || formData.compulsorySubjects.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
                     No subsidiary subjects selected
                   </Typography>
                 ) : (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {formData.subsidiarySubjects.map(subjectId => (
+                    {formData.compulsorySubjects.map(subjectId => (
                       <Chip
                         key={subjectId}
                         label={getSubjectName(subjectId)}
