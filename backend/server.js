@@ -67,37 +67,55 @@ const connectDB = async () => {
   }
 
   try {
-    // Enhanced connection options for better resilience
-    const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 30000,      // Increased timeout for server selection
-      socketTimeoutMS: 60000,               // Increased timeout for socket operations
-      family: 4,                            // Force IPv4 only
-      maxPoolSize: 20,                      // Increased pool size for more connections
-      minPoolSize: 5,                       // Maintain at least 5 socket connections
-      retryWrites: true,                    // Retry write operations if they fail
-      retryReads: true,                     // Retry read operations if they fail
-      w: 'majority',                        // Write to primary and at least one secondary
-      readPreference: 'primaryPreferred',   // Prefer primary but allow secondary reads
-      maxIdleTimeMS: 60000,                 // Increased idle time before closing connections
-      heartbeatFrequencyMS: 10000,          // Check server status every 10 seconds
-      // Removed deprecated keepAlive options
-      autoIndex: false,                     // Don't build indexes automatically in production
-      bufferCommands: true,                 // Enable command buffering when disconnected
-      connectTimeoutMS: 30000,              // Increased timeout for initial connection
-      // Do NOT use directConnection with SRV URIs
-      // directConnection: false,
-    };
-
     // Check if we're using an SRV connection string
     const isSrvUri = process.env.MONGODB_URI.includes('mongodb+srv://');
     console.log(`Using ${isSrvUri ? 'SRV' : 'standard'} connection string`);
 
-    // Only use directConnection with standard URIs, not with SRV URIs
-    if (!isSrvUri && process.env.NODE_ENV === 'production') {
-      options.directConnection = true;
-      console.log('Enabling directConnection for standard URI');
+    // Configure connection options based on URI type
+    let options;
+    if (isSrvUri) {
+      // SRV URI options (no directConnection)
+      options = {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 30000,      // Increased timeout for server selection
+        socketTimeoutMS: 60000,               // Increased timeout for socket operations
+        family: 4,                            // Force IPv4 only
+        maxPoolSize: 20,                      // Increased pool size for more connections
+        minPoolSize: 5,                       // Maintain at least 5 socket connections
+        retryWrites: true,                    // Retry write operations if they fail
+        retryReads: true,                     // Retry read operations if they fail
+        w: 'majority',                        // Write to primary and at least one secondary
+        readPreference: 'primaryPreferred',   // Prefer primary but allow secondary reads
+        maxIdleTimeMS: 60000,                 // Increased idle time before closing connections
+        heartbeatFrequencyMS: 10000,          // Check server status every 10 seconds
+        autoIndex: false,                     // Don't build indexes automatically in production
+        bufferCommands: true,                 // Enable command buffering when disconnected
+        connectTimeoutMS: 30000               // Increased timeout for initial connection
+      };
+      console.log('Using SRV URI configuration (no directConnection)');
+    } else {
+      // Standard URI options (can use directConnection)
+      options = {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 30000,      // Increased timeout for server selection
+        socketTimeoutMS: 60000,               // Increased timeout for socket operations
+        family: 4,                            // Force IPv4 only
+        maxPoolSize: 20,                      // Increased pool size for more connections
+        minPoolSize: 5,                       // Maintain at least 5 socket connections
+        retryWrites: true,                    // Retry write operations if they fail
+        retryReads: true,                     // Retry read operations if they fail
+        w: 'majority',                        // Write to primary and at least one secondary
+        readPreference: 'primaryPreferred',   // Prefer primary but allow secondary reads
+        maxIdleTimeMS: 60000,                 // Increased idle time before closing connections
+        heartbeatFrequencyMS: 10000,          // Check server status every 10 seconds
+        autoIndex: false,                     // Don't build indexes automatically in production
+        bufferCommands: true,                 // Enable command buffering when disconnected
+        connectTimeoutMS: 30000,              // Increased timeout for initial connection
+        directConnection: process.env.NODE_ENV === 'production'
+      };
+      console.log('Using standard URI configuration with directConnection:', process.env.NODE_ENV === 'production');
     }
 
     // Try to connect with the primary connection string

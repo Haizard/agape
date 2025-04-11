@@ -41,9 +41,11 @@ services:
       - key: NODE_ENV
         value: production
       - key: REACT_APP_API_URL
-        value: https://agape-seminary-school.onrender.com/api
+        value: https://st-john-vianey-api.onrender.com/api
       - key: REACT_APP_USE_MOCK_DATA
         value: "false"
+      - key: REACT_APP_TIMEOUT
+        value: "60000"
 
 # Database
 databases:

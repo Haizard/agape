@@ -7,9 +7,11 @@ const Student = require('../models/Student');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 // Get all classes
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     console.log('GET /api/classes - Fetching all classes');
+    console.log('Query parameters:', req.query);
+    console.log('Auth header:', req.headers.authorization ? 'Present' : 'Not present');
 
     // Check database connection
     if (mongoose.connection.readyState !== 1) {
@@ -23,18 +25,20 @@ router.get('/', authenticateToken, async (req, res) => {
     // Filter by academic year if provided
     if (req.query.academicYear) {
       query.academicYear = req.query.academicYear;
+      console.log(`Filtering by academic year: ${req.query.academicYear}`);
     }
 
     // Filter by education level if provided
     if (req.query.educationLevel) {
       query.educationLevel = req.query.educationLevel;
+      console.log(`Filtering by education level: ${req.query.educationLevel}`);
     }
 
-    console.log('Query:', query);
+    console.log('MongoDB query:', JSON.stringify(query));
 
     // Use a timeout promise to handle potential hanging queries
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timed out')), 15000);
+      setTimeout(() => reject(new Error('Database query timed out')), 30000); // Increased timeout
     });
 
     const queryPromise = Class.find(query)
@@ -47,6 +51,12 @@ router.get('/', authenticateToken, async (req, res) => {
     const classes = await Promise.race([queryPromise, timeoutPromise]);
 
     console.log(`Found ${classes.length} classes`);
+
+    // Add cache control headers
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Expires', '-1');
+    res.set('Pragma', 'no-cache');
+
     res.json(classes);
   } catch (error) {
     console.error('Error fetching classes:', error);

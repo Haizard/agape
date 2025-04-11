@@ -10,7 +10,7 @@ import axios from 'axios';
 class UnifiedApiService {
   constructor() {
     // Create axios instance with default config
-    const timeout = process.env.REACT_APP_TIMEOUT ? parseInt(process.env.REACT_APP_TIMEOUT) : 30000;
+    const timeout = process.env.REACT_APP_TIMEOUT ? parseInt(process.env.REACT_APP_TIMEOUT, 10) : 60000;
     console.log(`UnifiedApiService: Using API URL: ${process.env.REACT_APP_API_URL || '/api'}`);
     console.log(`UnifiedApiService: Using timeout: ${timeout}ms`);
 
@@ -30,10 +30,13 @@ class UnifiedApiService {
       (config) => {
         // Get token from localStorage
         const token = localStorage.getItem('token');
+        console.log('Token in localStorage:', token ? 'Present' : 'Not present');
 
         // If token exists, add it to the headers
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+        } else {
+          console.log('No token found in localStorage');
         }
 
         return config;
@@ -46,11 +49,19 @@ class UnifiedApiService {
 
     // Add response interceptor for error handling
     this.api.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        console.log(`Response from ${response.config.url}:`, response.status);
+        return response.data;
+      },
       (error) => {
+        console.error('Response error:', error);
+
         // Handle different error types consistently
         if (error.response) {
           // Server responded with a status code outside of 2xx range
+          console.error('Error response status:', error.response.status);
+          console.error('Error response data:', error.response.data);
+
           const status = error.response.status;
 
           // Handle authentication errors
@@ -87,9 +98,11 @@ class UnifiedApiService {
           return Promise.reject(new Error(error.response.data.message || 'An error occurred'));
         } else if (error.request) {
           // The request was made but no response was received
+          console.error('No response received:', error.request);
           return Promise.reject(new Error('No response received from server. Please check your internet connection.'));
         } else {
           // Something happened in setting up the request
+          console.error('Error message:', error.message);
           return Promise.reject(new Error('An error occurred while setting up the request.'));
         }
       }

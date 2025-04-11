@@ -72,8 +72,21 @@ const allowedOrigins = [
   'https://st-john-vianey-frontend.onrender.com',
   'https://agape-seminary-school-system.onrender.com',
   'https://agape-seminary-school.onrender.com',
-  'https://agape-seminary-school-frontend.onrender.com'
+  'https://agape-seminary-school-frontend.onrender.com',
+  // Add any additional origins here
 ];
+
+// Extract CORS origins from environment variable if available
+if (process.env.CORS_ALLOWED_ORIGINS) {
+  const corsOrigins = process.env.CORS_ALLOWED_ORIGINS.split(',');
+  corsOrigins.forEach(origin => {
+    if (origin && !allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin.trim());
+    }
+  });
+}
+
+console.log('Allowed CORS origins:', allowedOrigins);
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -87,6 +100,7 @@ app.use(cors({
         return callback(null, true);
       }
 
+      console.log('Blocked origin:', origin);
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
