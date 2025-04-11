@@ -64,52 +64,60 @@ const SingleStudentReport = () => {
         return;
       }
 
-      // Fetch the student data
-      const studentUrl = `${process.env.REACT_APP_API_URL || ''}/api/students/${studentId}`;
-      console.log('Fetching student data from:', studentUrl);
+      console.log(`Fetching real data for student ${studentId} and exam ${examId}`);
 
-      const studentResponse = await axios.get(studentUrl, {
+      // Use the comprehensive A-Level endpoint to get all the data we need
+      const apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+      console.log('Fetching from API:', apiUrl);
+
+      const response = await axios.get(apiUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
-      setStudentData(studentResponse.data);
+      console.log('API Response:', response.data);
+      const reportData = response.data;
 
-      // Fetch the exam data
-      const examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
-      console.log('Fetching exam data from:', examUrl);
+      // Verify this is an A-Level report
+      if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
+        throw new Error('This is not an A-Level report. Please use the appropriate report component.');
+      }
 
-      const examResponse = await axios.get(examUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      // Format student data
+      const formattedStudentData = {
+        id: studentId,
+        name: reportData.studentDetails.name,
+        admissionNumber: reportData.studentDetails.rollNumber,
+        gender: reportData.studentDetails.gender,
+        form: reportData.studentDetails.form,
+        class: reportData.studentDetails.class,
+        subjectCombination: reportData.studentDetails.subjectCombination,
+        combinationName: reportData.studentDetails.subjectCombination
+      };
 
-      setExamData(examResponse.data);
+      // Format exam data
+      const formattedExamData = {
+        id: examId,
+        name: reportData.examName,
+        startDate: reportData.examDate?.split(' - ')?.[0] || '',
+        endDate: reportData.examDate?.split(' - ')?.[1] || '',
+        term: reportData.exam?.term || 'Term 1',
+        academicYear: reportData.academicYear
+      };
 
-      // Fetch the student's results for this exam
-      const resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
-      console.log('Fetching results from:', resultsUrl);
+      // Set the state with the formatted data
+      setStudentData(formattedStudentData);
+      setExamData(formattedExamData);
+      setPrincipalSubjects(reportData.principalSubjects || []);
+      setSubsidiarySubjects(reportData.subsidiarySubjects || []);
+      setSummary(reportData.summary || {});
 
-      const resultsResponse = await axios.get(resultsUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      const resultData = resultsResponse.data;
-
-      // Set principal and subsidiary subjects
-      setPrincipalSubjects(resultData.principalSubjects || []);
-      setSubsidiarySubjects(resultData.subsidiarySubjects || []);
-      setSummary(resultData.summary || {});
+      console.log('Data processing complete');
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError(`Failed to load data: ${err.message}`);
+      setError(`Failed to load data: ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
     }
@@ -498,8 +506,8 @@ const SingleStudentReport = () => {
             </TableHead>
             <TableBody>
               {principalSubjects.length > 0 ? (
-                principalSubjects.map((subject, index) => (
-                  <TableRow key={index} className="subject-row">
+                principalSubjects.map((subject) => (
+                  <TableRow key={`principal-${subject.code}`} className="subject-row">
                     <TableCell className="subject-name">{subject.subject}</TableCell>
                     <TableCell align="center" className="subject-code">{subject.code}</TableCell>
                     <TableCell align="center" className="subject-marks">{subject.marks}</TableCell>
@@ -537,8 +545,8 @@ const SingleStudentReport = () => {
             </TableHead>
             <TableBody>
               {subsidiarySubjects.length > 0 ? (
-                subsidiarySubjects.map((subject, index) => (
-                  <TableRow key={index} className="subject-row">
+                subsidiarySubjects.map((subject) => (
+                  <TableRow key={`subsidiary-${subject.code}`} className="subject-row">
                     <TableCell className="subject-name">{subject.subject}</TableCell>
                     <TableCell align="center" className="subject-code">{subject.code}</TableCell>
                     <TableCell align="center" className="subject-marks">{subject.marks}</TableCell>

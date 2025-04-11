@@ -56,7 +56,7 @@ const BulkReportDownloader = () => {
   const [students, setStudents] = useState([]);
   const [years, setYears] = useState([]);
   const [examTypes, setExamTypes] = useState([]);
-  
+
   // Filters
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedExam, setSelectedExam] = useState('');
@@ -64,11 +64,11 @@ const BulkReportDownloader = () => {
   const [selectedExamType, setSelectedExamType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudents, setSelectedStudents] = useState([]);
-  
+
   // Download status
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  
+
   // Fetch classes
   const fetchClasses = useCallback(async () => {
     try {
@@ -78,48 +78,48 @@ const BulkReportDownloader = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       // Filter for A-Level classes only
-      const aLevelClasses = response.data.filter(c => 
-        c.educationLevel === 'A_LEVEL' || 
-        c.name?.includes('Form 5') || 
+      const aLevelClasses = response.data.filter(c =>
+        c.educationLevel === 'A_LEVEL' ||
+        c.name?.includes('Form 5') ||
         c.name?.includes('Form 6')
       );
-      
+
       setClasses(aLevelClasses);
     } catch (err) {
       console.error('Error fetching classes:', err);
       setError('Failed to load classes. Please try again.');
     }
   }, []);
-  
+
   // Fetch exams
   const fetchExams = useCallback(async () => {
     try {
       let url = `${process.env.REACT_APP_API_URL || ''}/api/exams`;
-      
+
       // Add filters if selected
       const params = new URLSearchParams();
-      if (selectedYear) params.append('year', selectedYear);
-      if (selectedExamType) params.append('type', selectedExamType);
-      
+      if (selectedYear) params.append('academicYearId', selectedYear);
+      if (selectedExamType) params.append('examTypeId', selectedExamType);
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
-      
+
       const response = await axios.get(url, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setExams(response.data);
-      
+
       // Extract unique years and exam types
       const uniqueYears = [...new Set(response.data.map(exam => exam.academicYear))].filter(Boolean);
       const uniqueTypes = [...new Set(response.data.map(exam => exam.type))].filter(Boolean);
-      
+
       setYears(uniqueYears);
       setExamTypes(uniqueTypes);
     } catch (err) {
@@ -127,11 +127,11 @@ const BulkReportDownloader = () => {
       setError('Failed to load exams. Please try again.');
     }
   }, [selectedYear, selectedExamType]);
-  
+
   // Fetch students
   const fetchStudents = useCallback(async () => {
     if (!selectedClass) return;
-    
+
     try {
       setLoading(true);
       const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/students?class=${selectedClass}`, {
@@ -140,7 +140,7 @@ const BulkReportDownloader = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setStudents(response.data);
       setLoading(false);
     } catch (err) {
@@ -149,13 +149,13 @@ const BulkReportDownloader = () => {
       setLoading(false);
     }
   }, [selectedClass]);
-  
+
   // Load initial data
   useEffect(() => {
     fetchClasses();
     fetchExams();
   }, [fetchClasses, fetchExams]);
-  
+
   // Load students when class is selected
   useEffect(() => {
     if (selectedClass) {
@@ -164,49 +164,47 @@ const BulkReportDownloader = () => {
       setStudents([]);
     }
   }, [selectedClass, fetchStudents]);
-  
+
   // Handle class selection
   const handleClassChange = (event) => {
     setSelectedClass(event.target.value);
     setSelectedStudents([]);
   };
-  
+
   // Handle exam selection
   const handleExamChange = (event) => {
     setSelectedExam(event.target.value);
   };
-  
+
   // Handle year selection
   const handleYearChange = (event) => {
     setSelectedYear(event.target.value);
   };
-  
+
   // Handle exam type selection
   const handleExamTypeChange = (event) => {
     setSelectedExamType(event.target.value);
   };
-  
+
   // Handle search query change
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
   };
-  
+
   // Clear search query
   const handleClearSearch = () => {
     setSearchQuery('');
   };
-  
+
   // Handle student selection
   const handleStudentSelect = (studentId) => {
-    setSelectedStudents(prev => {
-      if (prev.includes(studentId)) {
-        return prev.filter(id => id !== studentId);
-      } else {
-        return [...prev, studentId];
-      }
-    });
+    setSelectedStudents(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
   };
-  
+
   // Select all students
   const handleSelectAll = () => {
     if (selectedStudents.length === filteredStudents.length) {
@@ -215,30 +213,30 @@ const BulkReportDownloader = () => {
       setSelectedStudents(filteredStudents.map(student => student._id));
     }
   };
-  
+
   // Filter students based on search query
   const filteredStudents = students.filter(student => {
     const fullName = `${student.firstName} ${student.lastName}`;
     return fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (student.admissionNumber && student.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+           student.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase());
   });
-  
+
   // Download selected student reports
   const handleDownload = async () => {
     if (!selectedExam || selectedStudents.length === 0) {
       setError('Please select an exam and at least one student.');
       return;
     }
-    
+
     try {
       setDownloading(true);
       setDownloadProgress(0);
       setError(null);
       setSuccess(null);
-      
+
       // Create a zip file with all reports
       const downloadUrl = `${process.env.REACT_APP_API_URL || ''}/api/reports/bulk-download`;
-      
+
       const response = await axios.post(
         downloadUrl,
         {
@@ -258,24 +256,24 @@ const BulkReportDownloader = () => {
           }
         }
       );
-      
+
       // Create a download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Get exam name for the filename
       const exam = exams.find(e => e._id === selectedExam);
       const examName = exam ? exam.name.replace(/\s+/g, '_') : 'reports';
-      
+
       link.setAttribute('download', `${examName}_reports.zip`);
       document.body.appendChild(link);
       link.click();
-      
+
       // Clean up
       window.URL.revokeObjectURL(url);
       link.remove();
-      
+
       setDownloading(false);
       setSuccess(`Successfully downloaded ${selectedStudents.length} student reports.`);
     } catch (err) {
@@ -284,17 +282,17 @@ const BulkReportDownloader = () => {
       setDownloading(false);
     }
   };
-  
+
   // View a single student report
   const handleViewReport = (studentId) => {
     if (!selectedExam) {
       setError('Please select an exam first.');
       return;
     }
-    
+
     navigate(`/results/student-report/${studentId}/${selectedExam}`);
   };
-  
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom>
@@ -303,19 +301,19 @@ const BulkReportDownloader = () => {
       <Typography variant="body1" color="text.secondary" paragraph>
         Download multiple student reports at once with advanced filtering options.
       </Typography>
-      
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-      
+
       {success && (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
           {success}
         </Alert>
       )}
-      
+
       <Grid container spacing={3}>
         {/* Filters Section */}
         <Grid item xs={12} md={4}>
@@ -324,7 +322,7 @@ const BulkReportDownloader = () => {
               <FilterIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
               Filters
             </Typography>
-            
+
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <FormControl fullWidth>
@@ -344,7 +342,7 @@ const BulkReportDownloader = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel id="exam-type-select-label">Exam Type</InputLabel>
@@ -363,7 +361,7 @@ const BulkReportDownloader = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel id="exam-select-label">Exam</InputLabel>
@@ -383,7 +381,7 @@ const BulkReportDownloader = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel id="class-select-label">Class</InputLabel>
@@ -402,7 +400,7 @@ const BulkReportDownloader = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <Button
                   variant="contained"
@@ -418,7 +416,7 @@ const BulkReportDownloader = () => {
             </Grid>
           </Paper>
         </Grid>
-        
+
         {/* Students Section */}
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 2 }}>
@@ -427,7 +425,7 @@ const BulkReportDownloader = () => {
                 <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
                 Students
               </Typography>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TextField
                   placeholder="Search students..."
@@ -444,7 +442,7 @@ const BulkReportDownloader = () => {
                   }}
                   sx={{ mr: 2 }}
                 />
-                
+
                 <Button
                   variant="outlined"
                   onClick={handleSelectAll}
@@ -459,9 +457,9 @@ const BulkReportDownloader = () => {
                 </Button>
               </Box>
             </Box>
-            
+
             <Divider sx={{ mb: 2 }} />
-            
+
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                 <CircularProgress />
@@ -536,12 +534,12 @@ const BulkReportDownloader = () => {
                 })}
               </List>
             )}
-            
+
             <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 {selectedStudents.length} of {filteredStudents.length} students selected
               </Typography>
-              
+
               <Button
                 variant="contained"
                 color="primary"
