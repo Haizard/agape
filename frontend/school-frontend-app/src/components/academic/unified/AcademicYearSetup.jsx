@@ -38,7 +38,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-// No external API service needed
+import unifiedApi from '../../../services/unifiedApi';
 
 /**
  * AcademicYearSetup Component
@@ -150,37 +150,59 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
         params.append('educationLevel', filter.educationLevel);
       }
 
-      // Use proxy for API calls
-      const apiUrl = '/api';
-      const token = localStorage.getItem('token');
+      console.log(`Fetching academic years with params: ${params.toString()}`);
+      console.log('API URL:', process.env.REACT_APP_API_URL);
+      console.log('Environment:', process.env.NODE_ENV);
+      console.log('Token:', localStorage.getItem('token') ? 'Present' : 'Not present');
 
+      // Add cache-busting parameter for production environment
+      if (process.env.NODE_ENV === 'production') {
+        params.append('_t', Date.now());
+      }
+
+      // Use UnifiedApiService for API calls
       try {
-        const url = `${apiUrl}/new-academic-years?${params.toString()}`;
-        console.log('Fetching academic years from:', url);
-
-        const response = await fetch(url, {
-          method: 'GET',
+        const response = await unifiedApi.get(`/new-academic-years?${params.toString()}`, {
+          timeout: 30000,
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Accept': 'application/json'
           }
         });
 
-        console.log('Response status:', response.status);
+        console.log('Academic years response:', response);
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Error response:', errorData);
-          throw new Error(errorData.message || 'Failed to fetch academic years');
+        // Check if response is valid
+        if (!response || !response.data) {
+          console.error('Invalid response: response or response.data is undefined');
+          console.error('Response:', response);
+          setAcademicYears([]);
+          throw new Error('Invalid response from server');
         }
 
-        const data = await response.json();
-        console.log('Academic years data:', data);
+        // Extract the data from the response
+        const responseData = response.data;
+        console.log('Response data:', responseData);
 
-        setAcademicYears(data);
+        // Check if response data is an array
+        if (!Array.isArray(responseData)) {
+          console.error('Invalid response format:', responseData);
+          console.error('Response data type:', typeof responseData);
+          console.error('Response data value:', JSON.stringify(responseData));
+          setAcademicYears([]);
+          throw new Error('Invalid response format');
+        }
+
+        // Use the response data
+        const academicYears = responseData;
+
+        // Log success
+        console.log(`Successfully fetched ${academicYears.length} academic years`);
+        setAcademicYears(academicYears);
 
         // Check if there's at least one academic year
-        if (data.length > 0 && !standalone) {
+        if (academicYears.length > 0 && !standalone) {
           // Mark step as complete if at least one academic year exists
           onComplete && onComplete();
         }

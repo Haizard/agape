@@ -51,7 +51,8 @@ class UnifiedApiService {
     this.api.interceptors.response.use(
       (response) => {
         console.log(`Response from ${response.config.url}:`, response.status);
-        return response.data;
+        // Don't extract data here, return the full response
+        return response;
       },
       (error) => {
         console.error('Response error:', error);
@@ -119,7 +120,16 @@ class UnifiedApiService {
    */
   async request(method, url, data = null, config = {}, retryCount = 0, maxRetries = 2) {
     try {
-      console.log(`Making ${method.toUpperCase()} request to ${url}${retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : ''}`);
+      // Ensure URL doesn't start with a slash if we're using a full baseURL
+      let processedUrl = url;
+      if (processedUrl.startsWith('/') && process.env.REACT_APP_API_URL) {
+        // If we have a full API URL with /api at the end and the URL starts with /,
+        // we need to remove the leading slash to avoid double slashes
+        processedUrl = url.substring(1);
+      }
+
+      console.log(`Making ${method.toUpperCase()} request to ${processedUrl}${retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : ''}`);
+      console.log(`Full URL: ${this.api.defaults.baseURL}${processedUrl}`);
 
       // Set default timeout if not provided in config
       const requestConfig = {
@@ -132,16 +142,16 @@ class UnifiedApiService {
 
       const response = await this.api({
         method,
-        url,
+        url: processedUrl,
         data,
         ...requestConfig
       });
 
       // Log response time
       const responseTime = Date.now() - startTime;
-      console.log(`${method.toUpperCase()} ${url} completed in ${responseTime}ms with status ${response.status}`);
+      console.log(`${method.toUpperCase()} ${processedUrl} completed in ${responseTime}ms with status ${response.status}`);
 
-      return response.data;
+      return response;
     } catch (error) {
       console.error(`API ${method.toUpperCase()} ${url} error:`, error);
 

@@ -222,8 +222,9 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       console.log('Classes response:', response);
 
       // Check if response is valid
-      if (!response) {
-        console.error('Invalid response: response is undefined');
+      if (!response || !response.data) {
+        console.error('Invalid response: response or response.data is undefined');
+        console.error('Response:', response);
 
         // Try to use mock data as fallback
         if (process.env.NODE_ENV === 'production' && retryCount >= maxRetries) {
@@ -237,11 +238,15 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         throw new Error('Invalid response from server');
       }
 
-      // Check if response is an array
-      if (!Array.isArray(response)) {
-        console.error('Invalid response format:', response);
-        console.error('Response type:', typeof response);
-        console.error('Response value:', JSON.stringify(response));
+      // Extract the data from the response
+      const responseData = response.data;
+      console.log('Response data:', responseData);
+
+      // Check if response data is an array
+      if (!Array.isArray(responseData)) {
+        console.error('Invalid response format:', responseData);
+        console.error('Response data type:', typeof responseData);
+        console.error('Response data value:', JSON.stringify(responseData));
 
         // Try to use mock data as fallback
         if (process.env.NODE_ENV === 'production' && retryCount >= maxRetries) {
@@ -255,14 +260,17 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         throw new Error('Invalid response format');
       }
 
+      // Use the response data
+      const classes = responseData;
+
       // Log success
-      console.log(`Successfully fetched ${response.length} classes`);
-      setClasses(response);
+      console.log(`Successfully fetched ${classes.length} classes`);
+      setClasses(classes);
 
       // Check if there's at least one class for each education level
       if (!standalone) {
-        const oLevelClasses = response.filter(cls => cls.educationLevel === 'O_LEVEL');
-        const aLevelClasses = response.filter(cls => cls.educationLevel === 'A_LEVEL');
+        const oLevelClasses = classes.filter(cls => cls.educationLevel === 'O_LEVEL');
+        const aLevelClasses = classes.filter(cls => cls.educationLevel === 'A_LEVEL');
 
         console.log('O-Level classes:', oLevelClasses.length);
         console.log('A-Level classes:', aLevelClasses.length);
