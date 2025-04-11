@@ -493,10 +493,23 @@ const AssignmentSetup = ({ onComplete, standalone = false }) => {
       }
 
       // Get all subjects from the combination
-      const combinationSubjects = [
-        ...combination.principalSubjects.map(s => typeof s === 'object' ? s._id : s),
-        ...combination.subsidiarySubjects.map(s => typeof s === 'object' ? s._id : s)
-      ];
+      const combinationSubjects = [];
+
+      // Add principal subjects (now called 'subjects' in the backend)
+      if (combination.subjects && Array.isArray(combination.subjects)) {
+        combinationSubjects.push(
+          ...combination.subjects.map(s => typeof s === 'object' ? s._id : s)
+        );
+      }
+
+      // Add subsidiary subjects (now called 'compulsorySubjects' in the backend)
+      if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+        combinationSubjects.push(
+          ...combination.compulsorySubjects.map(s => typeof s === 'object' ? s._id : s)
+        );
+      }
+
+      console.log('Combination subjects:', combinationSubjects);
 
       // Assign subjects to student
       await unifiedApi.post(`/students/${selectedStudent}/subjects`, { subjects: combinationSubjects });

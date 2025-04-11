@@ -135,6 +135,71 @@ router.put('/:id/subjects', authenticateToken, authorizeRole(['admin']), async (
   }
 });
 
+// Add subjects to a class
+router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log(`POST /api/classes/${req.params.id}/subjects - Adding subjects to class`);
+    console.log('Request body:', req.body);
+
+    // First check if the class exists
+    const classItem = await Class.findById(req.params.id);
+    if (!classItem) {
+      console.log(`Class not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    // Get the subjects from the request
+    const { subjects } = req.body;
+    if (!subjects || !Array.isArray(subjects)) {
+      console.log('Invalid subjects array in request');
+      return res.status(400).json({ message: 'Invalid subjects array' });
+    }
+
+    // Validate that all subjects exist
+    const Subject = require('../models/Subject');
+    for (const subjectId of subjects) {
+      const subject = await Subject.findById(subjectId);
+      if (!subject) {
+        console.log(`Subject not found with ID: ${subjectId}`);
+        return res.status(404).json({ message: `Subject not found with ID: ${subjectId}` });
+      }
+    }
+
+    // Add subjects to the class
+    // First, get existing subject IDs to avoid duplicates
+    const existingSubjectIds = classItem.subjects
+      ? classItem.subjects.map(s => typeof s.subject === 'object' ? s.subject._id.toString() : s.subject.toString())
+      : [];
+
+    // Add new subjects
+    for (const subjectId of subjects) {
+      if (!existingSubjectIds.includes(subjectId.toString())) {
+        classItem.subjects.push({
+          subject: subjectId,
+          teacher: null // No teacher assigned initially
+        });
+      }
+    }
+
+    // Save the updated class
+    await classItem.save();
+    console.log(`Added ${subjects.length} subjects to class ${classItem.name}`);
+
+    // Return the updated class with populated subjects
+    const updatedClass = await Class.findById(req.params.id)
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject',
+        select: 'name code type description'
+      });
+
+    res.json(updatedClass);
+  } catch (error) {
+    console.error(`Error adding subjects to class ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Failed to add subjects to class' });
+  }
+});
+
 // Get all subjects for a specific class
 router.get('/:id/subjects', authenticateToken, async (req, res) => {
   try {

@@ -209,6 +209,68 @@ router.get('/a-level/class/:classId', authenticateToken, async (req, res) => {
   }
 });
 
+// Add subjects to a student
+router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log(`POST /api/students/${req.params.id}/subjects - Adding subjects to student`);
+    console.log('Request body:', req.body);
+
+    // First check if the student exists
+    const student = await Student.findById(req.params.id).populate('class');
+    if (!student) {
+      console.log(`Student not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Get the subjects from the request
+    const { subjects } = req.body;
+    if (!subjects || !Array.isArray(subjects)) {
+      console.log('Invalid subjects array in request');
+      return res.status(400).json({ message: 'Invalid subjects array' });
+    }
+
+    // Validate that all subjects exist
+    const Subject = require('../models/Subject');
+    for (const subjectId of subjects) {
+      const subject = await Subject.findById(subjectId);
+      if (!subject) {
+        console.log(`Subject not found with ID: ${subjectId}`);
+        return res.status(404).json({ message: `Subject not found with ID: ${subjectId}` });
+      }
+    }
+
+    // Add subjects to the student
+    // If student doesn't have a selectedSubjects array, create it
+    if (!student.selectedSubjects) {
+      student.selectedSubjects = [];
+    }
+
+    // First, get existing subject IDs to avoid duplicates
+    const existingSubjectIds = student.selectedSubjects
+      ? student.selectedSubjects.map(s => typeof s === 'object' ? s._id.toString() : s.toString())
+      : [];
+
+    // Add new subjects
+    for (const subjectId of subjects) {
+      if (!existingSubjectIds.includes(subjectId.toString())) {
+        student.selectedSubjects.push(subjectId);
+      }
+    }
+
+    // Save the updated student
+    await student.save();
+    console.log(`Added subjects to student ${student.firstName} ${student.lastName}`);
+
+    // Return the updated student with populated subjects
+    const updatedStudent = await Student.findById(req.params.id)
+      .populate('selectedSubjects', 'name code type description');
+    res.json(updatedStudent);
+  } catch (error) {
+    console.error(`Error adding subjects to student ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Failed to add subjects to student' });
+  }
+});
+
 // Get subjects for a specific student
 router.get('/:id/subjects', authenticateToken, async (req, res) => {
   try {

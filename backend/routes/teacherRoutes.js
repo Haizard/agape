@@ -1209,6 +1209,61 @@ router.get('/profile', authenticateToken, authorizeRole(['teacher', 'admin']), a
   }
 });
 
+// Add subjects to a teacher
+router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log(`POST /api/teachers/${req.params.id}/subjects - Adding subjects to teacher`);
+    console.log('Request body:', req.body);
+
+    // First check if the teacher exists
+    const teacher = await Teacher.findById(req.params.id);
+    if (!teacher) {
+      console.log(`Teacher not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+
+    // Get the subjects from the request
+    const { subjects } = req.body;
+    if (!subjects || !Array.isArray(subjects)) {
+      console.log('Invalid subjects array in request');
+      return res.status(400).json({ message: 'Invalid subjects array' });
+    }
+
+    // Validate that all subjects exist
+    for (const subjectId of subjects) {
+      const subject = await Subject.findById(subjectId);
+      if (!subject) {
+        console.log(`Subject not found with ID: ${subjectId}`);
+        return res.status(404).json({ message: `Subject not found with ID: ${subjectId}` });
+      }
+    }
+
+    // Add subjects to the teacher
+    // First, get existing subject IDs to avoid duplicates
+    const existingSubjectIds = teacher.subjects
+      ? teacher.subjects.map(s => typeof s === 'object' ? s._id.toString() : s.toString())
+      : [];
+
+    // Add new subjects
+    for (const subjectId of subjects) {
+      if (!existingSubjectIds.includes(subjectId.toString())) {
+        teacher.subjects.push(subjectId);
+      }
+    }
+
+    // Save the updated teacher
+    await teacher.save();
+    console.log(`Added subjects to teacher ${teacher.firstName} ${teacher.lastName}`);
+
+    // Return the updated teacher with populated subjects
+    const updatedTeacher = await Teacher.findById(req.params.id).populate('subjects');
+    res.json(updatedTeacher);
+  } catch (error) {
+    console.error(`Error adding subjects to teacher ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Failed to add subjects to teacher' });
+  }
+});
+
 // Get subjects for a specific teacher
 router.get('/:id/subjects', authenticateToken, async (req, res) => {
   try {
