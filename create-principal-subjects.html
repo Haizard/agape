@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Principal Subjects</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Create Principal Subjects</h1>
+    
+    <div class="form-group">
+        <label for="token">Authentication Token:</label>
+        <input type="text" id="token" placeholder="Bearer token">
+    </div>
+    
+    <div class="form-group">
+        <label for="apiUrl">API URL:</label>
+        <input type="text" id="apiUrl" value="https://agape-seminary-school.onrender.com/api/subjects" placeholder="API URL">
+    </div>
+    
+    <h2>Subject Details</h2>
+    
+    <div class="form-group">
+        <label for="name">Subject Name:</label>
+        <input type="text" id="name" placeholder="e.g., Advanced Mathematics">
+    </div>
+    
+    <div class="form-group">
+        <label for="code">Subject Code:</label>
+        <input type="text" id="code" placeholder="e.g., A-MATH">
+    </div>
+    
+    <div class="form-group">
+        <label for="educationLevel">Education Level:</label>
+        <select id="educationLevel">
+            <option value="A_LEVEL">A-Level</option>
+            <option value="O_LEVEL">O-Level</option>
+            <option value="BOTH">Both</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="isPrincipal">Is Principal Subject:</label>
+        <select id="isPrincipal">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="isCompulsory">Is Compulsory:</label>
+        <select id="isCompulsory">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="description">Description:</label>
+        <textarea id="description" rows="3" placeholder="Subject description"></textarea>
+    </div>
+    
+    <button id="createButton">Create Subject</button>
+    
+    <div id="result" class="result" style="display: none;"></div>
+    
+    <h2>Predefined Principal Subjects</h2>
+    <p>Click a button below to create a predefined principal subject:</p>
+    
+    <button onclick="createPredefinedSubject('Advanced Mathematics', 'A-MATH')">Create Advanced Mathematics</button>
+    <button onclick="createPredefinedSubject('Physics', 'A-PHY')">Create Physics</button>
+    <button onclick="createPredefinedSubject('Chemistry', 'A-CHEM')">Create Chemistry</button>
+    <button onclick="createPredefinedSubject('Biology', 'A-BIO')">Create Biology</button>
+    <button onclick="createPredefinedSubject('History', 'A-HIST')">Create History</button>
+    <button onclick="createPredefinedSubject('Geography', 'A-GEO')">Create Geography</button>
+    
+    <script>
+        document.getElementById('createButton').addEventListener('click', createSubject);
+        
+        async function createSubject() {
+            const token = document.getElementById('token').value;
+            const apiUrl = document.getElementById('apiUrl').value;
+            const name = document.getElementById('name').value;
+            const code = document.getElementById('code').value;
+            const educationLevel = document.getElementById('educationLevel').value;
+            const isPrincipal = document.getElementById('isPrincipal').value === 'true';
+            const isCompulsory = document.getElementById('isCompulsory').value === 'true';
+            const description = document.getElementById('description').value;
+            
+            if (!token || !name || !code) {
+                showResult('Please fill in all required fields (token, name, code).', 'error');
+                return;
+            }
+            
+            const subject = {
+                name,
+                code,
+                educationLevel,
+                isPrincipal,
+                isCompulsory,
+                description
+            };
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(subject)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult(`Subject created successfully: ${name} (${code})`, 'success');
+                    console.log('Created subject:', data);
+                } else {
+                    showResult(`Error creating subject: ${data.message || 'Unknown error'}`, 'error');
+                    console.error('Error response:', data);
+                }
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+                console.error('Error:', error);
+            }
+        }
+        
+        function createPredefinedSubject(name, code) {
+            document.getElementById('name').value = name;
+            document.getElementById('code').value = code;
+            document.getElementById('educationLevel').value = 'A_LEVEL';
+            document.getElementById('isPrincipal').value = 'true';
+            document.getElementById('isCompulsory').value = 'false';
+            document.getElementById('description').value = `${name} for A-Level students`;
+            
+            createSubject();
+        }
+        
+        function showResult(message, type) {
+            const resultElement = document.getElementById('result');
+            resultElement.textContent = message;
+            resultElement.className = `result ${type}`;
+            resultElement.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
