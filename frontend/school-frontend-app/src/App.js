@@ -96,6 +96,7 @@ import ALevelComprehensiveReport from './components/results/ALevelComprehensiveR
 import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
 import ReportBook from './components/results/ReportBook';
 import ReportBookSelector from './components/results/ReportBookSelector';
+import SingleRowReport from './components/results/SingleRowReport';
 import ALevelMarksEntry from './components/results/ALevelMarksEntry';
 import OLevelMarksEntry from './components/results/OLevelMarksEntry';
 import UnifiedMarksEntry from './components/results/UnifiedMarksEntry';
@@ -289,6 +290,11 @@ function App() {
                     <Route path="/results/report-book-selector" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <ReportBookSelector />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/single-row-report/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <SingleRowReport />
                       </ProtectedRoute>
                     } />
                     {/* Legacy Mark Entry Routes */}

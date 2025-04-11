@@ -440,6 +440,33 @@ const ResultReportSelector = () => {
                     </CardActions>
                   </Card>
                 </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" color="secondary" gutterBottom>
+                        Tabular Academic Report
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Generate a single-row tabular report with:
+                      </Typography>
+                      <ul>
+                        <li>All subjects in a single row format</li>
+                        <li>Principal and compulsory subjects together</li>
+                        <li>Student info, points, and division in header</li>
+                        <li>Marks, grades, and points for each subject</li>
+                      </ul>
+                    </CardContent>
+                    <CardActions>
+                      <Button
+                        size="small"
+                        onClick={() => navigate('/results/single-row-report/demo-form5/demo-exam')}
+                        color="secondary"
+                      >
+                        View Tabular Report
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
               </Grid>
             </Box>
           </Box>
