@@ -92,6 +92,8 @@ import Form5ALevelResultReport from './components/results/Form5ALevelResultRepor
 import Form6ALevelResultReport from './components/results/Form6ALevelResultReport';
 import OLevelStudentResultReport from './components/results/OLevelResultReport';
 import OLevelClassResultReport from './components/results/OLevelClassResultReport';
+import ALevelComprehensiveReport from './components/results/ALevelComprehensiveReport';
+import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
 import ALevelMarksEntry from './components/results/ALevelMarksEntry';
 import OLevelMarksEntry from './components/results/OLevelMarksEntry';
 import UnifiedMarksEntry from './components/results/UnifiedMarksEntry';
@@ -265,6 +267,16 @@ function App() {
                     <Route path="/results/o-level/class/:classId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <OLevelClassResultReport />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/a-level-comprehensive/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <ALevelComprehensiveReport />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/a-level-comprehensive-selector" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelComprehensiveReportSelector />
                       </ProtectedRoute>
                     } />
                     {/* Legacy Mark Entry Routes */}

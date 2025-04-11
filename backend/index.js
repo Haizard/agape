@@ -37,6 +37,7 @@ const directTestRoutes = require('./routes/directTestRoutes');
 const resultReportRoutes = require('./routes/resultReportRoutes');
 const aLevelResultRoutes = require('./routes/aLevelResultRoutes');
 const oLevelResultRoutes = require('./routes/oLevelResultRoutes');
+const aLevelComprehensiveReportRoutes = require('./routes/aLevelComprehensiveReportRoutes');
 const characterAssessmentRoutes = require('./routes/characterAssessmentRoutes');
 const studentEducationLevelRoutes = require('./routes/studentEducationLevelRoutes');
 const examRoutes = require('./routes/examRoutes');
@@ -172,6 +173,7 @@ app.use('/api/results', resultRoutes);
 app.use('/api/results/report', resultReportRoutes);
 app.use('/api/a-level-results', aLevelResultRoutes);
 app.use('/api/o-level-results', oLevelResultRoutes);
+app.use('/api/a-level-comprehensive', aLevelComprehensiveReportRoutes);
 app.use('/api/character-assessments', characterAssessmentRoutes);
 app.use('/api/student-education-level', studentEducationLevelRoutes);
 app.use('/api/exams', examRoutes);
@@ -227,6 +229,13 @@ app.use('/o-level-results', (req, res, next) => {
 app.use('/a-level-results', (req, res, next) => {
   console.log('Redirecting /a-level-results to /api/a-level-results');
   req.url = '/api/a-level-results' + req.url;
+  app._router.handle(req, res, next);
+});
+
+// Alias for /a-level-comprehensive to /api/a-level-comprehensive
+app.use('/a-level-comprehensive', (req, res, next) => {
+  console.log('Redirecting /a-level-comprehensive to /api/a-level-comprehensive');
+  req.url = '/api/a-level-comprehensive' + req.url;
   app._router.handle(req, res, next);
 });
 

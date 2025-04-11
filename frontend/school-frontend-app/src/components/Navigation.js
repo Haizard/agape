@@ -181,6 +181,7 @@ const Navigation = () => {
           { text: 'Parent Contacts', icon: <ContactPhoneIcon />, path: '/admin/parent-contacts', hidden: true },
           { text: 'SMS Settings', icon: <SmsIcon />, path: '/admin/sms-settings', hidden: true },
           { text: 'News', icon: <AnnouncementIcon />, path: '/admin/news', hidden: true },
+          { text: 'A-Level Comprehensive Reports', icon: <DescriptionIcon />, path: '/results/a-level-comprehensive-selector', highlight: true, description: 'Comprehensive A-Level reports for Form 5 and Form 6' },
         ];
       case 'teacher':
         return [
@@ -191,6 +192,7 @@ const Navigation = () => {
           { text: 'O-Level Marks Entry', icon: <GradeIcon />, path: '/results/o-level/enter-marks', highlight: true },
           { text: 'Results', icon: <AssessmentIcon />, path: '/teacher/results' },
           { text: 'Class Reports', icon: <DescriptionIcon />, path: '/teacher/class-reports' },
+          { text: 'A-Level Comprehensive Reports', icon: <DescriptionIcon />, path: '/results/a-level-comprehensive-selector', highlight: true },
           { text: 'SMS Notification', icon: <SmsIcon />, path: '/teacher/sms-notification' },
           { text: 'Exams', icon: <ScheduleIcon />, path: '/teacher/exams' },
           { text: 'Students', icon: <PeopleIcon />, path: '/teacher/students' },

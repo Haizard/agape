@@ -158,6 +158,16 @@ const resultApi = {
   },
 
   /**
+   * Get A-Level comprehensive student result report URL
+   * @param {String} studentId - The student ID
+   * @param {String} examId - The exam ID
+   * @returns {String} - The report URL
+   */
+  getALevelComprehensiveReportUrl: (studentId, examId) => {
+    return `${api.defaults.baseURL}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+  },
+
+  /**
    * Update a result
    * @param {String} resultId - The result ID
    * @param {Object} resultData - The updated result data

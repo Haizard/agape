@@ -386,6 +386,33 @@ const ResultReportSelector = () => {
                     </CardActions>
                   </Card>
                 </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" color="secondary" gutterBottom>
+                        A-Level Comprehensive Report
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Generate a comprehensive A-Level report with:
+                      </Typography>
+                      <ul>
+                        <li>Both Principal and Subsidiary subjects</li>
+                        <li>Form 5 and Form 6 specific formats</li>
+                        <li>Empty templates for subjects without results</li>
+                        <li>Detailed performance metrics</li>
+                      </ul>
+                    </CardContent>
+                    <CardActions>
+                      <Button
+                        size="small"
+                        onClick={() => navigate('/results/a-level-comprehensive-selector')}
+                        color="secondary"
+                      >
+                        View Comprehensive Reports
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
               </Grid>
             </Box>
           </Box>
