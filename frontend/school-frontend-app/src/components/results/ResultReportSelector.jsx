@@ -21,7 +21,8 @@ import {
 import {
   School as SchoolIcon,
   Person as PersonIcon,
-  Assignment as AssignmentIcon
+  Assignment as AssignmentIcon,
+  FilterList as FilterIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
@@ -492,47 +493,87 @@ const ResultReportSelector = () => {
                   <Card sx={{ bgcolor: '#f0f7ff', border: '1px solid #2196f3' }}>
                     <CardContent>
                       <Typography variant="h5" color="primary" gutterBottom fontWeight="bold">
-                        Unified Class Tabular Report (Recommended)
+                        Unified Academic Reports System
                       </Typography>
                       <Typography variant="body1" color="text.secondary" paragraph>
-                        Our comprehensive unified report template for all A-Level classes:
+                        Our comprehensive unified report system for all A-Level students:
                       </Typography>
                       <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
+                        <Grid item xs={12} md={4}>
+                          <Typography variant="subtitle1" color="primary" gutterBottom>
+                            Class Reports
+                          </Typography>
                           <ul>
-                            <li>Supports both Form 5 and Form 6 students in one view</li>
-                            <li>Shows all principal and subsidiary subjects</li>
-                            <li>Includes gender/sex information for each student</li>
-                            <li>Filters by form level and subject combination</li>
+                            <li>View entire class in one report</li>
+                            <li>Filter by form level and combination</li>
+                            <li>Compare student performance</li>
+                            <li>View division statistics</li>
                           </ul>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => navigate('/results/class-report/demo-class/demo-exam')}
+                            color="primary"
+                            sx={{ mt: 1 }}
+                            fullWidth
+                          >
+                            View Class Report
+                          </Button>
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid item xs={12} md={4}>
+                          <Typography variant="subtitle1" color="primary" gutterBottom>
+                            Individual Student Reports
+                          </Typography>
                           <ul>
-                            <li>Displays marks, grades, and points for all subjects</li>
-                            <li>Calculates division and rank automatically</li>
-                            <li>Provides division summary statistics</li>
-                            <li>Print-friendly format for easy sharing</li>
+                            <li>Detailed individual student reports</li>
+                            <li>Principal and subsidiary subjects</li>
+                            <li>Performance metrics and comments</li>
+                            <li>Print-friendly format</li>
                           </ul>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => navigate('/results/student-report/demo-form5/demo-exam')}
+                            color="primary"
+                            sx={{ mt: 1 }}
+                            fullWidth
+                          >
+                            View Student Report
+                          </Button>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                          <Typography variant="subtitle1" color="primary" gutterBottom>
+                            Bulk Download
+                          </Typography>
+                          <ul>
+                            <li>Download multiple reports at once</li>
+                            <li>Filter by year and exam type</li>
+                            <li>Select specific students</li>
+                            <li>Batch processing for efficiency</li>
+                          </ul>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => navigate('/results/bulk-download')}
+                            color="primary"
+                            sx={{ mt: 1 }}
+                            fullWidth
+                          >
+                            Bulk Download
+                          </Button>
                         </Grid>
                       </Grid>
                     </CardContent>
                     <CardActions>
                       <Button
-                        variant="contained"
-                        size="large"
-                        onClick={() => navigate('/results/class-report/demo-class/demo-exam')}
-                        color="primary"
-                        sx={{ mr: 2 }}
-                      >
-                        View Demo Report
-                      </Button>
-                      <Button
                         variant="outlined"
                         size="large"
                         onClick={() => setTabValue(1)}
                         color="primary"
+                        startIcon={<FilterIcon />}
+                        fullWidth
                       >
-                        Generate Class Report
+                        Generate Reports
                       </Button>
                     </CardActions>
                   </Card>
