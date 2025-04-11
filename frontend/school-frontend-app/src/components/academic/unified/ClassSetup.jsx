@@ -125,8 +125,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
     }
   };
 
-  // Fetch classes
-  const fetchClasses = async () => {
+  // Fetch classes with retry mechanism and enhanced error handling
+  const fetchClasses = async (retryCount = 0, maxRetries = 3) => {
     try {
       setLoading(true);
       setError(null);
@@ -140,26 +140,40 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         params.append('educationLevel', filter.educationLevel);
       }
 
-      console.log('Fetching classes with params:', params.toString());
-      const response = await unifiedApi.get(`/classes?${params.toString()}`);
+      console.log(`Fetching classes with params: ${params.toString()} (Attempt ${retryCount + 1}/${maxRetries + 1})`);
+
+      // Add cache-busting parameter for production environment
+      if (process.env.NODE_ENV === 'production') {
+        params.append('_t', Date.now());
+      }
+
+      // Use axios directly with timeout and headers
+      const response = await unifiedApi.get(`/classes?${params.toString()}`, {
+        timeout: 15000, // 15 second timeout
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
       console.log('Classes response:', response);
 
       // Check if response is valid
       if (!response) {
         console.error('Invalid response: response is undefined');
         setClasses([]);
-        setError('Failed to load classes. Invalid response from server.');
-        return;
+        throw new Error('Invalid response from server');
       }
 
       // Check if response is an array
       if (!Array.isArray(response)) {
         console.error('Invalid response format:', response);
         setClasses([]);
-        setError('Failed to load classes. Invalid response format.');
-        return;
+        throw new Error('Invalid response format');
       }
 
+      // Log success
+      console.log(`Successfully fetched ${response.length} classes`);
       setClasses(response);
 
       // Check if there's at least one class for each education level
@@ -177,12 +191,56 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       }
     } catch (err) {
       console.error('Error fetching classes:', err);
+
+      // Log detailed error information
       if (err.response) {
         console.error('Response status:', err.response.status);
         console.error('Response data:', err.response.data);
+      } else if (err.request) {
+        console.error('Request made but no response received');
+        console.error('Request details:', err.request);
       }
+
+      // Check if we should retry
+      if (retryCount < maxRetries) {
+        console.log(`Retrying fetch classes (${retryCount + 1}/${maxRetries})...`);
+        // Exponential backoff: 1s, 2s, 4s
+        const backoffTime = Math.pow(2, retryCount) * 1000;
+        console.log(`Waiting ${backoffTime}ms before retry...`);
+
+        setTimeout(() => fetchClasses(retryCount + 1, maxRetries), backoffTime);
+        return;
+      }
+
+      // Set empty classes array
       setClasses([]);
-      setError('Failed to load classes. Please try again.');
+
+      // Provide more specific error messages based on the error
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        if (err.response.status === 503 || err.response.status === 504) {
+          setError('The server is currently unavailable. This might be due to maintenance or high traffic. Please try again later.');
+        } else if (err.response.status === 401) {
+          setError('Your session has expired. Please refresh the page and log in again.');
+        } else if (err.response.status === 403) {
+          setError('You do not have permission to access this resource.');
+        } else {
+          setError(`Server error: ${err.response.data?.message || 'Failed to load classes. Please try again.'}`);
+        }
+      } else if (err.request) {
+        // The request was made but no response was received
+        setError('No response received from server. Please check your internet connection and try again.');
+      } else if (err.message.includes('timeout')) {
+        // Request timed out
+        setError('Request timed out. The server is taking too long to respond. Please try again later.');
+      } else if (err.message.includes('Network Error')) {
+        // Network error
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setError(`An unexpected error occurred: ${err.message}. Please try again later.`);
+      }
     } finally {
       setLoading(false);
     }

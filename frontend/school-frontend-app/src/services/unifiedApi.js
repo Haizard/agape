@@ -98,18 +98,64 @@ class UnifiedApiService {
    * @param {object} config - Additional axios config
    * @returns {Promise} - Promise with response data
    */
-  async request(method, url, data = null, config = {}) {
+  async request(method, url, data = null, config = {}, retryCount = 0, maxRetries = 2) {
     try {
+      console.log(`Making ${method.toUpperCase()} request to ${url}${retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : ''}`);
+
+      // Set default timeout if not provided in config
+      const requestConfig = {
+        timeout: 20000, // 20 seconds default timeout
+        ...config
+      };
+
+      // Add request start time for logging
+      const startTime = Date.now();
+
       const response = await this.api({
         method,
         url,
         data,
-        ...config
+        ...requestConfig
       });
+
+      // Log response time
+      const responseTime = Date.now() - startTime;
+      console.log(`${method.toUpperCase()} ${url} completed in ${responseTime}ms with status ${response.status}`);
 
       return response.data;
     } catch (error) {
       console.error(`API ${method.toUpperCase()} ${url} error:`, error);
+
+      // Log detailed error information
+      if (error.response) {
+        console.error(`Status: ${error.response.status}`);
+        console.error('Response data:', error.response.data);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error message:', error.message);
+      }
+
+      // Check if we should retry
+      const shouldRetry = (
+        retryCount < maxRetries &&
+        (!error.response || error.response.status >= 500 || error.code === 'ECONNABORTED')
+      );
+
+      if (shouldRetry) {
+        console.log(`Retrying ${method.toUpperCase()} ${url} (${retryCount + 1}/${maxRetries})...`);
+        // Exponential backoff: 1s, 2s, 4s
+        const backoffTime = Math.pow(2, retryCount) * 1000;
+        console.log(`Waiting ${backoffTime}ms before retry...`);
+
+        // Wait for backoff time
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+
+        // Retry the request
+        return this.request(method, url, data, config, retryCount + 1, maxRetries);
+      }
+
+      // If we've exhausted retries or shouldn't retry, throw the error
       throw error;
     }
   }

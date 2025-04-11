@@ -70,7 +70,9 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3000',
   'https://st-john-vianey-frontend.onrender.com',
-  'https://agape-seminary-school-system.onrender.com'
+  'https://agape-seminary-school-system.onrender.com',
+  'https://agape-seminary-school.onrender.com',
+  'https://agape-seminary-school-frontend.onrender.com'
 ];
 
 app.use(cors({
