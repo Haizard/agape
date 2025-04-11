@@ -1,5 +1,71 @@
 /* SingleStudentReport.css */
 
+/* Print-specific styles */
+@media print {
+  /* Hide UI elements not needed for printing */
+  .action-buttons,
+  .MuiAppBar-root,
+  .MuiDrawer-root,
+  .MuiAlert-root,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Ensure the report fits on the page */
+  .single-student-report-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0.5cm !important;
+    box-shadow: none !important;
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Adjust table styling for print */
+  .report-table {
+    page-break-inside: avoid;
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  /* Ensure tables don't break across pages */
+  .principal-subjects-section,
+  .subsidiary-subjects-section,
+  .summary-section {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure headers print on each page */
+  .report-header {
+    position: relative;
+    display: block !important;
+  }
+
+  /* Adjust font sizes for print */
+  body {
+    font-size: 12pt !important;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+
+  /* Remove background colors and use borders instead */
+  .MuiTableCell-head {
+    background-color: white !important;
+    color: black !important;
+    font-weight: bold !important;
+    border: 1px solid #000 !important;
+  }
+
+  /* Ensure proper page breaks */
+  @page {
+    margin: 1cm;
+    size: A4 portrait;
+  }
+}
+
 /* Container for the entire report */
 .single-student-report-container {
   max-width: 1100px;
@@ -114,7 +180,7 @@
   background-color: #f0f0f0;
 }
 
-.subject-header, .code-header, .marks-header, 
+.subject-header, .code-header, .marks-header,
 .grade-header, .points-header, .remarks-header {
   font-weight: bold !important;
   text-align: center !important;
@@ -132,7 +198,7 @@
   padding: 8px !important;
 }
 
-.subject-code, .subject-marks, .subject-grade, 
+.subject-code, .subject-marks, .subject-grade,
 .subject-points, .subject-remarks {
   border: 1px solid #000 !important;
   padding: 8px !important;
@@ -217,17 +283,17 @@
   .no-print {
     display: none !important;
   }
-  
+
   .single-student-report-container {
     padding: 0;
     width: 100%;
     max-width: none;
   }
-  
+
   body {
     background-color: white;
   }
-  
+
   @page {
     size: portrait;
     margin: 0.5cm;

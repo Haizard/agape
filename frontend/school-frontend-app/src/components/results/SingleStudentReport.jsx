@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import {
   Box,
   Typography,
@@ -15,13 +16,13 @@ import {
   Button,
   CircularProgress,
   Alert,
-  Grid,
-  Divider
+  Grid
 } from '@mui/material';
 import {
   Print as PrintIcon,
-  Download as DownloadIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  PictureAsPdf as PdfIcon,
+  TableChart as ExcelIcon
 } from '@mui/icons-material';
 
 import './SingleStudentReport.css';
@@ -44,6 +45,53 @@ const SingleStudentReport = () => {
 
   // Fetch student and exam data
   const fetchData = useCallback(async () => {
+    // Check cache for report data
+    const getCachedReport = (studentId, examId) => {
+      try {
+        const cacheKey = `report_${studentId}_${examId}`;
+        const cachedData = localStorage.getItem(cacheKey);
+
+        if (cachedData) {
+          const { data, timestamp } = JSON.parse(cachedData);
+
+          // Check if cache is still valid (24 hours)
+          const cacheAge = Date.now() - timestamp;
+          const cacheValidityPeriod = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+          if (cacheAge < cacheValidityPeriod) {
+            console.log('Using cached report data');
+            return data;
+          }
+
+          console.log('Cache expired, fetching fresh data');
+          localStorage.removeItem(cacheKey);
+        }
+      } catch (error) {
+        console.error('Error reading from cache:', error);
+        // Clear potentially corrupted cache
+        try {
+          localStorage.removeItem(`report_${studentId}_${examId}`);
+        } catch (e) {
+          console.error('Error clearing cache:', e);
+        }
+      }
+      return null;
+    };
+
+    // Save report data to cache
+    const cacheReport = (studentId, examId, data) => {
+      try {
+        const cacheKey = `report_${studentId}_${examId}`;
+        const cacheData = {
+          data,
+          timestamp: Date.now()
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        console.log('Report data cached successfully');
+      } catch (error) {
+        console.error('Error caching report data:', error);
+      }
+    };
     try {
       setLoading(true);
       setError(null);
@@ -64,6 +112,44 @@ const SingleStudentReport = () => {
         return;
       }
 
+      // Check cache first
+      const cachedReport = getCachedReport(studentId, examId);
+      if (cachedReport) {
+        // Use cached data
+        const reportData = cachedReport;
+
+        // Format student data
+        const formattedStudentData = {
+          id: studentId,
+          name: reportData.studentDetails.name,
+          admissionNumber: reportData.studentDetails.rollNumber,
+          gender: reportData.studentDetails.gender,
+          form: reportData.studentDetails.form,
+          class: reportData.studentDetails.class,
+          subjectCombination: reportData.studentDetails.subjectCombination,
+          combinationName: reportData.studentDetails.subjectCombination
+        };
+
+        // Format exam data
+        const formattedExamData = {
+          id: examId,
+          name: reportData.examName,
+          startDate: reportData.examDate?.split(' - ')?.[0] || '',
+          endDate: reportData.examDate?.split(' - ')?.[1] || '',
+          term: reportData.exam?.term || 'Term 1',
+          academicYear: reportData.academicYear
+        };
+
+        // Set the state with the cached data
+        setStudentData(formattedStudentData);
+        setExamData(formattedExamData);
+        setPrincipalSubjects(reportData.principalSubjects || []);
+        setSubsidiarySubjects(reportData.subsidiarySubjects || []);
+        setSummary(reportData.summary || {});
+        setLoading(false);
+        return;
+      }
+
       console.log(`Fetching real data for student ${studentId} and exam ${examId}`);
 
       // Use the comprehensive A-Level endpoint to get all the data we need
@@ -79,6 +165,9 @@ const SingleStudentReport = () => {
 
       console.log('API Response:', response.data);
       const reportData = response.data;
+
+      // Cache the report data
+      cacheReport(studentId, examId, reportData);
 
       // Verify this is an A-Level report
       if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
@@ -270,10 +359,100 @@ const SingleStudentReport = () => {
   };
 
   // Download report as PDF
-  const handleDownload = () => {
+  const handlePdfDownload = () => {
     // Open the PDF version in a new tab (backend will generate PDF)
-    const pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}/pdf`;
+    const pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
     window.open(pdfUrl, '_blank');
+  };
+
+  // Download report as Excel
+  const handleExcelDownload = () => {
+    try {
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+
+      // Format student info for Excel
+      const studentInfo = [
+        ['Student Report'],
+        ['School', 'AGAPE LUTHERAN JUNIOR SEMINARY'],
+        ['Exam', examData.name],
+        ['Academic Year', examData.academicYear],
+        ['Student Name', studentData.name],
+        ['Admission Number', studentData.admissionNumber],
+        ['Class', studentData.class],
+        ['Form', studentData.form],
+        ['Subject Combination', studentData.subjectCombination],
+        [''],
+      ];
+
+      // Format principal subjects for Excel
+      const principalSubjectsData = [
+        ['Principal Subjects'],
+        ['Subject', 'Code', 'Marks', 'Grade', 'Points', 'Remarks']
+      ];
+
+      for (const subject of principalSubjects) {
+        principalSubjectsData.push([
+          subject.subject,
+          subject.code,
+          subject.marks,
+          subject.grade,
+          subject.points,
+          subject.remarks
+        ]);
+      }
+
+      // Format subsidiary subjects for Excel
+      const subsidiarySubjectsData = [
+        [''],
+        ['Subsidiary Subjects'],
+        ['Subject', 'Code', 'Marks', 'Grade', 'Points', 'Remarks']
+      ];
+
+      for (const subject of subsidiarySubjects) {
+        subsidiarySubjectsData.push([
+          subject.subject,
+          subject.code,
+          subject.marks,
+          subject.grade,
+          subject.points,
+          subject.remarks
+        ]);
+      }
+
+      // Format summary for Excel
+      const summaryData = [
+        [''],
+        ['Performance Summary'],
+        ['Total Marks', summary.totalMarks],
+        ['Average Marks', summary.averageMarks],
+        ['Total Points', summary.totalPoints],
+        ['Best Three Points', summary.bestThreePoints],
+        ['Division', summary.division],
+        ['Rank', `${summary.rank} out of ${summary.totalStudents}`]
+      ];
+
+      // Combine all data
+      const allData = [
+        ...studentInfo,
+        ...principalSubjectsData,
+        ...subsidiarySubjectsData,
+        ...summaryData
+      ];
+
+      // Create worksheet and add to workbook
+      const ws = XLSX.utils.aoa_to_sheet(allData);
+      XLSX.utils.book_append_sheet(wb, ws, 'Student Report');
+
+      // Generate Excel file name
+      const fileName = `${studentData.name.replace(/\s+/g, '_')}_${examData.name.replace(/\s+/g, '_')}.xlsx`;
+
+      // Save Excel file
+      XLSX.writeFile(wb, fileName);
+    } catch (error) {
+      console.error('Error generating Excel file:', error);
+      setError('Failed to generate Excel file. Please try again.');
+    }
   };
 
   // Go back to previous page
@@ -324,7 +503,7 @@ const SingleStudentReport = () => {
   return (
     <Box className="single-student-report-container">
       {/* Action Buttons - Hidden when printing */}
-      <Box sx={{ mb: 3, display: 'flex', gap: 2 }} className="no-print">
+      <Box sx={{ mb: 3, display: 'flex', gap: 2 }} className="action-buttons print-hide">
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
@@ -342,10 +521,18 @@ const SingleStudentReport = () => {
         <Button
           variant="contained"
           color="secondary"
-          startIcon={<DownloadIcon />}
-          onClick={handleDownload}
+          startIcon={<PdfIcon />}
+          onClick={handlePdfDownload}
         >
           Download PDF
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          startIcon={<ExcelIcon />}
+          onClick={handleExcelDownload}
+        >
+          Download Excel
         </Button>
       </Box>
 

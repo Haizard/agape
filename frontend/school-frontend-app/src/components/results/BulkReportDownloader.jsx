@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import * as JSZip from 'jszip';
 import {
   Box,
   Typography,
@@ -15,18 +16,19 @@ import {
   MenuItem,
   Checkbox,
   ListItemText,
-  OutlinedInput,
   TextField,
   Divider,
-  Card,
-  CardContent,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   IconButton,
   Tooltip,
-  Chip
+  Chip,
+  LinearProgress,
+  Slider,
+  ListItemAvatar,
+  Avatar
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -68,6 +70,9 @@ const BulkReportDownloader = () => {
   // Download status
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [currentBatch, setCurrentBatch] = useState(1);
+  const [totalBatches, setTotalBatches] = useState(1);
+  const [batchSize, setBatchSize] = useState(10); // Default batch size
 
   // Fetch classes
   const fetchClasses = useCallback(async () => {
@@ -221,6 +226,48 @@ const BulkReportDownloader = () => {
            student.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
+  // Handle batch size change
+  const handleBatchSizeChange = (event, newValue) => {
+    const newSize = Number(newValue);
+    setBatchSize(newSize);
+
+    // Recalculate total batches
+    if (selectedStudents.length > 0) {
+      setTotalBatches(Math.ceil(selectedStudents.length / newSize));
+    }
+  };
+
+  // Process a single batch of reports
+  const processBatch = async (studentBatch, examId, zip) => {
+    const batchPromises = studentBatch.map(async (studentId) => {
+      try {
+        // Fetch the student report data
+        const apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+        const response = await axios.get(apiUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        // Get student name for filename
+        const studentName = response.data.studentDetails?.name || studentId;
+        const safeStudentName = studentName.replace(/\s+/g, '_');
+
+        // Convert to JSON string and add to zip
+        const jsonData = JSON.stringify(response.data, null, 2);
+        zip.file(`${safeStudentName}.json`, jsonData);
+
+        return { success: true, studentId, studentName };
+      } catch (error) {
+        console.error(`Error processing student ${studentId}:`, error);
+        return { success: false, studentId, error: error.message };
+      }
+    });
+
+    return Promise.all(batchPromises);
+  };
+
   // Download selected student reports
   const handleDownload = async () => {
     if (!selectedExam || selectedStudents.length === 0) {
@@ -234,38 +281,54 @@ const BulkReportDownloader = () => {
       setError(null);
       setSuccess(null);
 
-      // Create a zip file with all reports
-      const downloadUrl = `${process.env.REACT_APP_API_URL || ''}/api/reports/bulk-download`;
+      // Calculate total batches
+      const totalBatches = Math.ceil(selectedStudents.length / batchSize);
+      setTotalBatches(totalBatches);
 
-      const response = await axios.post(
-        downloadUrl,
-        {
-          examId: selectedExam,
-          studentIds: selectedStudents
-        },
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          responseType: 'blob',
-          onDownloadProgress: (progressEvent) => {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setDownloadProgress(percentCompleted);
-          }
-        }
-      );
-
-      // Create a download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
+      // Create a new zip file
+      const zip = new JSZip();
+      let processedCount = 0;
+      let successCount = 0;
+      let failureCount = 0;
 
       // Get exam name for the filename
       const exam = exams.find(e => e._id === selectedExam);
       const examName = exam ? exam.name.replace(/\s+/g, '_') : 'reports';
 
+      // Process in batches
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        setCurrentBatch(batchIndex + 1);
+
+        // Get current batch of students
+        const startIndex = batchIndex * batchSize;
+        const endIndex = Math.min(startIndex + batchSize, selectedStudents.length);
+        const currentBatch = selectedStudents.slice(startIndex, endIndex);
+
+        // Process the current batch
+        const batchResults = await processBatch(currentBatch, selectedExam, zip);
+
+        // Update progress
+        processedCount += currentBatch.length;
+        successCount += batchResults.filter(result => result.success).length;
+        failureCount += batchResults.filter(result => !result.success).length;
+
+        const percentCompleted = Math.round((processedCount * 100) / selectedStudents.length);
+        setDownloadProgress(percentCompleted);
+      }
+
+      // Generate the zip file
+      const zipContent = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      }, (metadata) => {
+        setDownloadProgress(Math.round(metadata.percent));
+      });
+
+      // Create a download link
+      const url = window.URL.createObjectURL(zipContent);
+      const link = document.createElement('a');
+      link.href = url;
       link.setAttribute('download', `${examName}_reports.zip`);
       document.body.appendChild(link);
       link.click();
@@ -275,10 +338,10 @@ const BulkReportDownloader = () => {
       link.remove();
 
       setDownloading(false);
-      setSuccess(`Successfully downloaded ${selectedStudents.length} student reports.`);
+      setSuccess(`Successfully processed ${selectedStudents.length} reports. ${successCount} succeeded, ${failureCount} failed.`);
     } catch (err) {
       console.error('Error downloading reports:', err);
-      setError('Failed to download reports. Please try again.');
+      setError(`Failed to download reports: ${err.message}`);
       setDownloading(false);
     }
   };
@@ -535,20 +598,67 @@ const BulkReportDownloader = () => {
               </List>
             )}
 
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                {selectedStudents.length} of {filteredStudents.length} students selected
-              </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Batch Size: {batchSize} students per batch
+                  </Typography>
+                  <Slider
+                    value={batchSize}
+                    onChange={handleBatchSizeChange}
+                    min={1}
+                    max={50}
+                    step={1}
+                    marks={[
+                      { value: 1, label: '1' },
+                      { value: 10, label: '10' },
+                      { value: 25, label: '25' },
+                      { value: 50, label: '50' }
+                    ]}
+                    disabled={downloading}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedStudents.length > 0
+                      ? `Will process in ${Math.ceil(selectedStudents.length / batchSize)} batches`
+                      : 'Select students to calculate batches'}
+                  </Typography>
+                </Grid>
 
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={!selectedExam || selectedStudents.length === 0 || downloading}
-                onClick={handleDownload}
-                startIcon={<FileDownloadIcon />}
-              >
-                Download Selected
-              </Button>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedStudents.length} of {filteredStudents.length} students selected
+                    </Typography>
+
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      disabled={!selectedExam || selectedStudents.length === 0 || downloading}
+                      onClick={handleDownload}
+                      startIcon={<FileDownloadIcon />}
+                    >
+                      Download Selected
+                    </Button>
+                  </Box>
+
+                  {downloading && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Processing batch {currentBatch} of {totalBatches}...
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={downloadProgress}
+                        sx={{ height: 10, borderRadius: 5 }}
+                      />
+                      <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
+                        {downloadProgress}% Complete
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+              </Grid>
             </Box>
           </Paper>
         </Grid>
