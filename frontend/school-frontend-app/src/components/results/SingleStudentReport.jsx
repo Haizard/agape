@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   Box,
   Typography,
@@ -359,10 +361,80 @@ const SingleStudentReport = () => {
   };
 
   // Download report as PDF
-  const handlePdfDownload = () => {
-    // Open the PDF version in a new tab (backend will generate PDF)
-    const pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
-    window.open(pdfUrl, '_blank');
+  const reportRef = useRef(null);
+
+  const handlePdfDownload = async () => {
+    try {
+      setError(null);
+
+      // Create a temporary div with only the report content (no buttons)
+      const reportContent = reportRef.current;
+      if (!reportContent) {
+        setError('Could not find report content');
+        return;
+      }
+
+      // Show loading message
+      const tempMessage = document.createElement('div');
+      tempMessage.style.position = 'fixed';
+      tempMessage.style.top = '50%';
+      tempMessage.style.left = '50%';
+      tempMessage.style.transform = 'translate(-50%, -50%)';
+      tempMessage.style.padding = '20px';
+      tempMessage.style.background = 'rgba(0,0,0,0.7)';
+      tempMessage.style.color = 'white';
+      tempMessage.style.borderRadius = '5px';
+      tempMessage.style.zIndex = '9999';
+      tempMessage.textContent = 'Generating PDF...';
+      document.body.appendChild(tempMessage);
+
+      try {
+        // Use html2canvas to capture the report as an image
+        const canvas = await html2canvas(reportContent, {
+          scale: 2, // Higher scale for better quality
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+
+        // Calculate dimensions to fit on A4
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        // Add new pages if the report is longer than one page
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        // Generate filename
+        const fileName = `${studentData.name.replace(/\s+/g, '_')}_${examData.name.replace(/\s+/g, '_')}.pdf`;
+
+        // Save the PDF
+        pdf.save(fileName);
+      } finally {
+        // Remove the loading message
+        document.body.removeChild(tempMessage);
+      }
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      setError(`Failed to generate PDF: ${err.message}`);
+    }
   };
 
   // Download report as Excel
@@ -501,7 +573,7 @@ const SingleStudentReport = () => {
   }
 
   return (
-    <Box className="single-student-report-container">
+    <Box className="single-student-report-container" ref={reportRef}>
       {/* Action Buttons - Hidden when printing */}
       <Box sx={{ mb: 3, display: 'flex', gap: 2 }} className="action-buttons print-hide">
         <Button
