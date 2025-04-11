@@ -1209,6 +1209,81 @@ router.get('/profile', authenticateToken, authorizeRole(['teacher', 'admin']), a
   }
 });
 
+// Get subjects for a specific teacher
+router.get('/:id/subjects', authenticateToken, async (req, res) => {
+  try {
+    console.log(`GET /api/teachers/${req.params.id}/subjects - Fetching subjects for teacher`);
+    const teacherId = req.params.id;
+
+    // First check if the teacher exists
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      console.log(`Teacher not found with ID: ${teacherId}`);
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+
+    // Find all classes where this teacher is assigned to teach subjects
+    const classes = await Class.find({
+      'subjects.teacher': teacherId
+    })
+    .populate({
+      path: 'subjects.subject',
+      model: 'Subject',
+      select: 'name code type description'
+    });
+
+    // Create a map to store unique subjects
+    const subjectMap = {};
+
+    // Collect all subjects from all classes
+    for (const classObj of classes) {
+      for (const subjectAssignment of classObj.subjects) {
+        if (subjectAssignment.teacher &&
+            subjectAssignment.teacher.toString() === teacherId &&
+            subjectAssignment.subject) {
+
+          const subjectId = subjectAssignment.subject._id.toString();
+
+          // If this subject is not in the map yet, add it
+          if (!subjectMap[subjectId]) {
+            subjectMap[subjectId] = {
+              _id: subjectAssignment.subject._id,
+              name: subjectAssignment.subject.name,
+              code: subjectAssignment.subject.code,
+              type: subjectAssignment.subject.type,
+              description: subjectAssignment.subject.description,
+              classes: []
+            };
+          }
+
+          // Add this class to the subject's classes
+          subjectMap[subjectId].classes.push({
+            _id: classObj._id,
+            name: classObj.name,
+            stream: classObj.stream,
+            section: classObj.section
+          });
+        }
+      }
+    }
+
+    // Convert the map to an array
+    const subjects = Object.values(subjectMap);
+    console.log(`Found ${subjects.length} unique subjects for teacher ${teacherId} across all classes`);
+
+    // If no subjects found, return empty array
+    if (subjects.length === 0) {
+      console.log(`No subjects found for teacher ${teacherId}`);
+      return res.json([]);
+    }
+
+    res.json(subjects);
+  } catch (error) {
+    console.error(`Error fetching subjects for teacher ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Failed to fetch teacher subjects' });
+  }
+});
+
 // Get subjects for the current teacher
 router.get('/my-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
   try {
