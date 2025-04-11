@@ -210,7 +210,7 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       console.log(`Using timeout: ${timeout}ms`);
 
       // Use axios directly with timeout and headers
-      const response = await unifiedApi.get(`/classes?${params.toString()}`, {
+      const response = await unifiedApi.get(`/api/classes?${params.toString()}`, {
         timeout: timeout,
         headers: {
           'Cache-Control': 'no-cache',

@@ -162,7 +162,7 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
 
       // Use UnifiedApiService for API calls
       try {
-        const response = await unifiedApi.get(`/new-academic-years?${params.toString()}`, {
+        const response = await unifiedApi.get(`/api/academic-years?${params.toString()}`, {
           timeout: 30000,
           headers: {
             'Cache-Control': 'no-cache',
@@ -366,40 +366,34 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
 
         setSuccess(editMode ? 'Academic year updated successfully.' : 'Academic year created successfully.');
       } else {
-        // Use proxy for API calls
-        const apiUrl = '/api';
-        const token = localStorage.getItem('token');
-
         try {
           // Log the data being sent
           console.log('Sending academic year data:', formattedData);
 
-          const url = editMode
-            ? `${apiUrl}/new-academic-years/${editId}`
-            : `${apiUrl}/new-academic-years`;
+          const endpoint = editMode
+            ? `/api/academic-years/${editId}`
+            : `/api/academic-years`;
 
-          console.log('API URL:', url);
+          console.log('API endpoint:', endpoint);
 
-          const response = await fetch(url, {
-            method: editMode ? 'PUT' : 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(formattedData)
-          });
+          // Use UnifiedApiService for API calls
+          const response = await (editMode
+            ? unifiedApi.put(endpoint, formattedData)
+            : unifiedApi.post(endpoint, formattedData));
 
-          // Log the response status
-          console.log('Response status:', response.status);
+          // Log the response
+          console.log('Response:', response);
 
           // If not successful, throw an error
-          if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Error response:', errorData);
-            throw new Error(errorData.message || 'Failed to save academic year');
+          // Check if response is valid
+          if (!response || !response.data) {
+            console.error('Invalid response: response or response.data is undefined');
+            console.error('Response:', response);
+            throw new Error('Invalid response from server');
           }
 
-          const data = await response.json();
+          // Get the response data
+          const data = response.data;
           console.log('Success response:', data);
 
           setSuccess(editMode ? 'Academic year updated successfully.' : 'Academic year created successfully.');
@@ -486,27 +480,18 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
         // Remove the academic year from the list
         setAcademicYears(prev => prev.filter(year => year._id !== deleteId));
       } else {
-        // Use proxy for API calls
-        const apiUrl = '/api';
-        const token = localStorage.getItem('token');
+        // Use UnifiedApiService for API calls
+        const endpoint = `/api/academic-years/${deleteId}`;
+        console.log('Deleting academic year from:', endpoint);
 
-        const url = `${apiUrl}/new-academic-years/${deleteId}`;
-        console.log('Deleting academic year from:', url);
+        const response = await unifiedApi.delete(endpoint);
+        console.log('Delete response:', response);
 
-        const response = await fetch(url, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        console.log('Delete response status:', response.status);
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Error response:', errorData);
-          throw new Error(errorData.message || 'Failed to delete academic year');
+        // Check if response is valid
+        if (!response) {
+          console.error('Invalid response: response is undefined');
+          console.error('Response:', response);
+          throw new Error('Invalid response from server');
         }
       }
 
