@@ -29,6 +29,28 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../frontend/school-frontend-app/build')));
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  const healthData = {
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV || 'development'
+  };
+
+  // If MongoDB is not connected, return a 503 status
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      ...healthData,
+      status: 'DEGRADED',
+      message: 'Database connection is not available'
+    });
+  }
+
+  res.json(healthData);
+});
+
 // Routes
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/settings', settingsRoutes);

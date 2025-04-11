@@ -19,28 +19,42 @@ let retryCount = 0;
 // You'll need to add this to your .env file
 // Format: mongodb://username:password@host1:port1,host2:port2,host3:port3/database?options
 if (!process.env.MONGODB_DIRECT_URI && process.env.MONGODB_URI) {
-  // Try to generate a direct URI from the SRV URI if not provided
-  // This is a simple transformation and might not work for all connection strings
-  const srvUri = process.env.MONGODB_URI;
-  if (srvUri.includes('mongodb+srv://')) {
-    // Extract parts from the SRV URI
-    const withoutProtocol = srvUri.replace('mongodb+srv://', '');
-    const authAndRest = withoutProtocol.split('@');
-    if (authAndRest.length === 2) {
-      const auth = authAndRest[0]; // username:password
-      const hostAndDb = authAndRest[1].split('/');
-      if (hostAndDb.length >= 1) {
-        const host = hostAndDb[0]; // e.g., schoolsystem.mp5ul7f.mongodb.net
-        const dbAndOptions = hostAndDb.slice(1).join('/');
+  try {
+    // Try to generate a direct URI from the SRV URI if not provided
+    // This is a simple transformation and might not work for all connection strings
+    const srvUri = process.env.MONGODB_URI;
+    if (srvUri.includes('mongodb+srv://')) {
+      console.log('Generating direct URI from SRV URI as fallback');
 
-        // Create a direct URI using the cluster name
-        // This is a guess and might need to be adjusted based on your actual cluster configuration
-        const directUri = `mongodb://${auth}@${host.replace('.mongodb.net', '-shard-00-00.mongodb.net')}:27017,${host.replace('.mongodb.net', '-shard-00-01.mongodb.net')}:27017,${host.replace('.mongodb.net', '-shard-00-02.mongodb.net')}:27017/${dbAndOptions ? dbAndOptions : ''}${dbAndOptions && !dbAndOptions.includes('?') ? '?' : '&'}ssl=true&replicaSet=atlas-${host.split('.')[1].substring(0, 6)}&authSource=admin`;
+      // Extract parts from the SRV URI
+      const withoutProtocol = srvUri.replace('mongodb+srv://', '');
+      const authAndRest = withoutProtocol.split('@');
+      if (authAndRest.length === 2) {
+        const auth = authAndRest[0]; // username:password
+        const hostAndDb = authAndRest[1].split('/');
+        if (hostAndDb.length >= 1) {
+          const host = hostAndDb[0]; // e.g., schoolsystem.mp5ul7f.mongodb.net
+          const dbAndOptions = hostAndDb.slice(1).join('/');
 
-        process.env.MONGODB_DIRECT_URI = directUri;
-        console.log('Generated direct connection URI as fallback');
+          // Extract the cluster identifier (usually the second part of the hostname)
+          const clusterParts = host.split('.');
+          let replicaSetId = 'atlas';
+          if (clusterParts.length > 1) {
+            // Use the first 6 chars of the second part as the replica set ID
+            // This is a common pattern for Atlas clusters
+            replicaSetId = `atlas-${clusterParts[1].substring(0, 6)}`;
+          }
+
+          // Create a direct URI using the cluster name
+          const directUri = `mongodb://${auth}@${host.replace('.mongodb.net', '-shard-00-00.mongodb.net')}:27017,${host.replace('.mongodb.net', '-shard-00-01.mongodb.net')}:27017,${host.replace('.mongodb.net', '-shard-00-02.mongodb.net')}:27017/${dbAndOptions ? dbAndOptions : ''}${dbAndOptions && !dbAndOptions.includes('?') ? '?' : '&'}ssl=true&replicaSet=${replicaSetId}&authSource=admin`;
+
+          process.env.MONGODB_DIRECT_URI = directUri;
+          console.log('Successfully generated direct connection URI as fallback');
+        }
       }
     }
+  } catch (err) {
+    console.error('Error generating direct URI:', err);
   }
 }
 
@@ -68,14 +82,23 @@ const connectDB = async () => {
       readPreference: 'primaryPreferred',   // Prefer primary but allow secondary reads
       maxIdleTimeMS: 60000,                 // Increased idle time before closing connections
       heartbeatFrequencyMS: 10000,          // Check server status every 10 seconds
-      keepAlive: true,                      // Keep connections alive
-      keepAliveInitialDelay: 300000,        // Send keep-alive after 5 minutes
+      // Removed deprecated keepAlive options
       autoIndex: false,                     // Don't build indexes automatically in production
       bufferCommands: true,                 // Enable command buffering when disconnected
       connectTimeoutMS: 30000,              // Increased timeout for initial connection
-      // Enable direct connection for more reliable connections in production
-      directConnection: process.env.NODE_ENV === 'production',
+      // Do NOT use directConnection with SRV URIs
+      // directConnection: false,
     };
+
+    // Check if we're using an SRV connection string
+    const isSrvUri = process.env.MONGODB_URI.includes('mongodb+srv://');
+    console.log(`Using ${isSrvUri ? 'SRV' : 'standard'} connection string`);
+
+    // Only use directConnection with standard URIs, not with SRV URIs
+    if (!isSrvUri && process.env.NODE_ENV === 'production') {
+      options.directConnection = true;
+      console.log('Enabling directConnection for standard URI');
+    }
 
     // Try to connect with the primary connection string
     console.log('Attempting to connect to MongoDB...');
@@ -85,20 +108,33 @@ const connectDB = async () => {
   } catch (err) {
     console.error('MongoDB connection error:', err);
 
-    // If the error is related to DNS resolution, try to use a direct connection string if available
-    if (err.code === 'ETIMEOUT' && err.syscall === 'queryTxt' && process.env.MONGODB_DIRECT_URI) {
+    // Try to use a direct connection string if available for various error types
+    const shouldTryDirectConnection = (
+      // DNS resolution errors
+      (err.code === 'ETIMEOUT' && err.syscall === 'queryTxt') ||
+      // SRV record errors
+      err.message?.includes('SRV') ||
+      // General connection errors
+      err.name === 'MongoServerSelectionError' ||
+      // Retry count is high
+      retryCount > MAX_RETRIES / 2
+    ) && process.env.MONGODB_DIRECT_URI;
+
+    if (shouldTryDirectConnection) {
       try {
         console.log('Attempting to connect using direct connection string...');
-        const options = {
+        const directOptions = {
           useNewUrlParser: true,
           useUnifiedTopology: true,
-          serverSelectionTimeoutMS: 15000,
-          socketTimeoutMS: 45000,
+          serverSelectionTimeoutMS: 30000,
+          socketTimeoutMS: 60000,
           family: 4,
-          readPreference: 'primary',  // Read from primary only (required for transactions)
-          w: 'majority'               // Write to primary and at least one secondary
+          readPreference: 'primaryPreferred',
+          w: 'majority',
+          // Direct connection is safe here because we're using a standard URI
+          directConnection: true
         };
-        await mongoose.connect(process.env.MONGODB_DIRECT_URI, options);
+        await mongoose.connect(process.env.MONGODB_DIRECT_URI, directOptions);
         console.log('Connected to MongoDB using direct connection string');
         retryCount = 0; // Reset retry count on successful connection
         return; // Exit the function if direct connection succeeds
@@ -141,10 +177,24 @@ mongoose.connection.on('disconnected', () => {
   logConnectionState();
   if (!mongoose.connection.readyState) {
     console.log('Attempting to reconnect...');
-    // Use an exponential backoff strategy
-    const backoffTime = Math.min(5000 * (1.5 ** retryCount), 60000); // Max 60 seconds
-    console.log(`Will attempt reconnection in ${backoffTime/1000} seconds`);
-    setTimeout(connectDB, backoffTime);
+    // Use an exponential backoff strategy with jitter to prevent thundering herd
+    const baseBackoff = 5000 * (1.5 ** Math.min(retryCount, 10));
+    const jitter = Math.random() * 2000; // Add up to 2 seconds of random jitter
+    const backoffTime = Math.min(baseBackoff + jitter, 60000); // Max 60 seconds
+
+    console.log(`Will attempt reconnection in ${Math.round(backoffTime/1000)} seconds (retry ${retryCount + 1})`);
+
+    // Clear any existing reconnection timers
+    if (global.reconnectTimer) {
+      clearTimeout(global.reconnectTimer);
+    }
+
+    // Set a new reconnection timer
+    global.reconnectTimer = setTimeout(() => {
+      // Increment retry count here to track total reconnection attempts
+      retryCount++;
+      connectDB();
+    }, backoffTime);
   }
 });
 
