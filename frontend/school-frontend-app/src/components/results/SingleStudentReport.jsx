@@ -27,7 +27,7 @@ import {
 import './SingleStudentReport.css';
 
 /**
- * SingleStudentReport Component
+ * SingleStudentReport Component (v2.0)
  * Displays a comprehensive academic report for a single student
  * with all subjects (both principal and subsidiary)
  */
@@ -47,12 +47,12 @@ const SingleStudentReport = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Check if this is a demo request
       if (studentId === 'demo-form5' || studentId === 'demo-form6') {
         console.log('Generating demo data');
         const isForm5 = studentId === 'demo-form5';
-        
+
         // Generate demo data
         const demoData = generateDemoData(isForm5 ? 5 : 6);
         setStudentData(demoData.studentData);
@@ -67,42 +67,42 @@ const SingleStudentReport = () => {
       // Fetch the student data
       const studentUrl = `${process.env.REACT_APP_API_URL || ''}/api/students/${studentId}`;
       console.log('Fetching student data from:', studentUrl);
-      
+
       const studentResponse = await axios.get(studentUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setStudentData(studentResponse.data);
-      
+
       // Fetch the exam data
       const examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
       console.log('Fetching exam data from:', examUrl);
-      
+
       const examResponse = await axios.get(examUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setExamData(examResponse.data);
-      
+
       // Fetch the student's results for this exam
       const resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
       console.log('Fetching results from:', resultsUrl);
-      
+
       const resultsResponse = await axios.get(resultsUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       const resultData = resultsResponse.data;
-      
+
       // Set principal and subsidiary subjects
       setPrincipalSubjects(resultData.principalSubjects || []);
       setSubsidiarySubjects(resultData.subsidiarySubjects || []);
@@ -118,11 +118,11 @@ const SingleStudentReport = () => {
   // Generate demo data for testing
   const generateDemoData = (formLevel) => {
     const isForm5 = formLevel === 5;
-    
+
     // Define subject combination
     const combination = 'PCM';
     const combinationName = 'Physics, Chemistry, Mathematics';
-    
+
     // Define principal subjects
     const principalSubjects = [
       {
@@ -150,7 +150,7 @@ const SingleStudentReport = () => {
         remarks: isForm5 ? 'Very Good' : 'Excellent'
       }
     ];
-    
+
     // Define subsidiary subjects
     const subsidiarySubjects = [
       {
@@ -178,17 +178,17 @@ const SingleStudentReport = () => {
         remarks: isForm5 ? 'Very Good' : 'Very Good'
       }
     ];
-    
+
     // Calculate total marks and points
     const allSubjects = [...principalSubjects, ...subsidiarySubjects];
     const totalMarks = allSubjects.reduce((sum, s) => sum + s.marks, 0);
     const totalPoints = allSubjects.reduce((sum, s) => sum + s.points, 0);
     const averageMarks = (totalMarks / allSubjects.length).toFixed(2);
-    
+
     // Calculate best three principal points
     const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
     const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
-    
+
     // Determine division
     let division = 'N/A';
     if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
@@ -196,7 +196,7 @@ const SingleStudentReport = () => {
     else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
     else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
     else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
-    
+
     // Create summary
     const summary = {
       totalMarks,
@@ -216,7 +216,7 @@ const SingleStudentReport = () => {
         F: principalSubjects.filter(s => s.grade === 'F').length + subsidiarySubjects.filter(s => s.grade === 'F').length
       }
     };
-    
+
     // Create student data
     const studentData = {
       id: `student-${isForm5 ? '001' : '002'}`,
@@ -231,7 +231,7 @@ const SingleStudentReport = () => {
       parentName: isForm5 ? 'Mr. & Mrs. Doe' : 'Mr. & Mrs. Smith',
       parentContact: isForm5 ? '+255 123 456 789' : '+255 987 654 321'
     };
-    
+
     // Create exam data
     const examData = {
       id: 'demo-exam',
@@ -241,7 +241,7 @@ const SingleStudentReport = () => {
       term: 'Term 2',
       academicYear: '2023-2024'
     };
-    
+
     return {
       studentData,
       examData,
@@ -354,18 +354,18 @@ const SingleStudentReport = () => {
             {examData.name} - {examData.academicYear}
           </Typography>
         </Box>
-        
+
         <Box className="header-center">
-          <img 
-            src="/images/school-logo.png" 
-            alt="School Logo" 
+          <img
+            src="/images/school-logo.png"
+            alt="School Logo"
             className="school-logo"
             onError={(e) => {
               e.target.src = 'https://via.placeholder.com/80?text=Logo';
             }}
           />
         </Box>
-        
+
         <Box className="header-right">
           <Typography variant="body1" className="report-title">
             STUDENT ACADEMIC REPORT
@@ -394,28 +394,28 @@ const SingleStudentReport = () => {
                 <Grid item xs={8}>
                   <Typography variant="body2" className="info-value">{studentData.name}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={4}>
                   <Typography variant="body2" className="info-label">Admission No:</Typography>
                 </Grid>
                 <Grid item xs={8}>
                   <Typography variant="body2" className="info-value">{studentData.admissionNumber}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={4}>
                   <Typography variant="body2" className="info-label">Class:</Typography>
                 </Grid>
                 <Grid item xs={8}>
                   <Typography variant="body2" className="info-value">{studentData.class}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={4}>
                   <Typography variant="body2" className="info-label">Gender:</Typography>
                 </Grid>
                 <Grid item xs={8}>
                   <Typography variant="body2" className="info-value">{studentData.gender}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={4}>
                   <Typography variant="body2" className="info-label">Combination:</Typography>
                 </Grid>
@@ -425,7 +425,7 @@ const SingleStudentReport = () => {
               </Grid>
             </Box>
           </Grid>
-          
+
           <Grid item xs={12} md={6}>
             <Box className="info-box">
               <Typography variant="subtitle1" className="info-title">
@@ -438,35 +438,35 @@ const SingleStudentReport = () => {
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value">{summary?.totalMarks || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Average Marks:</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value">{summary?.averageMarks || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Total Points:</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value">{summary?.totalPoints || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Best 3 Points:</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value">{summary?.bestThreePoints || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Division:</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value info-highlight">{summary?.division || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Rank:</Typography>
                 </Grid>
@@ -619,13 +619,13 @@ const SingleStudentReport = () => {
               <Box className="comment-content">
                 <Typography variant="body2">
                   {studentData.name} has performed {
-                    summary?.averageMarks > 70 ? 'excellently' : 
-                    summary?.averageMarks > 60 ? 'very well' : 
+                    summary?.averageMarks > 70 ? 'excellently' :
+                    summary?.averageMarks > 60 ? 'very well' :
                     summary?.averageMarks > 50 ? 'well' : 'satisfactorily'
                   } this term. {
-                    summary?.averageMarks > 70 ? 'Keep up the excellent work!' : 
-                    summary?.averageMarks > 60 ? 'Continue with the good effort.' : 
-                    summary?.averageMarks > 50 ? 'Work harder to improve further.' : 
+                    summary?.averageMarks > 70 ? 'Keep up the excellent work!' :
+                    summary?.averageMarks > 60 ? 'Continue with the good effort.' :
+                    summary?.averageMarks > 50 ? 'Work harder to improve further.' :
                     'More effort is needed to improve performance.'
                   }
                 </Typography>
@@ -635,7 +635,7 @@ const SingleStudentReport = () => {
               </Box>
             </Box>
           </Grid>
-          
+
           <Grid item xs={12} md={6}>
             <Box className="comment-box principal-comment">
               <Typography variant="subtitle1" className="comment-header">
@@ -644,9 +644,9 @@ const SingleStudentReport = () => {
               <Box className="comment-content">
                 <Typography variant="body2">
                   {
-                    summary?.division === 'I' ? 'Outstanding performance. Keep it up!' : 
-                    summary?.division === 'II' ? 'Very good performance. Aim higher next term.' : 
-                    summary?.division === 'III' ? 'Good performance. Work harder to improve.' : 
+                    summary?.division === 'I' ? 'Outstanding performance. Keep it up!' :
+                    summary?.division === 'II' ? 'Very good performance. Aim higher next term.' :
+                    summary?.division === 'III' ? 'Good performance. Work harder to improve.' :
                     'More effort is needed to improve your academic performance.'
                   }
                 </Typography>
