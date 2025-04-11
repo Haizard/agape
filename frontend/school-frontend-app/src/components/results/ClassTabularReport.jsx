@@ -15,7 +15,6 @@ import {
   Button,
   CircularProgress,
   Alert,
-  Divider,
   Grid,
   FormControl,
   InputLabel,
@@ -24,8 +23,7 @@ import {
 } from '@mui/material';
 import {
   Print as PrintIcon,
-  Download as DownloadIcon,
-  FilterList as FilterIcon
+  Download as DownloadIcon
 } from '@mui/icons-material';
 
 import './ClassTabularReport.css';
@@ -45,6 +43,7 @@ const ClassTabularReport = () => {
   const [subjects, setSubjects] = useState([]);
   const [examData, setExamData] = useState(null);
   const [filterCombination, setFilterCombination] = useState('');
+  const [filterForm, setFilterForm] = useState('');
   const [combinations, setCombinations] = useState([]);
 
   // Generate demo data for testing
@@ -101,8 +100,12 @@ const ClassTabularReport = () => {
       }
     };
 
-    // Generate 20 students with different combinations
-    for (let i = 1; i <= 20; i++) {
+    // Generate 24 students with different combinations (12 Form 5, 12 Form 6)
+    for (let i = 1; i <= 24; i++) {
+      // Determine if this is a Form 5 or Form 6 student
+      const isForm5 = i <= 12;
+      const form = isForm5 ? 5 : 6;
+
       // Assign a combination
       const combinationIndex = (i - 1) % subjectCombinations.length;
       const combination = subjectCombinations[combinationIndex];
@@ -145,8 +148,12 @@ const ClassTabularReport = () => {
       );
 
       // Generate marks, grades, and points for each subject
+      // Form 6 students generally perform better than Form 5
+      const minMarks = isForm5 ? 40 : 50;
+      const maxMarks = isForm5 ? 90 : 95;
+
       studentSubjects = studentSubjects.map(subject => {
-        const marks = getRandomMarks(40, 95);
+        const marks = getRandomMarks(minMarks, maxMarks);
         const grade = getGrade(marks);
         const points = getPoints(grade);
         return { ...subject, marks, grade, points };
@@ -174,11 +181,12 @@ const ClassTabularReport = () => {
       const student = {
         id: `student-${i}`,
         name: `Student ${i}`,
-        admissionNumber: `F5-${i.toString().padStart(3, '0')}`,
+        admissionNumber: `F${form}-${i.toString().padStart(3, '0')}`,
         gender: i % 2 === 0 ? 'Male' : 'Female',
         combination: combination.code,
         combinationName: combination.name,
         subjects: studentSubjects,
+        form: form,
         summary: {
           totalMarks,
           averageMarks,
@@ -192,16 +200,26 @@ const ClassTabularReport = () => {
       demoStudents.push(student);
     }
 
-    // Calculate ranks based on best three points
-    demoStudents.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
-    demoStudents.forEach((student, index) => {
-      student.summary.rank = index + 1;
-    });
+    // Calculate ranks based on best three points (separately for Form 5 and Form 6)
+    const form5Students = demoStudents.filter(s => s.form === 5);
+    const form6Students = demoStudents.filter(s => s.form === 6);
+
+    // Sort and assign ranks for Form 5
+    form5Students.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
+    for (let i = 0; i < form5Students.length; i++) {
+      form5Students[i].summary.rank = i + 1;
+    }
+
+    // Sort and assign ranks for Form 6
+    form6Students.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
+    for (let i = 0; i < form6Students.length; i++) {
+      form6Students[i].summary.rank = i + 1;
+    }
 
     // Get all unique subjects across all students
     const uniqueSubjects = [];
-    demoStudents.forEach(student => {
-      student.subjects.forEach(subject => {
+    for (const student of demoStudents) {
+      for (const subject of student.subjects) {
         if (!uniqueSubjects.some(s => s.code === subject.code)) {
           uniqueSubjects.push({
             code: subject.code,
@@ -209,13 +227,23 @@ const ClassTabularReport = () => {
             isPrincipal: subject.isPrincipal
           });
         }
-      });
+      }
+    }
+
+    // Sort subjects: principal subjects first, then subsidiary subjects
+    uniqueSubjects.sort((a, b) => {
+      // First sort by principal/subsidiary
+      if (a.isPrincipal && !b.isPrincipal) return -1;
+      if (!a.isPrincipal && b.isPrincipal) return 1;
+      // Then sort alphabetically by code
+      return a.code.localeCompare(b.code);
     });
 
     // Create class data
     const classData = {
       id: 'demo-class',
-      name: 'Form 5 Science',
+      name: 'A-Level Science',
+      educationLevel: 'A_LEVEL',
       academicYear: '2023-2024',
       term: 'Term 2',
       students: demoStudents,
@@ -266,7 +294,17 @@ const ClassTabularReport = () => {
         }
       });
 
-      setClassData(classResponse.data);
+      const classData = classResponse.data;
+      setClassData(classData);
+
+      // Determine if this is Form 5 or Form 6 class
+      const isForm5 = classData.name?.includes('5') || classData.form === 5 || classData.form === '5';
+      const isForm6 = classData.name?.includes('6') || classData.form === 6 || classData.form === '6';
+
+      // Ensure this is an A-Level class
+      if (!classData.educationLevel || classData.educationLevel !== 'A_LEVEL') {
+        throw new Error('This report is only for A-Level classes (Form 5 and Form 6)');
+      }
 
       // Fetch the exam data
       const examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
@@ -296,6 +334,7 @@ const ClassTabularReport = () => {
       const studentsWithResults = await Promise.all(
         studentsResponse.data.map(async (student) => {
           try {
+            // Use the a-level-comprehensive endpoint which handles both principal and subsidiary subjects
             const resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
             const resultsResponse = await axios.get(resultsUrl, {
               headers: {
@@ -304,10 +343,19 @@ const ClassTabularReport = () => {
               }
             });
 
+            const resultData = resultsResponse.data;
+
+            // Combine principal and subsidiary subjects
+            const allSubjects = [
+              ...(resultData.principalSubjects || []).map(s => ({ ...s, isPrincipal: true })),
+              ...(resultData.subsidiarySubjects || []).map(s => ({ ...s, isPrincipal: false }))
+            ];
+
             return {
               ...student,
-              subjects: [...(resultsResponse.data.principalSubjects || []), ...(resultsResponse.data.subsidiarySubjects || [])],
-              summary: resultsResponse.data.summary
+              subjects: allSubjects,
+              summary: resultData.summary,
+              form: student.form || (isForm5 ? 5 : isForm6 ? 6 : null)
             };
           } catch (error) {
             console.error(`Error fetching results for student ${student._id}:`, error);
@@ -321,7 +369,8 @@ const ClassTabularReport = () => {
                 bestThreePoints: 0,
                 division: 'N/A',
                 rank: 'N/A'
-              }
+              },
+              form: student.form || (isForm5 ? 5 : isForm6 ? 6 : null)
             };
           }
         })
@@ -331,8 +380,8 @@ const ClassTabularReport = () => {
 
       // Get all unique subjects across all students
       const uniqueSubjects = [];
-      studentsWithResults.forEach(student => {
-        (student.subjects || []).forEach(subject => {
+      for (const student of studentsWithResults) {
+        for (const subject of (student.subjects || [])) {
           if (!uniqueSubjects.some(s => s.code === subject.code)) {
             uniqueSubjects.push({
               code: subject.code,
@@ -340,14 +389,23 @@ const ClassTabularReport = () => {
               isPrincipal: subject.isPrincipal
             });
           }
-        });
+        }
+      }
+
+      // Sort subjects: principal subjects first, then subsidiary subjects
+      uniqueSubjects.sort((a, b) => {
+        // First sort by principal/subsidiary
+        if (a.isPrincipal && !b.isPrincipal) return -1;
+        if (!a.isPrincipal && b.isPrincipal) return 1;
+        // Then sort alphabetically by code
+        return a.code.localeCompare(b.code);
       });
 
       setSubjects(uniqueSubjects);
 
       // Get all unique combinations
       const uniqueCombinations = [];
-      studentsWithResults.forEach(student => {
+      for (const student of studentsWithResults) {
         const combination = student.subjectCombination || student.combination;
         if (combination && !uniqueCombinations.some(c => c.code === combination)) {
           uniqueCombinations.push({
@@ -355,7 +413,7 @@ const ClassTabularReport = () => {
             name: combination
           });
         }
-      });
+      }
 
       setCombinations(uniqueCombinations);
     } catch (err) {
@@ -371,14 +429,29 @@ const ClassTabularReport = () => {
     fetchData();
   }, [fetchData]);
 
-  // Filter students by combination
-  const filteredStudents = filterCombination
-    ? students.filter(student => (student.combination || student.subjectCombination) === filterCombination)
-    : students;
+  // Filter students by combination and form
+  const filteredStudents = students.filter(student => {
+    // Filter by combination if selected
+    if (filterCombination && (student.combination || student.subjectCombination) !== filterCombination) {
+      return false;
+    }
+
+    // Filter by form if selected
+    if (filterForm && student.form !== Number.parseInt(filterForm, 10)) {
+      return false;
+    }
+
+    return true;
+  });
 
   // Handle combination filter change
-  const handleFilterChange = (event) => {
+  const handleCombinationFilterChange = (event) => {
     setFilterCombination(event.target.value);
+  };
+
+  // Handle form filter change
+  const handleFormFilterChange = (event) => {
+    setFilterForm(event.target.value);
   };
 
   // Print report
@@ -455,22 +528,38 @@ const ClassTabularReport = () => {
           </Button>
         </Box>
 
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="combination-filter-label">Filter by Combination</InputLabel>
-          <Select
-            labelId="combination-filter-label"
-            value={filterCombination}
-            onChange={handleFilterChange}
-            label="Filter by Combination"
-          >
-            <MenuItem value="">All Combinations</MenuItem>
-            {combinations.map((combination) => (
-              <MenuItem key={combination.code} value={combination.code}>
-                {combination.code} - {combination.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="combination-filter-label">Filter by Combination</InputLabel>
+            <Select
+              labelId="combination-filter-label"
+              value={filterCombination}
+              onChange={handleCombinationFilterChange}
+              label="Filter by Combination"
+            >
+              <MenuItem value="">All Combinations</MenuItem>
+              {combinations.map((combination) => (
+                <MenuItem key={combination.code} value={combination.code}>
+                  {combination.code} - {combination.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl sx={{ minWidth: 150 }}>
+            <InputLabel id="form-filter-label">Filter by Form</InputLabel>
+            <Select
+              labelId="form-filter-label"
+              value={filterForm}
+              onChange={handleFormFilterChange}
+              label="Filter by Form"
+            >
+              <MenuItem value="">All Forms</MenuItem>
+              <MenuItem value="5">Form 5</MenuItem>
+              <MenuItem value="6">Form 6</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       {/* Report Header */}
@@ -514,17 +603,22 @@ const ClassTabularReport = () => {
       {/* Class Summary */}
       <Box className="class-summary">
         <Grid container spacing={2}>
-          <Grid item xs={4}>
+          <Grid item xs={3}>
             <Typography variant="body1">
               <strong>Total Students:</strong> {filteredStudents.length}
             </Typography>
           </Grid>
-          <Grid item xs={4}>
+          <Grid item xs={3}>
+            <Typography variant="body1">
+              <strong>Form:</strong> {filterForm ? `Form ${filterForm}` : 'All Forms'}
+            </Typography>
+          </Grid>
+          <Grid item xs={3}>
             <Typography variant="body1">
               <strong>Combination:</strong> {filterCombination || 'All Combinations'}
             </Typography>
           </Grid>
-          <Grid item xs={4}>
+          <Grid item xs={3}>
             <Typography variant="body1">
               <strong>Date:</strong> {new Date().toLocaleDateString()}
             </Typography>
@@ -538,6 +632,7 @@ const ClassTabularReport = () => {
           <TableHead>
             <TableRow className="table-header-row">
               <TableCell className="student-header">STUDENT</TableCell>
+              <TableCell className="info-header">SEX</TableCell>
               <TableCell className="info-header">POINTS</TableCell>
               <TableCell className="info-header">DIV</TableCell>
               {subjects.map((subject) => (
@@ -562,6 +657,9 @@ const ClassTabularReport = () => {
                   <div className="student-number">{student.admissionNumber}</div>
                   <div className="student-combination">{student.combination || student.subjectCombination}</div>
                 </TableCell>
+                <TableCell align="center" className="gender-cell">
+                  {student.gender || '-'}
+                </TableCell>
                 <TableCell align="center" className="points-cell">
                   {student.summary?.bestThreePoints || '-'}
                 </TableCell>
@@ -570,7 +668,7 @@ const ClassTabularReport = () => {
                 </TableCell>
                 {subjects.map((subject) => {
                   const studentSubject = (student.subjects || []).find(s =>
-                    (s.code === subject.code) || (s.subject && s.subject.includes(subject.name))
+                    (s.code === subject.code) || (s.subject?.includes(subject.name))
                   );
                   return (
                     <TableCell key={`${student.id || student._id}-${subject.code}`} align="center" className="subject-cell">
