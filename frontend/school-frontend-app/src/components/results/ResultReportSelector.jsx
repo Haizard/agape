@@ -87,7 +87,7 @@ const ResultReportSelector = () => {
 
         // Get the education level from the selected class
         const classResponse = await api.get(`/api/classes/${selectedClass}`);
-        if (classResponse.data && classResponse.data.educationLevel) {
+        if (classResponse.data?.educationLevel) {
           setEducationLevel(classResponse.data.educationLevel);
         }
 
@@ -387,9 +387,12 @@ const ResultReportSelector = () => {
                   </Card>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Card>
+                  <Card sx={{ opacity: 0.7 }}>
+                    <Box sx={{ position: 'absolute', top: 10, right: 10, bgcolor: '#ffebee', color: '#d32f2f', px: 1, py: 0.5, borderRadius: 1, fontSize: '0.75rem', fontWeight: 'bold' }}>
+                      DEPRECATED
+                    </Box>
                     <CardContent>
-                      <Typography variant="h6" color="secondary" gutterBottom>
+                      <Typography variant="h6" color="text.secondary" gutterBottom>
                         A-Level Comprehensive Report
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -401,12 +404,16 @@ const ResultReportSelector = () => {
                         <li>Empty templates for subjects without results</li>
                         <li>Detailed performance metrics</li>
                       </ul>
+                      <Typography variant="caption" color="error">
+                        This report type is being phased out. Please use the Unified Class Tabular Report instead.
+                      </Typography>
                     </CardContent>
                     <CardActions>
                       <Button
                         size="small"
                         onClick={() => navigate('/results/a-level-comprehensive-selector')}
                         color="secondary"
+                        disabled
                       >
                         View Comprehensive Reports
                       </Button>
@@ -414,9 +421,12 @@ const ResultReportSelector = () => {
                   </Card>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Card>
+                  <Card sx={{ opacity: 0.7 }}>
+                    <Box sx={{ position: 'absolute', top: 10, right: 10, bgcolor: '#ffebee', color: '#d32f2f', px: 1, py: 0.5, borderRadius: 1, fontSize: '0.75rem', fontWeight: 'bold' }}>
+                      DEPRECATED
+                    </Box>
                     <CardContent>
-                      <Typography variant="h6" color="secondary" gutterBottom>
+                      <Typography variant="h6" color="text.secondary" gutterBottom>
                         Academic Report Book
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -428,12 +438,16 @@ const ResultReportSelector = () => {
                         <li>Character assessment and attendance records</li>
                         <li>Teacher comments and parent signature section</li>
                       </ul>
+                      <Typography variant="caption" color="error">
+                        This report type is being phased out. Please use the Unified Class Tabular Report instead.
+                      </Typography>
                     </CardContent>
                     <CardActions>
                       <Button
                         size="small"
                         onClick={() => navigate('/results/report-book-selector')}
                         color="secondary"
+                        disabled
                       >
                         View Report Books
                       </Button>
@@ -441,9 +455,12 @@ const ResultReportSelector = () => {
                   </Card>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Card>
+                  <Card sx={{ opacity: 0.7 }}>
+                    <Box sx={{ position: 'absolute', top: 10, right: 10, bgcolor: '#ffebee', color: '#d32f2f', px: 1, py: 0.5, borderRadius: 1, fontSize: '0.75rem', fontWeight: 'bold' }}>
+                      DEPRECATED
+                    </Box>
                     <CardContent>
-                      <Typography variant="h6" color="secondary" gutterBottom>
+                      <Typography variant="h6" color="text.secondary" gutterBottom>
                         Tabular Academic Report
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -455,41 +472,67 @@ const ResultReportSelector = () => {
                         <li>Student info, points, and division in header</li>
                         <li>Marks, grades, and points for each subject</li>
                       </ul>
+                      <Typography variant="caption" color="error">
+                        This report type is being phased out. Please use the Unified Class Tabular Report instead.
+                      </Typography>
                     </CardContent>
                     <CardActions>
                       <Button
                         size="small"
                         onClick={() => navigate('/results/single-row-report/demo-form5/demo-exam')}
                         color="secondary"
+                        disabled
                       >
                         View Student Report
                       </Button>
                     </CardActions>
                   </Card>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Card>
+                <Grid item xs={12}>
+                  <Card sx={{ bgcolor: '#f0f7ff', border: '1px solid #2196f3' }}>
                     <CardContent>
-                      <Typography variant="h6" color="secondary" gutterBottom>
-                        Class Tabular Report
+                      <Typography variant="h5" color="primary" gutterBottom fontWeight="bold">
+                        Unified Class Tabular Report (Recommended)
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Generate a comprehensive class report with:
+                      <Typography variant="body1" color="text.secondary" paragraph>
+                        Our comprehensive unified report template for all A-Level classes:
                       </Typography>
-                      <ul>
-                        <li>All students from different combinations in one view</li>
-                        <li>All subjects (principal and compulsory) in columns</li>
-                        <li>Marks and grades for each student and subject</li>
-                        <li>Division summary and performance statistics</li>
-                      </ul>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} md={6}>
+                          <ul>
+                            <li>Supports both Form 5 and Form 6 students in one view</li>
+                            <li>Shows all principal and subsidiary subjects</li>
+                            <li>Includes gender/sex information for each student</li>
+                            <li>Filters by form level and subject combination</li>
+                          </ul>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <ul>
+                            <li>Displays marks, grades, and points for all subjects</li>
+                            <li>Calculates division and rank automatically</li>
+                            <li>Provides division summary statistics</li>
+                            <li>Print-friendly format for easy sharing</li>
+                          </ul>
+                        </Grid>
+                      </Grid>
                     </CardContent>
                     <CardActions>
                       <Button
-                        size="small"
+                        variant="contained"
+                        size="large"
                         onClick={() => navigate('/results/class-report/demo-class/demo-exam')}
-                        color="secondary"
+                        color="primary"
+                        sx={{ mr: 2 }}
                       >
-                        View Class Report
+                        View Demo Report
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        onClick={() => setTabValue(1)}
+                        color="primary"
+                      >
+                        Generate Class Report
                       </Button>
                     </CardActions>
                   </Card>
