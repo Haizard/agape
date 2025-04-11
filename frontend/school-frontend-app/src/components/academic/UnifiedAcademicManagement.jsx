@@ -304,6 +304,53 @@ const UnifiedAcademicManagement = () => {
         You can either follow the guided workflow or directly access specific components.
       </Typography>
 
+      <Paper sx={{ p: 2, mb: 3, bgcolor: '#f0f7ff', border: '1px solid #bbdefb' }}>
+        <Typography variant="h6" color="primary" gutterBottom>
+          Getting Started: Academic Management Guide
+        </Typography>
+        <Typography variant="body2" paragraph>
+          Welcome to the Unified Academic Management system. This tool helps you set up and manage all aspects of your school's academic structure in one place.
+        </Typography>
+
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={4}>
+            <Box sx={{ p: 1 }}>
+              <Typography variant="subtitle2" color="primary" gutterBottom>
+                <SchoolIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
+                Initial Setup
+              </Typography>
+              <Typography variant="body2" paragraph>
+                For first-time setup, follow the guided workflow step by step. This ensures all components are properly configured in the correct order.
+              </Typography>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Box sx={{ p: 1 }}>
+              <Typography variant="subtitle2" color="primary" gutterBottom>
+                <BookIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
+                Making Changes
+              </Typography>
+              <Typography variant="body2" paragraph>
+                Use Management Mode to revisit and modify completed steps. This allows you to add, edit, or remove items even after initial setup.
+              </Typography>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Box sx={{ p: 1 }}>
+              <Typography variant="subtitle2" color="primary" gutterBottom>
+                <PersonIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'text-bottom' }} />
+                Best Practices
+              </Typography>
+              <Typography variant="body2" paragraph>
+                Follow the guidelines provided in each step for best results. Complete all required steps before the academic year begins.
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
