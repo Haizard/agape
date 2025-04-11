@@ -303,17 +303,30 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
 
   // Handle edit subject combination
   const handleEdit = (combination) => {
+    console.log('Editing combination:', combination);
+
+    // Check if combination has the required properties
+    if (!combination) {
+      console.error('Invalid combination object:', combination);
+      setError('Invalid combination data. Please try again.');
+      return;
+    }
+
     // Set form data
     setFormData({
-      name: combination.name,
-      code: combination.code,
+      name: combination.name || '',
+      code: combination.code || '',
       description: combination.description || '',
-      principalSubjects: combination.principalSubjects.map(subject =>
-        typeof subject === 'object' ? subject._id : subject
-      ),
-      subsidiarySubjects: combination.subsidiarySubjects.map(subject =>
-        typeof subject === 'object' ? subject._id : subject
-      )
+      principalSubjects: combination.principalSubjects && Array.isArray(combination.principalSubjects)
+        ? combination.principalSubjects.map(subject =>
+            typeof subject === 'object' ? subject._id : subject
+          )
+        : [],
+      subsidiarySubjects: combination.subsidiarySubjects && Array.isArray(combination.subsidiarySubjects)
+        ? combination.subsidiarySubjects.map(subject =>
+            typeof subject === 'object' ? subject._id : subject
+          )
+        : []
     });
 
     // Set edit mode
