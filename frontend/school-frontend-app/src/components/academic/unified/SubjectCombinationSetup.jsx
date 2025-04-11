@@ -152,6 +152,11 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
       console.log('Principal subjects:', principalSubjects);
       console.log('Subsidiary subjects:', subsidiarySubjects);
 
+      // Check if we have principal subjects
+      if (principalSubjects.length === 0) {
+        console.warn('No principal subjects found. This may cause issues with subject combinations.');
+      }
+
       setSubjects({
         principal: principalSubjects || [],
         subsidiary: subsidiarySubjects || []
