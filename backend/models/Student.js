@@ -56,6 +56,10 @@ const studentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SubjectCombination'
   },
+  selectedSubjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subject'
+  }],
   admissionNumber: {
     type: String,
     required: false,  // Changed to false to allow generation

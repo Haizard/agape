@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
@@ -231,16 +232,33 @@ router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async 
 
     // Validate that all subjects exist
     const Subject = require('../models/Subject');
+    const validSubjects = [];
+
     for (const subjectId of subjects) {
-      const subject = await Subject.findById(subjectId);
-      if (!subject) {
-        console.log(`Subject not found with ID: ${subjectId}`);
-        return res.status(404).json({ message: `Subject not found with ID: ${subjectId}` });
+      try {
+        if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+          console.log(`Invalid subject ID format: ${subjectId}`);
+          continue; // Skip invalid IDs instead of failing
+        }
+
+        const subject = await Subject.findById(subjectId);
+        if (subject) {
+          validSubjects.push(subjectId);
+        } else {
+          console.log(`Subject not found with ID: ${subjectId}`);
+          // Continue instead of failing
+        }
+      } catch (err) {
+        console.error(`Error validating subject ${subjectId}:`, err);
+        // Continue instead of failing
       }
     }
 
-    // Add subjects to the student
-    // If student doesn't have a selectedSubjects array, create it
+    if (validSubjects.length === 0) {
+      return res.status(400).json({ message: 'No valid subjects found in the provided list' });
+    }
+
+    // Initialize selectedSubjects if it doesn't exist
     if (!student.selectedSubjects) {
       student.selectedSubjects = [];
     }
@@ -251,23 +269,29 @@ router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async 
       : [];
 
     // Add new subjects
-    for (const subjectId of subjects) {
+    let addedCount = 0;
+    for (const subjectId of validSubjects) {
       if (!existingSubjectIds.includes(subjectId.toString())) {
         student.selectedSubjects.push(subjectId);
+        addedCount++;
       }
     }
 
     // Save the updated student
     await student.save();
-    console.log(`Added subjects to student ${student.firstName} ${student.lastName}`);
+    console.log(`Added ${addedCount} subjects to student ${student.firstName} ${student.lastName}`);
 
     // Return the updated student with populated subjects
     const updatedStudent = await Student.findById(req.params.id)
       .populate('selectedSubjects', 'name code type description');
-    res.json(updatedStudent);
+
+    res.json({
+      message: `Successfully added ${addedCount} subjects to student`,
+      student: updatedStudent
+    });
   } catch (error) {
     console.error(`Error adding subjects to student ${req.params.id}:`, error);
-    res.status(500).json({ message: 'Failed to add subjects to student' });
+    res.status(500).json({ message: 'Failed to add subjects to student. Please try again later.' });
   }
 });
 

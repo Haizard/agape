@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const router = express.Router();
 const Class = require('../models/Class');
@@ -141,6 +142,12 @@ router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async 
     console.log(`POST /api/classes/${req.params.id}/subjects - Adding subjects to class`);
     console.log('Request body:', req.body);
 
+    // Validate class ID format
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.log(`Invalid class ID format: ${req.params.id}`);
+      return res.status(400).json({ message: 'Invalid class ID format' });
+    }
+
     // First check if the class exists
     const classItem = await Class.findById(req.params.id);
     if (!classItem) {
@@ -157,33 +164,57 @@ router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async 
 
     // Validate that all subjects exist
     const Subject = require('../models/Subject');
+    const validSubjects = [];
+
     for (const subjectId of subjects) {
-      const subject = await Subject.findById(subjectId);
-      if (!subject) {
-        console.log(`Subject not found with ID: ${subjectId}`);
-        return res.status(404).json({ message: `Subject not found with ID: ${subjectId}` });
+      try {
+        if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+          console.log(`Invalid subject ID format: ${subjectId}`);
+          continue; // Skip invalid IDs instead of failing
+        }
+
+        const subject = await Subject.findById(subjectId);
+        if (subject) {
+          validSubjects.push(subjectId);
+        } else {
+          console.log(`Subject not found with ID: ${subjectId}`);
+          // Continue instead of failing
+        }
+      } catch (err) {
+        console.error(`Error validating subject ${subjectId}:`, err);
+        // Continue instead of failing
       }
     }
 
-    // Add subjects to the class
+    if (validSubjects.length === 0) {
+      return res.status(400).json({ message: 'No valid subjects found in the provided list' });
+    }
+
+    // Initialize subjects array if it doesn't exist
+    if (!classItem.subjects) {
+      classItem.subjects = [];
+    }
+
     // First, get existing subject IDs to avoid duplicates
     const existingSubjectIds = classItem.subjects
       ? classItem.subjects.map(s => typeof s.subject === 'object' ? s.subject._id.toString() : s.subject.toString())
       : [];
 
     // Add new subjects
-    for (const subjectId of subjects) {
+    let addedCount = 0;
+    for (const subjectId of validSubjects) {
       if (!existingSubjectIds.includes(subjectId.toString())) {
         classItem.subjects.push({
           subject: subjectId,
           teacher: null // No teacher assigned initially
         });
+        addedCount++;
       }
     }
 
     // Save the updated class
     await classItem.save();
-    console.log(`Added ${subjects.length} subjects to class ${classItem.name}`);
+    console.log(`Added ${addedCount} subjects to class ${classItem.name}`);
 
     // Return the updated class with populated subjects
     const updatedClass = await Class.findById(req.params.id)
@@ -193,10 +224,13 @@ router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async 
         select: 'name code type description'
       });
 
-    res.json(updatedClass);
+    res.json({
+      message: `Successfully added ${addedCount} subjects to class`,
+      class: updatedClass
+    });
   } catch (error) {
     console.error(`Error adding subjects to class ${req.params.id}:`, error);
-    res.status(500).json({ message: 'Failed to add subjects to class' });
+    res.status(500).json({ message: 'Failed to add subjects to class. Please try again later.' });
   }
 });
 

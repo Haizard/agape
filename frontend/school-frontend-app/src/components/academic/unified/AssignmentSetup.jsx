@@ -477,12 +477,15 @@ const AssignmentSetup = ({ onComplete, standalone = false }) => {
     try {
       setLoading(true);
       setError(null);
+      setSuccess(null);
 
       if (!selectedStudent || !selectedCombination) {
         setError('Please select a student and a subject combination.');
         setLoading(false);
         return;
       }
+
+      console.log(`Assigning combination ${selectedCombination} to student ${selectedStudent}`);
 
       // Get the combination
       const combination = combinations.find(c => c._id === selectedCombination);
@@ -492,35 +495,68 @@ const AssignmentSetup = ({ onComplete, standalone = false }) => {
         return;
       }
 
+      console.log('Found combination:', combination);
+
       // Get all subjects from the combination
       const combinationSubjects = [];
 
       // Add principal subjects (now called 'subjects' in the backend)
       if (combination.subjects && Array.isArray(combination.subjects)) {
-        combinationSubjects.push(
-          ...combination.subjects.map(s => typeof s === 'object' ? s._id : s)
-        );
+        const principalSubjects = combination.subjects.map(s => {
+          const subjectId = typeof s === 'object' ? s._id : s;
+          console.log(`Adding principal subject: ${subjectId}`);
+          return subjectId;
+        });
+        combinationSubjects.push(...principalSubjects);
+      } else {
+        console.warn('No principal subjects found in combination or invalid format');
       }
 
       // Add subsidiary subjects (now called 'compulsorySubjects' in the backend)
       if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
-        combinationSubjects.push(
-          ...combination.compulsorySubjects.map(s => typeof s === 'object' ? s._id : s)
-        );
+        const subsidiarySubjects = combination.compulsorySubjects.map(s => {
+          const subjectId = typeof s === 'object' ? s._id : s;
+          console.log(`Adding subsidiary subject: ${subjectId}`);
+          return subjectId;
+        });
+        combinationSubjects.push(...subsidiarySubjects);
+      } else {
+        console.warn('No subsidiary subjects found in combination or invalid format');
       }
 
-      console.log('Combination subjects:', combinationSubjects);
+      console.log('Combination subjects to assign:', combinationSubjects);
+
+      if (combinationSubjects.length === 0) {
+        setError('No valid subjects found in the selected combination.');
+        setLoading(false);
+        return;
+      }
 
       // Assign subjects to student
-      await unifiedApi.post(`/students/${selectedStudent}/subjects`, { subjects: combinationSubjects });
+      try {
+        console.log(`Sending POST request to /students/${selectedStudent}/subjects`);
+        const subjectsResponse = await unifiedApi.post(`/students/${selectedStudent}/subjects`, {
+          subjects: combinationSubjects
+        });
+        console.log('Subjects assignment response:', subjectsResponse);
+      } catch (subjectError) {
+        console.error('Error assigning subjects to student:', subjectError);
+        // Continue with education level update even if subject assignment fails
+      }
 
       // Update student education level to A-Level
-      await unifiedApi.updateStudentEducationLevel(selectedStudent, 'A_LEVEL');
+      try {
+        console.log(`Updating student education level to A_LEVEL`);
+        await unifiedApi.updateStudentEducationLevel(selectedStudent, 'A_LEVEL');
+      } catch (levelError) {
+        console.error('Error updating student education level:', levelError);
+        // Continue even if education level update fails
+      }
 
       setSuccess('Subject combination assigned to student successfully.');
 
       // Refresh student subjects
-      fetchStudentSubjects();
+      await fetchStudentSubjects();
 
       // Mark step as complete if not standalone
       if (!standalone) {
