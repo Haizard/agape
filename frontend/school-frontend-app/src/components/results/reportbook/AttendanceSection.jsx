@@ -1,9 +1,9 @@
 import React from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Divider, 
+import {
+  Box,
+  Typography,
+  Paper,
+  Divider,
   Grid,
   LinearProgress,
   Table,
@@ -13,11 +13,12 @@ import {
   TableHead,
   TableRow
 } from '@mui/material';
+import ReportPropTypes from './ReportPropTypes';
 
 /**
  * AttendanceSection Component
  * Displays attendance information in the report book
- * 
+ *
  * @param {Object} props
  * @param {Object} props.report - The report data
  */
@@ -35,7 +36,7 @@ const AttendanceSection = ({ report }) => {
   };
 
   // Calculate attendance percentage if not provided
-  const attendancePercentage = attendanceData.attendancePercentage || 
+  const attendancePercentage = attendanceData.attendancePercentage ||
     (attendanceData.present / attendanceData.totalDays * 100).toFixed(1);
 
   // Get color based on attendance percentage
@@ -83,9 +84,9 @@ const AttendanceSection = ({ report }) => {
               <Typography variant="subtitle1" gutterBottom>
                 Overall Attendance: {attendancePercentage}%
               </Typography>
-              <LinearProgress 
-                variant="determinate" 
-                value={Math.min(attendancePercentage, 100)} 
+              <LinearProgress
+                variant="determinate"
+                value={Math.min(attendancePercentage, 100)}
                 color={getAttendanceColor(attendancePercentage)}
                 sx={{ height: 10, borderRadius: 5 }}
               />
@@ -126,18 +127,18 @@ const AttendanceSection = ({ report }) => {
           </Grid>
 
           <Grid item xs={12} md={6}>
-            <Box sx={{ 
-              p: 2, 
-              border: '1px solid #e0e0e0', 
+            <Box sx={{
+              p: 2,
+              border: '1px solid #e0e0e0',
               borderRadius: 2,
-              backgroundColor: getAttendanceColor(attendancePercentage) + '.light',
+              backgroundColor: `${getAttendanceColor(attendancePercentage)}.light`,
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              <Typography variant="h3" sx={{ color: getAttendanceColor(attendancePercentage) + '.dark', fontWeight: 'bold' }}>
+              <Typography variant="h3" sx={{ color: `${getAttendanceColor(attendancePercentage)}.dark`, fontWeight: 'bold' }}>
                 {attendancePercentage}%
               </Typography>
               <Typography variant="h6" sx={{ mt: 2 }}>
@@ -194,9 +195,9 @@ const AttendanceSection = ({ report }) => {
                     <TableCell align="center">{month.late}</TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={Math.min(parseFloat(percentage), 100)} 
+                        <LinearProgress
+                          variant="determinate"
+                          value={Math.min(Number.parseFloat(percentage), 100)}
                           color={getAttendanceColor(percentage)}
                           sx={{ height: 8, borderRadius: 5, width: '70%', mr: 1 }}
                         />
@@ -217,13 +218,15 @@ const AttendanceSection = ({ report }) => {
           Note to Parents/Guardians:
         </Typography>
         <Typography variant="body2">
-          Regular attendance is crucial for academic success. If your child's attendance is below 85%, 
-          please discuss with the class teacher about strategies to improve attendance. If there are 
+          Regular attendance is crucial for academic success. If your child's attendance is below 85%,
+          please discuss with the class teacher about strategies to improve attendance. If there are
           specific reasons for absences, please provide documentation for excused absences.
         </Typography>
       </Box>
     </Box>
   );
 };
+
+AttendanceSection.propTypes = ReportPropTypes;
 
 export default AttendanceSection;

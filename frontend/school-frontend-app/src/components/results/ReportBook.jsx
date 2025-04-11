@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import axios from 'axios';
 import {
   Box,
@@ -61,9 +62,9 @@ const ReportBook = () => {
   });
 
   // Generate demo data for testing
-  const generateDemoData = (formLevel) => {
+  const generateDemoData = useCallback((formLevel) => {
     const isForm5 = formLevel === 5 || studentId === 'demo-form5';
-    
+
     // Create demo principal subjects
     const principalSubjects = [
       {
@@ -94,7 +95,7 @@ const ReportBook = () => {
         remarks: isForm5 ? 'Very Good' : 'Excellent'
       }
     ];
-    
+
     // Create demo subsidiary subjects
     const subsidiarySubjects = [
       {
@@ -125,7 +126,7 @@ const ReportBook = () => {
         remarks: 'No result available'
       }
     ];
-    
+
     // Calculate grade distribution
     const gradeDistribution = {
       A: principalSubjects.filter(s => s.grade === 'A').length + subsidiarySubjects.filter(s => s.grade === 'A').length,
@@ -136,17 +137,17 @@ const ReportBook = () => {
       S: principalSubjects.filter(s => s.grade === 'S').length + subsidiarySubjects.filter(s => s.grade === 'S').length,
       F: principalSubjects.filter(s => s.grade === 'F').length + subsidiarySubjects.filter(s => s.grade === 'F').length
     };
-    
+
     // Calculate total marks and points
     const subjectsWithMarks = [...principalSubjects, ...subsidiarySubjects].filter(s => s.marks !== null);
     const totalMarks = subjectsWithMarks.reduce((sum, s) => sum + s.marks, 0);
     const totalPoints = subjectsWithMarks.reduce((sum, s) => sum + s.points, 0);
     const averageMarks = subjectsWithMarks.length > 0 ? totalMarks / subjectsWithMarks.length : 0;
-    
+
     // Calculate best three principal points
     const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
     const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
-    
+
     // Determine division
     let division = 'N/A';
     if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
@@ -154,7 +155,7 @@ const ReportBook = () => {
     else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
     else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
     else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
-    
+
     // Create attendance data
     const attendanceData = {
       totalDays: 120,
@@ -164,10 +165,10 @@ const ReportBook = () => {
       excused: isForm5 ? 3 : 1,
       attendancePercentage: isForm5 ? 93.3 : 98.3
     };
-    
+
     // Create demo report
     return {
-      reportTitle: `Academic Report Book`,
+      reportTitle: 'Academic Report Book',
       schoolName: 'AGAPE LUTHERAN JUNIOR SEMINARY',
       schoolLogo: '/images/school-logo.png',
       academicYear: '2023-2024',
@@ -207,14 +208,14 @@ const ReportBook = () => {
         cleanliness: isForm5 ? 'Good' : 'Excellent',
         leadership: isForm5 ? 'Satisfactory' : 'Excellent',
         participation: isForm5 ? 'Good' : 'Excellent',
-        comments: isForm5 ? 
-          'John is a dedicated student who shows great potential. He needs to improve his consistency in assignments.' : 
+        comments: isForm5 ?
+          'John is a dedicated student who shows great potential. He needs to improve his consistency in assignments.' :
           'Jane is an exceptional student who consistently demonstrates leadership qualities and academic excellence.'
       },
       attendance: attendanceData,
       teacherComments: {
-        classTeacher: isForm5 ? 
-          'John has shown improvement this term. He should focus more on his subsidiary subjects and participate more in class discussions.' : 
+        classTeacher: isForm5 ?
+          'John has shown improvement this term. He should focus more on his subsidiary subjects and participate more in class discussions.' :
           'Jane continues to excel in all areas. She is a role model to other students and demonstrates exceptional academic abilities.',
         principalComments: isForm5 ?
           'A promising student who needs to work on consistency. With more focus, John can achieve better results next term.' :
@@ -223,14 +224,14 @@ const ReportBook = () => {
       educationLevel: 'A_LEVEL',
       formLevel: isForm5 ? 5 : 6
     };
-  };
+  }, [studentId]);
 
   // Fetch report data
   const fetchReport = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Check if this is a demo request
       if (studentId === 'demo-form5' || studentId === 'demo-form6') {
         const formLevel = studentId === 'demo-form5' ? 5 : 6;
@@ -244,14 +245,14 @@ const ReportBook = () => {
       // Fetch the report data from the API
       const reportUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
       console.log('Fetching report data from:', reportUrl);
-      
+
       const response = await axios.get(reportUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       console.log('Report response:', response.data);
       const data = response.data;
 
@@ -277,7 +278,7 @@ const ReportBook = () => {
     } finally {
       setLoading(false);
     }
-  }, [studentId, examId]);
+  }, [studentId, examId, generateDemoData]);
 
   // Load report on component mount
   useEffect(() => {
@@ -313,7 +314,7 @@ const ReportBook = () => {
   const handleShare = () => {
     // Create a shareable link
     const shareUrl = `${window.location.origin}/results/report-book/${studentId}/${examId}`;
-    
+
     // Copy to clipboard
     navigator.clipboard.writeText(shareUrl)
       .then(() => {
@@ -465,6 +466,12 @@ const ReportBook = () => {
       />
     </Box>
   );
+};
+
+// Define PropTypes for the component
+ReportBook.propTypes = {
+  studentId: PropTypes.string,
+  examId: PropTypes.string
 };
 
 export default ReportBook;

@@ -1,11 +1,12 @@
 import React from 'react';
 import { Box, Typography, Grid, Paper, Divider, Avatar } from '@mui/material';
 import { Person as PersonIcon } from '@mui/icons-material';
+import ReportPropTypes from './ReportPropTypes';
 
 /**
  * StudentInfoSection Component
  * Displays detailed student information in the report book
- * 
+ *
  * @param {Object} props
  * @param {Object} props.report - The report data
  */
@@ -47,7 +48,7 @@ const StudentInfoSection = ({ report }) => {
             <Typography variant="h5" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>
               {studentDetails?.name || 'Student Name'}
             </Typography>
-            
+
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body1">
@@ -155,5 +156,7 @@ const StudentInfoSection = ({ report }) => {
     </Box>
   );
 };
+
+StudentInfoSection.propTypes = ReportPropTypes;
 
 export default StudentInfoSection;

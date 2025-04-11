@@ -1,16 +1,17 @@
 import React from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Divider, 
+import {
+  Box,
+  Typography,
+  Paper,
+  Divider,
   Grid
 } from '@mui/material';
+import ReportPropTypes from './ReportPropTypes';
 
 /**
  * TeacherCommentsSection Component
  * Displays teacher comments in the report book
- * 
+ *
  * @param {Object} props
  * @param {Object} props.report - The report data
  */
@@ -37,9 +38,9 @@ const TeacherCommentsSection = ({ report }) => {
         </Typography>
         <Divider sx={{ mb: 3 }} />
 
-        <Box sx={{ 
-          p: 3, 
-          backgroundColor: '#f5f5f5', 
+        <Box sx={{
+          p: 3,
+          backgroundColor: '#f5f5f5',
           borderRadius: 2,
           border: '1px solid #e0e0e0',
           minHeight: '150px'
@@ -52,7 +53,7 @@ const TeacherCommentsSection = ({ report }) => {
         {/* Signature */}
         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
           <Box sx={{ textAlign: 'center' }}>
-            <Box sx={{ width: 200, borderBottom: '1px solid #000', mb: 1, height: 30 }}></Box>
+            <Box sx={{ width: 200, borderBottom: '1px solid #000', mb: 1, height: 30 }} />
             <Typography variant="body2">Class Teacher's Signature</Typography>
           </Box>
         </Box>
@@ -65,9 +66,9 @@ const TeacherCommentsSection = ({ report }) => {
         </Typography>
         <Divider sx={{ mb: 3 }} />
 
-        <Box sx={{ 
-          p: 3, 
-          backgroundColor: '#f5f5f5', 
+        <Box sx={{
+          p: 3,
+          backgroundColor: '#f5f5f5',
           borderRadius: 2,
           border: '1px solid #e0e0e0',
           minHeight: '150px'
@@ -80,7 +81,7 @@ const TeacherCommentsSection = ({ report }) => {
         {/* Signature */}
         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
           <Box sx={{ textAlign: 'center' }}>
-            <Box sx={{ width: 200, borderBottom: '1px solid #000', mb: 1, height: 30 }}></Box>
+            <Box sx={{ width: 200, borderBottom: '1px solid #000', mb: 1, height: 30 }} />
             <Typography variant="body2">Principal's Signature</Typography>
           </Box>
         </Box>
@@ -95,9 +96,9 @@ const TeacherCommentsSection = ({ report }) => {
 
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6}>
-            <Box sx={{ 
-              p: 2, 
-              border: '1px solid #e0e0e0', 
+            <Box sx={{
+              p: 2,
+              border: '1px solid #e0e0e0',
               borderRadius: 2,
               height: '100%'
             }}>
@@ -105,9 +106,9 @@ const TeacherCommentsSection = ({ report }) => {
                 Academic Recommendations
               </Typography>
               <Typography variant="body2">
-                {teacherComments?.academicRecommendations || 
-                  report.summary?.averageMarks > 70 ? 
-                    'Continue with the excellent academic performance. Focus on maintaining consistency across all subjects.' : 
+                {teacherComments?.academicRecommendations ||
+                  report.summary?.averageMarks > 70 ?
+                    'Continue with the excellent academic performance. Focus on maintaining consistency across all subjects.' :
                   report.summary?.averageMarks > 60 ?
                     'Good performance overall. Consider additional focus on weaker subjects to improve overall results.' :
                   report.summary?.averageMarks > 50 ?
@@ -119,9 +120,9 @@ const TeacherCommentsSection = ({ report }) => {
           </Grid>
 
           <Grid item xs={12} sm={6}>
-            <Box sx={{ 
-              p: 2, 
-              border: '1px solid #e0e0e0', 
+            <Box sx={{
+              p: 2,
+              border: '1px solid #e0e0e0',
               borderRadius: 2,
               height: '100%'
             }}>
@@ -129,7 +130,7 @@ const TeacherCommentsSection = ({ report }) => {
                 Character Development Recommendations
               </Typography>
               <Typography variant="body2">
-                {teacherComments?.characterRecommendations || 
+                {teacherComments?.characterRecommendations ||
                   'Continue to develop positive character traits. Participate in extracurricular activities that promote leadership, teamwork, and community service.'
                 }
               </Typography>
@@ -143,7 +144,7 @@ const TeacherCommentsSection = ({ report }) => {
             Goals for Next Term
           </Typography>
           <Typography variant="body2">
-            {teacherComments?.nextTermGoals || 
+            {teacherComments?.nextTermGoals ||
               '1. Improve overall academic performance by at least 5%.\n' +
               '2. Maintain excellent attendance record.\n' +
               '3. Participate more actively in class discussions.\n' +
@@ -156,5 +157,7 @@ const TeacherCommentsSection = ({ report }) => {
     </Box>
   );
 };
+
+TeacherCommentsSection.propTypes = ReportPropTypes;
 
 export default TeacherCommentsSection;

@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Divider, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
+import {
+  Box,
+  Typography,
+  Paper,
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
   TableRow,
   Tabs,
   Tab,
@@ -21,11 +21,12 @@ import {
   School as SchoolIcon,
   MenuBook as MenuBookIcon
 } from '@mui/icons-material';
+import ReportPropTypes from './ReportPropTypes';
 
 /**
  * AcademicResultsSection Component
  * Displays academic results in the report book
- * 
+ *
  * @param {Object} props
  * @param {Object} props.report - The report data
  */
@@ -75,7 +76,7 @@ const AcademicResultsSection = ({ report }) => {
           <Tab icon={<SchoolIcon />} label="Principal Subjects" />
           <Tab icon={<MenuBookIcon />} label="Subsidiary Subjects" />
         </Tabs>
-        
+
         {/* Principal Subjects Tab */}
         {tabValue === 0 && (
           <Box sx={{ p: 3 }}>
@@ -83,7 +84,7 @@ const AcademicResultsSection = ({ report }) => {
               Principal Subjects
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             {report.principalSubjects && report.principalSubjects.length > 0 ? (
               <TableContainer>
                 <Table>
@@ -128,7 +129,7 @@ const AcademicResultsSection = ({ report }) => {
             )}
           </Box>
         )}
-        
+
         {/* Subsidiary Subjects Tab */}
         {tabValue === 1 && (
           <Box sx={{ p: 3 }}>
@@ -136,7 +137,7 @@ const AcademicResultsSection = ({ report }) => {
               Subsidiary Subjects
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            
+
             {report.subsidiarySubjects && report.subsidiarySubjects.length > 0 ? (
               <TableContainer>
                 <Table>
@@ -299,5 +300,7 @@ const AcademicResultsSection = ({ report }) => {
     </Box>
   );
 };
+
+AcademicResultsSection.propTypes = ReportPropTypes;
 
 export default AcademicResultsSection;

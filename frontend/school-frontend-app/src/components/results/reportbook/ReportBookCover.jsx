@@ -1,10 +1,11 @@
 import React from 'react';
 import { Box, Typography, Avatar } from '@mui/material';
+import ReportPropTypes from './ReportPropTypes';
 
 /**
  * ReportBookCover Component
  * Displays the cover page of the report book
- * 
+ *
  * @param {Object} props
  * @param {Object} props.report - The report data
  */
@@ -13,19 +14,19 @@ const ReportBookCover = ({ report }) => {
     <Box className="report-cover">
       {/* School Logo */}
       {report.schoolLogo ? (
-        <img 
-          src={report.schoolLogo} 
-          alt="School Logo" 
+        <img
+          src={report.schoolLogo}
+          alt="School Logo"
           className="school-logo"
           onError={(e) => {
             e.target.src = 'https://via.placeholder.com/150?text=School+Logo';
           }}
         />
       ) : (
-        <Avatar 
-          sx={{ 
-            width: 150, 
-            height: 150, 
+        <Avatar
+          sx={{
+            width: 150,
+            height: 150,
             bgcolor: 'primary.light',
             fontSize: '3rem',
             mb: 3
@@ -75,5 +76,7 @@ const ReportBookCover = ({ report }) => {
     </Box>
   );
 };
+
+ReportBookCover.propTypes = ReportPropTypes;
 
 export default ReportBookCover;

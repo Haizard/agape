@@ -1,9 +1,9 @@
 import React from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Divider, 
+import {
+  Box,
+  Typography,
+  Paper,
+  Divider,
   Grid,
   Rating,
   Chip
@@ -12,11 +12,12 @@ import {
   Star as StarIcon,
   StarBorder as StarBorderIcon
 } from '@mui/icons-material';
+import ReportPropTypes from './ReportPropTypes';
 
 /**
  * CharacterAssessmentSection Component
  * Displays character assessment in the report book
- * 
+ *
  * @param {Object} props
  * @param {Object} props.report - The report data
  */
@@ -82,10 +83,10 @@ const CharacterAssessmentSection = ({ report }) => {
 
         <Grid container spacing={3}>
           {characterTraits.map((trait, index) => (
-            <Grid item xs={12} sm={6} key={index}>
-              <Box sx={{ 
-                p: 2, 
-                border: '1px solid #e0e0e0', 
+            <Grid item xs={12} sm={6} key={`trait-${trait.label}`}>
+              <Box sx={{
+                p: 2,
+                border: '1px solid #e0e0e0',
                 borderRadius: 2,
                 display: 'flex',
                 flexDirection: 'column',
@@ -94,7 +95,7 @@ const CharacterAssessmentSection = ({ report }) => {
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
                   {trait.label}
                 </Typography>
-                
+
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <Rating
                     value={getRatingValue(trait.value)}
@@ -104,8 +105,8 @@ const CharacterAssessmentSection = ({ report }) => {
                     emptyIcon={<StarBorderIcon fontSize="inherit" />}
                     sx={{ mr: 1 }}
                   />
-                  <Chip 
-                    label={trait.value} 
+                  <Chip
+                    label={trait.value}
                     size="small"
                     color={getRatingColor(trait.value)}
                   />
@@ -123,9 +124,9 @@ const CharacterAssessmentSection = ({ report }) => {
         </Typography>
         <Divider sx={{ mb: 3 }} />
 
-        <Box sx={{ 
-          p: 3, 
-          backgroundColor: '#f5f5f5', 
+        <Box sx={{
+          p: 3,
+          backgroundColor: '#f5f5f5',
           borderRadius: 2,
           border: '1px solid #e0e0e0',
           minHeight: '150px'
@@ -138,7 +139,7 @@ const CharacterAssessmentSection = ({ report }) => {
         {/* Signature */}
         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
           <Box sx={{ textAlign: 'center' }}>
-            <Box sx={{ width: 200, borderBottom: '1px solid #000', mb: 1, height: 30 }}></Box>
+            <Box sx={{ width: 200, borderBottom: '1px solid #000', mb: 1, height: 30 }} />
             <Typography variant="body2">Class Teacher's Signature</Typography>
           </Box>
         </Box>
@@ -158,5 +159,7 @@ const CharacterAssessmentSection = ({ report }) => {
     </Box>
   );
 };
+
+CharacterAssessmentSection.propTypes = ReportPropTypes;
 
 export default CharacterAssessmentSection;

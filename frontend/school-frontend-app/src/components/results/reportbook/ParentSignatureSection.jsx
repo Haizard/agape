@@ -1,16 +1,17 @@
 import React from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Divider, 
+import {
+  Box,
+  Typography,
+  Paper,
+  Divider,
   Grid
 } from '@mui/material';
+import ReportPropTypes from './ReportPropTypes';
 
 /**
  * ParentSignatureSection Component
  * Displays parent signature section in the report book
- * 
+ *
  * @param {Object} props
  * @param {Object} props.report - The report data
  */
@@ -66,9 +67,9 @@ const ParentSignatureSection = ({ report }) => {
         </Typography>
         <Divider sx={{ mb: 3 }} />
 
-        <Box sx={{ 
-          p: 3, 
-          backgroundColor: '#f5f5f5', 
+        <Box sx={{
+          p: 3,
+          backgroundColor: '#f5f5f5',
           borderRadius: 2,
           border: '1px solid #e0e0e0',
           minHeight: '150px'
@@ -92,12 +93,12 @@ const ParentSignatureSection = ({ report }) => {
               <Typography variant="subtitle1" gutterBottom>
                 Parent/Guardian Signature
               </Typography>
-              <Box sx={{ 
-                width: '100%', 
-                borderBottom: '1px solid #000', 
-                mb: 2, 
-                height: 50 
-              }}></Box>
+              <Box sx={{
+                width: '100%',
+                borderBottom: '1px solid #000',
+                mb: 2,
+                height: 50
+              }} />
               <Typography variant="body2" gutterBottom>
                 Name: _______________________________
               </Typography>
@@ -112,12 +113,12 @@ const ParentSignatureSection = ({ report }) => {
               <Typography variant="subtitle1" gutterBottom>
                 Class Teacher Signature
               </Typography>
-              <Box sx={{ 
-                width: '100%', 
-                borderBottom: '1px solid #000', 
-                mb: 2, 
-                height: 50 
-              }}></Box>
+              <Box sx={{
+                width: '100%',
+                borderBottom: '1px solid #000',
+                mb: 2,
+                height: 50
+              }} />
               <Typography variant="body2" gutterBottom>
                 Name: _______________________________
               </Typography>
@@ -132,13 +133,13 @@ const ParentSignatureSection = ({ report }) => {
           <Typography variant="subtitle1" gutterBottom>
             Principal's Signature & School Stamp
           </Typography>
-          <Box sx={{ 
-            width: '50%', 
+          <Box sx={{
+            width: '50%',
             margin: '0 auto',
-            borderBottom: '1px solid #000', 
-            mb: 2, 
-            height: 80 
-          }}></Box>
+            borderBottom: '1px solid #000',
+            mb: 2,
+            height: 80
+          }} />
           <Typography variant="body2">
             Date: _______________________________
           </Typography>
@@ -169,5 +170,7 @@ const ParentSignatureSection = ({ report }) => {
     </Box>
   );
 };
+
+ParentSignatureSection.propTypes = ReportPropTypes;
 
 export default ParentSignatureSection;
