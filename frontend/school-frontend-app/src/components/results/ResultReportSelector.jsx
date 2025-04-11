@@ -462,7 +462,34 @@ const ResultReportSelector = () => {
                         onClick={() => navigate('/results/single-row-report/demo-form5/demo-exam')}
                         color="secondary"
                       >
-                        View Tabular Report
+                        View Student Report
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" color="secondary" gutterBottom>
+                        Class Tabular Report
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Generate a comprehensive class report with:
+                      </Typography>
+                      <ul>
+                        <li>All students from different combinations in one view</li>
+                        <li>All subjects (principal and compulsory) in columns</li>
+                        <li>Marks and grades for each student and subject</li>
+                        <li>Division summary and performance statistics</li>
+                      </ul>
+                    </CardContent>
+                    <CardActions>
+                      <Button
+                        size="small"
+                        onClick={() => navigate('/results/class-report/demo-class/demo-exam')}
+                        color="secondary"
+                      >
+                        View Class Report
                       </Button>
                     </CardActions>
                   </Card>
