@@ -59,6 +59,7 @@ const UnifiedAcademicManagement = () => {
   const [success, setSuccess] = useState(null);
   const [customStepName, setCustomStepName] = useState('');
   const [customStepDescription, setCustomStepDescription] = useState('');
+  const [managementMode, setManagementMode] = useState(false);
 
   // State for tracking completion of each step
   const [completed, setCompleted] = useState({
@@ -99,11 +100,19 @@ const UnifiedAcademicManagement = () => {
     // Show success message
     setSuccess(`${step.charAt(0).toUpperCase() + step.slice(1)} setup completed successfully.`);
 
-    // Automatically move to next step after a delay
-    setTimeout(() => {
-      handleNext();
-      setSuccess(null);
-    }, 1500);
+    // Only auto-advance if not in management mode
+    if (!managementMode) {
+      // Automatically move to next step after a delay
+      setTimeout(() => {
+        handleNext();
+        setSuccess(null);
+      }, 1500);
+    } else {
+      // In management mode, just clear the success message after a delay
+      setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
+    }
   };
 
   // Define default steps for the workflow
@@ -284,11 +293,14 @@ const UnifiedAcademicManagement = () => {
             Choose Your Approach
           </Typography>
 
-          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
             <Button
               variant="contained"
               color="primary"
-              onClick={() => setActiveStep(0)}
+              onClick={() => {
+                setActiveStep(0);
+                setActiveTab(null);
+              }}
               startIcon={<SchoolIcon />}
             >
               Guided Workflow
@@ -297,10 +309,22 @@ const UnifiedAcademicManagement = () => {
             <Button
               variant="outlined"
               color="primary"
-              onClick={() => setActiveTab(0)}
+              onClick={() => {
+                setActiveTab(0);
+                setActiveStep(null);
+              }}
               startIcon={<BookIcon />}
             >
               Direct Access
+            </Button>
+
+            <Button
+              variant="outlined"
+              color={managementMode ? "success" : "info"}
+              onClick={() => setManagementMode(!managementMode)}
+              startIcon={<PersonIcon />}
+            >
+              {managementMode ? 'Exit Management Mode' : 'Enter Management Mode'}
             </Button>
 
             <Button
@@ -439,19 +463,69 @@ const UnifiedAcademicManagement = () => {
       {/* Guided Workflow */}
       <Box sx={{ display: activeStep !== null ? 'block' : 'none' }}>
         <Typography variant="h5" gutterBottom>
-          Guided Academic Setup Workflow
+          {managementMode ? 'Academic Management Mode' : 'Guided Academic Setup Workflow'}
         </Typography>
 
-        <Stepper activeStep={activeStep} orientation="vertical">
+        {managementMode && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Management Mode Active:</strong> You can now access and modify all steps, even those that are already completed.
+              This allows you to add, edit, or remove items from any step in the academic setup process.
+            </Typography>
+          </Alert>
+        )}
+
+        {/* Step Navigation Panel (only visible in management mode) */}
+        {managementMode && (
+          <Paper sx={{ p: 2, mb: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {steps.map((step, idx) => (
+              <Button
+                key={step.id}
+                variant={activeStep === idx ? "contained" : "outlined"}
+                color={step.completed ? "success" : "primary"}
+                onClick={() => setActiveStep(idx)}
+                sx={{ mb: 1 }}
+                startIcon={step.completed ? <CheckIcon /> : null}
+              >
+                {step.label}
+              </Button>
+            ))}
+          </Paper>
+        )}
+
+        <Stepper activeStep={activeStep} orientation="vertical" nonLinear={managementMode}>
           {steps.map((step, index) => (
-            <Step key={step.label} completed={step.completed}>
-              <StepLabel>
-                <Typography variant="subtitle1">{step.label}</Typography>
+            <Step
+              key={step.id || step.label}
+              completed={step.completed}
+              active={activeStep === index || (managementMode && step.completed)}
+            >
+              <StepLabel
+                onClick={() => managementMode && setActiveStep(index)}
+                sx={{ cursor: managementMode ? 'pointer' : 'default' }}
+              >
+                <Typography variant="subtitle1">
+                  {step.label}
+                  {managementMode && step.completed && (
+                    <Chip
+                      size="small"
+                      label="Completed"
+                      color="success"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                </Typography>
               </StepLabel>
               <StepContent>
                 <Typography variant="body2" color="text.secondary" paragraph>
                   {step.description}
                 </Typography>
+
+                {managementMode && step.completed && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    This step is already completed, but you can make changes as needed.
+                  </Alert>
+                )}
 
                 {/* Step content */}
                 <Box sx={{ mb: 2 }}>
@@ -470,7 +544,7 @@ const UnifiedAcademicManagement = () => {
                   <Button
                     variant="contained"
                     onClick={handleNext}
-                    disabled={!step.completed}
+                    disabled={!step.completed && !managementMode}
                   >
                     {index === steps.length - 1 ? 'Finish' : 'Continue'}
                   </Button>
@@ -490,17 +564,42 @@ const UnifiedAcademicManagement = () => {
               You have successfully completed the academic setup workflow.
               All necessary components have been configured for both O-Level and A-Level education.
             </Typography>
-            <Button onClick={handleReset} sx={{ mt: 1, mr: 1 }}>
-              Reset Workflow
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => navigate('/admin/dashboard')}
-              sx={{ mt: 1, mr: 1 }}
-            >
-              Return to Dashboard
-            </Button>
+            <Typography paragraph>
+              <strong>Need to make changes?</strong> You can enter Management Mode to access and modify any step,
+              even after completion. This allows you to add, edit, or remove items as needed.
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Button onClick={handleReset} sx={{ mt: 1 }}>
+                Reset Workflow
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => {
+                  setManagementMode(true);
+                  setActiveStep(0);
+                }}
+                sx={{ mt: 1 }}
+              >
+                Enter Management Mode
+              </Button>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => setActiveTab(0)}
+                sx={{ mt: 1 }}
+              >
+                Go to Direct Access
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => navigate('/admin/dashboard')}
+                sx={{ mt: 1 }}
+              >
+                Return to Dashboard
+              </Button>
+            </Box>
           </Paper>
         )}
       </Box>
