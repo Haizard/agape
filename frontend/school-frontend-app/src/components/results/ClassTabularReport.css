@@ -80,7 +80,7 @@
   background-color: #f0f0f0;
 }
 
-.student-header, .info-header, .total-header, .average-header, 
+.student-header, .info-header, .total-header, .average-header,
 .points-header, .division-header, .rank-header {
   font-weight: bold !important;
   text-align: center !important;
@@ -112,17 +112,20 @@
   font-weight: bold !important;
   border: 1px solid #000 !important;
   padding: 8px !important;
+  vertical-align: middle !important;
 }
 
 .student-number {
   font-size: 0.8rem;
   color: #666;
+  margin-top: 4px;
 }
 
 .student-combination {
-  border: 1px solid #000 !important;
-  padding: 8px !important;
-  white-space: nowrap;
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 4px;
+  font-style: italic;
 }
 
 .subject-cell {
@@ -213,22 +216,22 @@
   .no-print {
     display: none !important;
   }
-  
+
   .class-tabular-report-container {
     padding: 0;
     width: 100%;
     max-width: none;
   }
-  
+
   body {
     background-color: white;
   }
-  
+
   @page {
     size: landscape;
     margin: 0.5cm;
   }
-  
+
   .report-table-container {
     overflow-x: visible;
   }

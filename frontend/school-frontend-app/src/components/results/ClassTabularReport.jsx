@@ -56,7 +56,7 @@ const ClassTabularReport = () => {
       { code: 'HKL', name: 'History, Kiswahili, Literature' },
       { code: 'CBG', name: 'Chemistry, Biology, Geography' }
     ];
-    
+
     // Define all possible subjects
     const allPossibleSubjects = [
       { code: 'PHY', name: 'Physics', isPrincipal: true },
@@ -71,13 +71,13 @@ const ClassTabularReport = () => {
       { code: 'BAM', name: 'Basic Applied Mathematics', isPrincipal: false },
       { code: 'ENG', name: 'English Language', isPrincipal: false }
     ];
-    
+
     // Generate demo students
     const demoStudents = [];
-    
+
     // Helper function to get random marks
     const getRandomMarks = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-    
+
     // Helper function to get grade from marks
     const getGrade = (marks) => {
       if (marks >= 80) return 'A';
@@ -87,7 +87,7 @@ const ClassTabularReport = () => {
       if (marks >= 40) return 'E';
       return 'F';
     };
-    
+
     // Helper function to get points from grade
     const getPoints = (grade) => {
       switch (grade) {
@@ -100,16 +100,16 @@ const ClassTabularReport = () => {
         default: return null;
       }
     };
-    
+
     // Generate 20 students with different combinations
     for (let i = 1; i <= 20; i++) {
       // Assign a combination
       const combinationIndex = (i - 1) % subjectCombinations.length;
       const combination = subjectCombinations[combinationIndex];
-      
+
       // Determine which subjects this student takes based on combination
       let studentSubjects = [];
-      
+
       // Add principal subjects based on combination
       if (combination.code === 'PCM') {
         studentSubjects.push(
@@ -136,14 +136,14 @@ const ClassTabularReport = () => {
           { ...allPossibleSubjects.find(s => s.code === 'GEO'), isPrincipal: true }
         );
       }
-      
+
       // Add compulsory subjects for all students
       studentSubjects.push(
         { ...allPossibleSubjects.find(s => s.code === 'GS'), isPrincipal: false },
         { ...allPossibleSubjects.find(s => s.code === 'BAM'), isPrincipal: false },
         { ...allPossibleSubjects.find(s => s.code === 'ENG'), isPrincipal: false }
       );
-      
+
       // Generate marks, grades, and points for each subject
       studentSubjects = studentSubjects.map(subject => {
         const marks = getRandomMarks(40, 95);
@@ -151,17 +151,17 @@ const ClassTabularReport = () => {
         const points = getPoints(grade);
         return { ...subject, marks, grade, points };
       });
-      
+
       // Calculate total marks and points
       const totalMarks = studentSubjects.reduce((sum, s) => sum + s.marks, 0);
       const totalPoints = studentSubjects.reduce((sum, s) => sum + s.points, 0);
       const averageMarks = (totalMarks / studentSubjects.length).toFixed(2);
-      
+
       // Calculate best three principal points
       const principalSubjects = studentSubjects.filter(s => s.isPrincipal);
       const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
       const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
-      
+
       // Determine division
       let division = 'N/A';
       if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
@@ -169,7 +169,7 @@ const ClassTabularReport = () => {
       else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
       else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
       else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
-      
+
       // Create student object
       const student = {
         id: `student-${i}`,
@@ -188,16 +188,16 @@ const ClassTabularReport = () => {
           rank: i // Will be recalculated later
         }
       };
-      
+
       demoStudents.push(student);
     }
-    
+
     // Calculate ranks based on best three points
     demoStudents.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
     demoStudents.forEach((student, index) => {
       student.summary.rank = index + 1;
     });
-    
+
     // Get all unique subjects across all students
     const uniqueSubjects = [];
     demoStudents.forEach(student => {
@@ -211,7 +211,7 @@ const ClassTabularReport = () => {
         }
       });
     });
-    
+
     // Create class data
     const classData = {
       id: 'demo-class',
@@ -222,7 +222,7 @@ const ClassTabularReport = () => {
       subjects: uniqueSubjects,
       combinations: subjectCombinations
     };
-    
+
     // Create exam data
     const examData = {
       id: 'demo-exam',
@@ -232,7 +232,7 @@ const ClassTabularReport = () => {
       term: 'Term 2',
       academicYear: '2023-2024'
     };
-    
+
     return { classData, examData };
   }, []);
 
@@ -241,7 +241,7 @@ const ClassTabularReport = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Check if this is a demo request
       if (classId === 'demo-class' && examId === 'demo-exam') {
         console.log('Generating demo data');
@@ -258,40 +258,40 @@ const ClassTabularReport = () => {
       // Fetch the class data
       const classUrl = `${process.env.REACT_APP_API_URL || ''}/api/classes/${classId}`;
       console.log('Fetching class data from:', classUrl);
-      
+
       const classResponse = await axios.get(classUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setClassData(classResponse.data);
-      
+
       // Fetch the exam data
       const examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
       console.log('Fetching exam data from:', examUrl);
-      
+
       const examResponse = await axios.get(examUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setExamData(examResponse.data);
-      
+
       // Fetch students in this class
       const studentsUrl = `${process.env.REACT_APP_API_URL || ''}/api/students?class=${classId}`;
       console.log('Fetching students from:', studentsUrl);
-      
+
       const studentsResponse = await axios.get(studentsUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       // Fetch results for each student
       const studentsWithResults = await Promise.all(
         studentsResponse.data.map(async (student) => {
@@ -303,7 +303,7 @@ const ClassTabularReport = () => {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
               }
             });
-            
+
             return {
               ...student,
               subjects: [...(resultsResponse.data.principalSubjects || []), ...(resultsResponse.data.subsidiarySubjects || [])],
@@ -326,9 +326,9 @@ const ClassTabularReport = () => {
           }
         })
       );
-      
+
       setStudents(studentsWithResults);
-      
+
       // Get all unique subjects across all students
       const uniqueSubjects = [];
       studentsWithResults.forEach(student => {
@@ -342,9 +342,9 @@ const ClassTabularReport = () => {
           }
         });
       });
-      
+
       setSubjects(uniqueSubjects);
-      
+
       // Get all unique combinations
       const uniqueCombinations = [];
       studentsWithResults.forEach(student => {
@@ -356,7 +356,7 @@ const ClassTabularReport = () => {
           });
         }
       });
-      
+
       setCombinations(uniqueCombinations);
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -454,7 +454,7 @@ const ClassTabularReport = () => {
             Download PDF
           </Button>
         </Box>
-        
+
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel id="combination-filter-label">Filter by Combination</InputLabel>
           <Select
@@ -486,18 +486,18 @@ const ClassTabularReport = () => {
             {examData.name} - {examData.academicYear || classData.academicYear}
           </Typography>
         </Box>
-        
+
         <Box className="header-center">
-          <img 
-            src="/images/school-logo.png" 
-            alt="School Logo" 
+          <img
+            src="/images/school-logo.png"
+            alt="School Logo"
             className="school-logo"
             onError={(e) => {
               e.target.src = 'https://via.placeholder.com/80?text=Logo';
             }}
           />
         </Box>
-        
+
         <Box className="header-right">
           <Typography variant="body1" className="report-title">
             CLASS ACADEMIC REPORT
@@ -538,11 +538,12 @@ const ClassTabularReport = () => {
           <TableHead>
             <TableRow className="table-header-row">
               <TableCell className="student-header">STUDENT</TableCell>
-              <TableCell className="info-header">COMBINATION</TableCell>
+              <TableCell className="info-header">POINTS</TableCell>
+              <TableCell className="info-header">DIV</TableCell>
               {subjects.map((subject) => (
-                <TableCell 
-                  key={subject.code} 
-                  align="center" 
+                <TableCell
+                  key={subject.code}
+                  align="center"
                   className={subject.isPrincipal ? "principal-subject" : "subsidiary-subject"}
                 >
                   {subject.code}
@@ -550,8 +551,6 @@ const ClassTabularReport = () => {
               ))}
               <TableCell align="center" className="total-header">TOTAL</TableCell>
               <TableCell align="center" className="average-header">AVG</TableCell>
-              <TableCell align="center" className="points-header">POINTS</TableCell>
-              <TableCell align="center" className="division-header">DIV</TableCell>
               <TableCell align="center" className="rank-header">RANK</TableCell>
             </TableRow>
           </TableHead>
@@ -561,12 +560,16 @@ const ClassTabularReport = () => {
                 <TableCell className="student-name">
                   {student.name || `${student.firstName} ${student.lastName}`}
                   <div className="student-number">{student.admissionNumber}</div>
+                  <div className="student-combination">{student.combination || student.subjectCombination}</div>
                 </TableCell>
-                <TableCell className="student-combination">
-                  {student.combination || student.subjectCombination}
+                <TableCell align="center" className="points-cell">
+                  {student.summary?.bestThreePoints || '-'}
+                </TableCell>
+                <TableCell align="center" className="division-cell">
+                  {student.summary?.division || '-'}
                 </TableCell>
                 {subjects.map((subject) => {
-                  const studentSubject = (student.subjects || []).find(s => 
+                  const studentSubject = (student.subjects || []).find(s =>
                     (s.code === subject.code) || (s.subject && s.subject.includes(subject.name))
                   );
                   return (
@@ -590,12 +593,6 @@ const ClassTabularReport = () => {
                 </TableCell>
                 <TableCell align="center" className="average-cell">
                   {student.summary?.averageMarks || '-'}
-                </TableCell>
-                <TableCell align="center" className="points-cell">
-                  {student.summary?.bestThreePoints || '-'}
-                </TableCell>
-                <TableCell align="center" className="division-cell">
-                  {student.summary?.division || '-'}
                 </TableCell>
                 <TableCell align="center" className="rank-cell">
                   {student.summary?.rank || '-'}
@@ -665,7 +662,7 @@ const ClassTabularReport = () => {
               <Typography variant="body1" className="signature-title">
                 Class Teacher's Signature
               </Typography>
-              <Box className="signature-line"></Box>
+              <Box className="signature-line" />
               <Typography variant="body2" className="signature-name">
                 Name: _______________________________
               </Typography>
@@ -674,13 +671,13 @@ const ClassTabularReport = () => {
               </Typography>
             </Box>
           </Grid>
-          
+
           <Grid item xs={6}>
             <Box className="signature-box">
               <Typography variant="body1" className="signature-title">
                 Principal's Signature
               </Typography>
-              <Box className="signature-line"></Box>
+              <Box className="signature-line" />
               <Typography variant="body2" className="signature-name">
                 Name: _______________________________
               </Typography>
