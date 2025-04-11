@@ -230,6 +230,20 @@ app.use('/a-level-results', (req, res, next) => {
   app._router.handle(req, res, next);
 });
 
+// Alias for /subjects to /api/subjects
+app.use('/subjects', (req, res, next) => {
+  console.log('Redirecting /subjects to /api/subjects');
+  req.url = '/api/subjects' + req.url;
+  app._router.handle(req, res, next);
+});
+
+// Alias for /subject-combinations to /api/subject-combinations
+app.use('/subject-combinations', (req, res, next) => {
+  console.log('Redirecting /subject-combinations to /api/subject-combinations');
+  req.url = '/api/subject-combinations' + req.url;
+  app._router.handle(req, res, next);
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
