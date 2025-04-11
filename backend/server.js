@@ -57,24 +57,24 @@ const connectDB = async () => {
     const options = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 15000,      // Reduced from 30000 to fail faster
-      socketTimeoutMS: 45000,               // Close sockets after 45 seconds of inactivity
+      serverSelectionTimeoutMS: 30000,      // Increased timeout for server selection
+      socketTimeoutMS: 60000,               // Increased timeout for socket operations
       family: 4,                            // Force IPv4 only
-      maxPoolSize: 10,                      // Maintain up to 10 socket connections
-      minPoolSize: 3,                       // Maintain at least 3 socket connections
+      maxPoolSize: 20,                      // Increased pool size for more connections
+      minPoolSize: 5,                       // Maintain at least 5 socket connections
       retryWrites: true,                    // Retry write operations if they fail
       retryReads: true,                     // Retry read operations if they fail
       w: 'majority',                        // Write to primary and at least one secondary
-      readPreference: 'primary',            // Read from primary only (required for transactions)
-      maxIdleTimeMS: 30000,                 // Close idle connections after 30 seconds
+      readPreference: 'primaryPreferred',   // Prefer primary but allow secondary reads
+      maxIdleTimeMS: 60000,                 // Increased idle time before closing connections
       heartbeatFrequencyMS: 10000,          // Check server status every 10 seconds
       keepAlive: true,                      // Keep connections alive
       keepAliveInitialDelay: 300000,        // Send keep-alive after 5 minutes
       autoIndex: false,                     // Don't build indexes automatically in production
-      bufferCommands: false,                // Disable command buffering when disconnected
-      connectTimeoutMS: 10000,              // Timeout for initial connection
-      // Uncomment the line below if you want to use a direct connection
-      // directConnection: true,            // Use direct connection (bypass srv lookup)
+      bufferCommands: true,                 // Enable command buffering when disconnected
+      connectTimeoutMS: 30000,              // Increased timeout for initial connection
+      // Enable direct connection for more reliable connections in production
+      directConnection: process.env.NODE_ENV === 'production',
     };
 
     // Try to connect with the primary connection string

@@ -141,18 +141,25 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       }
 
       console.log(`Fetching classes with params: ${params.toString()} (Attempt ${retryCount + 1}/${maxRetries + 1})`);
+      console.log('API URL:', process.env.REACT_APP_API_URL);
+      console.log('Environment:', process.env.NODE_ENV);
 
       // Add cache-busting parameter for production environment
       if (process.env.NODE_ENV === 'production') {
         params.append('_t', Date.now());
       }
 
+      // Increased timeout for production environment
+      const timeout = process.env.NODE_ENV === 'production' ? 30000 : 15000;
+      console.log(`Using timeout: ${timeout}ms`);
+
       // Use axios directly with timeout and headers
       const response = await unifiedApi.get(`/classes?${params.toString()}`, {
-        timeout: 15000, // 15 second timeout
+        timeout: timeout,
         headers: {
           'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          'Pragma': 'no-cache',
+          'Accept': 'application/json'
         }
       });
 
@@ -168,6 +175,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       // Check if response is an array
       if (!Array.isArray(response)) {
         console.error('Invalid response format:', response);
+        console.error('Response type:', typeof response);
+        console.error('Response value:', JSON.stringify(response));
         setClasses([]);
         throw new Error('Invalid response format');
       }

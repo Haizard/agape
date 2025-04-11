@@ -8,6 +8,7 @@ const Class = require('../models/Class');
 router.get('/', authenticateToken, async (req, res) => {
   try {
     console.log('GET /api/classes - Fetching all classes');
+    console.log('Query parameters:', req.query);
 
     // Build query based on parameters
     const query = {};
@@ -15,14 +16,24 @@ router.get('/', authenticateToken, async (req, res) => {
     // Filter by academic year if provided
     if (req.query.academicYear) {
       query.academicYear = req.query.academicYear;
+      console.log(`Filtering by academic year: ${req.query.academicYear}`);
     }
 
     // Filter by education level if provided
     if (req.query.educationLevel) {
       query.educationLevel = req.query.educationLevel;
+      console.log(`Filtering by education level: ${req.query.educationLevel}`);
     }
 
-    const classes = await Class.find(query)
+    console.log('MongoDB query:', JSON.stringify(query));
+
+    // Set timeout for the database query
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timed out')), 20000);
+    });
+
+    // Execute the query with a timeout
+    const queryPromise = Class.find(query)
       .populate('academicYear', 'name year')
       .populate('classTeacher', 'firstName lastName')
       .populate('subjectCombination', 'name code')
@@ -38,11 +49,30 @@ router.get('/', authenticateToken, async (req, res) => {
       })
       .populate('students', 'firstName lastName rollNumber educationLevel');
 
+    // Race the query against the timeout
+    const classes = await Promise.race([queryPromise, timeoutPromise]);
+
     console.log(`GET /api/classes - Found ${classes.length} classes`);
+
+    // Add cache control headers
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Expires', '-1');
+    res.set('Pragma', 'no-cache');
+
     res.json(classes);
   } catch (error) {
     console.error('GET /api/classes - Error:', error);
-    res.status(500).json({ message: error.message });
+
+    // Provide more specific error messages based on the error type
+    if (error.name === 'MongooseError' || error.name === 'MongoError') {
+      return res.status(503).json({ message: 'Database service is currently unavailable. Please try again later.' });
+    } else if (error.message === 'Database query timed out') {
+      return res.status(504).json({ message: 'Request timed out. The database is taking too long to respond.' });
+    } else if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: 'Invalid query parameters.' });
+    }
+
+    res.status(500).json({ message: error.message || 'An unexpected error occurred while fetching classes.' });
   }
 });
 

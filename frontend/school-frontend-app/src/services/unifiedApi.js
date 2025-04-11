@@ -10,13 +10,19 @@ import axios from 'axios';
 class UnifiedApiService {
   constructor() {
     // Create axios instance with default config
+    const timeout = process.env.REACT_APP_TIMEOUT ? parseInt(process.env.REACT_APP_TIMEOUT) : 30000;
+    console.log(`UnifiedApiService: Using API URL: ${process.env.REACT_APP_API_URL || '/api'}`);
+    console.log(`UnifiedApiService: Using timeout: ${timeout}ms`);
+
     this.api = axios.create({
       baseURL: process.env.REACT_APP_API_URL || '/api',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       },
       // Add timeout to prevent long-running requests
-      timeout: 10000
+      timeout: timeout
     });
 
     // Add request interceptor for authentication
