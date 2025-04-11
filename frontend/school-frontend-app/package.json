@@ -45,6 +45,7 @@
     "use-production-api": "node scripts/use-production-api.js",
     "use-local-api": "node scripts/use-local-api.js",
     "test-api": "node scripts/test-api-connection.js",
+    "test-classes-api": "node scripts/test-classes-api.js",
     "dev:prod-api": "npm run use-production-api && npm run dev",
     "dev:local-api": "npm run use-local-api && npm run dev"
   },
