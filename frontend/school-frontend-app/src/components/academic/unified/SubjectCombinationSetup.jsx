@@ -59,6 +59,7 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
     name: '',
     code: '',
     description: '',
+    educationLevel: 'A_LEVEL', // Add education level field with default value
     principalSubjects: [],
     subsidiarySubjects: []
   });
@@ -278,6 +279,7 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
         name: '',
         code: '',
         description: '',
+        educationLevel: 'A_LEVEL', // Keep the education level field
         principalSubjects: [],
         subsidiarySubjects: []
       });
@@ -317,6 +319,7 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
       name: combination.name || '',
       code: combination.code || '',
       description: combination.description || '',
+      educationLevel: combination.educationLevel || 'A_LEVEL', // Include education level with default
       principalSubjects: combination.principalSubjects && Array.isArray(combination.principalSubjects)
         ? combination.principalSubjects.map(subject =>
             typeof subject === 'object' ? subject._id : subject
