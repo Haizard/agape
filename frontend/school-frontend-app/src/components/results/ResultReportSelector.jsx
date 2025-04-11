@@ -413,6 +413,33 @@ const ResultReportSelector = () => {
                     </CardActions>
                   </Card>
                 </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" color="secondary" gutterBottom>
+                        Academic Report Book
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Generate a complete academic report book with:
+                      </Typography>
+                      <ul>
+                        <li>Book-style format with multiple pages</li>
+                        <li>Academic results for all subjects</li>
+                        <li>Character assessment and attendance records</li>
+                        <li>Teacher comments and parent signature section</li>
+                      </ul>
+                    </CardContent>
+                    <CardActions>
+                      <Button
+                        size="small"
+                        onClick={() => navigate('/results/report-book-selector')}
+                        color="secondary"
+                      >
+                        View Report Books
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
               </Grid>
             </Box>
           </Box>

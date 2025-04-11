@@ -54,6 +54,7 @@ import {
   Sms as SmsIcon,
   ContactPhone as ContactPhoneIcon,
   Description as DescriptionIcon,
+  MenuBook as MenuBookIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
@@ -182,6 +183,7 @@ const Navigation = () => {
           { text: 'SMS Settings', icon: <SmsIcon />, path: '/admin/sms-settings', hidden: true },
           { text: 'News', icon: <AnnouncementIcon />, path: '/admin/news', hidden: true },
           { text: 'A-Level Comprehensive Reports', icon: <DescriptionIcon />, path: '/results/a-level-comprehensive-selector', highlight: true, description: 'Comprehensive A-Level reports for Form 5 and Form 6' },
+          { text: 'Academic Report Books', icon: <MenuBookIcon />, path: '/results/report-book-selector', highlight: true, description: 'Complete academic report books with all student performance data' },
         ];
       case 'teacher':
         return [
@@ -193,6 +195,7 @@ const Navigation = () => {
           { text: 'Results', icon: <AssessmentIcon />, path: '/teacher/results' },
           { text: 'Class Reports', icon: <DescriptionIcon />, path: '/teacher/class-reports' },
           { text: 'A-Level Comprehensive Reports', icon: <DescriptionIcon />, path: '/results/a-level-comprehensive-selector', highlight: true },
+          { text: 'Academic Report Books', icon: <MenuBookIcon />, path: '/results/report-book-selector', highlight: true },
           { text: 'SMS Notification', icon: <SmsIcon />, path: '/teacher/sms-notification' },
           { text: 'Exams', icon: <ScheduleIcon />, path: '/teacher/exams' },
           { text: 'Students', icon: <PeopleIcon />, path: '/teacher/students' },
