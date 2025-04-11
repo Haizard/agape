@@ -209,6 +209,84 @@ router.get('/a-level/class/:classId', authenticateToken, async (req, res) => {
   }
 });
 
+// Get subjects for a specific student
+router.get('/:id/subjects', authenticateToken, async (req, res) => {
+  try {
+    console.log(`GET /api/students/${req.params.id}/subjects - Fetching subjects for student`);
+    const studentId = req.params.id;
+
+    // First check if the student exists
+    const student = await Student.findById(studentId).populate('class');
+    if (!student) {
+      console.log(`Student not found with ID: ${studentId}`);
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Get the class for this student
+    const classId = student.class._id;
+    if (!classId) {
+      console.log(`Student ${studentId} is not assigned to any class`);
+      return res.json([]);
+    }
+
+    // Get the class details
+    const Class = require('../models/Class');
+    const classDetails = await Class.findById(classId)
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject',
+        select: 'name code type description educationLevel isPrincipal isCompulsory'
+      });
+
+    if (!classDetails) {
+      console.log(`Class not found with ID: ${classId}`);
+      return res.json([]);
+    }
+
+    // Get subjects from class
+    const subjects = classDetails.subjects
+      .filter(subjectAssignment => subjectAssignment.subject) // Filter out null subjects
+      .map(subjectAssignment => subjectAssignment.subject);
+
+    // If student is A-Level, also get subjects from subject combination
+    if (student.educationLevel === 'A_LEVEL' && student.subjectCombination) {
+      console.log(`Student ${studentId} is A-Level with subject combination: ${student.subjectCombination}`);
+
+      // Get the subject combination
+      const SubjectCombination = require('../models/SubjectCombination');
+      const combination = await SubjectCombination.findById(student.subjectCombination)
+        .populate('subjects', 'name code type description educationLevel isPrincipal isCompulsory')
+        .populate('compulsorySubjects', 'name code type description educationLevel isPrincipal isCompulsory');
+
+      if (combination) {
+        // Add subjects from combination if they're not already in the list
+        if (combination.subjects && Array.isArray(combination.subjects)) {
+          for (const subject of combination.subjects) {
+            if (!subjects.some(s => s._id.toString() === subject._id.toString())) {
+              subjects.push(subject);
+            }
+          }
+        }
+
+        // Add compulsory subjects if they're not already in the list
+        if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+          for (const subject of combination.compulsorySubjects) {
+            if (!subjects.some(s => s._id.toString() === subject._id.toString())) {
+              subjects.push(subject);
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`Found ${subjects.length} subjects for student ${studentId}`);
+    res.json(subjects);
+  } catch (error) {
+    console.error(`Error fetching subjects for student ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Failed to fetch student subjects' });
+  }
+});
+
 // Get all students assigned to classes where the teacher teaches
 router.get('/my-students', authenticateToken, authorizeRole('teacher'), async (req, res) => {
   try {
