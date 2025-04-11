@@ -60,8 +60,8 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
     code: '',
     description: '',
     educationLevel: 'A_LEVEL', // Add education level field with default value
-    principalSubjects: [],
-    subsidiarySubjects: []
+    subjects: [], // Changed from principalSubjects to match backend model
+    compulsorySubjects: [] // Changed from subsidiarySubjects to match backend model
   });
 
   // State for subject combinations list
@@ -193,38 +193,38 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
     if (selectionType === 'principal') {
       // Toggle principal subject selection
       setFormData(prev => {
-        const isSelected = prev.principalSubjects.includes(subjectId);
+        const isSelected = prev.subjects.includes(subjectId);
 
         if (isSelected) {
           // Remove subject
           return {
             ...prev,
-            principalSubjects: prev.principalSubjects.filter(id => id !== subjectId)
+            subjects: prev.subjects.filter(id => id !== subjectId)
           };
         } else {
           // Add subject
           return {
             ...prev,
-            principalSubjects: [...prev.principalSubjects, subjectId]
+            subjects: [...prev.subjects, subjectId]
           };
         }
       });
     } else {
       // Toggle subsidiary subject selection
       setFormData(prev => {
-        const isSelected = prev.subsidiarySubjects.includes(subjectId);
+        const isSelected = prev.compulsorySubjects.includes(subjectId);
 
         if (isSelected) {
           // Remove subject
           return {
             ...prev,
-            subsidiarySubjects: prev.subsidiarySubjects.filter(id => id !== subjectId)
+            compulsorySubjects: prev.compulsorySubjects.filter(id => id !== subjectId)
           };
         } else {
           // Add subject
           return {
             ...prev,
-            subsidiarySubjects: [...prev.subsidiarySubjects, subjectId]
+            compulsorySubjects: [...prev.compulsorySubjects, subjectId]
           };
         }
       });
@@ -252,13 +252,13 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
         return;
       }
 
-      if (formData.principalSubjects.length < 3) {
+      if (formData.subjects.length < 3) {
         setError('At least 3 principal subjects are required.');
         setLoading(false);
         return;
       }
 
-      if (formData.subsidiarySubjects.length < 1) {
+      if (formData.compulsorySubjects.length < 1) {
         setError('At least 1 subsidiary subject is required.');
         setLoading(false);
         return;
@@ -280,8 +280,8 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
         code: '',
         description: '',
         educationLevel: 'A_LEVEL', // Keep the education level field
-        principalSubjects: [],
-        subsidiarySubjects: []
+        subjects: [], // Changed from principalSubjects to match backend model
+        compulsorySubjects: [] // Changed from subsidiarySubjects to match backend model
       });
 
       // Reset edit mode
@@ -320,13 +320,13 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
       code: combination.code || '',
       description: combination.description || '',
       educationLevel: combination.educationLevel || 'A_LEVEL', // Include education level with default
-      principalSubjects: combination.principalSubjects && Array.isArray(combination.principalSubjects)
-        ? combination.principalSubjects.map(subject =>
+      subjects: combination.subjects && Array.isArray(combination.subjects)
+        ? combination.subjects.map(subject =>
             typeof subject === 'object' ? subject._id : subject
           )
         : [],
-      subsidiarySubjects: combination.subsidiarySubjects && Array.isArray(combination.subsidiarySubjects)
-        ? combination.subsidiarySubjects.map(subject =>
+      compulsorySubjects: combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)
+        ? combination.compulsorySubjects.map(subject =>
             typeof subject === 'object' ? subject._id : subject
           )
         : []
@@ -369,8 +369,9 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
       name: '',
       code: '',
       description: '',
-      principalSubjects: [],
-      subsidiarySubjects: []
+      educationLevel: 'A_LEVEL',
+      subjects: [],
+      compulsorySubjects: []
     });
 
     // Reset edit mode
@@ -732,9 +733,9 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
                     <TableCell>{combination.code}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {combination.principalSubjects && Array.isArray(combination.principalSubjects) ? combination.principalSubjects.map((subject, index) => (
+                        {combination.subjects && Array.isArray(combination.subjects) ? combination.subjects.map((subject, index) => (
                           <Chip
-                            key={index}
+                            key={subject._id || index}
                             label={typeof subject === 'object' ? subject.name : getSubjectName(subject)}
                             color="primary"
                             size="small"
@@ -744,9 +745,9 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {combination.subsidiarySubjects && Array.isArray(combination.subsidiarySubjects) ? combination.subsidiarySubjects.map((subject, index) => (
+                        {combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects) ? combination.compulsorySubjects.map((subject, index) => (
                           <Chip
-                            key={index}
+                            key={subject._id || index}
                             label={typeof subject === 'object' ? subject.name : getSubjectName(subject)}
                             color="secondary"
                             size="small"
