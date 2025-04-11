@@ -143,7 +143,7 @@ const resultApi = {
    */
   getOLevelStudentReportUrl: (studentId, examId) => {
     // Use the dedicated API endpoint for O-Level results
-    return `${api.defaults.baseURL}/api/o-level-results/api/student/${studentId}/${examId}`;
+    return `${api.defaults.baseURL}/api/o-level-results/student/${studentId}/${examId}`;
   },
 
   /**
@@ -154,7 +154,7 @@ const resultApi = {
    */
   getOLevelClassReportUrl: (classId, examId) => {
     // Use the dedicated API endpoint for O-Level results
-    return `${api.defaults.baseURL}/api/o-level-results/api/class/${classId}/${examId}`;
+    return `${api.defaults.baseURL}/api/o-level-results/class/${classId}/${examId}`;
   },
 
   /**
