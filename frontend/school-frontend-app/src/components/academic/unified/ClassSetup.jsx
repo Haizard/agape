@@ -140,7 +140,26 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         params.append('educationLevel', filter.educationLevel);
       }
 
+      console.log('Fetching classes with params:', params.toString());
       const response = await unifiedApi.get(`/classes?${params.toString()}`);
+      console.log('Classes response:', response);
+
+      // Check if response is valid
+      if (!response) {
+        console.error('Invalid response: response is undefined');
+        setClasses([]);
+        setError('Failed to load classes. Invalid response from server.');
+        return;
+      }
+
+      // Check if response is an array
+      if (!Array.isArray(response)) {
+        console.error('Invalid response format:', response);
+        setClasses([]);
+        setError('Failed to load classes. Invalid response format.');
+        return;
+      }
+
       setClasses(response);
 
       // Check if there's at least one class for each education level
@@ -148,13 +167,21 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         const oLevelClasses = response.filter(cls => cls.educationLevel === 'O_LEVEL');
         const aLevelClasses = response.filter(cls => cls.educationLevel === 'A_LEVEL');
 
+        console.log('O-Level classes:', oLevelClasses.length);
+        console.log('A-Level classes:', aLevelClasses.length);
+
         if (oLevelClasses.length > 0 && aLevelClasses.length > 0) {
           // Mark step as complete if at least one class exists for each education level
-          onComplete && onComplete();
+          onComplete?.();
         }
       }
     } catch (err) {
       console.error('Error fetching classes:', err);
+      if (err.response) {
+        console.error('Response status:', err.response.status);
+        console.error('Response data:', err.response.data);
+      }
+      setClasses([]);
       setError('Failed to load classes. Please try again.');
     } finally {
       setLoading(false);
@@ -172,8 +199,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       }));
     } else if (name === 'capacity') {
       // Ensure capacity is a number
-      const numValue = parseInt(value, 10);
-      if (!isNaN(numValue) && numValue > 0) {
+      const numValue = Number.parseInt(value, 10);
+      if (!Number.isNaN(numValue) && numValue > 0) {
         setFormData(prev => ({
           ...prev,
           [name]: numValue
@@ -268,7 +295,7 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
 
         if (oLevelClasses.length > 0 && aLevelClasses.length > 0) {
           // Mark step as complete
-          onComplete && onComplete();
+          onComplete?.();
         }
       }
     } catch (err) {
@@ -435,7 +462,7 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
 
       // Mark step as complete if not standalone
       if (!standalone) {
-        onComplete && onComplete();
+        onComplete?.();
       }
     } catch (err) {
       console.error('Error creating bulk classes:', err);
