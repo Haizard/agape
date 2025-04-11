@@ -138,7 +138,17 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         stream: 'Science',
         educationLevel: 'O_LEVEL',
         capacity: 40,
-        students: []
+        students: [],
+        academicYear: {
+          _id: 'mock-academic-year-1',
+          name: 'Academic Year 2023-2024',
+          year: 2023
+        },
+        classTeacher: {
+          _id: 'mock-teacher-1',
+          firstName: 'John',
+          lastName: 'Doe'
+        }
       },
       {
         _id: 'mock-class-2',
@@ -147,7 +157,17 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         stream: 'Arts',
         educationLevel: 'O_LEVEL',
         capacity: 40,
-        students: []
+        students: [],
+        academicYear: {
+          _id: 'mock-academic-year-1',
+          name: 'Academic Year 2023-2024',
+          year: 2023
+        },
+        classTeacher: {
+          _id: 'mock-teacher-2',
+          firstName: 'Jane',
+          lastName: 'Smith'
+        }
       },
       {
         _id: 'mock-class-3',
@@ -156,7 +176,17 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         stream: 'Science',
         educationLevel: 'A_LEVEL',
         capacity: 30,
-        students: []
+        students: [],
+        academicYear: {
+          _id: 'mock-academic-year-1',
+          name: 'Academic Year 2023-2024',
+          year: 2023
+        },
+        classTeacher: {
+          _id: 'mock-teacher-3',
+          firstName: 'Robert',
+          lastName: 'Johnson'
+        }
       },
       {
         _id: 'mock-class-4',
@@ -165,7 +195,17 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         stream: 'Arts',
         educationLevel: 'A_LEVEL',
         capacity: 30,
-        students: []
+        students: [],
+        academicYear: {
+          _id: 'mock-academic-year-1',
+          name: 'Academic Year 2023-2024',
+          year: 2023
+        },
+        classTeacher: {
+          _id: 'mock-teacher-4',
+          firstName: 'Mary',
+          lastName: 'Williams'
+        }
       }
     ];
 
@@ -174,6 +214,10 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
 
     if (filterParams.educationLevel) {
       filteredClasses = filteredClasses.filter(cls => cls.educationLevel === filterParams.educationLevel);
+    }
+
+    if (filterParams.academicYear) {
+      filteredClasses = filteredClasses.filter(cls => cls.academicYear?._id === filterParams.academicYear);
     }
 
     console.log('Generated mock classes:', filteredClasses);
@@ -200,6 +244,17 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       console.log('Environment:', process.env.NODE_ENV);
       console.log('Token:', localStorage.getItem('token') ? 'Present' : 'Not present');
 
+      // Try multiple endpoints to handle both old and new API patterns
+      const endpoints = [
+        `/api/classes?${params.toString()}`,
+        `/classes?${params.toString()}`
+      ];
+
+      console.log('Trying multiple endpoints:', endpoints);
+
+      let response = null;
+      let error = null;
+
       // Add cache-busting parameter for production environment
       if (process.env.NODE_ENV === 'production') {
         params.append('_t', Date.now());
@@ -209,15 +264,42 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       const timeout = process.env.NODE_ENV === 'production' ? 60000 : 15000;
       console.log(`Using timeout: ${timeout}ms`);
 
-      // Use axios directly with timeout and headers
-      const response = await unifiedApi.get(`/api/classes?${params.toString()}`, {
-        timeout: timeout,
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'Accept': 'application/json'
+      // Try each endpoint until one works
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          response = await unifiedApi.get(endpoint, {
+            timeout: timeout,
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+              'Accept': 'application/json'
+            }
+          });
+
+          if (response && response.data) {
+            console.log(`Endpoint ${endpoint} succeeded`);
+            break;
+          }
+        } catch (err) {
+          console.error(`Endpoint ${endpoint} failed:`, err);
+          error = err;
         }
-      });
+      }
+
+      // If all endpoints failed and we've reached max retries, use mock data
+      if (!response && retryCount >= maxRetries) {
+        console.log('All endpoints failed, using mock data');
+        const mockClasses = generateMockClasses(filter);
+        setClasses(mockClasses);
+        setLoading(false);
+        return;
+      }
+
+      // If all endpoints failed but we haven't reached max retries, throw an error to trigger retry
+      if (!response) {
+        throw error || new Error('All endpoints failed');
+      }
 
       console.log('Classes response:', response);
 

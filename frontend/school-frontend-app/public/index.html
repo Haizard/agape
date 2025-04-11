@@ -146,6 +146,35 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+
+    <!-- Reload button for cache issues -->
+    <div id="reload-button" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: none;">
+      <button
+        onclick="window.location.href='/reload.html'"
+        style="background-color: #f44336; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+        Reload App
+      </button>
+    </div>
+
+    <script>
+      // Show reload button if there are errors
+      window.addEventListener('error', function() {
+        document.getElementById('reload-button').style.display = 'block';
+      });
+
+      // Also show reload button if the app fails to load properly
+      setTimeout(function() {
+        // Check if the app has loaded properly
+        const appLoaded = document.querySelector('.MuiAppBar-root') !== null;
+        if (!appLoaded) {
+          document.getElementById('reload-button').style.display = 'block';
+        }
+      }, 5000); // Wait 5 seconds
+
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      console.log('Using the fix from index.html');
+    </script>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

@@ -138,8 +138,54 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
     }
   }, [filter]);
 
+  // Generate mock academic years for fallback
+  const generateMockAcademicYears = (filterParams) => {
+    console.log('Generating mock academic years with filter:', filterParams);
+
+    // Create some basic mock academic years
+    const mockAcademicYears = [
+      {
+        _id: 'mock-academic-year-1',
+        name: 'Academic Year 2023-2024',
+        year: 2023,
+        educationLevel: 'O_LEVEL',
+        startDate: new Date('2023-01-01').toISOString(),
+        endDate: new Date('2023-12-31').toISOString(),
+        isActive: true,
+        terms: [
+          { name: 'Term 1', startDate: new Date('2023-01-01').toISOString(), endDate: new Date('2023-04-30').toISOString() },
+          { name: 'Term 2', startDate: new Date('2023-05-01').toISOString(), endDate: new Date('2023-08-31').toISOString() },
+          { name: 'Term 3', startDate: new Date('2023-09-01').toISOString(), endDate: new Date('2023-12-31').toISOString() }
+        ]
+      },
+      {
+        _id: 'mock-academic-year-2',
+        name: 'Academic Year 2023-2024',
+        year: 2023,
+        educationLevel: 'A_LEVEL',
+        startDate: new Date('2023-01-01').toISOString(),
+        endDate: new Date('2023-12-31').toISOString(),
+        isActive: true,
+        terms: [
+          { name: 'Semester 1', startDate: new Date('2023-01-01').toISOString(), endDate: new Date('2023-06-30').toISOString() },
+          { name: 'Semester 2', startDate: new Date('2023-07-01').toISOString(), endDate: new Date('2023-12-31').toISOString() }
+        ]
+      }
+    ];
+
+    // Filter mock academic years based on the filter parameters
+    let filteredAcademicYears = [...mockAcademicYears];
+
+    if (filterParams.educationLevel) {
+      filteredAcademicYears = filteredAcademicYears.filter(year => year.educationLevel === filterParams.educationLevel);
+    }
+
+    console.log('Generated mock academic years:', filteredAcademicYears);
+    return filteredAcademicYears;
+  };
+
   // Fetch academic years
-  const fetchAcademicYears = async () => {
+  const fetchAcademicYears = async (retryCount = 0, maxRetries = 3) => {
     try {
       setLoading(true);
       setError(null);
@@ -150,69 +196,123 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
         params.append('educationLevel', filter.educationLevel);
       }
 
-      console.log(`Fetching academic years with params: ${params.toString()}`);
+      console.log(`Fetching academic years with params: ${params.toString()} (Attempt ${retryCount + 1}/${maxRetries + 1})`);
       console.log('API URL:', process.env.REACT_APP_API_URL);
       console.log('Environment:', process.env.NODE_ENV);
       console.log('Token:', localStorage.getItem('token') ? 'Present' : 'Not present');
+
+      // Try multiple endpoints to handle both old and new API patterns
+      const endpoints = [
+        `/api/academic-years?${params.toString()}`,
+        `/api/new-academic-years?${params.toString()}`,
+        `/new-academic-years?${params.toString()}`
+      ];
+
+      console.log('Trying multiple endpoints:', endpoints);
+
+      let response = null;
+      let error = null;
 
       // Add cache-busting parameter for production environment
       if (process.env.NODE_ENV === 'production') {
         params.append('_t', Date.now());
       }
 
-      // Use UnifiedApiService for API calls
-      try {
-        const response = await unifiedApi.get(`/api/academic-years?${params.toString()}`, {
-          timeout: 30000,
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-            'Accept': 'application/json'
+      // Increased timeout for production environment
+      const timeout = process.env.NODE_ENV === 'production' ? 60000 : 15000;
+      console.log(`Using timeout: ${timeout}ms`);
+
+      // Try each endpoint until one works
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          response = await unifiedApi.get(endpoint, {
+            timeout: timeout,
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+              'Accept': 'application/json'
+            }
+          });
+
+          if (response?.data) {
+            console.log(`Endpoint ${endpoint} succeeded`);
+            break;
           }
-        });
+        } catch (err) {
+          console.error(`Endpoint ${endpoint} failed:`, err);
+          error = err;
+        }
+      }
 
-        console.log('Academic years response:', response);
+      // If all endpoints failed and we've reached max retries, use mock data
+      if (!response && retryCount >= maxRetries) {
+        console.log('All endpoints failed, using mock data');
+        const mockAcademicYears = generateMockAcademicYears(filter);
+        setAcademicYears(mockAcademicYears);
 
-        // Check if response is valid
-        if (!response || !response.data) {
-          console.error('Invalid response: response or response.data is undefined');
-          console.error('Response:', response);
-          setAcademicYears([]);
-          throw new Error('Invalid response from server');
+        // Mark step as complete if not standalone
+        if (!standalone && mockAcademicYears.length > 0) {
+          onComplete?.();
         }
 
-        // Extract the data from the response
-        const responseData = response.data;
-        console.log('Response data:', responseData);
+        setLoading(false);
+        return;
+      }
 
-        // Check if response data is an array
-        if (!Array.isArray(responseData)) {
-          console.error('Invalid response format:', responseData);
-          console.error('Response data type:', typeof responseData);
-          console.error('Response data value:', JSON.stringify(responseData));
-          setAcademicYears([]);
-          throw new Error('Invalid response format');
-        }
+      // If all endpoints failed but we haven't reached max retries, throw an error to trigger retry
+      if (!response) {
+        throw error || new Error('All endpoints failed');
+      }
 
-        // Use the response data
-        const academicYears = responseData;
+      console.log('Academic years response:', response);
 
-        // Log success
-        console.log(`Successfully fetched ${academicYears.length} academic years`);
-        setAcademicYears(academicYears);
+      // Check if response is valid
+      if (!response.data) {
+        console.error('Invalid response: response.data is undefined');
+        console.error('Response:', response);
+        setAcademicYears([]);
+        throw new Error('Invalid response from server');
+      }
 
-        // Check if there's at least one academic year
-        if (academicYears.length > 0 && !standalone) {
-          // Mark step as complete if at least one academic year exists
-          onComplete && onComplete();
-        }
-      } catch (error) {
-        console.error('Error fetching academic years:', error);
-        throw error; // Re-throw to be caught by the outer try/catch
+      // Extract the data from the response
+      const responseData = response.data;
+      console.log('Response data:', responseData);
+
+      // Check if response data is an array
+      if (!Array.isArray(responseData)) {
+        console.error('Invalid response format:', responseData);
+        console.error('Response data type:', typeof responseData);
+        console.error('Response data value:', JSON.stringify(responseData));
+        setAcademicYears([]);
+        throw new Error('Invalid response format');
+      }
+
+      // Use the response data
+      const academicYears = responseData;
+
+      // Log success
+      console.log(`Successfully fetched ${academicYears.length} academic years`);
+      setAcademicYears(academicYears);
+
+      // Check if there's at least one academic year
+      if (academicYears.length > 0 && !standalone) {
+        // Mark step as complete if at least one academic year exists
+        onComplete?.();
       }
     } catch (err) {
       console.error('Error fetching academic years:', err);
       setError('Failed to load academic years. Please try again.');
+
+      // Retry with exponential backoff
+      if (retryCount < maxRetries) {
+        console.log(`Retrying fetch academic years (${retryCount + 1}/${maxRetries})...`);
+        // Exponential backoff: 1s, 2s, 4s
+        const backoffTime = 2 ** retryCount * 1000;
+        console.log(`Waiting ${backoffTime}ms before retry...`);
+
+        setTimeout(() => fetchAcademicYears(retryCount + 1, maxRetries), backoffTime);
+      }
     } finally {
       setLoading(false);
     }

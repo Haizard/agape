@@ -198,6 +198,24 @@ app.use('/api/subject-combinations', subjectCombinationRoutes);
 app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
 app.use('/api/data-consistency', dataConsistencyRoutes);
 
+// Add endpoint aliases for backward compatibility
+// These routes handle requests without the /api prefix
+console.log('Adding endpoint aliases for backward compatibility');
+
+// Alias for /classes to /api/classes
+app.use('/classes', (req, res, next) => {
+  console.log('Redirecting /classes to /api/classes');
+  req.url = '/api/classes' + req.url;
+  app._router.handle(req, res, next);
+});
+
+// Alias for /new-academic-years to /api/academic-years
+app.use('/new-academic-years', (req, res, next) => {
+  console.log('Redirecting /new-academic-years to /api/academic-years');
+  req.url = '/api/academic-years' + req.url;
+  app._router.handle(req, res, next);
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
