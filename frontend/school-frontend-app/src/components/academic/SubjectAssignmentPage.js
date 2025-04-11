@@ -103,14 +103,29 @@ const SubjectAssignmentPage = () => {
         console.log('Class is A_LEVEL with subject combination:', classData.subjectCombination);
         try {
           const combinationId = classData.subjectCombination._id || classData.subjectCombination;
+          console.log('Fetching subject combination with ID:', combinationId);
+
           const combinationResponse = await api.get(`/api/subject-combinations/${combinationId}`);
           const combination = combinationResponse.data;
           console.log('Subject combination data:', combination);
 
-          if (combination.subjects && combination.subjects.length > 0) {
+          if (!combination) {
+            console.error('Subject combination not found or invalid response');
+            setError('Error loading subject combination. Please try again.');
+            return;
+          }
+
+          if (combination.subjects && Array.isArray(combination.subjects) && combination.subjects.length > 0) {
             // Get full subject details
             const subjectPromises = combination.subjects.map(subjectId => {
+              if (!subjectId) {
+                console.error('Invalid subject ID in combination:', subjectId);
+                return Promise.resolve({ data: null });
+              }
+
               const id = typeof subjectId === 'object' ? subjectId._id : subjectId;
+              console.log(`Fetching subject details for ID: ${id}`);
+
               return api.get(`/api/subjects/${id}`).catch(err => {
                 console.error(`Error fetching subject ${id}:`, err);
                 return { data: null }; // Return null data on error
@@ -149,6 +164,10 @@ const SubjectAssignmentPage = () => {
           }
         } catch (combinationError) {
           console.error('Error fetching subject combination:', combinationError);
+          if (combinationError.response) {
+            console.error('Response status:', combinationError.response.status);
+            console.error('Response data:', combinationError.response.data);
+          }
           setError('Error loading subject combination. Please try again.');
         }
       }
