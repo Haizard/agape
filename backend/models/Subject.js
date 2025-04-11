@@ -25,6 +25,10 @@ const subjectSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isPrincipal: {
+    type: Boolean,
+    default: false
+  },
   subjectCombinations: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SubjectCombination'
