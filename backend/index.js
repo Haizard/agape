@@ -216,6 +216,20 @@ app.use('/new-academic-years', (req, res, next) => {
   app._router.handle(req, res, next);
 });
 
+// Alias for /o-level-results to /api/o-level-results
+app.use('/o-level-results', (req, res, next) => {
+  console.log('Redirecting /o-level-results to /api/o-level-results');
+  req.url = '/api/o-level-results' + req.url;
+  app._router.handle(req, res, next);
+});
+
+// Alias for /a-level-results to /api/a-level-results
+app.use('/a-level-results', (req, res, next) => {
+  console.log('Redirecting /a-level-results to /api/a-level-results');
+  req.url = '/api/a-level-results' + req.url;
+  app._router.handle(req, res, next);
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
