@@ -840,7 +840,7 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
                       <ListItemIcon>
                         <Checkbox
                           edge="start"
-                          checked={formData.principalSubjects.includes(subject._id)}
+                          checked={formData.subjects && formData.subjects.includes(subject._id)}
                           tabIndex={-1}
                           disableRipple
                         />
@@ -863,7 +863,7 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
                       <ListItemIcon>
                         <Checkbox
                           edge="start"
-                          checked={formData.subsidiarySubjects.includes(subject._id)}
+                          checked={formData.compulsorySubjects && formData.compulsorySubjects.includes(subject._id)}
                           tabIndex={-1}
                           disableRipple
                         />
