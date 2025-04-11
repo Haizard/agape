@@ -153,19 +153,55 @@
   font-weight: bold !important;
 }
 
-/* Division Summary */
-.division-summary {
+/* Summary Sections */
+.subject-performance-summary,
+.overall-performance-summary {
   margin-bottom: 20px;
 }
 
 .summary-title {
   font-weight: bold !important;
   margin-bottom: 10px !important;
+  font-size: 1.1rem !important;
+  color: #1976d2;
 }
 
-.division-count {
-  padding: 10px;
-  text-align: center;
+.summary-section-title {
+  font-weight: bold !important;
+  margin-bottom: 10px !important;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #ddd;
+}
+
+.summary-table-container {
+  margin-bottom: 20px;
+  border: 1px solid #000;
+  overflow-x: auto;
+}
+
+.summary-table {
+  border-collapse: collapse;
+}
+
+.summary-header {
+  font-weight: bold !important;
+  text-align: center !important;
+  border: 1px solid #000 !important;
+  padding: 8px !important;
+  background-color: #f0f0f0;
+}
+
+.grade-header {
+  font-weight: bold !important;
+  text-align: center !important;
+  border: 1px solid #000 !important;
+  padding: 8px !important;
+  background-color: #e8f4f8;
+}
+
+.summary-paper {
+  padding: 15px;
+  height: 100%;
   border: 1px solid #000;
 }
 

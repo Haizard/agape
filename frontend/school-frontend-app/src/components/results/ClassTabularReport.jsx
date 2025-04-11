@@ -701,52 +701,224 @@ const ClassTabularReport = () => {
         </Table>
       </TableContainer>
 
-      {/* Division Summary */}
-      <Box className="division-summary">
+      {/* Subject Performance Summary */}
+      <Box className="subject-performance-summary">
         <Typography variant="subtitle1" className="summary-title">
-          Division Summary
+          Subject Performance Summary
+        </Typography>
+        <TableContainer component={Paper} className="summary-table-container">
+          <Table className="summary-table" size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell className="summary-header">SUBJECT</TableCell>
+                <TableCell align="center" className="summary-header">REG</TableCell>
+                <TableCell align="center" className="summary-header" colSpan={7}>GRADE</TableCell>
+                <TableCell align="center" className="summary-header">PASS</TableCell>
+                <TableCell align="center" className="summary-header">GPA</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="summary-header" />
+                <TableCell align="center" className="summary-header" />
+                <TableCell align="center" className="grade-header">A</TableCell>
+                <TableCell align="center" className="grade-header">B</TableCell>
+                <TableCell align="center" className="grade-header">C</TableCell>
+                <TableCell align="center" className="grade-header">D</TableCell>
+                <TableCell align="center" className="grade-header">E</TableCell>
+                <TableCell align="center" className="grade-header">S</TableCell>
+                <TableCell align="center" className="grade-header">F</TableCell>
+                <TableCell align="center" className="summary-header" />
+                <TableCell align="center" className="summary-header" />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {subjects.map((subject) => {
+                // Count students with this subject
+                const studentsWithSubject = filteredStudents.filter(student =>
+                  (student.subjects || []).some(s => s.code === subject.code)
+                );
+
+                // Count grades
+                const gradeA = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'A'
+                ).length;
+
+                const gradeB = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'B'
+                ).length;
+
+                const gradeC = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'C'
+                ).length;
+
+                const gradeD = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'D'
+                ).length;
+
+                const gradeE = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'E'
+                ).length;
+
+                const gradeS = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'S'
+                ).length;
+
+                const gradeF = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'F'
+                ).length;
+
+                // Calculate pass rate (A to S)
+                const passCount = gradeA + gradeB + gradeC + gradeD + gradeE + gradeS;
+
+                // Calculate GPA
+                const totalPoints = studentsWithSubject.reduce((sum, student) => {
+                  const subjectData = (student.subjects || []).find(s => s.code === subject.code);
+                  return sum + (subjectData?.points || 0);
+                }, 0);
+
+                const subjectGPA = studentsWithSubject.length > 0
+                  ? (totalPoints / studentsWithSubject.length).toFixed(2)
+                  : 'N/A';
+
+                return (
+                  <TableRow key={subject.code}>
+                    <TableCell className="subject-name">
+                      {subject.name} ({subject.code})
+                    </TableCell>
+                    <TableCell align="center">{studentsWithSubject.length}</TableCell>
+                    <TableCell align="center">{gradeA}</TableCell>
+                    <TableCell align="center">{gradeB}</TableCell>
+                    <TableCell align="center">{gradeC}</TableCell>
+                    <TableCell align="center">{gradeD}</TableCell>
+                    <TableCell align="center">{gradeE}</TableCell>
+                    <TableCell align="center">{gradeS}</TableCell>
+                    <TableCell align="center">{gradeF}</TableCell>
+                    <TableCell align="center">{passCount}</TableCell>
+                    <TableCell align="center">{subjectGPA}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+
+      {/* Overall Performance Summary */}
+      <Box className="overall-performance-summary">
+        <Typography variant="subtitle1" className="summary-title">
+          Overall Performance Summary
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division I:</strong> {filteredStudents.filter(s => s.summary?.division === 'I').length}
+          <Grid item xs={12} md={6}>
+            <Paper className="summary-paper">
+              <Typography variant="h6" className="summary-section-title">
+                Examination Statistics
               </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="body1">
+                    <strong>Total Students:</strong> {filteredStudents.length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body1">
+                    <strong>Total Passed:</strong> {filteredStudents.filter(s => s.summary?.division !== 'F').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body1">
+                    <strong>Pass Rate:</strong> {
+                      filteredStudents.length > 0
+                        ? `${((filteredStudents.filter(s => s.summary?.division !== 'F').length / filteredStudents.length) * 100).toFixed(2)}%`
+                        : 'N/A'
+                    }
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body1">
+                    <strong>Examination GPA:</strong> {
+                      (() => {
+                        // Calculate average subject GPA
+                        const subjectGPAs = subjects.map(subject => {
+                          const studentsWithSubject = filteredStudents.filter(student =>
+                            (student.subjects || []).some(s => s.code === subject.code)
+                          );
+
+                          const totalPoints = studentsWithSubject.reduce((sum, student) => {
+                            const subjectData = (student.subjects || []).find(s => s.code === subject.code);
+                            return sum + (subjectData?.points || 0);
+                          }, 0);
+
+                          return studentsWithSubject.length > 0
+                            ? totalPoints / studentsWithSubject.length
+                            : 0;
+                        });
+
+                        const avgSubjectGPA = subjectGPAs.length > 0
+                          ? subjectGPAs.reduce((sum, gpa) => sum + gpa, 0) / subjectGPAs.length
+                          : 0;
+
+                        // Calculate average division GPA
+                        const divisionPoints = {
+                          'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'F': 6
+                        };
+
+                        const totalDivisionPoints = filteredStudents.reduce((sum, student) => {
+                          return sum + (divisionPoints[student.summary?.division] || 0);
+                        }, 0);
+
+                        const avgDivisionGPA = filteredStudents.length > 0
+                          ? totalDivisionPoints / filteredStudents.length
+                          : 0;
+
+                        // Calculate overall GPA
+                        const overallGPA = (avgSubjectGPA + avgDivisionGPA) / 2;
+
+                        return overallGPA.toFixed(2);
+                      })()
+                    }
+                  </Typography>
+                </Grid>
+              </Grid>
             </Paper>
           </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division II:</strong> {filteredStudents.filter(s => s.summary?.division === 'II').length}
+
+          <Grid item xs={12} md={6}>
+            <Paper className="summary-paper">
+              <Typography variant="h6" className="summary-section-title">
+                Division Summary
               </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division III:</strong> {filteredStudents.filter(s => s.summary?.division === 'III').length}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division IV:</strong> {filteredStudents.filter(s => s.summary?.division === 'IV').length}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division V:</strong> {filteredStudents.filter(s => s.summary?.division === 'V').length}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Failed:</strong> {filteredStudents.filter(s => s.summary?.division === 'F').length}
-              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division I:</strong> {filteredStudents.filter(s => s.summary?.division === 'I').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division II:</strong> {filteredStudents.filter(s => s.summary?.division === 'II').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division III:</strong> {filteredStudents.filter(s => s.summary?.division === 'III').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division IV:</strong> {filteredStudents.filter(s => s.summary?.division === 'IV').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division V:</strong> {filteredStudents.filter(s => s.summary?.division === 'V').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Failed:</strong> {filteredStudents.filter(s => s.summary?.division === 'F').length}
+                  </Typography>
+                </Grid>
+              </Grid>
             </Paper>
           </Grid>
         </Grid>
