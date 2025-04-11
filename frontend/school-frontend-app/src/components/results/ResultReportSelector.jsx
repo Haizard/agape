@@ -493,7 +493,7 @@ const ResultReportSelector = () => {
                   <Card sx={{ bgcolor: '#f0f7ff', border: '1px solid #2196f3' }}>
                     <CardContent>
                       <Typography variant="h5" color="primary" gutterBottom fontWeight="bold">
-                        Unified Academic Reports System
+                        Unified Academic Reports System (v2.0)
                       </Typography>
                       <Typography variant="body1" color="text.secondary" paragraph>
                         Our comprehensive unified report system for all A-Level students:
