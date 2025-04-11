@@ -121,6 +121,13 @@ const UnifiedAcademicManagement = () => {
       id: 'academicYear',
       label: 'Academic Year Setup',
       description: 'Create and configure academic years for both O-Level and A-Level',
+      guidelines: [
+        'Start by creating the current academic year',
+        'Include clear start and end dates for each academic year',
+        'Mark the current academic year as active',
+        'Create separate academic years for O-Level and A-Level if needed',
+        'Plan ahead by creating the next academic year in advance'
+      ],
       component: <AcademicYearSetup onComplete={() => handleStepComplete('academicYear')} />,
       completed: completed.academicYear,
       required: true
@@ -129,6 +136,13 @@ const UnifiedAcademicManagement = () => {
       id: 'classes',
       label: 'Class Setup',
       description: 'Create classes for all forms and assign them to academic years',
+      guidelines: [
+        'Create classes for each form level (Form 1-6)',
+        'Assign each class to the appropriate academic year',
+        'Set the correct education level (O-Level or A-Level)',
+        'Specify the class capacity to manage enrollment',
+        'Add sections/streams if your school divides classes (e.g., Form 1A, Form 1B)'
+      ],
       component: <ClassSetup onComplete={() => handleStepComplete('classes')} />,
       completed: completed.classes,
       required: true
@@ -137,6 +151,13 @@ const UnifiedAcademicManagement = () => {
       id: 'subjects',
       label: 'Subject Setup',
       description: 'Create subjects for both O-Level and A-Level',
+      guidelines: [
+        'Add all subjects taught in your school',
+        'Categorize subjects as Core or Optional',
+        'Assign the correct education level to each subject',
+        'Use consistent naming and coding conventions',
+        'Include pass marks and grading criteria for each subject'
+      ],
       component: <SubjectSetup onComplete={() => handleStepComplete('subjects')} />,
       completed: completed.subjects,
       required: true
@@ -145,6 +166,13 @@ const UnifiedAcademicManagement = () => {
       id: 'combinations',
       label: 'Subject Combination Setup',
       description: 'Create subject combinations for A-Level students',
+      guidelines: [
+        'Create meaningful combinations based on career paths',
+        'Include required principal and subsidiary subjects',
+        'Ensure combinations follow national curriculum guidelines',
+        'Use clear naming conventions for combinations',
+        'Verify that all subjects in combinations have been created'
+      ],
       component: <SubjectCombinationSetup onComplete={() => handleStepComplete('combinations')} />,
       completed: completed.combinations,
       required: false
@@ -153,6 +181,13 @@ const UnifiedAcademicManagement = () => {
       id: 'assignments',
       label: 'Assignment Setup',
       description: 'Assign subjects to classes, teachers to subjects, and subjects to students',
+      guidelines: [
+        'First assign subjects to appropriate classes',
+        'Then assign teachers to subjects they will teach',
+        'For A-Level, assign subject combinations to students',
+        'Ensure each class has all required subjects assigned',
+        'Verify teacher workloads are balanced appropriately'
+      ],
       component: <AssignmentSetup onComplete={() => handleStepComplete('assignments')} />,
       completed: completed.assignments,
       required: false
@@ -525,6 +560,25 @@ const UnifiedAcademicManagement = () => {
                   <Alert severity="info" sx={{ mb: 2 }}>
                     This step is already completed, but you can make changes as needed.
                   </Alert>
+                )}
+
+                {/* Guidelines */}
+                {step.guidelines && (
+                  <Paper sx={{ p: 2, mb: 2, bgcolor: '#f8f9fa', border: '1px solid #e0e0e0' }}>
+                    <Typography variant="subtitle2" color="primary" gutterBottom>
+                      Guidelines for {step.label}:
+                    </Typography>
+                    <List dense disablePadding>
+                      {step.guidelines.map((guideline, idx) => (
+                        <ListItem key={idx} sx={{ py: 0.5 }}>
+                          <ListItemIcon sx={{ minWidth: 28 }}>
+                            <CheckIcon color="success" fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText primary={guideline} />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Paper>
                 )}
 
                 {/* Step content */}
