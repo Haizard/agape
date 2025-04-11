@@ -705,32 +705,32 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {combinations.map((combination) => (
+                {combinations && Array.isArray(combinations) ? combinations.map((combination) => (
                   <TableRow key={combination._id}>
                     <TableCell>{combination.name}</TableCell>
                     <TableCell>{combination.code}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {combination.principalSubjects.map((subject, index) => (
+                        {combination.principalSubjects && Array.isArray(combination.principalSubjects) ? combination.principalSubjects.map((subject, index) => (
                           <Chip
                             key={index}
                             label={typeof subject === 'object' ? subject.name : getSubjectName(subject)}
                             color="primary"
                             size="small"
                           />
-                        ))}
+                        )) : <Typography variant="body2" color="text.secondary">No principal subjects</Typography>}
                       </Box>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {combination.subsidiarySubjects.map((subject, index) => (
+                        {combination.subsidiarySubjects && Array.isArray(combination.subsidiarySubjects) ? combination.subsidiarySubjects.map((subject, index) => (
                           <Chip
                             key={index}
                             label={typeof subject === 'object' ? subject.name : getSubjectName(subject)}
                             color="secondary"
                             size="small"
                           />
-                        ))}
+                        )) : <Typography variant="body2" color="text.secondary">No subsidiary subjects</Typography>}
                       </Box>
                     </TableCell>
                     <TableCell>
@@ -754,7 +754,7 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
                       </IconButton>
                     </TableCell>
                   </TableRow>
-                ))}
+                )) : <TableRow><TableCell colSpan={5}><Typography variant="body2" color="text.secondary">No combinations available</Typography></TableCell></TableRow>}
               </TableBody>
             </Table>
           </TableContainer>
