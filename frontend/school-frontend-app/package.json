@@ -39,10 +39,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts start",
-    "prebuild": "node scripts/clear-cache.js",
     "build": "CI= react-scripts build",
     "build:windows": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
     "build:netlify": "CI= react-scripts build",
+    "build:simple": "react-scripts build --max-old-space-size=1536",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint src --fix",
