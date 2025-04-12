@@ -1,7 +1,7 @@
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && node scripts/simple-build.js"
+  command = "npm install --legacy-peer-deps && node scripts/modify-login-component.js && node scripts/simple-build.js"
 
 [build.environment]
   NODE_VERSION = "16"
