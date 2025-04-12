@@ -8,16 +8,6 @@ if (baseURL.endsWith('/')) {
   baseURL = baseURL.slice(0, -1);
 }
 
-// Check if we're running on Netlify
-const isNetlify = window.location.hostname.includes('netlify.app');
-
-// Use a CORS proxy for Netlify deployment
-if (isNetlify) {
-  console.log('Running on Netlify, using CORS proxy');
-  // Use a CORS proxy service
-  baseURL = 'https://cors-anywhere.herokuapp.com/' + baseURL;
-}
-
 // Log the base URL for debugging
 console.log('API Service: Using base URL:', baseURL);
 
@@ -26,9 +16,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-    // Add origin header for CORS proxy
-    ...(isNetlify && { 'Origin': 'https://agape-seminary-school-system.netlify.app' })
+    'Pragma': 'no-cache'
   },
   timeout: 30000, // 30 seconds timeout
   // Retry configuration
