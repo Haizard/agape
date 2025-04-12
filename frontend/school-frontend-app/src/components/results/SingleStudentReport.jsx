@@ -94,6 +94,44 @@ const SingleStudentReport = () => {
         console.error('Error caching report data:', error);
       }
     };
+
+    // Process report data and update state
+    const processReportData = (reportData) => {
+      // Verify this is an A-Level report
+      if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
+        console.warn('Report is not marked as A-Level, but will try to process it anyway');
+      }
+
+      // Format student data
+      const formattedStudentData = {
+        id: studentId,
+        name: reportData.studentDetails?.name || 'Unknown Student',
+        admissionNumber: reportData.studentDetails?.rollNumber || 'N/A',
+        gender: reportData.studentDetails?.gender || 'N/A',
+        form: reportData.studentDetails?.form || 'N/A',
+        class: reportData.studentDetails?.class || 'N/A',
+        subjectCombination: reportData.studentDetails?.subjectCombination || 'N/A',
+        combinationName: reportData.studentDetails?.subjectCombination || 'N/A'
+      };
+
+      // Format exam data
+      const formattedExamData = {
+        id: examId,
+        name: reportData.examName || 'Unknown Exam',
+        startDate: reportData.examDate?.split(' - ')?.[0] || '',
+        endDate: reportData.examDate?.split(' - ')?.[1] || '',
+        term: reportData.exam?.term || 'Term 1',
+        academicYear: reportData.academicYear || 'Unknown Year'
+      };
+
+      // Set the state with the formatted data
+      setStudentData(formattedStudentData);
+      setExamData(formattedExamData);
+      setPrincipalSubjects(reportData.principalSubjects || []);
+      setSubsidiarySubjects(reportData.subsidiarySubjects || []);
+      setSummary(reportData.summary || {});
+    };
+
     try {
       setLoading(true);
       setError(null);
@@ -118,94 +156,62 @@ const SingleStudentReport = () => {
       const cachedReport = getCachedReport(studentId, examId);
       if (cachedReport) {
         // Use cached data
-        const reportData = cachedReport;
-
-        // Format student data
-        const formattedStudentData = {
-          id: studentId,
-          name: reportData.studentDetails.name,
-          admissionNumber: reportData.studentDetails.rollNumber,
-          gender: reportData.studentDetails.gender,
-          form: reportData.studentDetails.form,
-          class: reportData.studentDetails.class,
-          subjectCombination: reportData.studentDetails.subjectCombination,
-          combinationName: reportData.studentDetails.subjectCombination
-        };
-
-        // Format exam data
-        const formattedExamData = {
-          id: examId,
-          name: reportData.examName,
-          startDate: reportData.examDate?.split(' - ')?.[0] || '',
-          endDate: reportData.examDate?.split(' - ')?.[1] || '',
-          term: reportData.exam?.term || 'Term 1',
-          academicYear: reportData.academicYear
-        };
-
-        // Set the state with the cached data
-        setStudentData(formattedStudentData);
-        setExamData(formattedExamData);
-        setPrincipalSubjects(reportData.principalSubjects || []);
-        setSubsidiarySubjects(reportData.subsidiarySubjects || []);
-        setSummary(reportData.summary || {});
+        processReportData(cachedReport);
         setLoading(false);
         return;
       }
 
       console.log(`Fetching real data for student ${studentId} and exam ${examId}`);
 
-      // Use the comprehensive result endpoint to get all the data we need
-      const apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
-      console.log('Fetching from API:', apiUrl);
+      // Try multiple API endpoints to ensure compatibility
+      let apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
+      console.log('Trying primary API endpoint:', apiUrl);
 
-      const response = await axios.get(apiUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      try {
+        const response = await axios.get(apiUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        console.log('Primary API endpoint successful');
+        const reportData = response.data;
+
+        // Cache the report data
+        cacheReport(studentId, examId, reportData);
+
+        // Process the data and update state
+        processReportData(reportData);
+      } catch (primaryError) {
+        console.error('Error with primary endpoint:', primaryError);
+        console.log('Trying fallback API endpoint...');
+
+        // Try the fallback endpoint
+        apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+        console.log('Trying fallback API endpoint:', apiUrl);
+
+        try {
+          const response = await axios.get(apiUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+
+          console.log('Fallback API endpoint successful');
+          const reportData = response.data;
+
+          // Cache the report data
+          cacheReport(studentId, examId, reportData);
+
+          // Process the data and update state
+          processReportData(reportData);
+        } catch (fallbackError) {
+          console.error('Error with fallback endpoint:', fallbackError);
+          throw new Error(`Failed to fetch report data: ${fallbackError.message}`);
         }
-      });
-
-      console.log('API Response:', response.data);
-      const reportData = response.data;
-
-      // Cache the report data
-      cacheReport(studentId, examId, reportData);
-
-      // Verify this is an A-Level report
-      if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
-        throw new Error('This is not an A-Level report. Please use the appropriate report component.');
       }
-
-      // Format student data
-      const formattedStudentData = {
-        id: studentId,
-        name: reportData.studentDetails.name,
-        admissionNumber: reportData.studentDetails.rollNumber,
-        gender: reportData.studentDetails.gender,
-        form: reportData.studentDetails.form,
-        class: reportData.studentDetails.class,
-        subjectCombination: reportData.studentDetails.subjectCombination,
-        combinationName: reportData.studentDetails.subjectCombination
-      };
-
-      // Format exam data
-      const formattedExamData = {
-        id: examId,
-        name: reportData.examName,
-        startDate: reportData.examDate?.split(' - ')?.[0] || '',
-        endDate: reportData.examDate?.split(' - ')?.[1] || '',
-        term: reportData.exam?.term || 'Term 1',
-        academicYear: reportData.academicYear
-      };
-
-      // Set the state with the formatted data
-      setStudentData(formattedStudentData);
-      setExamData(formattedExamData);
-      setPrincipalSubjects(reportData.principalSubjects || []);
-      setSubsidiarySubjects(reportData.subsidiarySubjects || []);
-      setSummary(reportData.summary || {});
-
-      console.log('Data processing complete');
     } catch (err) {
       console.error('Error fetching data:', err);
       setError(`Failed to load data: ${err.response?.data?.message || err.message}`);

@@ -241,14 +241,32 @@ const BulkReportDownloader = () => {
   const processBatch = async (studentBatch, examId, zip) => {
     const batchPromises = studentBatch.map(async (studentId) => {
       try {
-        // Fetch the student report data
-        const apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
-        const response = await axios.get(apiUrl, {
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
+        // Try multiple API endpoints to ensure compatibility
+        let apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
+        let response;
+
+        try {
+          // Try the primary endpoint first
+          response = await axios.get(apiUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+        } catch (primaryError) {
+          console.error(`Error with primary endpoint for student ${studentId}:`, primaryError);
+
+          // Try the fallback endpoint
+          apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+
+          // This will throw if it fails, which is what we want
+          response = await axios.get(apiUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+        }
 
         // Get student name for filename
         const studentName = response.data.studentDetails?.name || studentId;

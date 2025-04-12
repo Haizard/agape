@@ -346,14 +346,32 @@ const ClassTabularReport = () => {
       const studentsWithResults = await Promise.all(
         studentsResponse.data.map(async (student) => {
           try {
-            // Use the comprehensive endpoint which handles both principal and subsidiary subjects
-            const resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${student._id}/${examId}`;
-            const resultsResponse = await axios.get(resultsUrl, {
-              headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-              }
-            });
+            // Try multiple API endpoints to ensure compatibility
+            let resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${student._id}/${examId}`;
+            let resultsResponse;
+
+            try {
+              // Try the primary endpoint first
+              resultsResponse = await axios.get(resultsUrl, {
+                headers: {
+                  'Accept': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+              });
+            } catch (primaryError) {
+              console.error(`Error with primary endpoint for student ${student._id}:`, primaryError);
+
+              // Try the fallback endpoint
+              resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+
+              // This will throw if it fails, which is what we want
+              resultsResponse = await axios.get(resultsUrl, {
+                headers: {
+                  'Accept': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+              });
+            }
 
             const resultData = resultsResponse.data;
 
