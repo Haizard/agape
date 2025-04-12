@@ -1,14 +1,27 @@
 const https = require('https');
+const url = require('url');
 
 exports.handler = async function(event, context) {
+  // Log the request for debugging
+  console.log('Request path:', event.path);
+  console.log('Request method:', event.httpMethod);
+  console.log('Request headers:', JSON.stringify(event.headers));
+
   // Get the path without the function prefix
   const path = event.path.replace('/.netlify/functions/proxy', '');
 
   // Construct the full URL to the backend API
-  const url = `https://agape-seminary-school.onrender.com/api${path}`;
+  const apiUrl = `https://agape-seminary-school.onrender.com/api${path}`;
+  console.log('Proxying to:', apiUrl);
 
-  return new Promise((resolve, reject) => {
+  try {
+    // Parse the URL
+    const parsedUrl = new url.URL(apiUrl);
+
+    // Set up the request options
     const options = {
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname + parsedUrl.search,
       method: event.httpMethod,
       headers: {
         'Content-Type': 'application/json',
@@ -20,41 +33,57 @@ exports.handler = async function(event, context) {
       options.headers['Authorization'] = event.headers.authorization;
     }
 
-    const req = https.request(url, options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => body += chunk);
-      res.on('end', () => {
-        resolve({
-          statusCode: res.statusCode,
-          body: body,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
-          }
+    // Make the request to the backend API
+    const response = await new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => body += chunk);
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode,
+            body: body,
+            headers: res.headers
+          });
         });
       });
-    });
 
-    req.on('error', (error) => {
-      resolve({
-        statusCode: 500,
-        body: JSON.stringify({ error: error.message }),
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
-        }
+      req.on('error', (error) => {
+        console.error('Error making request:', error);
+        reject(error);
       });
+
+      // Send the request body if it exists
+      if (event.body) {
+        req.write(event.body);
+      }
+
+      req.end();
     });
 
-    // Send the request body if it exists
-    if (event.body) {
-      req.write(event.body);
-    }
+    // Return the response with CORS headers
+    return {
+      statusCode: response.statusCode,
+      body: response.body,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+      }
+    };
+  } catch (error) {
+    console.error('Error in proxy function:', error);
 
-    req.end();
-  });
+    // Return an error response
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message || 'Internal Server Error' }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+      }
+    };
+  }
 };
