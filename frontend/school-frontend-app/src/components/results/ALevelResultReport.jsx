@@ -30,6 +30,14 @@ import {
 import resultApi from '../../services/resultApi';
 import { generateALevelStudentResultPDF } from '../../utils/aLevelPdfGenerator';
 import SubjectCombinationDisplay from '../common/SubjectCombinationDisplay';
+
+// Import new utilities
+import { EducationLevels, separatePrincipalAndSubsidiarySubjects } from '../../utils/educationLevelUtils';
+import { handleApiError, validateEducationLevel } from '../../utils/errorHandling';
+import { fetchWithCache, generateCacheKey } from '../../utils/cacheUtils';
+import withErrorHandling from '../../components/common/withErrorHandling';
+import withEducationLevel from '../../components/common/withEducationLevel';
+import useCachedData from '../../hooks/useCachedData';
 import ALevelReportSummary from './common/ALevelReportSummary';
 
 /**
@@ -55,31 +63,50 @@ const ALevelStudentResultReport = () => {
   });
   const [updatingEducationLevel, setUpdatingEducationLevel] = useState(false);
 
-  // Fetch report data
-  const fetchReport = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch the report data from the A-Level endpoint
+  // Use the useCachedData hook for fetching with cache support
+  const {
+    data: reportData,
+    loading: reportLoading,
+    error: reportError,
+    isFromCache,
+    isMockData,
+    refetch
+  } = useCachedData({
+    fetchFn: async () => {
       const reportUrl = resultApi.getALevelStudentReportUrl(studentId, examId);
       const response = await axios.get(reportUrl);
-      const data = response.data;
+      return response.data;
+    },
+    resourceType: 'result',
+    resourceId: `${studentId}_${examId}`,
+    params: { educationLevel: EducationLevels.A_LEVEL },
+    useMockOnError: true
+  });
 
-      // Ensure this is an A-Level report
-      if (!data.educationLevel || data.educationLevel !== 'A_LEVEL') {
-        throw new Error('This is not an A-Level student. Please use the O-Level report component.');
+  // Process report data when it changes
+  useEffect(() => {
+    if (!reportData) return;
+
+    // Validate education level
+    const { isValid, error } = validateEducationLevel(
+      reportData,
+      EducationLevels.A_LEVEL,
+      (err) => setError(err)
+    );
+
+    if (!isValid) return;
+
+    // Set report data
+    setReport(reportData);
+    setLoading(reportLoading);
+
+    // Calculate grade distribution
+    const distribution = { A: 0, B: 0, C: 0, D: 0, E: 0, S: 0, F: 0 };
+    for (const result of reportData.subjectResults || []) {
+      if (distribution[result.grade] !== undefined) {
+        distribution[result.grade]++;
       }
-
-      setReport(data);
-
-      // Calculate grade distribution
-      const distribution = { A: 0, B: 0, C: 0, D: 0, E: 0, S: 0, F: 0 };
-      for (const result of data.subjectResults) {
-        if (distribution[result.grade] !== undefined) {
-          distribution[result.grade]++;
-        }
-      }
+    }
       setGradeDistribution(distribution);
 
       // Log the report data for debugging
