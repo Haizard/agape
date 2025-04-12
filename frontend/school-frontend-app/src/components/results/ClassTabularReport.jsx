@@ -838,7 +838,7 @@ const ClassTabularReport = () => {
         </Table>
       </TableContainer>
 
-      {/* Subject Performance Summary */}
+      {/* Subject Performance Summary - Always visible */}
       <Box className="subject-performance-summary">
         <Typography variant="subtitle1" className="summary-title">
           Subject Performance Summary
@@ -939,7 +939,7 @@ const ClassTabularReport = () => {
         </TableContainer>
       </Box>
 
-      {/* Overall Performance Summary */}
+      {/* Overall Performance Summary - Always visible */}
       <Box className="overall-performance-summary">
         <Typography variant="subtitle1" className="summary-title">
           Overall Performance Summary

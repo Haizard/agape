@@ -157,6 +157,8 @@
 .subject-performance-summary,
 .overall-performance-summary {
   margin-bottom: 20px;
+  display: block !important;
+  page-break-inside: avoid;
 }
 
 .summary-title {
@@ -270,5 +272,24 @@
 
   .report-table-container {
     overflow-x: visible;
+  }
+
+  /* Ensure summary sections are visible */
+  .subject-performance-summary,
+  .overall-performance-summary {
+    display: block !important;
+    page-break-before: always;
+    margin-top: 20px;
+  }
+
+  /* Make sure tables don't overflow */
+  .summary-table-container {
+    overflow-x: visible;
+    width: 100%;
+  }
+
+  /* Ensure proper spacing */
+  .summary-title {
+    margin-top: 20px;
   }
 }
