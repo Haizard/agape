@@ -15,17 +15,11 @@ const eslintPath = path.join(__dirname, '..', '.eslintrc.js');
 fs.writeFileSync(eslintPath, 'module.exports = { rules: {} };');
 console.log('ESLint disabled successfully.');
 
-// Run the build with a timeout
-console.log('Starting build with timeout...');
+// Run the build
+console.log('Starting build...');
 try {
-  // Set a timeout of 5 minutes (300000 ms)
-  setTimeout(() => {
-    console.error('Build timed out after 5 minutes. Exiting...');
-    process.exit(1);
-  }, 300000);
-  
   // Run the build
-  execSync('react-scripts build', { 
+  execSync('react-scripts build', {
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -38,7 +32,7 @@ try {
       NODE_OPTIONS: '--max-old-space-size=1536'
     }
   });
-  
+
   console.log('Build completed successfully.');
 } catch (error) {
   console.error('Build failed:', error.message);
