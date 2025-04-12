@@ -26,13 +26,27 @@
 [build.processing.images]
   compress = true
 
-# Simple redirect for API requests
+# Handle OPTIONS requests for CORS preflight
 [[redirects]]
   from = "/api/*"
-  to = "https://agape-seminary-school.onrender.com/api/:splat"
+  to = "/.netlify/functions/options"
   status = 200
   force = true
-  headers = {Access-Control-Allow-Origin = "*"}
+  conditions = {Method = ["OPTIONS"]}
+
+# Handle login requests
+[[redirects]]
+  from = "/api/users/login"
+  to = "/.netlify/functions/mock-login"
+  status = 200
+  force = true
+
+# Handle all other API requests
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/simple-proxy/:splat"
+  status = 200
+  force = true
 
 # Handle all other routes with the SPA
 [[redirects]]
