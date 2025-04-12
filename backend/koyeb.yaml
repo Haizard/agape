@@ -1,0 +1,26 @@
+name: agape-backend
+type: web
+git:
+  repository: Haizard/agape
+  branch: fix/netlify-deployment
+  subdir: backend
+regions:
+  - fra
+instance_type: free
+ports:
+  - port: 5000
+    protocol: http
+    as: 8000
+healthchecks:
+  - port: 5000
+    path: /api/health
+    initial_delay: 30s
+    interval: 15s
+    timeout: 5s
+    success_threshold: 1
+    failure_threshold: 3
+env:
+  - name: PORT
+    value: "5000"
+  - name: NODE_ENV
+    value: "production"
