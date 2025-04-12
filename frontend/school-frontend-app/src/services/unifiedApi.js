@@ -11,15 +11,31 @@ class UnifiedApiService {
   constructor() {
     // Create axios instance with default config
     const timeout = process.env.REACT_APP_TIMEOUT ? parseInt(process.env.REACT_APP_TIMEOUT, 10) : 60000;
-    console.log(`UnifiedApiService: Using API URL: ${process.env.REACT_APP_API_URL || '/api'}`);
+
+    // Get base URL from environment variable
+    let baseURL = process.env.REACT_APP_API_URL || '/api';
+
+    // Check if we're running on Netlify
+    const isNetlify = window.location.hostname.includes('netlify.app');
+
+    // Use a CORS proxy for Netlify deployment
+    if (isNetlify) {
+      console.log('UnifiedApiService: Running on Netlify, using CORS proxy');
+      // Use a CORS proxy service
+      baseURL = 'https://cors-anywhere.herokuapp.com/' + baseURL;
+    }
+
+    console.log(`UnifiedApiService: Using API URL: ${baseURL}`);
     console.log(`UnifiedApiService: Using timeout: ${timeout}ms`);
 
     this.api = axios.create({
-      baseURL: process.env.REACT_APP_API_URL || '/api',
+      baseURL: baseURL,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        'Pragma': 'no-cache',
+        // Add origin header for CORS proxy
+        ...(isNetlify && { 'Origin': 'https://agape-seminary-school-system.netlify.app' })
       },
       // Add timeout to prevent long-running requests
       timeout: timeout
@@ -122,10 +138,21 @@ class UnifiedApiService {
     try {
       // Ensure URL doesn't start with a slash if we're using a full baseURL
       let processedUrl = url;
-      if (processedUrl.startsWith('/') && process.env.REACT_APP_API_URL) {
+      if (processedUrl.startsWith('/') && this.api.defaults.baseURL && !this.api.defaults.baseURL.endsWith('/')) {
         // If we have a full API URL with /api at the end and the URL starts with /,
         // we need to remove the leading slash to avoid double slashes
         processedUrl = url.substring(1);
+      }
+
+      // Check if we're running on Netlify
+      const isNetlify = window.location.hostname.includes('netlify.app');
+
+      // Add CORS headers for Netlify
+      if (isNetlify) {
+        config.headers = {
+          ...config.headers,
+          'Origin': 'https://agape-seminary-school-system.netlify.app'
+        };
       }
 
       console.log(`Making ${method.toUpperCase()} request to ${processedUrl}${retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : ''}`);

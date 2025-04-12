@@ -24,6 +24,20 @@ let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 if (baseURL.endsWith('/')) {
   baseURL = baseURL.slice(0, -1);
 }
+
+// Check if we're running on Netlify
+const isNetlify = window.location.hostname.includes('netlify.app');
+
+// Use a CORS proxy for Netlify deployment
+if (isNetlify) {
+  console.log('Running on Netlify, using CORS proxy');
+  // Use a CORS proxy service
+  baseURL = 'https://cors-anywhere.herokuapp.com/' + baseURL;
+
+  // Add default headers for CORS proxy
+  axios.defaults.headers.common['Origin'] = 'https://agape-seminary-school-system.netlify.app';
+}
+
 console.log('Global Axios: Using base URL:', baseURL);
 axios.defaults.baseURL = baseURL;
 
