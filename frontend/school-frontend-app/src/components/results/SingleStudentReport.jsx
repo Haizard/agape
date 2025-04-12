@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   Box,
   Typography,
@@ -15,19 +18,19 @@ import {
   Button,
   CircularProgress,
   Alert,
-  Grid,
-  Divider
+  Grid
 } from '@mui/material';
 import {
   Print as PrintIcon,
-  Download as DownloadIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  PictureAsPdf as PdfIcon,
+  TableChart as ExcelIcon
 } from '@mui/icons-material';
 
 import './SingleStudentReport.css';
 
 /**
- * SingleStudentReport Component
+ * SingleStudentReport Component (v2.0)
  * Displays a comprehensive academic report for a single student
  * with all subjects (both principal and subsidiary)
  */
@@ -44,15 +47,145 @@ const SingleStudentReport = () => {
 
   // Fetch student and exam data
   const fetchData = useCallback(async () => {
+    // Check cache for report data
+    const getCachedReport = (studentId, examId) => {
+      try {
+        const cacheKey = `report_${studentId}_${examId}`;
+        const cachedData = localStorage.getItem(cacheKey);
+
+        if (cachedData) {
+          const { data, timestamp } = JSON.parse(cachedData);
+
+          // Check if cache is still valid (24 hours)
+          const cacheAge = Date.now() - timestamp;
+          const cacheValidityPeriod = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+          if (cacheAge < cacheValidityPeriod) {
+            console.log('Using cached report data');
+            return data;
+          }
+
+          console.log('Cache expired, fetching fresh data');
+          localStorage.removeItem(cacheKey);
+        }
+      } catch (error) {
+        console.error('Error reading from cache:', error);
+        // Clear potentially corrupted cache
+        try {
+          localStorage.removeItem(`report_${studentId}_${examId}`);
+        } catch (e) {
+          console.error('Error clearing cache:', e);
+        }
+      }
+      return null;
+    };
+
+    // Save report data to cache
+    const cacheReport = (studentId, examId, data) => {
+      try {
+        const cacheKey = `report_${studentId}_${examId}`;
+        const cacheData = {
+          data,
+          timestamp: Date.now()
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        console.log('Report data cached successfully');
+      } catch (error) {
+        console.error('Error caching report data:', error);
+      }
+    };
+
+    // Process report data and update state
+    const processReportData = (reportData) => {
+      // Helper function to get remarks based on grade
+      const getRemarks = (grade) => {
+        switch (grade) {
+          case 'A': return 'Excellent';
+          case 'B': return 'Very Good';
+          case 'C': return 'Good';
+          case 'D': return 'Satisfactory';
+          case 'E': return 'Pass';
+          case 'S': return 'Subsidiary Pass';
+          case 'F': return 'Fail';
+          default: return 'N/A';
+        }
+      };
+
+      // Check if this is an O-Level report and adapt the data structure
+      const isOLevel = reportData.educationLevel === 'O_LEVEL' ||
+                      (reportData.subjectResults && !reportData.principalSubjects);
+
+      if (isOLevel) {
+        console.log('Processing O-Level report data');
+        // Convert O-Level data structure to our format
+        reportData = {
+          ...reportData,
+          principalSubjects: reportData.subjectResults?.map(subject => ({
+            subject: subject.subject?.name || subject.subjectName,
+            code: subject.subject?.code || subject.subjectCode || '',
+            marks: subject.marks,
+            grade: subject.grade,
+            points: subject.points,
+            remarks: subject.remarks || getRemarks(subject.grade)
+          })) || [],
+          subsidiarySubjects: []
+        };
+      } else if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
+        console.warn('Report is not marked as A-Level, but will try to process it anyway');
+      }
+
+      // Format student data
+      const formattedStudentData = {
+        id: studentId,
+        name: reportData.studentDetails?.name || reportData.studentName || 'Unknown Student',
+        admissionNumber: reportData.studentDetails?.rollNumber || reportData.studentAdmissionNumber || reportData.admissionNumber || 'N/A',
+        gender: reportData.studentDetails?.gender || reportData.studentGender || reportData.gender || 'N/A',
+        form: reportData.studentDetails?.form || reportData.studentForm || reportData.form || 'N/A',
+        class: reportData.studentDetails?.class || reportData.className || reportData.class || 'N/A',
+        subjectCombination: reportData.studentDetails?.subjectCombination || reportData.combinationName || 'N/A',
+        combinationName: reportData.studentDetails?.subjectCombination || reportData.combinationName || 'N/A'
+      };
+
+      // Format exam data
+      const formattedExamData = {
+        id: examId,
+        name: reportData.examName || reportData.exam?.name || 'Unknown Exam',
+        startDate: reportData.examDate?.split(' - ')?.[0] || reportData.exam?.startDate || '',
+        endDate: reportData.examDate?.split(' - ')?.[1] || reportData.exam?.endDate || '',
+        term: reportData.exam?.term || reportData.term || 'Term 1',
+        academicYear: reportData.academicYear || reportData.exam?.academicYear?.name || 'Unknown Year'
+      };
+
+      // Set the state with the formatted data
+      setStudentData(formattedStudentData);
+      setExamData(formattedExamData);
+      setPrincipalSubjects(reportData.principalSubjects || []);
+      setSubsidiarySubjects(reportData.subsidiarySubjects || []);
+
+      // Format summary data
+      const formattedSummary = {
+        totalMarks: reportData.summary?.totalMarks || reportData.totalMarks || 0,
+        averageMarks: reportData.summary?.averageMarks || reportData.averageMarks || 0,
+        totalPoints: reportData.summary?.totalPoints || reportData.totalPoints || reportData.points || 0,
+        bestThreePoints: reportData.summary?.bestThreePoints || 0,
+        bestSevenPoints: reportData.summary?.bestSevenPoints || reportData.bestSevenPoints || 0,
+        division: reportData.summary?.division || reportData.division || 'N/A',
+        rank: reportData.summary?.rank || reportData.rank || 'N/A',
+        totalStudents: reportData.summary?.totalStudents || reportData.totalStudents || 0
+      };
+
+      setSummary(formattedSummary);
+    };
+
     try {
       setLoading(true);
       setError(null);
-      
+
       // Check if this is a demo request
       if (studentId === 'demo-form5' || studentId === 'demo-form6') {
         console.log('Generating demo data');
         const isForm5 = studentId === 'demo-form5';
-        
+
         // Generate demo data
         const demoData = generateDemoData(isForm5 ? 5 : 6);
         setStudentData(demoData.studentData);
@@ -64,52 +197,69 @@ const SingleStudentReport = () => {
         return;
       }
 
-      // Fetch the student data
-      const studentUrl = `${process.env.REACT_APP_API_URL || ''}/api/students/${studentId}`;
-      console.log('Fetching student data from:', studentUrl);
-      
-      const studentResponse = await axios.get(studentUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      // Check cache first
+      const cachedReport = getCachedReport(studentId, examId);
+      if (cachedReport) {
+        // Use cached data
+        processReportData(cachedReport);
+        setLoading(false);
+        return;
+      }
+
+      console.log(`Fetching real data for student ${studentId} and exam ${examId}`);
+
+      // Try multiple API endpoints to ensure compatibility
+      let apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
+      console.log('Trying primary API endpoint:', apiUrl);
+
+      try {
+        const response = await axios.get(apiUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        console.log('Primary API endpoint successful');
+        const reportData = response.data;
+
+        // Cache the report data
+        cacheReport(studentId, examId, reportData);
+
+        // Process the data and update state
+        processReportData(reportData);
+      } catch (primaryError) {
+        console.error('Error with primary endpoint:', primaryError);
+        console.log('Trying fallback API endpoint...');
+
+        // Try the fallback endpoint
+        apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+        console.log('Trying fallback API endpoint:', apiUrl);
+
+        try {
+          const response = await axios.get(apiUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+
+          console.log('Fallback API endpoint successful');
+          const reportData = response.data;
+
+          // Cache the report data
+          cacheReport(studentId, examId, reportData);
+
+          // Process the data and update state
+          processReportData(reportData);
+        } catch (fallbackError) {
+          console.error('Error with fallback endpoint:', fallbackError);
+          throw new Error(`Failed to fetch report data: ${fallbackError.message}`);
         }
-      });
-      
-      setStudentData(studentResponse.data);
-      
-      // Fetch the exam data
-      const examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
-      console.log('Fetching exam data from:', examUrl);
-      
-      const examResponse = await axios.get(examUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      setExamData(examResponse.data);
-      
-      // Fetch the student's results for this exam
-      const resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
-      console.log('Fetching results from:', resultsUrl);
-      
-      const resultsResponse = await axios.get(resultsUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
-      const resultData = resultsResponse.data;
-      
-      // Set principal and subsidiary subjects
-      setPrincipalSubjects(resultData.principalSubjects || []);
-      setSubsidiarySubjects(resultData.subsidiarySubjects || []);
-      setSummary(resultData.summary || {});
+      }
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError(`Failed to load data: ${err.message}`);
+      setError(`Failed to load data: ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
     }
@@ -118,11 +268,11 @@ const SingleStudentReport = () => {
   // Generate demo data for testing
   const generateDemoData = (formLevel) => {
     const isForm5 = formLevel === 5;
-    
+
     // Define subject combination
     const combination = 'PCM';
     const combinationName = 'Physics, Chemistry, Mathematics';
-    
+
     // Define principal subjects
     const principalSubjects = [
       {
@@ -150,7 +300,7 @@ const SingleStudentReport = () => {
         remarks: isForm5 ? 'Very Good' : 'Excellent'
       }
     ];
-    
+
     // Define subsidiary subjects
     const subsidiarySubjects = [
       {
@@ -178,17 +328,17 @@ const SingleStudentReport = () => {
         remarks: isForm5 ? 'Very Good' : 'Very Good'
       }
     ];
-    
+
     // Calculate total marks and points
     const allSubjects = [...principalSubjects, ...subsidiarySubjects];
     const totalMarks = allSubjects.reduce((sum, s) => sum + s.marks, 0);
     const totalPoints = allSubjects.reduce((sum, s) => sum + s.points, 0);
     const averageMarks = (totalMarks / allSubjects.length).toFixed(2);
-    
+
     // Calculate best three principal points
     const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
     const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
-    
+
     // Determine division
     let division = 'N/A';
     if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
@@ -196,7 +346,7 @@ const SingleStudentReport = () => {
     else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
     else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
     else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
-    
+
     // Create summary
     const summary = {
       totalMarks,
@@ -216,7 +366,7 @@ const SingleStudentReport = () => {
         F: principalSubjects.filter(s => s.grade === 'F').length + subsidiarySubjects.filter(s => s.grade === 'F').length
       }
     };
-    
+
     // Create student data
     const studentData = {
       id: `student-${isForm5 ? '001' : '002'}`,
@@ -231,7 +381,7 @@ const SingleStudentReport = () => {
       parentName: isForm5 ? 'Mr. & Mrs. Doe' : 'Mr. & Mrs. Smith',
       parentContact: isForm5 ? '+255 123 456 789' : '+255 987 654 321'
     };
-    
+
     // Create exam data
     const examData = {
       id: 'demo-exam',
@@ -241,7 +391,7 @@ const SingleStudentReport = () => {
       term: 'Term 2',
       academicYear: '2023-2024'
     };
-    
+
     return {
       studentData,
       examData,
@@ -262,10 +412,170 @@ const SingleStudentReport = () => {
   };
 
   // Download report as PDF
-  const handleDownload = () => {
-    // Open the PDF version in a new tab (backend will generate PDF)
-    const pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}/pdf`;
-    window.open(pdfUrl, '_blank');
+  const reportRef = useRef(null);
+
+  const handlePdfDownload = async () => {
+    try {
+      setError(null);
+
+      // Create a temporary div with only the report content (no buttons)
+      const reportContent = reportRef.current;
+      if (!reportContent) {
+        setError('Could not find report content');
+        return;
+      }
+
+      // Show loading message
+      const tempMessage = document.createElement('div');
+      tempMessage.style.position = 'fixed';
+      tempMessage.style.top = '50%';
+      tempMessage.style.left = '50%';
+      tempMessage.style.transform = 'translate(-50%, -50%)';
+      tempMessage.style.padding = '20px';
+      tempMessage.style.background = 'rgba(0,0,0,0.7)';
+      tempMessage.style.color = 'white';
+      tempMessage.style.borderRadius = '5px';
+      tempMessage.style.zIndex = '9999';
+      tempMessage.textContent = 'Generating PDF...';
+      document.body.appendChild(tempMessage);
+
+      try {
+        // Use html2canvas to capture the report as an image
+        const canvas = await html2canvas(reportContent, {
+          scale: 2, // Higher scale for better quality
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+
+        // Calculate dimensions to fit on A4
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 0;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        // Add new pages if the report is longer than one page
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        // Generate filename
+        const fileName = `${studentData.name.replace(/\s+/g, '_')}_${examData.name.replace(/\s+/g, '_')}.pdf`;
+
+        // Save the PDF
+        pdf.save(fileName);
+      } finally {
+        // Remove the loading message
+        document.body.removeChild(tempMessage);
+      }
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      setError(`Failed to generate PDF: ${err.message}`);
+    }
+  };
+
+  // Download report as Excel
+  const handleExcelDownload = () => {
+    try {
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+
+      // Format student info for Excel
+      const studentInfo = [
+        ['Student Report'],
+        ['School', 'AGAPE LUTHERAN JUNIOR SEMINARY'],
+        ['Exam', examData.name],
+        ['Academic Year', examData.academicYear],
+        ['Student Name', studentData.name],
+        ['Admission Number', studentData.admissionNumber],
+        ['Class', studentData.class],
+        ['Form', studentData.form],
+        ['Subject Combination', studentData.subjectCombination],
+        [''],
+      ];
+
+      // Format principal subjects for Excel
+      const principalSubjectsData = [
+        ['Principal Subjects'],
+        ['Subject', 'Code', 'Marks', 'Grade', 'Points', 'Remarks']
+      ];
+
+      for (const subject of principalSubjects) {
+        principalSubjectsData.push([
+          subject.subject,
+          subject.code,
+          subject.marks,
+          subject.grade,
+          subject.points,
+          subject.remarks
+        ]);
+      }
+
+      // Format subsidiary subjects for Excel
+      const subsidiarySubjectsData = [
+        [''],
+        ['Subsidiary Subjects'],
+        ['Subject', 'Code', 'Marks', 'Grade', 'Points', 'Remarks']
+      ];
+
+      for (const subject of subsidiarySubjects) {
+        subsidiarySubjectsData.push([
+          subject.subject,
+          subject.code,
+          subject.marks,
+          subject.grade,
+          subject.points,
+          subject.remarks
+        ]);
+      }
+
+      // Format summary for Excel
+      const summaryData = [
+        [''],
+        ['Performance Summary'],
+        ['Total Marks', summary.totalMarks],
+        ['Average Marks', summary.averageMarks],
+        ['Total Points', summary.totalPoints],
+        ['Best Three Points', summary.bestThreePoints],
+        ['Division', summary.division],
+        ['Rank', `${summary.rank} out of ${summary.totalStudents}`]
+      ];
+
+      // Combine all data
+      const allData = [
+        ...studentInfo,
+        ...principalSubjectsData,
+        ...subsidiarySubjectsData,
+        ...summaryData
+      ];
+
+      // Create worksheet and add to workbook
+      const ws = XLSX.utils.aoa_to_sheet(allData);
+      XLSX.utils.book_append_sheet(wb, ws, 'Student Report');
+
+      // Generate Excel file name
+      const fileName = `${studentData.name.replace(/\s+/g, '_')}_${examData.name.replace(/\s+/g, '_')}.xlsx`;
+
+      // Save Excel file
+      XLSX.writeFile(wb, fileName);
+    } catch (error) {
+      console.error('Error generating Excel file:', error);
+      setError('Failed to generate Excel file. Please try again.');
+    }
   };
 
   // Go back to previous page
@@ -314,9 +624,9 @@ const SingleStudentReport = () => {
   }
 
   return (
-    <Box className="single-student-report-container">
+    <Box className="single-student-report-container" ref={reportRef}>
       {/* Action Buttons - Hidden when printing */}
-      <Box sx={{ mb: 3, display: 'flex', gap: 2 }} className="no-print">
+      <Box sx={{ mb: 3, display: 'flex', gap: 2 }} className="action-buttons print-hide">
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}
@@ -334,10 +644,18 @@ const SingleStudentReport = () => {
         <Button
           variant="contained"
           color="secondary"
-          startIcon={<DownloadIcon />}
-          onClick={handleDownload}
+          startIcon={<PdfIcon />}
+          onClick={handlePdfDownload}
         >
           Download PDF
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          startIcon={<ExcelIcon />}
+          onClick={handleExcelDownload}
+        >
+          Download Excel
         </Button>
       </Box>
 
@@ -354,18 +672,18 @@ const SingleStudentReport = () => {
             {examData.name} - {examData.academicYear}
           </Typography>
         </Box>
-        
+
         <Box className="header-center">
-          <img 
-            src="/images/school-logo.png" 
-            alt="School Logo" 
+          <img
+            src="/images/school-logo.png"
+            alt="School Logo"
             className="school-logo"
             onError={(e) => {
               e.target.src = 'https://via.placeholder.com/80?text=Logo';
             }}
           />
         </Box>
-        
+
         <Box className="header-right">
           <Typography variant="body1" className="report-title">
             STUDENT ACADEMIC REPORT
@@ -394,28 +712,28 @@ const SingleStudentReport = () => {
                 <Grid item xs={8}>
                   <Typography variant="body2" className="info-value">{studentData.name}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={4}>
                   <Typography variant="body2" className="info-label">Admission No:</Typography>
                 </Grid>
                 <Grid item xs={8}>
                   <Typography variant="body2" className="info-value">{studentData.admissionNumber}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={4}>
                   <Typography variant="body2" className="info-label">Class:</Typography>
                 </Grid>
                 <Grid item xs={8}>
                   <Typography variant="body2" className="info-value">{studentData.class}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={4}>
                   <Typography variant="body2" className="info-label">Gender:</Typography>
                 </Grid>
                 <Grid item xs={8}>
                   <Typography variant="body2" className="info-value">{studentData.gender}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={4}>
                   <Typography variant="body2" className="info-label">Combination:</Typography>
                 </Grid>
@@ -425,7 +743,7 @@ const SingleStudentReport = () => {
               </Grid>
             </Box>
           </Grid>
-          
+
           <Grid item xs={12} md={6}>
             <Box className="info-box">
               <Typography variant="subtitle1" className="info-title">
@@ -438,35 +756,35 @@ const SingleStudentReport = () => {
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value">{summary?.totalMarks || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Average Marks:</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value">{summary?.averageMarks || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Total Points:</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value">{summary?.totalPoints || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Best 3 Points:</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value">{summary?.bestThreePoints || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Division:</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-value info-highlight">{summary?.division || '-'}</Typography>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Typography variant="body2" className="info-label">Rank:</Typography>
                 </Grid>
@@ -498,8 +816,8 @@ const SingleStudentReport = () => {
             </TableHead>
             <TableBody>
               {principalSubjects.length > 0 ? (
-                principalSubjects.map((subject, index) => (
-                  <TableRow key={index} className="subject-row">
+                principalSubjects.map((subject) => (
+                  <TableRow key={`principal-${subject.code}`} className="subject-row">
                     <TableCell className="subject-name">{subject.subject}</TableCell>
                     <TableCell align="center" className="subject-code">{subject.code}</TableCell>
                     <TableCell align="center" className="subject-marks">{subject.marks}</TableCell>
@@ -537,8 +855,8 @@ const SingleStudentReport = () => {
             </TableHead>
             <TableBody>
               {subsidiarySubjects.length > 0 ? (
-                subsidiarySubjects.map((subject, index) => (
-                  <TableRow key={index} className="subject-row">
+                subsidiarySubjects.map((subject) => (
+                  <TableRow key={`subsidiary-${subject.code}`} className="subject-row">
                     <TableCell className="subject-name">{subject.subject}</TableCell>
                     <TableCell align="center" className="subject-code">{subject.code}</TableCell>
                     <TableCell align="center" className="subject-marks">{subject.marks}</TableCell>
@@ -619,13 +937,13 @@ const SingleStudentReport = () => {
               <Box className="comment-content">
                 <Typography variant="body2">
                   {studentData.name} has performed {
-                    summary?.averageMarks > 70 ? 'excellently' : 
-                    summary?.averageMarks > 60 ? 'very well' : 
+                    summary?.averageMarks > 70 ? 'excellently' :
+                    summary?.averageMarks > 60 ? 'very well' :
                     summary?.averageMarks > 50 ? 'well' : 'satisfactorily'
                   } this term. {
-                    summary?.averageMarks > 70 ? 'Keep up the excellent work!' : 
-                    summary?.averageMarks > 60 ? 'Continue with the good effort.' : 
-                    summary?.averageMarks > 50 ? 'Work harder to improve further.' : 
+                    summary?.averageMarks > 70 ? 'Keep up the excellent work!' :
+                    summary?.averageMarks > 60 ? 'Continue with the good effort.' :
+                    summary?.averageMarks > 50 ? 'Work harder to improve further.' :
                     'More effort is needed to improve performance.'
                   }
                 </Typography>
@@ -635,7 +953,7 @@ const SingleStudentReport = () => {
               </Box>
             </Box>
           </Grid>
-          
+
           <Grid item xs={12} md={6}>
             <Box className="comment-box principal-comment">
               <Typography variant="subtitle1" className="comment-header">
@@ -644,9 +962,9 @@ const SingleStudentReport = () => {
               <Box className="comment-content">
                 <Typography variant="body2">
                   {
-                    summary?.division === 'I' ? 'Outstanding performance. Keep it up!' : 
-                    summary?.division === 'II' ? 'Very good performance. Aim higher next term.' : 
-                    summary?.division === 'III' ? 'Good performance. Work harder to improve.' : 
+                    summary?.division === 'I' ? 'Outstanding performance. Keep it up!' :
+                    summary?.division === 'II' ? 'Very good performance. Aim higher next term.' :
+                    summary?.division === 'III' ? 'Good performance. Work harder to improve.' :
                     'More effort is needed to improve your academic performance.'
                   }
                 </Typography>

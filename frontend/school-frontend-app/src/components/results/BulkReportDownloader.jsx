@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import * as JSZip from 'jszip';
 import {
   Box,
   Typography,
@@ -15,18 +16,19 @@ import {
   MenuItem,
   Checkbox,
   ListItemText,
-  OutlinedInput,
   TextField,
   Divider,
-  Card,
-  CardContent,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   IconButton,
   Tooltip,
-  Chip
+  Chip,
+  LinearProgress,
+  Slider,
+  ListItemAvatar,
+  Avatar
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -56,7 +58,7 @@ const BulkReportDownloader = () => {
   const [students, setStudents] = useState([]);
   const [years, setYears] = useState([]);
   const [examTypes, setExamTypes] = useState([]);
-  
+
   // Filters
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedExam, setSelectedExam] = useState('');
@@ -64,11 +66,14 @@ const BulkReportDownloader = () => {
   const [selectedExamType, setSelectedExamType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudents, setSelectedStudents] = useState([]);
-  
+
   // Download status
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  
+  const [currentBatch, setCurrentBatch] = useState(1);
+  const [totalBatches, setTotalBatches] = useState(1);
+  const [batchSize, setBatchSize] = useState(10); // Default batch size
+
   // Fetch classes
   const fetchClasses = useCallback(async () => {
     try {
@@ -78,48 +83,48 @@ const BulkReportDownloader = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       // Filter for A-Level classes only
-      const aLevelClasses = response.data.filter(c => 
-        c.educationLevel === 'A_LEVEL' || 
-        c.name?.includes('Form 5') || 
+      const aLevelClasses = response.data.filter(c =>
+        c.educationLevel === 'A_LEVEL' ||
+        c.name?.includes('Form 5') ||
         c.name?.includes('Form 6')
       );
-      
+
       setClasses(aLevelClasses);
     } catch (err) {
       console.error('Error fetching classes:', err);
       setError('Failed to load classes. Please try again.');
     }
   }, []);
-  
+
   // Fetch exams
   const fetchExams = useCallback(async () => {
     try {
       let url = `${process.env.REACT_APP_API_URL || ''}/api/exams`;
-      
+
       // Add filters if selected
       const params = new URLSearchParams();
-      if (selectedYear) params.append('year', selectedYear);
-      if (selectedExamType) params.append('type', selectedExamType);
-      
+      if (selectedYear) params.append('academicYearId', selectedYear);
+      if (selectedExamType) params.append('examTypeId', selectedExamType);
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
-      
+
       const response = await axios.get(url, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setExams(response.data);
-      
+
       // Extract unique years and exam types
       const uniqueYears = [...new Set(response.data.map(exam => exam.academicYear))].filter(Boolean);
       const uniqueTypes = [...new Set(response.data.map(exam => exam.type))].filter(Boolean);
-      
+
       setYears(uniqueYears);
       setExamTypes(uniqueTypes);
     } catch (err) {
@@ -127,11 +132,11 @@ const BulkReportDownloader = () => {
       setError('Failed to load exams. Please try again.');
     }
   }, [selectedYear, selectedExamType]);
-  
+
   // Fetch students
   const fetchStudents = useCallback(async () => {
     if (!selectedClass) return;
-    
+
     try {
       setLoading(true);
       const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/students?class=${selectedClass}`, {
@@ -140,7 +145,7 @@ const BulkReportDownloader = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       setStudents(response.data);
       setLoading(false);
     } catch (err) {
@@ -149,13 +154,13 @@ const BulkReportDownloader = () => {
       setLoading(false);
     }
   }, [selectedClass]);
-  
+
   // Load initial data
   useEffect(() => {
     fetchClasses();
     fetchExams();
   }, [fetchClasses, fetchExams]);
-  
+
   // Load students when class is selected
   useEffect(() => {
     if (selectedClass) {
@@ -164,49 +169,47 @@ const BulkReportDownloader = () => {
       setStudents([]);
     }
   }, [selectedClass, fetchStudents]);
-  
+
   // Handle class selection
   const handleClassChange = (event) => {
     setSelectedClass(event.target.value);
     setSelectedStudents([]);
   };
-  
+
   // Handle exam selection
   const handleExamChange = (event) => {
     setSelectedExam(event.target.value);
   };
-  
+
   // Handle year selection
   const handleYearChange = (event) => {
     setSelectedYear(event.target.value);
   };
-  
+
   // Handle exam type selection
   const handleExamTypeChange = (event) => {
     setSelectedExamType(event.target.value);
   };
-  
+
   // Handle search query change
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
   };
-  
+
   // Clear search query
   const handleClearSearch = () => {
     setSearchQuery('');
   };
-  
+
   // Handle student selection
   const handleStudentSelect = (studentId) => {
-    setSelectedStudents(prev => {
-      if (prev.includes(studentId)) {
-        return prev.filter(id => id !== studentId);
-      } else {
-        return [...prev, studentId];
-      }
-    });
+    setSelectedStudents(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
   };
-  
+
   // Select all students
   const handleSelectAll = () => {
     if (selectedStudents.length === filteredStudents.length) {
@@ -215,86 +218,178 @@ const BulkReportDownloader = () => {
       setSelectedStudents(filteredStudents.map(student => student._id));
     }
   };
-  
+
   // Filter students based on search query
   const filteredStudents = students.filter(student => {
     const fullName = `${student.firstName} ${student.lastName}`;
     return fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (student.admissionNumber && student.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+           student.admissionNumber?.toLowerCase().includes(searchQuery.toLowerCase());
   });
-  
+
+  // Handle batch size change
+  const handleBatchSizeChange = (event, newValue) => {
+    const newSize = Number(newValue);
+    setBatchSize(newSize);
+
+    // Recalculate total batches
+    if (selectedStudents.length > 0) {
+      setTotalBatches(Math.ceil(selectedStudents.length / newSize));
+    }
+  };
+
+  // Process a single batch of reports
+  const processBatch = async (studentBatch, examId, zip) => {
+    const batchPromises = studentBatch.map(async (studentId) => {
+      try {
+        // Try multiple API endpoints to ensure compatibility
+        let apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
+        let response;
+
+        try {
+          // Try the primary endpoint first
+          response = await axios.get(apiUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+        } catch (primaryError) {
+          console.error(`Error with primary endpoint for student ${studentId}:`, primaryError);
+
+          try {
+            // Try the A-Level fallback endpoint
+            apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+            console.log(`Trying A-Level fallback endpoint for student ${studentId}:`, apiUrl);
+
+            response = await axios.get(apiUrl, {
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+          } catch (aLevelError) {
+            console.error(`Error with A-Level fallback endpoint for student ${studentId}:`, aLevelError);
+
+            // Try the O-Level fallback endpoint
+            apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${studentId}/${examId}`;
+            console.log(`Trying O-Level fallback endpoint for student ${studentId}:`, apiUrl);
+
+            // This will throw if it fails, which is what we want
+            response = await axios.get(apiUrl, {
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+          }
+        }
+
+        // Get student name for filename
+        const studentName = response.data.studentDetails?.name || studentId;
+        const safeStudentName = studentName.replace(/\s+/g, '_');
+
+        // Convert to JSON string and add to zip
+        const jsonData = JSON.stringify(response.data, null, 2);
+        zip.file(`${safeStudentName}.json`, jsonData);
+
+        return { success: true, studentId, studentName };
+      } catch (error) {
+        console.error(`Error processing student ${studentId}:`, error);
+        return { success: false, studentId, error: error.message };
+      }
+    });
+
+    return Promise.all(batchPromises);
+  };
+
   // Download selected student reports
   const handleDownload = async () => {
     if (!selectedExam || selectedStudents.length === 0) {
       setError('Please select an exam and at least one student.');
       return;
     }
-    
+
     try {
       setDownloading(true);
       setDownloadProgress(0);
       setError(null);
       setSuccess(null);
-      
-      // Create a zip file with all reports
-      const downloadUrl = `${process.env.REACT_APP_API_URL || ''}/api/reports/bulk-download`;
-      
-      const response = await axios.post(
-        downloadUrl,
-        {
-          examId: selectedExam,
-          studentIds: selectedStudents
-        },
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          responseType: 'blob',
-          onDownloadProgress: (progressEvent) => {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setDownloadProgress(percentCompleted);
-          }
-        }
-      );
-      
-      // Create a download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      
+
+      // Calculate total batches
+      const totalBatches = Math.ceil(selectedStudents.length / batchSize);
+      setTotalBatches(totalBatches);
+
+      // Create a new zip file
+      const zip = new JSZip();
+      let processedCount = 0;
+      let successCount = 0;
+      let failureCount = 0;
+
       // Get exam name for the filename
       const exam = exams.find(e => e._id === selectedExam);
       const examName = exam ? exam.name.replace(/\s+/g, '_') : 'reports';
-      
+
+      // Process in batches
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        setCurrentBatch(batchIndex + 1);
+
+        // Get current batch of students
+        const startIndex = batchIndex * batchSize;
+        const endIndex = Math.min(startIndex + batchSize, selectedStudents.length);
+        const currentBatch = selectedStudents.slice(startIndex, endIndex);
+
+        // Process the current batch
+        const batchResults = await processBatch(currentBatch, selectedExam, zip);
+
+        // Update progress
+        processedCount += currentBatch.length;
+        successCount += batchResults.filter(result => result.success).length;
+        failureCount += batchResults.filter(result => !result.success).length;
+
+        const percentCompleted = Math.round((processedCount * 100) / selectedStudents.length);
+        setDownloadProgress(percentCompleted);
+      }
+
+      // Generate the zip file
+      const zipContent = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      }, (metadata) => {
+        setDownloadProgress(Math.round(metadata.percent));
+      });
+
+      // Create a download link
+      const url = window.URL.createObjectURL(zipContent);
+      const link = document.createElement('a');
+      link.href = url;
       link.setAttribute('download', `${examName}_reports.zip`);
       document.body.appendChild(link);
       link.click();
-      
+
       // Clean up
       window.URL.revokeObjectURL(url);
       link.remove();
-      
+
       setDownloading(false);
-      setSuccess(`Successfully downloaded ${selectedStudents.length} student reports.`);
+      setSuccess(`Successfully processed ${selectedStudents.length} reports. ${successCount} succeeded, ${failureCount} failed.`);
     } catch (err) {
       console.error('Error downloading reports:', err);
-      setError('Failed to download reports. Please try again.');
+      setError(`Failed to download reports: ${err.message}`);
       setDownloading(false);
     }
   };
-  
+
   // View a single student report
   const handleViewReport = (studentId) => {
     if (!selectedExam) {
       setError('Please select an exam first.');
       return;
     }
-    
+
     navigate(`/results/student-report/${studentId}/${selectedExam}`);
   };
-  
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom>
@@ -303,19 +398,19 @@ const BulkReportDownloader = () => {
       <Typography variant="body1" color="text.secondary" paragraph>
         Download multiple student reports at once with advanced filtering options.
       </Typography>
-      
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-      
+
       {success && (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
           {success}
         </Alert>
       )}
-      
+
       <Grid container spacing={3}>
         {/* Filters Section */}
         <Grid item xs={12} md={4}>
@@ -324,7 +419,7 @@ const BulkReportDownloader = () => {
               <FilterIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
               Filters
             </Typography>
-            
+
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <FormControl fullWidth>
@@ -344,7 +439,7 @@ const BulkReportDownloader = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel id="exam-type-select-label">Exam Type</InputLabel>
@@ -363,7 +458,7 @@ const BulkReportDownloader = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel id="exam-select-label">Exam</InputLabel>
@@ -383,7 +478,7 @@ const BulkReportDownloader = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel id="class-select-label">Class</InputLabel>
@@ -402,7 +497,7 @@ const BulkReportDownloader = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <Button
                   variant="contained"
@@ -418,7 +513,7 @@ const BulkReportDownloader = () => {
             </Grid>
           </Paper>
         </Grid>
-        
+
         {/* Students Section */}
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 2 }}>
@@ -427,7 +522,7 @@ const BulkReportDownloader = () => {
                 <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
                 Students
               </Typography>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TextField
                   placeholder="Search students..."
@@ -444,7 +539,7 @@ const BulkReportDownloader = () => {
                   }}
                   sx={{ mr: 2 }}
                 />
-                
+
                 <Button
                   variant="outlined"
                   onClick={handleSelectAll}
@@ -459,9 +554,9 @@ const BulkReportDownloader = () => {
                 </Button>
               </Box>
             </Box>
-            
+
             <Divider sx={{ mb: 2 }} />
-            
+
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                 <CircularProgress />
@@ -536,21 +631,68 @@ const BulkReportDownloader = () => {
                 })}
               </List>
             )}
-            
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                {selectedStudents.length} of {filteredStudents.length} students selected
-              </Typography>
-              
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={!selectedExam || selectedStudents.length === 0 || downloading}
-                onClick={handleDownload}
-                startIcon={<FileDownloadIcon />}
-              >
-                Download Selected
-              </Button>
+
+            <Box sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Batch Size: {batchSize} students per batch
+                  </Typography>
+                  <Slider
+                    value={batchSize}
+                    onChange={handleBatchSizeChange}
+                    min={1}
+                    max={50}
+                    step={1}
+                    marks={[
+                      { value: 1, label: '1' },
+                      { value: 10, label: '10' },
+                      { value: 25, label: '25' },
+                      { value: 50, label: '50' }
+                    ]}
+                    disabled={downloading}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedStudents.length > 0
+                      ? `Will process in ${Math.ceil(selectedStudents.length / batchSize)} batches`
+                      : 'Select students to calculate batches'}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedStudents.length} of {filteredStudents.length} students selected
+                    </Typography>
+
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      disabled={!selectedExam || selectedStudents.length === 0 || downloading}
+                      onClick={handleDownload}
+                      startIcon={<FileDownloadIcon />}
+                    >
+                      Download Selected
+                    </Button>
+                  </Box>
+
+                  {downloading && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Processing batch {currentBatch} of {totalBatches}...
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={downloadProgress}
+                        sx={{ height: 10, borderRadius: 5 }}
+                      />
+                      <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
+                        {downloadProgress}% Complete
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+              </Grid>
             </Box>
           </Paper>
         </Grid>

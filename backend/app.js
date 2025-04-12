@@ -18,6 +18,7 @@ const checkMarksRoutes = require('./routes/checkMarksRoutes');
 const financeRoutes = require('./routes/financeRoutes');
 const feeScheduleRoutes = require('./routes/feeScheduleRoutes');
 const studentSubjectSelectionRoutes = require('./routes/studentSubjectSelectionRoutes');
+const comprehensiveReportRoutes = require('./routes/comprehensiveReportRoutes');
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use('/api/marks', checkMarksRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/finance/fee-schedules', feeScheduleRoutes);
 app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
+app.use('/api/results/comprehensive', comprehensiveReportRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

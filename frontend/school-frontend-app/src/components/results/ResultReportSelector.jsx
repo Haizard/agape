@@ -136,49 +136,8 @@ const ResultReportSelector = () => {
       return;
     }
 
-    // Navigate to the appropriate report page based on education level
-    if (educationLevel === 'A_LEVEL') {
-      try {
-        // Get student details to determine form level
-        const response = await api.get(`/api/students/${selectedStudent}`);
-        const student = response.data;
-
-        // Check if form level is available
-        if (student.form) {
-          if (student.form === 5) {
-            navigate(`/results/a-level/form5/student/${selectedStudent}/${selectedExam}`);
-          } else if (student.form === 6) {
-            navigate(`/results/a-level/form6/student/${selectedStudent}/${selectedExam}`);
-          } else {
-            // Default to regular A-level report if form is not 5 or 6
-            navigate(`/results/a-level/student/${selectedStudent}/${selectedExam}`);
-          }
-        } else {
-          // If form level is not available, check class name
-          if (student.class && typeof student.class === 'object') {
-            const className = student.class.name || '';
-            if (className.includes('5') || className.toLowerCase().includes('form 5')) {
-              navigate(`/results/a-level/form5/student/${selectedStudent}/${selectedExam}`);
-            } else if (className.includes('6') || className.toLowerCase().includes('form 6')) {
-              navigate(`/results/a-level/form6/student/${selectedStudent}/${selectedExam}`);
-            } else {
-              // Default to regular A-level report
-              navigate(`/results/a-level/student/${selectedStudent}/${selectedExam}`);
-            }
-          } else {
-            // Default to regular A-level report
-            navigate(`/results/a-level/student/${selectedStudent}/${selectedExam}`);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching student details:', error);
-        // Default to regular A-level report in case of error
-        navigate(`/results/a-level/student/${selectedStudent}/${selectedExam}`);
-      }
-    } else {
-      // For O-Level, use the dedicated O-level route
-      navigate(`/results/o-level/student/${selectedStudent}/${selectedExam}`);
-    }
+    // Use the new unified report route for all education levels
+    navigate(`/results/student-report/${selectedStudent}/${selectedExam}`);
   };
 
   // Generate class report
@@ -188,13 +147,8 @@ const ResultReportSelector = () => {
       return;
     }
 
-    // Navigate to the appropriate report page based on education level
-    if (educationLevel === 'A_LEVEL') {
-      navigate(`/results/a-level/class/${selectedClass}/${selectedExam}`);
-    } else {
-      // For O-Level, use the dedicated O-level route
-      navigate(`/results/o-level/class/${selectedClass}/${selectedExam}`);
-    }
+    // Use the unified class report route for all education levels
+    navigate(`/results/class-report/${selectedClass}/${selectedExam}`);
   };
 
   return (

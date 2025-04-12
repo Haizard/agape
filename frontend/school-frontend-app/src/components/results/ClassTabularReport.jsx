@@ -19,7 +19,13 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Snackbar,
+  Chip,
+  TextField,
+  IconButton,
+  Tooltip,
+  Divider
 } from '@mui/material';
 import {
   Print as PrintIcon,
@@ -43,6 +49,12 @@ const ClassTabularReport = () => {
   const [subjects, setSubjects] = useState([]);
   const [examData, setExamData] = useState(null);
   const [filterCombination, setFilterCombination] = useState('');
+  const [updatingEducationLevel, setUpdatingEducationLevel] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
   const [filterForm, setFilterForm] = useState('');
   const [combinations, setCombinations] = useState([]);
 
@@ -301,10 +313,11 @@ const ClassTabularReport = () => {
       const isForm5 = classData.name?.includes('5') || classData.form === 5 || classData.form === '5';
       const isForm6 = classData.name?.includes('6') || classData.form === 6 || classData.form === '6';
 
-      // Ensure this is an A-Level class
-      if (!classData.educationLevel || classData.educationLevel !== 'A_LEVEL') {
-        throw new Error('This report is only for A-Level classes (Form 5 and Form 6)');
-      }
+      // Set education level
+      const educationLevel = classData.educationLevel || 'A_LEVEL';
+      console.log(`Class education level: ${educationLevel}`);
+
+      // If this is not an A-Level class, we'll adapt the data structure later
 
       // Fetch the exam data
       const examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
@@ -334,22 +347,75 @@ const ClassTabularReport = () => {
       const studentsWithResults = await Promise.all(
         studentsResponse.data.map(async (student) => {
           try {
-            // Use the a-level-comprehensive endpoint which handles both principal and subsidiary subjects
-            const resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
-            const resultsResponse = await axios.get(resultsUrl, {
-              headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            // Try multiple API endpoints to ensure compatibility
+            let resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${student._id}/${examId}`;
+            let resultsResponse;
+
+            try {
+              // Try the primary endpoint first
+              resultsResponse = await axios.get(resultsUrl, {
+                headers: {
+                  'Accept': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+              });
+            } catch (primaryError) {
+              console.error(`Error with primary endpoint for student ${student._id}:`, primaryError);
+
+              try {
+                // Try the A-Level fallback endpoint
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+                console.log(`Trying A-Level fallback endpoint for student ${student._id}:`, resultsUrl);
+
+                resultsResponse = await axios.get(resultsUrl, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                  }
+                });
+              } catch (aLevelError) {
+                console.error(`Error with A-Level fallback endpoint for student ${student._id}:`, aLevelError);
+
+                // Try the O-Level fallback endpoint
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${student._id}/${examId}`;
+                console.log(`Trying O-Level fallback endpoint for student ${student._id}:`, resultsUrl);
+
+                // This will throw if it fails, which is what we want
+                resultsResponse = await axios.get(resultsUrl, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                  }
+                });
               }
-            });
+            }
 
             const resultData = resultsResponse.data;
 
-            // Combine principal and subsidiary subjects
-            const allSubjects = [
-              ...(resultData.principalSubjects || []).map(s => ({ ...s, isPrincipal: true })),
-              ...(resultData.subsidiarySubjects || []).map(s => ({ ...s, isPrincipal: false }))
-            ];
+            // Check if this is an O-Level report and adapt the data structure
+            const isOLevel = resultData.educationLevel === 'O_LEVEL' ||
+                            (resultData.subjectResults && !resultData.principalSubjects);
+
+            let allSubjects = [];
+
+            if (isOLevel) {
+              console.log('Processing O-Level report data for class report');
+              // Convert O-Level data structure to our format
+              allSubjects = (resultData.subjectResults || []).map(subject => ({
+                subject: subject.subject?.name || subject.subjectName,
+                code: subject.subject?.code || subject.subjectCode || '',
+                marks: subject.marks,
+                grade: subject.grade,
+                points: subject.points,
+                isPrincipal: true
+              }));
+            } else {
+              // Use A-Level data structure
+              allSubjects = [
+                ...(resultData.principalSubjects || []).map(s => ({ ...s, isPrincipal: true })),
+                ...(resultData.subsidiarySubjects || []).map(s => ({ ...s, isPrincipal: false }))
+              ];
+            }
 
             return {
               ...student,
@@ -478,11 +544,66 @@ const ClassTabularReport = () => {
     );
   }
 
+  // Update class to A-Level
+  const updateClassToALevel = async () => {
+    try {
+      setUpdatingEducationLevel(true);
+
+      // Call the API to update the class's education level
+      await axios.put(`${process.env.REACT_APP_API_URL || ''}/api/classes/${classId}`, {
+        educationLevel: 'A_LEVEL'
+      }, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Class education level updated to A-Level. Refreshing report...',
+        severity: 'success'
+      });
+
+      // Refresh the report after a short delay
+      setTimeout(() => {
+        fetchData();
+      }, 1500);
+    } catch (err) {
+      console.error('Error updating class education level:', err);
+
+      // Show error message
+      setSnackbar({
+        open: true,
+        message: `Failed to update education level: ${err.message || 'Unknown error'}`,
+        severity: 'error'
+      });
+    } finally {
+      setUpdatingEducationLevel(false);
+    }
+  };
+
   // If error, show error message
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          action={
+            error.includes('only for A-Level classes') && (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={updateClassToALevel}
+                disabled={updatingEducationLevel}
+              >
+                {updatingEducationLevel ? 'Updating...' : 'Update to A-Level'}
+              </Button>
+            )
+          }
+        >
           {error}
         </Alert>
         <Button variant="contained" onClick={() => navigate(-1)}>
@@ -506,8 +627,24 @@ const ClassTabularReport = () => {
     );
   }
 
+  // Handle snackbar close
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
   return (
     <Box className="class-tabular-report-container">
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity || 'info'} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
       {/* Action Buttons - Hidden when printing */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between' }} className="no-print">
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -701,52 +838,224 @@ const ClassTabularReport = () => {
         </Table>
       </TableContainer>
 
-      {/* Division Summary */}
-      <Box className="division-summary">
+      {/* Subject Performance Summary - Always visible */}
+      <Box className="subject-performance-summary">
         <Typography variant="subtitle1" className="summary-title">
-          Division Summary
+          Subject Performance Summary
+        </Typography>
+        <TableContainer component={Paper} className="summary-table-container">
+          <Table className="summary-table" size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell className="summary-header">SUBJECT</TableCell>
+                <TableCell align="center" className="summary-header">REG</TableCell>
+                <TableCell align="center" className="summary-header" colSpan={7}>GRADE</TableCell>
+                <TableCell align="center" className="summary-header">PASS</TableCell>
+                <TableCell align="center" className="summary-header">GPA</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="summary-header" />
+                <TableCell align="center" className="summary-header" />
+                <TableCell align="center" className="grade-header">A</TableCell>
+                <TableCell align="center" className="grade-header">B</TableCell>
+                <TableCell align="center" className="grade-header">C</TableCell>
+                <TableCell align="center" className="grade-header">D</TableCell>
+                <TableCell align="center" className="grade-header">E</TableCell>
+                <TableCell align="center" className="grade-header">S</TableCell>
+                <TableCell align="center" className="grade-header">F</TableCell>
+                <TableCell align="center" className="summary-header" />
+                <TableCell align="center" className="summary-header" />
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {subjects.map((subject) => {
+                // Count students with this subject
+                const studentsWithSubject = filteredStudents.filter(student =>
+                  (student.subjects || []).some(s => s.code === subject.code)
+                );
+
+                // Count grades
+                const gradeA = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'A'
+                ).length;
+
+                const gradeB = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'B'
+                ).length;
+
+                const gradeC = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'C'
+                ).length;
+
+                const gradeD = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'D'
+                ).length;
+
+                const gradeE = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'E'
+                ).length;
+
+                const gradeS = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'S'
+                ).length;
+
+                const gradeF = studentsWithSubject.filter(student =>
+                  (student.subjects || []).find(s => s.code === subject.code)?.grade === 'F'
+                ).length;
+
+                // Calculate pass rate (A to S)
+                const passCount = gradeA + gradeB + gradeC + gradeD + gradeE + gradeS;
+
+                // Calculate GPA
+                const totalPoints = studentsWithSubject.reduce((sum, student) => {
+                  const subjectData = (student.subjects || []).find(s => s.code === subject.code);
+                  return sum + (subjectData?.points || 0);
+                }, 0);
+
+                const subjectGPA = studentsWithSubject.length > 0
+                  ? (totalPoints / studentsWithSubject.length).toFixed(2)
+                  : 'N/A';
+
+                return (
+                  <TableRow key={subject.code}>
+                    <TableCell className="subject-name">
+                      {subject.name} ({subject.code})
+                    </TableCell>
+                    <TableCell align="center">{studentsWithSubject.length}</TableCell>
+                    <TableCell align="center">{gradeA}</TableCell>
+                    <TableCell align="center">{gradeB}</TableCell>
+                    <TableCell align="center">{gradeC}</TableCell>
+                    <TableCell align="center">{gradeD}</TableCell>
+                    <TableCell align="center">{gradeE}</TableCell>
+                    <TableCell align="center">{gradeS}</TableCell>
+                    <TableCell align="center">{gradeF}</TableCell>
+                    <TableCell align="center">{passCount}</TableCell>
+                    <TableCell align="center">{subjectGPA}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+
+      {/* Overall Performance Summary - Always visible */}
+      <Box className="overall-performance-summary">
+        <Typography variant="subtitle1" className="summary-title">
+          Overall Performance Summary
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division I:</strong> {filteredStudents.filter(s => s.summary?.division === 'I').length}
+          <Grid item xs={12} md={6}>
+            <Paper className="summary-paper">
+              <Typography variant="h6" className="summary-section-title">
+                Examination Statistics
               </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="body1">
+                    <strong>Total Students:</strong> {filteredStudents.length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body1">
+                    <strong>Total Passed:</strong> {filteredStudents.filter(s => s.summary?.division !== 'F').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body1">
+                    <strong>Pass Rate:</strong> {
+                      filteredStudents.length > 0
+                        ? `${((filteredStudents.filter(s => s.summary?.division !== 'F').length / filteredStudents.length) * 100).toFixed(2)}%`
+                        : 'N/A'
+                    }
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body1">
+                    <strong>Examination GPA:</strong> {
+                      (() => {
+                        // Calculate average subject GPA
+                        const subjectGPAs = subjects.map(subject => {
+                          const studentsWithSubject = filteredStudents.filter(student =>
+                            (student.subjects || []).some(s => s.code === subject.code)
+                          );
+
+                          const totalPoints = studentsWithSubject.reduce((sum, student) => {
+                            const subjectData = (student.subjects || []).find(s => s.code === subject.code);
+                            return sum + (subjectData?.points || 0);
+                          }, 0);
+
+                          return studentsWithSubject.length > 0
+                            ? totalPoints / studentsWithSubject.length
+                            : 0;
+                        });
+
+                        const avgSubjectGPA = subjectGPAs.length > 0
+                          ? subjectGPAs.reduce((sum, gpa) => sum + gpa, 0) / subjectGPAs.length
+                          : 0;
+
+                        // Calculate average division GPA
+                        const divisionPoints = {
+                          'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'F': 6
+                        };
+
+                        const totalDivisionPoints = filteredStudents.reduce((sum, student) => {
+                          return sum + (divisionPoints[student.summary?.division] || 0);
+                        }, 0);
+
+                        const avgDivisionGPA = filteredStudents.length > 0
+                          ? totalDivisionPoints / filteredStudents.length
+                          : 0;
+
+                        // Calculate overall GPA
+                        const overallGPA = (avgSubjectGPA + avgDivisionGPA) / 2;
+
+                        return overallGPA.toFixed(2);
+                      })()
+                    }
+                  </Typography>
+                </Grid>
+              </Grid>
             </Paper>
           </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division II:</strong> {filteredStudents.filter(s => s.summary?.division === 'II').length}
+
+          <Grid item xs={12} md={6}>
+            <Paper className="summary-paper">
+              <Typography variant="h6" className="summary-section-title">
+                Division Summary
               </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division III:</strong> {filteredStudents.filter(s => s.summary?.division === 'III').length}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division IV:</strong> {filteredStudents.filter(s => s.summary?.division === 'IV').length}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Division V:</strong> {filteredStudents.filter(s => s.summary?.division === 'V').length}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={2}>
-            <Paper className="division-count">
-              <Typography variant="body1">
-                <strong>Failed:</strong> {filteredStudents.filter(s => s.summary?.division === 'F').length}
-              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division I:</strong> {filteredStudents.filter(s => s.summary?.division === 'I').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division II:</strong> {filteredStudents.filter(s => s.summary?.division === 'II').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division III:</strong> {filteredStudents.filter(s => s.summary?.division === 'III').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division IV:</strong> {filteredStudents.filter(s => s.summary?.division === 'IV').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Division V:</strong> {filteredStudents.filter(s => s.summary?.division === 'V').length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={4}>
+                  <Typography variant="body1">
+                    <strong>Failed:</strong> {filteredStudents.filter(s => s.summary?.division === 'F').length}
+                  </Typography>
+                </Grid>
+              </Grid>
             </Paper>
           </Grid>
         </Grid>

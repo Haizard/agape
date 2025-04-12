@@ -55,8 +55,6 @@ import ALevelSubjectAssignment from './components/academic/ALevelSubjectAssignme
 import CoreSubjectManagement from './components/admin/CoreSubjectManagement';
 import OptionalSubjectManagement from './components/admin/OptionalSubjectManagement';
 
-import ResultReportWithNewApi from './components/results/ResultReportWithNewApi';
-
 // Department Layout Components
 import AcademicManagement from './components/departments/AcademicManagement';
 import UserManagement from './components/departments/UserManagement';
@@ -82,21 +80,7 @@ import FinanceLayout from './components/finance/FinanceLayout';
 // Auth context
 import { AuthProvider } from './contexts/AuthContext';
 import UnifiedUserCreation from './components/admin/UnifiedUserCreation';
-import StudentResultReport from './components/results/StudentResultReport';
-import ClassResultReport from './components/results/ClassResultReport';
-import NewStudentResultReport from './components/results/NewStudentResultReport';
-import NewClassResultReport from './components/results/NewClassResultReport';
-import ALevelStudentResultReport from './components/results/ALevelResultReport';
-import ALevelClassResultReport from './components/results/ALevelClassResultReport';
-import Form5ALevelResultReport from './components/results/Form5ALevelResultReport';
-import Form6ALevelResultReport from './components/results/Form6ALevelResultReport';
-import OLevelStudentResultReport from './components/results/OLevelResultReport';
-import OLevelClassResultReport from './components/results/OLevelClassResultReport';
-import ALevelComprehensiveReport from './components/results/ALevelComprehensiveReport';
-import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
-import ReportBook from './components/results/ReportBook';
-import ReportBookSelector from './components/results/ReportBookSelector';
-import SingleRowReport from './components/results/SingleRowReport';
+// Import only the new report components
 import ClassTabularReport from './components/results/ClassTabularReport';
 import SingleStudentReport from './components/results/SingleStudentReport';
 import BulkReportDownloader from './components/results/BulkReportDownloader';
@@ -204,11 +188,7 @@ function App() {
                       </ProtectedRoute>
                     } />
                     {/* Special teacher routes that are not part of TeacherPanel */}
-                    <Route path="/teacher/result-reports-new" element={
-                      <ProtectedRoute allowedRole="teacher">
-                        <ResultReportWithNewApi />
-                      </ProtectedRoute>
-                    } />
+                    {/* Legacy teacher report route removed */}
 
                     {/* Student Routes */}
                     <Route path="/student/*" element={
@@ -235,71 +215,7 @@ function App() {
                         <ResultReportSelector />
                       </ProtectedRoute>
                     } />
-                    <Route path="/results/student/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <NewStudentResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/class/:classId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <NewClassResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/a-level/student/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <ALevelStudentResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/a-level/form5/student/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <Form5ALevelResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/a-level/form6/student/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <Form6ALevelResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/a-level/class/:classId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <ALevelClassResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/o-level/student/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <OLevelStudentResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/o-level/class/:classId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <OLevelClassResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/a-level-comprehensive/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <ALevelComprehensiveReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/a-level-comprehensive-selector" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <ALevelComprehensiveReportSelector />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/report-book/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <ReportBook />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/report-book-selector" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <ReportBookSelector />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/results/single-row-report/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <SingleRowReport />
-                      </ProtectedRoute>
-                    } />
+                    {/* Only keep the new report routes */}
                     <Route path="/results/class-report/:classId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <ClassTabularReport />
@@ -353,17 +269,7 @@ function App() {
                       </ProtectedRoute>
                     } />
 
-                    {/* Legacy Result Report Routes */}
-                    <Route path="/legacy-results/student/:studentId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <StudentResultReport />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/legacy-results/class/:classId/:examId" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <ClassResultReport />
-                      </ProtectedRoute>
-                    } />
+                    {/* Legacy routes removed */}
 
                     {/* Finance Routes */}
                     <Route path="/finance" element={
