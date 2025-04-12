@@ -1,7 +1,7 @@
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && node scripts/use-simple-eslint.js && node scripts/fix-eslint-errors.js && node scripts/modify-api-service.js && DISABLE_ESLINT_PLUGIN=true ESLINT_NO_DEV_ERRORS=true REACT_APP_USE_PROXY=true CI= npm run build"
+  command = "npm install --legacy-peer-deps && node scripts/use-simple-eslint.js && node scripts/fix-eslint-errors.js && node scripts/modify-api-service.js && node scripts/force-relative-url.js && node scripts/patch-login.js && DISABLE_ESLINT_PLUGIN=true ESLINT_NO_DEV_ERRORS=true REACT_APP_USE_PROXY=true REACT_APP_API_URL=/api CI= npm run build"
 
 # Handle OPTIONS requests for CORS preflight
 [[redirects]]
