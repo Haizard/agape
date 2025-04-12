@@ -361,25 +361,60 @@ const ClassTabularReport = () => {
             } catch (primaryError) {
               console.error(`Error with primary endpoint for student ${student._id}:`, primaryError);
 
-              // Try the fallback endpoint
-              resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+              try {
+                // Try the A-Level fallback endpoint
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+                console.log(`Trying A-Level fallback endpoint for student ${student._id}:`, resultsUrl);
 
-              // This will throw if it fails, which is what we want
-              resultsResponse = await axios.get(resultsUrl, {
-                headers: {
-                  'Accept': 'application/json',
-                  'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-              });
+                resultsResponse = await axios.get(resultsUrl, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                  }
+                });
+              } catch (aLevelError) {
+                console.error(`Error with A-Level fallback endpoint for student ${student._id}:`, aLevelError);
+
+                // Try the O-Level fallback endpoint
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${student._id}/${examId}`;
+                console.log(`Trying O-Level fallback endpoint for student ${student._id}:`, resultsUrl);
+
+                // This will throw if it fails, which is what we want
+                resultsResponse = await axios.get(resultsUrl, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                  }
+                });
+              }
             }
 
             const resultData = resultsResponse.data;
 
-            // Combine principal and subsidiary subjects
-            const allSubjects = [
-              ...(resultData.principalSubjects || []).map(s => ({ ...s, isPrincipal: true })),
-              ...(resultData.subsidiarySubjects || []).map(s => ({ ...s, isPrincipal: false }))
-            ];
+            // Check if this is an O-Level report and adapt the data structure
+            const isOLevel = resultData.educationLevel === 'O_LEVEL' ||
+                            (resultData.subjectResults && !resultData.principalSubjects);
+
+            let allSubjects = [];
+
+            if (isOLevel) {
+              console.log('Processing O-Level report data for class report');
+              // Convert O-Level data structure to our format
+              allSubjects = (resultData.subjectResults || []).map(subject => ({
+                subject: subject.subject?.name || subject.subjectName,
+                code: subject.subject?.code || subject.subjectCode || '',
+                marks: subject.marks,
+                grade: subject.grade,
+                points: subject.points,
+                isPrincipal: true
+              }));
+            } else {
+              // Use A-Level data structure
+              allSubjects = [
+                ...(resultData.principalSubjects || []).map(s => ({ ...s, isPrincipal: true })),
+                ...(resultData.subsidiarySubjects || []).map(s => ({ ...s, isPrincipal: false }))
+              ];
+            }
 
             return {
               ...student,

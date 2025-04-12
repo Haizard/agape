@@ -256,16 +256,32 @@ const BulkReportDownloader = () => {
         } catch (primaryError) {
           console.error(`Error with primary endpoint for student ${studentId}:`, primaryError);
 
-          // Try the fallback endpoint
-          apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+          try {
+            // Try the A-Level fallback endpoint
+            apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+            console.log(`Trying A-Level fallback endpoint for student ${studentId}:`, apiUrl);
 
-          // This will throw if it fails, which is what we want
-          response = await axios.get(apiUrl, {
-            headers: {
-              'Accept': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          });
+            response = await axios.get(apiUrl, {
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+          } catch (aLevelError) {
+            console.error(`Error with A-Level fallback endpoint for student ${studentId}:`, aLevelError);
+
+            // Try the O-Level fallback endpoint
+            apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${studentId}/${examId}`;
+            console.log(`Trying O-Level fallback endpoint for student ${studentId}:`, apiUrl);
+
+            // This will throw if it fails, which is what we want
+            response = await axios.get(apiUrl, {
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+          }
         }
 
         // Get student name for filename

@@ -97,31 +97,63 @@ const SingleStudentReport = () => {
 
     // Process report data and update state
     const processReportData = (reportData) => {
-      // Verify this is an A-Level report
-      if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
+      // Helper function to get remarks based on grade
+      const getRemarks = (grade) => {
+        switch (grade) {
+          case 'A': return 'Excellent';
+          case 'B': return 'Very Good';
+          case 'C': return 'Good';
+          case 'D': return 'Satisfactory';
+          case 'E': return 'Pass';
+          case 'S': return 'Subsidiary Pass';
+          case 'F': return 'Fail';
+          default: return 'N/A';
+        }
+      };
+
+      // Check if this is an O-Level report and adapt the data structure
+      const isOLevel = reportData.educationLevel === 'O_LEVEL' ||
+                      (reportData.subjectResults && !reportData.principalSubjects);
+
+      if (isOLevel) {
+        console.log('Processing O-Level report data');
+        // Convert O-Level data structure to our format
+        reportData = {
+          ...reportData,
+          principalSubjects: reportData.subjectResults?.map(subject => ({
+            subject: subject.subject?.name || subject.subjectName,
+            code: subject.subject?.code || subject.subjectCode || '',
+            marks: subject.marks,
+            grade: subject.grade,
+            points: subject.points,
+            remarks: subject.remarks || getRemarks(subject.grade)
+          })) || [],
+          subsidiarySubjects: []
+        };
+      } else if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
         console.warn('Report is not marked as A-Level, but will try to process it anyway');
       }
 
       // Format student data
       const formattedStudentData = {
         id: studentId,
-        name: reportData.studentDetails?.name || 'Unknown Student',
-        admissionNumber: reportData.studentDetails?.rollNumber || 'N/A',
-        gender: reportData.studentDetails?.gender || 'N/A',
-        form: reportData.studentDetails?.form || 'N/A',
-        class: reportData.studentDetails?.class || 'N/A',
-        subjectCombination: reportData.studentDetails?.subjectCombination || 'N/A',
-        combinationName: reportData.studentDetails?.subjectCombination || 'N/A'
+        name: reportData.studentDetails?.name || reportData.studentName || 'Unknown Student',
+        admissionNumber: reportData.studentDetails?.rollNumber || reportData.studentAdmissionNumber || reportData.admissionNumber || 'N/A',
+        gender: reportData.studentDetails?.gender || reportData.studentGender || reportData.gender || 'N/A',
+        form: reportData.studentDetails?.form || reportData.studentForm || reportData.form || 'N/A',
+        class: reportData.studentDetails?.class || reportData.className || reportData.class || 'N/A',
+        subjectCombination: reportData.studentDetails?.subjectCombination || reportData.combinationName || 'N/A',
+        combinationName: reportData.studentDetails?.subjectCombination || reportData.combinationName || 'N/A'
       };
 
       // Format exam data
       const formattedExamData = {
         id: examId,
-        name: reportData.examName || 'Unknown Exam',
-        startDate: reportData.examDate?.split(' - ')?.[0] || '',
-        endDate: reportData.examDate?.split(' - ')?.[1] || '',
-        term: reportData.exam?.term || 'Term 1',
-        academicYear: reportData.academicYear || 'Unknown Year'
+        name: reportData.examName || reportData.exam?.name || 'Unknown Exam',
+        startDate: reportData.examDate?.split(' - ')?.[0] || reportData.exam?.startDate || '',
+        endDate: reportData.examDate?.split(' - ')?.[1] || reportData.exam?.endDate || '',
+        term: reportData.exam?.term || reportData.term || 'Term 1',
+        academicYear: reportData.academicYear || reportData.exam?.academicYear?.name || 'Unknown Year'
       };
 
       // Set the state with the formatted data
@@ -129,7 +161,20 @@ const SingleStudentReport = () => {
       setExamData(formattedExamData);
       setPrincipalSubjects(reportData.principalSubjects || []);
       setSubsidiarySubjects(reportData.subsidiarySubjects || []);
-      setSummary(reportData.summary || {});
+
+      // Format summary data
+      const formattedSummary = {
+        totalMarks: reportData.summary?.totalMarks || reportData.totalMarks || 0,
+        averageMarks: reportData.summary?.averageMarks || reportData.averageMarks || 0,
+        totalPoints: reportData.summary?.totalPoints || reportData.totalPoints || reportData.points || 0,
+        bestThreePoints: reportData.summary?.bestThreePoints || 0,
+        bestSevenPoints: reportData.summary?.bestSevenPoints || reportData.bestSevenPoints || 0,
+        division: reportData.summary?.division || reportData.division || 'N/A',
+        rank: reportData.summary?.rank || reportData.rank || 'N/A',
+        totalStudents: reportData.summary?.totalStudents || reportData.totalStudents || 0
+      };
+
+      setSummary(formattedSummary);
     };
 
     try {
