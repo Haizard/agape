@@ -20,7 +20,8 @@
     "start:pm2": "pm2 start server.js --name 'st-john-vianey-api'",
     "stop:pm2": "pm2 stop st-john-vianey-api",
     "restart:pm2": "pm2 restart st-john-vianey-api",
-    "dev": "nodemon --ignore 'node_modules/*' server.js"
+    "dev": "nodemon --ignore 'node_modules/*' server.js",
+    "postinstall": "npm prune --production"
   },
   "engines": {
     "node": ">=16.0.0"

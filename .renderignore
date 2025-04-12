@@ -1,0 +1,26 @@
+# Development files
+**/*.test.js
+**/*.spec.js
+**/__tests__/
+**/__mocks__/
+.github/
+docs/
+
+# Editor configs
+.vscode/
+.idea/
+
+# Git files
+.git/
+.gitignore
+
+# Logs
+logs/
+*.log
+
+# Cache directories
+.cache/
+
+# Source maps in production
+**/*.js.map
+**/*.css.map

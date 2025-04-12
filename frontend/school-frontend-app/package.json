@@ -48,7 +48,8 @@
     "test-api": "node scripts/test-api-connection.js",
     "test-classes-api": "node scripts/test-classes-api.js",
     "dev:prod-api": "npm run use-production-api && npm run dev",
-    "dev:local-api": "npm run use-local-api && npm run dev"
+    "dev:local-api": "npm run use-local-api && npm run dev",
+    "postinstall": "npm prune --production"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -58,6 +59,10 @@
       "react-app",
       "react-app/jest"
     ]
+  },
+  "build-cache": {
+    "enabled": true,
+    "strategy": "content-hash"
   },
   "browserslist": {
     "production": [
