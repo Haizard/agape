@@ -19,7 +19,13 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Snackbar,
+  Chip,
+  TextField,
+  IconButton,
+  Tooltip,
+  Divider
 } from '@mui/material';
 import {
   Print as PrintIcon,
@@ -43,6 +49,12 @@ const ClassTabularReport = () => {
   const [subjects, setSubjects] = useState([]);
   const [examData, setExamData] = useState(null);
   const [filterCombination, setFilterCombination] = useState('');
+  const [updatingEducationLevel, setUpdatingEducationLevel] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
   const [filterForm, setFilterForm] = useState('');
   const [combinations, setCombinations] = useState([]);
 
@@ -334,8 +346,8 @@ const ClassTabularReport = () => {
       const studentsWithResults = await Promise.all(
         studentsResponse.data.map(async (student) => {
           try {
-            // Use the a-level-comprehensive endpoint which handles both principal and subsidiary subjects
-            const resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+            // Use the comprehensive endpoint which handles both principal and subsidiary subjects
+            const resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${student._id}/${examId}`;
             const resultsResponse = await axios.get(resultsUrl, {
               headers: {
                 'Accept': 'application/json',
@@ -478,11 +490,66 @@ const ClassTabularReport = () => {
     );
   }
 
+  // Update class to A-Level
+  const updateClassToALevel = async () => {
+    try {
+      setUpdatingEducationLevel(true);
+
+      // Call the API to update the class's education level
+      await axios.put(`${process.env.REACT_APP_API_URL || ''}/api/classes/${classId}`, {
+        educationLevel: 'A_LEVEL'
+      }, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Class education level updated to A-Level. Refreshing report...',
+        severity: 'success'
+      });
+
+      // Refresh the report after a short delay
+      setTimeout(() => {
+        fetchData();
+      }, 1500);
+    } catch (err) {
+      console.error('Error updating class education level:', err);
+
+      // Show error message
+      setSnackbar({
+        open: true,
+        message: `Failed to update education level: ${err.message || 'Unknown error'}`,
+        severity: 'error'
+      });
+    } finally {
+      setUpdatingEducationLevel(false);
+    }
+  };
+
   // If error, show error message
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          action={
+            error.includes('only for A-Level classes') && (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={updateClassToALevel}
+                disabled={updatingEducationLevel}
+              >
+                {updatingEducationLevel ? 'Updating...' : 'Update to A-Level'}
+              </Button>
+            )
+          }
+        >
           {error}
         </Alert>
         <Button variant="contained" onClick={() => navigate(-1)}>
@@ -506,8 +573,24 @@ const ClassTabularReport = () => {
     );
   }
 
+  // Handle snackbar close
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
   return (
     <Box className="class-tabular-report-container">
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity || 'info'} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
       {/* Action Buttons - Hidden when printing */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between' }} className="no-print">
         <Box sx={{ display: 'flex', gap: 2 }}>
