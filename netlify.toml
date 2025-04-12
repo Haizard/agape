@@ -1,7 +1,7 @@
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && npm install eslint-plugin-react-hooks --legacy-peer-deps && CI= npm run build"
+  command = "npm install --legacy-peer-deps && node scripts/use-simple-eslint.js && CI= npm run build"
 
 [[redirects]]
   from = "/api/*"
