@@ -16,8 +16,8 @@
     "pdfkit": "^0.16.0"
   },
   "scripts": {
-    "start": "node koyeb.js",
-    "start:server": "node server.js",
+    "start": "node server.js",
+    "start:koyeb": "node koyeb.js",
     "start:pm2": "pm2 start server.js --name 'st-john-vianey-api'",
     "stop:pm2": "pm2 stop st-john-vianey-api",
     "restart:pm2": "pm2 restart st-john-vianey-api",
