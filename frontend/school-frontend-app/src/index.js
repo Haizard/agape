@@ -19,7 +19,13 @@ if (token) {
 }
 
 // Configure axios base URL
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000'; // Make sure this matches your backend port
+let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Remove trailing slash if present
+if (baseURL.endsWith('/')) {
+  baseURL = baseURL.slice(0, -1);
+}
+console.log('Global Axios: Using base URL:', baseURL);
+axios.defaults.baseURL = baseURL;
 
 // Create the root and render the app
 const rootElement = document.getElementById('root');

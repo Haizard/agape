@@ -54,10 +54,12 @@ const ResultReportSelector = () => {
         // Fetch exams
         const examsResponse = await api.get('/api/exams');
         setExams(examsResponse.data);
+        console.log('Exams fetched:', examsResponse.data);
 
         // Fetch classes
         const classesResponse = await api.get('/api/classes');
         setClasses(classesResponse.data);
+        console.log('Classes fetched:', classesResponse.data);
 
         setLoading(false);
       } catch (err) {
@@ -85,9 +87,11 @@ const ResultReportSelector = () => {
         // Fetch students for the selected class
         const response = await api.get(`/api/students/class/${selectedClass}`);
         setStudents(response.data);
+        console.log('Students fetched:', response.data);
 
         // Get the education level from the selected class
         const classResponse = await api.get(`/api/classes/${selectedClass}`);
+        console.log('Class details fetched:', classResponse.data);
         if (classResponse.data?.educationLevel) {
           setEducationLevel(classResponse.data.educationLevel);
         }
