@@ -1,13 +1,12 @@
 {
-  "site_name": "agape-seminary-school",
-  "path": "frontend/school-frontend-app",
-  "production": {
-    "command": "npm run build:netlify",
+  "build": {
+    "base": "frontend/school-frontend-app",
     "publish": "build",
+    "command": "CI= npm run build",
     "environment": {
-      "NODE_ENV": "production",
       "REACT_APP_API_URL": "https://agape-seminary-school.onrender.com/api",
-      "REACT_APP_USE_MOCK_DATA": "false"
+      "REACT_APP_USE_MOCK_DATA": "false",
+      "NODE_ENV": "production"
     }
   }
 }

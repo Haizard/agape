@@ -1,15 +1,17 @@
-[build]
+# Production context: all deploys from the main branch
+[context.production]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm run build:netlify"
+  command = "CI= npm run build"
 
-[build.environment]
-  NODE_ENV = "production"
-  REACT_APP_API_URL = "https://agape-seminary-school.onrender.com/api"
-  REACT_APP_USE_MOCK_DATA = "false"
+# Deploy Preview context: all deploys generated from a pull/merge request
+[context.deploy-preview]
+  base = "frontend/school-frontend-app"
+  publish = "build"
+  command = "CI= npm run build"
 
-# Redirect all routes to index.html for SPA routing
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Branch deploy context: all deploys that are not from a pull/merge request or from the main branch
+[context.branch-deploy]
+  base = "frontend/school-frontend-app"
+  publish = "build"
+  command = "CI= npm run build"
