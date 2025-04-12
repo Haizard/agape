@@ -19,10 +19,18 @@ console.log('ESLint disabled for build.');
 
 // Create a .env file to ensure environment variables are set
 const envFile = path.join(__dirname, '..', '.env');
-const envFileContent = 'REACT_APP_API_URL=/api\nREACT_APP_USE_MOCK_DATA=false\nGENERATE_SOURCEMAP=false';
+const envFileContent = 'REACT_APP_API_URL=/api\nREACT_APP_USE_MOCK_DATA=false\nGENERATE_SOURCEMAP=false\nREACT_APP_USE_PROXY=true';
 
 console.log('Creating .env file with required variables...');
 fs.writeFileSync(envFile, envFileContent);
 console.log('.env file created successfully.');
+
+// Create a .env.production file to ensure environment variables are set for production
+const envProdFile = path.join(__dirname, '..', '.env.production');
+const envProdFileContent = 'REACT_APP_API_URL=/api\nREACT_APP_USE_MOCK_DATA=false\nGENERATE_SOURCEMAP=false\nREACT_APP_TIMEOUT=60000\nREACT_APP_USE_PROXY=true';
+
+console.log('Creating .env.production file with required variables...');
+fs.writeFileSync(envProdFile, envProdFileContent);
+console.log('.env.production file created successfully.');
 
 console.log('Build environment prepared successfully.');
