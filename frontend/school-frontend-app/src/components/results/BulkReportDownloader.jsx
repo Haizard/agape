@@ -242,7 +242,7 @@ const BulkReportDownloader = () => {
     const batchPromises = studentBatch.map(async (studentId) => {
       try {
         // Fetch the student report data
-        const apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+        const apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
         const response = await axios.get(apiUrl, {
           headers: {
             'Accept': 'application/json',

@@ -154,8 +154,8 @@ const SingleStudentReport = () => {
 
       console.log(`Fetching real data for student ${studentId} and exam ${examId}`);
 
-      // Use the comprehensive A-Level endpoint to get all the data we need
-      const apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+      // Use the comprehensive result endpoint to get all the data we need
+      const apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
       console.log('Fetching from API:', apiUrl);
 
       const response = await axios.get(apiUrl, {
