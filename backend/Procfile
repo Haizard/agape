@@ -1,1 +1,1 @@
-web: node dual-port-server.js
+web: node server.js
