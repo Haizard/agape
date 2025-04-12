@@ -61,19 +61,19 @@ const AboutPage = () => {
 
   // Core values data
   const coreValues = [
-    { value: 'Excellence', description: 'Striving for the highest standards in academics and character.' },
-    { value: 'Integrity', description: 'Acting with honesty and strong moral principles in all situations.' },
-    { value: 'Respect', description: 'Treating others with dignity and valuing diverse perspectives.' },
-    { value: 'Responsibility', description: 'Taking ownership of actions and their consequences.' },
-    { value: 'Community', description: 'Fostering a supportive environment where everyone belongs.' },
+    { value: 'Vision', description: 'To prepare future leaders and professionals based on Christian ethics.' },
+    { value: 'Mission', description: 'To prepare faithful leaders who will serve the Church and nation by promoting Christian morals and ethics among the youths.' },
+    { value: 'Objective 1', description: 'To raise Christian moral and ethics among the youths.' },
+    { value: 'Objective 2', description: 'To improve the quality of education in the country with emphasis on science subjects.' },
+    { value: 'Objective 3', description: 'To prepare future leaders who will serve the Church and nation honestly and faithfully.' },
   ];
 
   // School stats
   const schoolStats = [
-    { number: '70+', label: 'Years of Excellence', icon: <SchoolIcon fontSize="large" /> },
-    { number: '95%', label: 'University Placement', icon: <EmojiEventsIcon fontSize="large" /> },
-    { number: '15:1', label: 'Student-Teacher Ratio', icon: <GroupsIcon fontSize="large" /> },
-    { number: '25+', label: 'Academic Programs', icon: <MenuBookIcon fontSize="large" /> },
+    { number: '40', label: 'Division One (A-Level 2022)', icon: <EmojiEventsIcon fontSize="large" /> },
+    { number: '59', label: 'Division One (O-Level 2021)', icon: <EmojiEventsIcon fontSize="large" /> },
+    { number: '180', label: 'Students Enrolled Yearly', icon: <GroupsIcon fontSize="large" /> },
+    { number: '9', label: 'A-Level Combinations', icon: <MenuBookIcon fontSize="large" /> },
   ];
 
   return (
@@ -142,7 +142,7 @@ const AboutPage = () => {
                   lineHeight: 1.6,
                 }}
               >
-                Founded in 1950, AGAPE LUTHERAN JUNIOR SEMINARY has been a beacon of academic excellence and moral values for over seven decades.
+                Agape Lutheran Junior Seminary - A Beacon of truth, preparing faithful leaders who will serve the Church and nation.
               </Typography>
             </Grid>
             <Grid item xs={12} md={5} sx={{ display: { xs: 'none', md: 'block' } }}>
@@ -198,7 +198,7 @@ const AboutPage = () => {
                 <CardMedia
                   component="img"
                   height="450"
-                  image="/images/school-building.jpg"
+                  image="/images/web content1.jpg"
                   alt="School Building"
                   sx={{
                     transition: 'transform 0.5s ease',
@@ -225,7 +225,7 @@ const AboutPage = () => {
                       textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                     }}
                   >
-                    Our Campus Since 1950
+                    Our Campus Since 1998
                   </Typography>
                 </Box>
               </Box>
@@ -258,21 +258,17 @@ const AboutPage = () => {
                 />
 
                 <Typography variant="body1" paragraph sx={{ mb: 3, lineHeight: 1.8 }}>
-                  Founded in 1950, AGAPE LUTHERAN JUNIOR SEMINARY has been a beacon of academic excellence
-                  and moral values for over seven decades. Our mission is to nurture young minds
-                  and develop well-rounded individuals prepared for the challenges of tomorrow.
+                  Agape Lutheran Junior Seminary started in the year 1998. Decision for establishment of the Seminary was made by the diocesan council meeting as a land mark for 100 years of Christianity in the Diocese.
                 </Typography>
 
                 <Typography variant="body1" paragraph sx={{ mb: 3, lineHeight: 1.8 }}>
-                  We pride ourselves on maintaining small class sizes, employing dedicated teachers,
-                  and fostering a supportive learning environment where every student can thrive.
-                  Our graduates have gone on to excel in universities around the world and in various professional fields.
+                  The seminary is owned by the ELCT Northern Diocese and it enrolls students with Christian background belonging to the Christian Council of Tanzania (CCT).
+                  Having moved from three different places, it finally settled in its 'promised land' (the current site) in 1998.
                 </Typography>
 
                 <Typography variant="body1" paragraph sx={{ mb: 4, lineHeight: 1.8 }}>
-                  Throughout our history, we have continuously evolved our curriculum and facilities
-                  to meet the changing needs of education while staying true to our founding principles
-                  of excellence, integrity, and community service.
+                  The seminary is located at Mamba Mokeo/Lower in Moshi Rural District, about 40km from Moshi town & 3km from Marangu/Himo main road.
+                  The Seminary recruits qualified, faithful, experienced and committed Christian teachers and supporting staff.
                 </Typography>
 
                 <Button
@@ -358,7 +354,7 @@ const AboutPage = () => {
                 lineHeight: 1.8,
               }}
             >
-              These core values guide everything we do at St. John Vianney School, from curriculum development to extracurricular activities and community engagement.
+              Our vision, mission, and objectives guide everything we do at Agape Lutheran Junior Seminary, from curriculum development to extracurricular activities and community engagement.
             </Typography>
           </Box>
 

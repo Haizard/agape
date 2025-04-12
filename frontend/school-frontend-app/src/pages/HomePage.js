@@ -61,9 +61,10 @@ const HomePage = () => {
   const carouselItems = [
     {
       id: 'carousel-1',
-      image: '/images/school-1.jpg',
+      image: '/images/web content.jpg',
       title: 'Welcome to AGAPE LUTHERAN JUNIOR SEMINARY',
-      description: 'Where Excellence Meets Education',
+      description: 'Agape, A Beacon of truth',
+      quote: '"Surely I have a delightful inheritance" – Psalms 16:6b',
       buttonText: 'Learn More',
       buttonLink: '/about',
     },
@@ -196,7 +197,7 @@ const HomePage = () => {
                   variant="h5"
                   className="slide-in-left"
                   sx={{
-                    mb: 4,
+                    mb: 2,
                     fontWeight: 400,
                     fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
                     textShadow: '0 2px 5px rgba(0,0,0,0.3)',
@@ -207,6 +208,24 @@ const HomePage = () => {
                 >
                   {item.description}
                 </Typography>
+                {item.quote && (
+                  <Typography
+                    variant="h6"
+                    className="slide-in-left"
+                    sx={{
+                      mb: 4,
+                      fontWeight: 500,
+                      fontStyle: 'italic',
+                      fontSize: { xs: '0.9rem', sm: '1.1rem', md: '1.3rem' },
+                      textShadow: '0 2px 5px rgba(0,0,0,0.3)',
+                      opacity: 0.9,
+                      maxWidth: '90%',
+                      animationDelay: '0.3s',
+                    }}
+                  >
+                    {item.quote}
+                  </Typography>
+                )}
                 <Button
                   variant="contained"
                   color="secondary"

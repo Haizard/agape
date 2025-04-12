@@ -6,8 +6,7 @@ import reportWebVitals from './reportWebVitals';
 import { Provider } from 'react-redux';
 import store from './store/index';
 import axios from 'axios';
-import { ThemeProvider } from '@mui/material/styles';
-import theme from './theme';
+import ThemeProvider from './theme/ThemeProvider';
 import { UserProvider } from './contexts/UserContext';
 // The fix for React object rendering errors is applied in index.html
 // This ensures that all objects are safely rendered
@@ -30,7 +29,7 @@ root.render(
   <React.StrictMode>
     <UserProvider>
       <Provider store={store}>
-        <ThemeProvider theme={theme}>
+        <ThemeProvider>
           <App />
         </ThemeProvider>
       </Provider>

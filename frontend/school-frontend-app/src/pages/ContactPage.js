@@ -229,8 +229,8 @@ const ContactPage = () => {
                         Address
                       </Typography>
                       <Typography variant="body1" fontWeight={500}>
-                        123 School Street<br />
-                        City, State 12345
+                        P.O. Box 8882<br />
+                        Moshi, Kilimanjaro, Tanzania
                       </Typography>
                     </Box>
                   </Box>
@@ -244,7 +244,8 @@ const ContactPage = () => {
                         Phone
                       </Typography>
                       <Typography variant="body1" fontWeight={500}>
-                        (123) 456-7890
+                        +255 759 767 735<br />
+                        +255 765 293 177
                       </Typography>
                     </Box>
                   </Box>
@@ -258,7 +259,7 @@ const ContactPage = () => {
                         Email
                       </Typography>
                       <Typography variant="body1" fontWeight={500}>
-                        info@agapelutheran.edu
+                        agapelutheranjuniorseminary@gmail.com
                       </Typography>
                     </Box>
                   </Box>
