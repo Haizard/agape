@@ -147,13 +147,8 @@ const ResultReportSelector = () => {
       return;
     }
 
-    // Navigate to the appropriate report page based on education level
-    if (educationLevel === 'A_LEVEL') {
-      navigate(`/results/a-level/class/${selectedClass}/${selectedExam}`);
-    } else {
-      // For O-Level, use the dedicated O-level route
-      navigate(`/results/o-level/class/${selectedClass}/${selectedExam}`);
-    }
+    // Use the unified class report route for all education levels
+    navigate(`/results/class-report/${selectedClass}/${selectedExam}`);
   };
 
   return (

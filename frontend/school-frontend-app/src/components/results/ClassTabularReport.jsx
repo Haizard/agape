@@ -313,10 +313,11 @@ const ClassTabularReport = () => {
       const isForm5 = classData.name?.includes('5') || classData.form === 5 || classData.form === '5';
       const isForm6 = classData.name?.includes('6') || classData.form === 6 || classData.form === '6';
 
-      // Ensure this is an A-Level class
-      if (!classData.educationLevel || classData.educationLevel !== 'A_LEVEL') {
-        throw new Error('This report is only for A-Level classes (Form 5 and Form 6)');
-      }
+      // Set education level
+      const educationLevel = classData.educationLevel || 'A_LEVEL';
+      console.log(`Class education level: ${educationLevel}`);
+
+      // If this is not an A-Level class, we'll adapt the data structure later
 
       // Fetch the exam data
       const examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
