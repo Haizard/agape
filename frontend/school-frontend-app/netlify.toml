@@ -1,5 +1,4 @@
 [build]
-  base = "frontend/school-frontend-app"
   publish = "build"
   command = "npm run build:netlify"
 
