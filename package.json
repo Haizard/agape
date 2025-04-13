@@ -1,20 +1,11 @@
 {
-    "name":  "agape-school-system",
-    "version":  "1.0.0",
-    "description":  "Agape Seminary School Management System",
-    "private":  true,
-    "scripts":  {
-                    "start":  "vercel dev",
-                    "deploy":  "vercel --prod",
-                    "build":  "cd frontend/school-frontend-app \u0026\u0026 node scripts/simple-build.js"
-                },
-    "dependencies":  {
-                         "bcryptjs":  "^2.4.3",
-                         "express":  "^4.18.2",
-                         "jsonwebtoken":  "^9.0.0",
-                         "mongoose":  "^7.0.3"
-                     },
-    "engines":  {
-                    "node":  "18.x"
-                }
+  "name": "agape-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd frontend/school-frontend-app && npm install && npm run build"
+  },
+  "engines": {
+    "node": "18.x"
+  }
 }
