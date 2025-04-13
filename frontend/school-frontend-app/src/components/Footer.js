@@ -21,6 +21,15 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import SchoolIcon from '@mui/icons-material/School';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import {
+  createFacebookLink,
+  createTwitterLink,
+  createInstagramLink,
+  createLinkedInLink,
+  createWhatsAppLink,
+  getSocialLinkAttributes
+} from '../utils/socialMediaUtils';
 
 const Footer = () => {
   const theme = useTheme();
@@ -96,6 +105,8 @@ const Footer = () => {
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <IconButton
                   aria-label="Facebook"
+                  href={createFacebookLink('agapelutheranjuniorseminary')}
+                  {...getSocialLinkAttributes()}
                   sx={{
                     bgcolor: 'rgba(59, 89, 152, 0.1)',
                     color: '#3b5998',
@@ -106,6 +117,8 @@ const Footer = () => {
                 </IconButton>
                 <IconButton
                   aria-label="Twitter"
+                  href={createTwitterLink('agapeseminary')}
+                  {...getSocialLinkAttributes()}
                   sx={{
                     bgcolor: 'rgba(29, 161, 242, 0.1)',
                     color: '#1da1f2',
@@ -116,6 +129,8 @@ const Footer = () => {
                 </IconButton>
                 <IconButton
                   aria-label="Instagram"
+                  href={createInstagramLink('agapelutheranjuniorseminary')}
+                  {...getSocialLinkAttributes()}
                   sx={{
                     bgcolor: 'rgba(225, 48, 108, 0.1)',
                     color: '#e1306c',
@@ -126,6 +141,8 @@ const Footer = () => {
                 </IconButton>
                 <IconButton
                   aria-label="LinkedIn"
+                  href={createLinkedInLink('company', 'agapelutheranjuniorseminary')}
+                  {...getSocialLinkAttributes()}
                   sx={{
                     bgcolor: 'rgba(0, 119, 181, 0.1)',
                     color: '#0077b5',
@@ -133,6 +150,18 @@ const Footer = () => {
                   }}
                 >
                   <LinkedInIcon />
+                </IconButton>
+                <IconButton
+                  aria-label="WhatsApp"
+                  href={createWhatsAppLink('255759767735')}
+                  {...getSocialLinkAttributes()}
+                  sx={{
+                    bgcolor: 'rgba(37, 211, 102, 0.1)',
+                    color: '#25D366',
+                    '&:hover': { bgcolor: '#25D366', color: 'white' }
+                  }}
+                >
+                  <WhatsAppIcon />
                 </IconButton>
               </Box>
             </Grid>
@@ -224,16 +253,44 @@ const Footer = () => {
                 </Box>
                 <Box sx={{ display: 'flex', mb: 2 }}>
                   <PhoneIcon sx={{ color: 'primary.main', mr: 2, fontSize: 20 }} />
-                  <Typography variant="body2" color="text.secondary">
-                    +255 759 767 735<br />
-                    +255 765 293 177
-                  </Typography>
+                  <Box>
+                    <Link
+                      href={createPhoneLink('+255759767735')}
+                      underline="hover"
+                      color="text.secondary"
+                      sx={{
+                        display: 'block',
+                        '&:hover': { color: 'primary.main' }
+                      }}
+                    >
+                      +255 759 767 735
+                    </Link>
+                    <Link
+                      href={createPhoneLink('+255765293177')}
+                      underline="hover"
+                      color="text.secondary"
+                      sx={{
+                        display: 'block',
+                        '&:hover': { color: 'primary.main' }
+                      }}
+                    >
+                      +255 765 293 177
+                    </Link>
+                  </Box>
                 </Box>
                 <Box sx={{ display: 'flex', mb: 2 }}>
                   <EmailIcon sx={{ color: 'primary.main', mr: 2, fontSize: 20 }} />
-                  <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
+                  <Link
+                    href={createEmailLink('agapelutheranjuniorseminary@gmail.com', 'Inquiry from Website')}
+                    underline="hover"
+                    color="text.secondary"
+                    sx={{
+                      wordBreak: 'break-all',
+                      '&:hover': { color: 'primary.main' }
+                    }}
+                  >
                     agapelutheranjuniorseminary@gmail.com
-                  </Typography>
+                  </Link>
                 </Box>
               </Box>
             </Grid>

@@ -17,12 +17,21 @@ import {
   IconButton,
   Avatar,
   Fade,
+  Link,
 } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import SendIcon from '@mui/icons-material/Send';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import {
+  createPhoneLink,
+  createEmailLink,
+  createWhatsAppLink,
+  createGoogleMapsLink,
+  getSocialLinkAttributes
+} from '../utils/socialMediaUtils';
 import SchoolIcon from '@mui/icons-material/School';
 import axios from 'axios';
 
@@ -228,10 +237,20 @@ const ContactPage = () => {
                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                         Address
                       </Typography>
-                      <Typography variant="body1" fontWeight={500}>
+                      <Link
+                        href={createGoogleMapsLink('P.O. Box 8882, Moshi, Kilimanjaro, Tanzania')}
+                        underline="hover"
+                        color="text.primary"
+                        {...getSocialLinkAttributes()}
+                        sx={{
+                          display: 'block',
+                          fontWeight: 500,
+                          '&:hover': { color: 'primary.main' }
+                        }}
+                      >
                         P.O. Box 8882<br />
                         Moshi, Kilimanjaro, Tanzania
-                      </Typography>
+                      </Link>
                     </Box>
                   </Box>
 
@@ -243,10 +262,30 @@ const ContactPage = () => {
                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                         Phone
                       </Typography>
-                      <Typography variant="body1" fontWeight={500}>
-                        +255 759 767 735<br />
+                      <Link
+                        href={createPhoneLink('+255759767735')}
+                        underline="hover"
+                        color="text.primary"
+                        sx={{
+                          display: 'block',
+                          fontWeight: 500,
+                          '&:hover': { color: 'primary.main' }
+                        }}
+                      >
+                        +255 759 767 735
+                      </Link>
+                      <Link
+                        href={createPhoneLink('+255765293177')}
+                        underline="hover"
+                        color="text.primary"
+                        sx={{
+                          display: 'block',
+                          fontWeight: 500,
+                          '&:hover': { color: 'primary.main' }
+                        }}
+                      >
                         +255 765 293 177
-                      </Typography>
+                      </Link>
                     </Box>
                   </Box>
 
@@ -258,9 +297,18 @@ const ContactPage = () => {
                       <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                         Email
                       </Typography>
-                      <Typography variant="body1" fontWeight={500}>
+                      <Link
+                        href={createEmailLink('agapelutheranjuniorseminary@gmail.com', 'Inquiry from Website')}
+                        underline="hover"
+                        color="text.primary"
+                        sx={{
+                          display: 'block',
+                          fontWeight: 500,
+                          '&:hover': { color: 'primary.main' }
+                        }}
+                      >
                         agapelutheranjuniorseminary@gmail.com
-                      </Typography>
+                      </Link>
                     </Box>
                   </Box>
 
@@ -277,6 +325,27 @@ const ContactPage = () => {
                         Saturday: 9:00 AM - 12:00 PM
                       </Typography>
                     </Box>
+                  </Box>
+
+                  <Box sx={{ mt: 4 }}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<WhatsAppIcon />}
+                      fullWidth
+                      component="a"
+                      href={createWhatsAppLink('255759767735', 'Hello, I would like to inquire about Agape Lutheran Junior Seminary.')}
+                      {...getSocialLinkAttributes()}
+                      sx={{
+                        py: 1.5,
+                        bgcolor: '#25D366',
+                        '&:hover': {
+                          bgcolor: '#128C7E',
+                        },
+                      }}
+                    >
+                      Contact via WhatsApp
+                    </Button>
                   </Box>
                 </CardContent>
               </Card>
