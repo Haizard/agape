@@ -1,7 +1,10 @@
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && npm run build:koyeb:script"
+  command = "npm install --legacy-peer-deps && npm install jsonwebtoken bcryptjs axios --no-save && node scripts/comprehensive-build.js"
+
+[[plugins]]
+package = "@netlify/plugin-functions-install-core"
 
 [build.environment]
   NODE_VERSION = "16"
@@ -13,7 +16,9 @@
   GENERATE_SOURCEMAP = "false"
   REACT_APP_API_URL = "/api"
   REACT_APP_BACKEND_URL = "https://misty-roby-haizard-17a53e2a.koyeb.app"
+  REACT_APP_FALLBACK_TO_STATIC = "true"
   CI = "true"
+  BUILD_TIMEOUT = "20m"
 
 [build.processing]
   skip_processing = false
@@ -39,6 +44,14 @@
   status = 200
   force = true
   conditions = {Method = ["OPTIONS"]}
+
+# Handle login requests with a dedicated function
+[[redirects]]
+  from = "/api/users/login"
+  to = "/.netlify/functions/auth"
+  status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
 
 # Proxy API requests to Koyeb backend
 [[redirects]]

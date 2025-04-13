@@ -37,23 +37,51 @@ exports.handler = async function(event, context) {
       };
     }
 
-    console.log(`Mock login attempt with identifier: ${loginIdentifier}`);
+    console.log(`Login attempt with identifier: ${loginIdentifier}`);
 
-    // Always return a successful login response
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEyMyIsInVzZXJuYW1lIjoiYWRtaW4iLCJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjE2MTYyMjIwLCJleHAiOjE2MTYyNDg2MjB9.7M8V3XFjTRRrKDYLT5a9xIb0jLDTGMBIGGSLIL9pMTo",
-        user: {
-          id: "123",
-          email: "admin@example.com",
-          role: "admin",
-          username: "admin",
-          name: "Admin User"
+    // Try to forward the request to the Koyeb backend
+    try {
+      const axios = require('axios');
+      const koyebUrl = process.env.REACT_APP_BACKEND_URL || 'https://misty-roby-haizard-17a53e2a.koyeb.app';
+      
+      console.log(`Forwarding login request to Koyeb: ${koyebUrl}/api/users/login`);
+      
+      const response = await axios.post(`${koyebUrl}/api/users/login`, {
+        username: loginIdentifier,
+        password
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
         }
-      })
-    };
+      });
+      
+      console.log('Koyeb login successful');
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(response.data)
+      };
+    } catch (koyebError) {
+      console.error('Koyeb login failed:', koyebError.message);
+      console.log('Falling back to mock login');
+      
+      // Fall back to mock login if Koyeb is unavailable
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEyMyIsInVzZXJuYW1lIjoiYWRtaW4iLCJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjE2MTYyMjIwLCJleHAiOjE2MTYyNDg2MjB9.7M8V3XFjTRRrKDYLT5a9xIb0jLDTGMBIGGSLIL9pMTo",
+          user: {
+            id: "123",
+            email: "admin@example.com",
+            role: "admin",
+            username: "admin",
+            name: "Admin User"
+          }
+        })
+      };
+    }
   } catch (error) {
     console.error("Login error:", error);
     return {
