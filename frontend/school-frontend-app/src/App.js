@@ -119,8 +119,7 @@ function App() {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <AuthProvider>
-        <BrowserRouter>
-          <div className="App">
+        <div className="App">
             {isAuthenticated ? (
               <>
                 <Box sx={{ display: 'flex' }}>
@@ -342,7 +341,6 @@ function App() {
             </>
           )}
           </div>
-        </BrowserRouter>
       </AuthProvider>
     </LocalizationProvider>
   );
