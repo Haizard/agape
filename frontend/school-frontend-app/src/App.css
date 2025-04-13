@@ -164,7 +164,7 @@
 
 /* AppBar Styles */
 .MuiAppBar-root {
-  background: linear-gradient(90deg, var(--primary-dark) 0%, var(--primary-color) 100%) !important;
+  /* Removed background gradient to allow individual components to set their own */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
   z-index: 1200 !important;
   position: fixed !important;

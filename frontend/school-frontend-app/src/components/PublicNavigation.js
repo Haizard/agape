@@ -85,10 +85,14 @@ const PublicNavigation = () => {
     <>
       <AppBar
         position="fixed"
-        elevation={0}
+        elevation={scrolled ? 4 : 0}
         sx={{
-          backgroundColor: 'primary.main',
-          backgroundImage: 'linear-gradient(45deg, var(--primary-color) 0%, var(--primary-dark) 100%)',
+          backgroundColor: 'transparent',
+          backgroundImage: scrolled
+            ? 'linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(31, 41, 55, 0.95) 100%)'
+            : 'linear-gradient(90deg, rgba(15, 23, 42, 0.8) 0%, rgba(31, 41, 55, 0.8) 100%)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: scrolled ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
           zIndex: 1300,
           width: '100%',
           left: 0,
@@ -96,6 +100,7 @@ const PublicNavigation = () => {
           top: 0,
           visibility: 'visible',
           display: 'block',
+          transition: 'all 0.3s ease',
         }}
       >
         <Container maxWidth="lg">

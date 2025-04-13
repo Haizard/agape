@@ -343,17 +343,17 @@ const Navigation = () => {
           mb: 0.5,
           py: 1.5, // Increased vertical padding for taller height
           transition: 'all 0.3s ease',
-          backgroundColor: '#283593', // Lighter blue background for menu items
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
           '&:hover': {
             transform: 'translateX(5px)',
-            backgroundColor: '#3949ab', // Even lighter blue on hover
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
           },
           '&.Mui-selected': {
-            backgroundColor: '#3f51b5', // Highlight color for selected item
+            backgroundColor: 'rgba(59, 130, 246, 0.15)',
             borderLeft: '4px solid',
             borderColor: 'secondary.main',
             '&:hover': {
-              backgroundColor: '#5c6bc0',
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
             },
           },
         }}
@@ -499,17 +499,17 @@ const Navigation = () => {
                     mb: 0.5,
                     py: 1.5,
                     transition: 'all 0.3s ease',
-                    backgroundColor: '#283593',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
                     '&:hover': {
                       transform: 'translateX(5px)',
-                      backgroundColor: '#3949ab',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     },
                     '&.Mui-selected': {
-                      backgroundColor: '#3f51b5',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
                       borderLeft: '4px solid',
                       borderColor: 'secondary.main',
                       '&:hover': {
-                        backgroundColor: '#5c6bc0',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
                       },
                     },
                   }}
@@ -562,17 +562,17 @@ const Navigation = () => {
                     mb: 0.5,
                     py: 1.5,
                     transition: 'all 0.3s ease',
-                    backgroundColor: '#283593',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
                     '&:hover': {
                       transform: 'translateX(5px)',
-                      backgroundColor: '#3949ab',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     },
                     '&.Mui-selected': {
-                      backgroundColor: '#3f51b5',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
                       borderLeft: '4px solid',
                       borderColor: 'secondary.main',
                       '&:hover': {
-                        backgroundColor: '#5c6bc0',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
                       },
                     },
                   }}
@@ -662,11 +662,13 @@ const Navigation = () => {
     <>
       <AppBar
         position="fixed"
-        elevation={3}
+        elevation={2}
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          background: 'linear-gradient(90deg, #3f51b5 0%, #002984 100%)',
+          background: 'linear-gradient(90deg, var(--primary-color) 0%, var(--primary-dark) 100%)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           transition: 'all 0.3s ease',
           zIndex: 1100,
         }}
@@ -743,8 +745,10 @@ const Navigation = () => {
               boxSizing: 'border-box',
               width: drawerWidth,
               boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+              background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)',
               overflowY: 'auto',
               height: '100%',
+              borderRight: '1px solid rgba(255, 255, 255, 0.05)',
             },
           }}
         >
@@ -760,9 +764,10 @@ const Navigation = () => {
               boxSizing: 'border-box',
               width: drawerWidth,
               boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-              background: '#1a237e',
+              background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)',
               overflowY: 'auto',
               height: '100%',
+              borderRight: '1px solid rgba(255, 255, 255, 0.05)',
             },
           }}
           open
