@@ -1,55 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agape Seminary School</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      background-color: #f5f5f5;
-    }
-    .container {
-      max-width: 800px;
-      padding: 40px;
-      background-color: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      text-align: center;
-    }
-    h1 {
-      color: #333;
-      margin-bottom: 20px;
-    }
-    p {
-      color: #666;
-      line-height: 1.6;
-      margin-bottom: 20px;
-    }
-    .button {
-      display: inline-block;
-      padding: 10px 20px;
-      background-color: #4CAF50;
-      color: white;
-      text-decoration: none;
-      border-radius: 4px;
-      font-weight: bold;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Agape Seminary School</h1>
-    <p>Welcome to the Agape Seminary School Management System.</p>
-    <p>Our system is currently being updated with new features.</p>
-    <p>Please check back soon for the full experience.</p>
-    <a href="/" class="button">Refresh Page</a>
-  </div>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Agape Seminary School Management System"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>Agape Seminary School</title>
+    <script>
+      // Fix for React Router history issues (Error #299)
+      window.__REACT_ROUTER_HISTORY_FIX__ = true;
+      
+      // Ensure base URL is properly set
+      window.__API_BASE_URL__ = '/api';
+      
+      // Prevent multiple Router instances
+      window.__ROUTER_INSTANCE_COUNT__ = 0;
+      
+      // Error handling for React Router
+      window.addEventListener('error', function(event) {
+        if (event.message && event.message.includes('Router history')) {
+          console.warn('Caught Router history error, attempting to recover...');
+          event.preventDefault();
+          
+          // Force reload if needed
+          if (!window.__ROUTER_RECOVERY_ATTEMPTED__) {
+            window.__ROUTER_RECOVERY_ATTEMPTED__ = true;
+            // Use setTimeout to allow the error to be logged
+            setTimeout(function() {
+              window.location.href = '/';
+            }, 100);
+          }
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
 </html>
