@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: agape-seminary-frontend
+    env: node
+    buildCommand: npm install && npm run build:render
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REACT_APP_API_URL
+        value: https://misty-roby-haizard-17a53e2a.koyeb.app
+      - key: DISABLE_ESLINT_PLUGIN
+        value: "true"
+      - key: CI
+        value: "false"
+      - key: REACT_APP_USE_MOCK_DATA
+        value: "false"
+    autoDeploy: true
+    healthCheckPath: /health
