@@ -21,7 +21,6 @@ import SchoolIcon from '@mui/icons-material/School';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import GroupIcon from '@mui/icons-material/Group';
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
-import Carousel from 'react-material-ui-carousel';
 import { motion } from 'framer-motion';
 
 // Import custom animation components
@@ -34,7 +33,15 @@ import {
   ArtisticCard,
   ArtisticButton,
   ArtisticText,
-  ArtisticDivider
+  ArtisticDivider,
+  // Image components
+  OptimizedImage,
+  HeroBanner,
+  FeatureCard,
+  ImageCarousel,
+  SectionBackground,
+  ProfileCard,
+  FormIllustration
 } from '../components/ui';
 
 const HomePage = () => {
@@ -75,28 +82,24 @@ const HomePage = () => {
   const carouselItems = [
     {
       id: 'carousel-1',
-      image: '/images/web content.jpg',
-      title: 'Welcome to AGAPE LUTHERAN JUNIOR SEMINARY',
-      description: 'Agape, A Beacon of truth',
-      quote: '"Surely I have a delightful inheritance" – Psalms 16:6b',
-      buttonText: 'Learn More',
-      buttonLink: '/about',
+      src: '/assets/images/carousel/slide1.jpg',
+      alt: 'Welcome to Agape Lutheran Junior Seminary',
+      caption: 'Welcome to AGAPE LUTHERAN JUNIOR SEMINARY',
+      description: 'Agape, A Beacon of truth - "Surely I have a delightful inheritance" – Psalms 16:6b',
     },
     {
       id: 'carousel-2',
-      image: '/images/school-2.jpg',
-      title: 'State-of-the-Art Facilities',
+      src: '/assets/images/carousel/slide2.jpg',
+      alt: 'State-of-the-Art Facilities',
+      caption: 'State-of-the-Art Facilities',
       description: 'Modern classrooms and laboratories for enhanced learning',
-      buttonText: 'View Facilities',
-      buttonLink: '/academics',
     },
     {
       id: 'carousel-3',
-      image: '/images/school-3.jpg',
-      title: 'Sports and Recreation',
+      src: '/assets/images/carousel/slide3.jpg',
+      alt: 'Sports and Recreation',
+      caption: 'Sports and Recreation',
       description: 'Comprehensive sports programs for all-round development',
-      buttonText: 'Explore Programs',
-      buttonLink: '/academics',
     },
   ];
 
@@ -105,7 +108,7 @@ const HomePage = () => {
       id: 'news-1',
       title: 'Annual Science Fair 2024',
       date: 'May 15, 2024',
-      image: '/images/science-fair.jpg',
+      image: '/assets/images/features/feature1.jpg',
       excerpt: 'Students showcase innovative projects at our annual science exhibition.',
       tag: 'Event',
     },
@@ -113,7 +116,7 @@ const HomePage = () => {
       id: 'news-2',
       title: 'Sports Day Champions',
       date: 'May 10, 2024',
-      image: '/images/sports-day.jpg',
+      image: '/assets/images/features/feature2.jpg',
       excerpt: 'Our school team brings home the trophy from the inter-school competition.',
       tag: 'Sports',
     },
@@ -121,7 +124,7 @@ const HomePage = () => {
       id: 'news-3',
       title: 'Academic Excellence Awards',
       date: 'May 5, 2024',
-      image: '/images/awards.jpg',
+      image: '/assets/images/backgrounds/about-bg.jpg',
       excerpt: 'Recognizing outstanding student achievements in academics and extracurriculars.',
       tag: 'Awards',
     },
@@ -137,164 +140,29 @@ const HomePage = () => {
   return (
     <Box sx={{ pt: { xs: 8, md: 9 } }}>
       {/* Hero Carousel */}
-      <Carousel
-        animation="slide"
-        interval={6000}
-        navButtonsAlwaysVisible={!isMobile}
-        indicators={true}
-        sx={{
-          height: { xs: '60vh', sm: '70vh', md: '80vh' },
-          '& .MuiButtonBase-root': {
-            color: 'white',
-            bgcolor: 'rgba(0,0,0,0.3)',
-            '&:hover': {
-              bgcolor: 'rgba(0,0,0,0.5)',
-            }
-          },
-          '& .MuiPaginationItem-root': {
-            color: 'white',
-          }
-        }}
-      >
-        {carouselItems.map((item) => (
-          <Box
-            key={item.id}
-            sx={{
-              height: '100%',
-              backgroundImage: `url(${item.image})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(to right, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.1) 100%)',
-                zIndex: 1,
-              }
-            }}
-          >
-            <Container
-              maxWidth="lg"
-              sx={{
-                position: 'relative',
-                color: 'white',
-                textAlign: 'left',
-                zIndex: 2,
-                py: { xs: 4, md: 6 },
-              }}
-            >
-              <Box sx={{ maxWidth: { xs: '100%', md: '60%' } }}>
-                <Typography
-                  variant="h1"
-                  className="slide-in-left"
-                  sx={{
-                    fontWeight: 800,
-                    mb: 2,
-                    fontSize: { xs: '2rem', sm: '2.5rem', md: '3.5rem' },
-                    textShadow: '0 2px 10px rgba(0,0,0,0.3)',
-                    lineHeight: 1.2,
-                    background: 'linear-gradient(45deg, #fff, rgba(255,255,255,0.8))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  {item.title}
-                </Typography>
-                <Typography
-                  variant="h5"
-                  className="slide-in-left"
-                  sx={{
-                    mb: 2,
-                    fontWeight: 400,
-                    fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
-                    textShadow: '0 2px 5px rgba(0,0,0,0.3)',
-                    opacity: 0.9,
-                    maxWidth: '90%',
-                    animationDelay: '0.2s',
-                  }}
-                >
-                  {item.description}
-                </Typography>
-                {item.quote && (
-                  <Typography
-                    variant="h6"
-                    className="slide-in-left"
-                    sx={{
-                      mb: 4,
-                      fontWeight: 500,
-                      fontStyle: 'italic',
-                      fontSize: { xs: '0.9rem', sm: '1.1rem', md: '1.3rem' },
-                      textShadow: '0 2px 5px rgba(0,0,0,0.3)',
-                      opacity: 0.9,
-                      maxWidth: '90%',
-                      animationDelay: '0.3s',
-                    }}
-                  >
-                    {item.quote}
-                  </Typography>
-                )}
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  size="large"
-                  component={Link}
-                  to={item.buttonLink}
-                  endIcon={<ArrowForwardIcon />}
-                  className="slide-in-left"
-                  sx={{
-                    mt: 2,
-                    fontWeight: 600,
-                    px: 4,
-                    py: 1.5,
-                    borderRadius: 'var(--radius-md)',
-                    background: 'linear-gradient(45deg, var(--secondary-color) 30%, var(--secondary-light) 90%)',
-                    boxShadow: 'var(--shadow-md)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-3px)',
-                      boxShadow: 'var(--shadow-lg)',
-                    },
-                    animationDelay: '0.4s',
-                  }}
-                >
-                  {item.buttonText}
-                </Button>
-              </Box>
-            </Container>
-          </Box>
-        ))}
-      </Carousel>
+      <Box sx={{ pt: { xs: 0, md: 0 } }}>
+        <ImageCarousel
+          images={carouselItems}
+          height={{ xs: '60vh', sm: '70vh', md: '80vh' }}
+          autoPlay={true}
+          interval={6000}
+          showArrows={true}
+          showDots={true}
+          showCaptions={true}
+          overlay={true}
+          overlayGradient="linear-gradient(to right, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.1) 100%)"
+        />
+      </Box>
 
       {/* Stats Section */}
-      <Box
+      <SectionBackground
         ref={statsRef}
-        sx={{
-          background: 'linear-gradient(45deg, var(--primary-color) 0%, var(--primary-dark) 100%)',
-          color: 'white',
-          py: { xs: 6, md: 8 },
-          boxShadow: 'var(--shadow-lg)',
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: '-50%',
-            left: '-50%',
-            width: '200%',
-            height: '200%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-            opacity: 0.5,
-          }
-        }}
+        backgroundImage="/assets/images/backgrounds/hero-bg.jpg"
+        overlay={true}
+        overlayGradient="linear-gradient(45deg, rgba(37, 99, 235, 0.9) 0%, rgba(59, 130, 246, 0.8) 100%)"
+        py={{ xs: 6, md: 8 }}
+        maxWidth="lg"
       >
-        <Container maxWidth="lg">
           <Grid container spacing={4}>
             {stats.map((stat) => (
               <Grid
@@ -365,18 +233,14 @@ const HomePage = () => {
               </Grid>
             ))}
           </Grid>
-        </Container>
-      </Box>
+      </SectionBackground>
 
       {/* Latest News Section */}
-      <Box
+      <SectionBackground
         ref={newsRef}
-        sx={{
-          py: { xs: 6, md: 10 },
-          background: 'var(--background-light)',
-        }}
+        py={{ xs: 6, md: 10 }}
+        maxWidth="lg"
       >
-        <Container maxWidth="lg">
           <Box sx={{ mb: 5, textAlign: { xs: 'center', md: 'left' } }}>
             <Typography
               variant="overline"
@@ -536,30 +400,17 @@ const HomePage = () => {
               ))}
             </Grid>
           </StaggerContainer>
-        </Container>
-      </Box>
+      </SectionBackground>
 
       {/* Features Section */}
-      <Box
+      <SectionBackground
         ref={featuresRef}
-        sx={{
-          background: 'linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%)',
-          py: { xs: 6, md: 10 },
-          position: 'relative',
-          overflow: 'hidden',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            width: '100%',
-            height: '30%',
-            background: 'linear-gradient(to top, rgba(255,255,255,0.8), rgba(255,255,255,0))',
-            pointerEvents: 'none',
-          }
-        }}
+        backgroundImage="/assets/images/backgrounds/hero-bg.jpg"
+        overlay={true}
+        overlayGradient="linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.8))"
+        py={{ xs: 6, md: 10 }}
+        maxWidth="lg"
       >
-        <Container maxWidth="lg">
           <Box sx={{ mb: 5, textAlign: 'center' }}>
             <Typography
               variant="overline"
@@ -617,101 +468,42 @@ const HomePage = () => {
                 id: 'feature-1',
                 title: 'Academic Excellence',
                 description: 'Consistently high academic achievements and university placements with personalized learning approaches.',
-                image: '/images/academic.jpg',
+                image: '/assets/images/features/feature1.jpg',
+                actionText: 'Learn More',
+                actionLink: '/academics',
               },
               {
                 id: 'feature-2',
                 title: 'Holistic Development',
                 description: 'Focus on sports, arts, and character development to nurture well-rounded individuals ready for the future.',
-                image: '/images/holistic.jpg',
+                image: '/assets/images/features/feature2.jpg',
+                actionText: 'Explore Programs',
+                actionLink: '/campus-life',
               },
               {
                 id: 'feature-3',
                 title: 'Modern Facilities',
                 description: 'State-of-the-art labs, libraries, and sports facilities designed to enhance the learning experience.',
-                image: '/images/facilities.jpg',
+                image: '/assets/images/backgrounds/about-bg.jpg',
+                actionText: 'View Facilities',
+                actionLink: '/about',
               },
             ].map((feature) => (
               <Grid item xs={12} sm={6} md={4} key={feature.id} className="staggered-item">
-                <Paper
+                <FeatureCard
+                  image={feature.image}
+                  title={feature.title}
+                  description={feature.description}
+                  actionText={feature.actionText}
+                  actionLink={feature.actionLink}
+                  variant="vertical"
+                  hoverEffect={true}
                   elevation={3}
-                  sx={{
-                    height: '100%',
-                    borderRadius: 'var(--radius-lg)',
-                    overflow: 'hidden',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-10px)',
-                      boxShadow: 'var(--shadow-lg)',
-                    }
-                  }}
-                >
-                  <Box sx={{ position: 'relative', height: '220px', overflow: 'hidden' }}>
-                    <CardMedia
-                      component="img"
-                      height="220"
-                      image={feature.image}
-                      alt={feature.title}
-                      sx={{
-                        transition: 'transform 0.5s ease',
-                        '&:hover': {
-                          transform: 'scale(1.05)',
-                        }
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0))',
-                        p: 2,
-                        pt: 4,
-                      }}
-                    >
-                      <Typography
-                        variant="h5"
-                        sx={{
-                          color: 'white',
-                          fontWeight: 700,
-                          textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                        }}
-                      >
-                        {feature.title}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ p: 3 }}>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        color: 'text.secondary',
-                        mb: 2,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {feature.description}
-                    </Typography>
-                    <AnimatedButton
-                      variant="outlined"
-                      color="primary"
-                      endIcon={<ArrowForwardIcon />}
-                      effect="scale"
-                      sx={{
-                        fontWeight: 600,
-                        borderWidth: 2,
-                      }}
-                    >
-                      Learn More
-                    </AnimatedButton>
-                  </Box>
-                </Paper>
+                />
               </Grid>
             ))}
           </Grid>
-        </Container>
-      </Box>
+      </SectionBackground>
     </Box>
   );
 };

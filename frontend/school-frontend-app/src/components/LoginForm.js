@@ -9,9 +9,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton
+  IconButton,
+  Grid
 } from '@mui/material';
-import { ArtisticFormField, ArtisticButton } from './ui';
+import { ArtisticFormField, ArtisticButton, FormIllustration } from './ui';
 import CloseIcon from '@mui/icons-material/Close';
 import { setUser } from '../store/slices/userSlice';
 import api from '../services/api';
@@ -158,44 +159,56 @@ const LoginForm = ({ onClose }) => {
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          <ArtisticFormField
-            margin="normal"
-            required
-            fullWidth
-            id="emailOrUsername"
-            label="Email or Username"
-            name="emailOrUsername"
-            autoComplete="email username"
-            autoFocus
-            value={emailOrUsername}
-            onChange={(e) => setEmailOrUsername(e.target.value)}
-          />
-          <ArtisticFormField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Password"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <ArtisticButton
-            type="submit"
-            fullWidth
-            variant="gradient"
-            gradient="linear-gradient(45deg, #3B82F6, #60A5FA)"
-            size="large"
-            sx={{ mt: 3, mb: 2 }}
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Sign In'}
-          </ArtisticButton>
-        </Box>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <FormIllustration
+              image="/assets/images/backgrounds/about-bg.jpg"
+              title="Welcome Back"
+              subtitle="Sign in to access your account and manage your school activities"
+              height={{ xs: 200, md: '100%' }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+              {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+              <ArtisticFormField
+                margin="normal"
+                required
+                fullWidth
+                id="emailOrUsername"
+                label="Email or Username"
+                name="emailOrUsername"
+                autoComplete="email username"
+                autoFocus
+                value={emailOrUsername}
+                onChange={(e) => setEmailOrUsername(e.target.value)}
+              />
+              <ArtisticFormField
+                margin="normal"
+                required
+                fullWidth
+                name="password"
+                label="Password"
+                type="password"
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <ArtisticButton
+                type="submit"
+                fullWidth
+                variant="gradient"
+                gradient="linear-gradient(45deg, #3B82F6, #60A5FA)"
+                size="large"
+                sx={{ mt: 3, mb: 2 }}
+                disabled={loading}
+              >
+                {loading ? <CircularProgress size={24} /> : 'Sign In'}
+              </ArtisticButton>
+            </Box>
+          </Grid>
+        </Grid>
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
         <ArtisticButton
