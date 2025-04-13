@@ -63,7 +63,8 @@
                     "build:koyeb:script":  "node scripts/koyeb-build.js",
                     "build:comprehensive":  "node scripts/comprehensive-build.js",
                     "dev:koyeb":  "set REACT_APP_API_URL=/api \u0026\u0026 set REACT_APP_BACKEND_URL=https://misty-roby-haizard-17a53e2a.koyeb.app \u0026\u0026 npm run dev",
-                    "build:cloudflare":  "node scripts/cloudflare-build.js"
+                    "build:cloudflare":  "node scripts/cloudflare-build.js",
+                    "build:vercel":  "node scripts/vercel-build.js"
                 },
     "engines":  {
                     "node":  "\u003e=16.0.0"
