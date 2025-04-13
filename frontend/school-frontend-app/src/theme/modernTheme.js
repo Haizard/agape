@@ -343,23 +343,6 @@ const modernTheme = createTheme({
 });
 
 // Add CSS variables for easy access in components
-document.documentElement.style.setProperty('--primary-color', primaryColor);
-document.documentElement.style.setProperty('--primary-light', primaryLight);
-document.documentElement.style.setProperty('--primary-dark', primaryDark);
-document.documentElement.style.setProperty('--secondary-color', secondaryColor);
-document.documentElement.style.setProperty('--secondary-light', secondaryLight);
-document.documentElement.style.setProperty('--secondary-dark', secondaryDark);
-document.documentElement.style.setProperty('--success-color', successColor);
-document.documentElement.style.setProperty('--error-color', errorColor);
-document.documentElement.style.setProperty('--warning-color', warningColor);
-document.documentElement.style.setProperty('--info-color', infoColor);
-document.documentElement.style.setProperty('--radius-sm', '4px');
-document.documentElement.style.setProperty('--radius-md', '8px');
-document.documentElement.style.setProperty('--radius-lg', '12px');
-document.documentElement.style.setProperty('--radius-xl', '16px');
-document.documentElement.style.setProperty('--shadow-sm', '0 2px 8px rgba(0,0,0,0.08)');
-document.documentElement.style.setProperty('--shadow-md', '0 4px 16px rgba(0,0,0,0.08)');
-document.documentElement.style.setProperty('--shadow-lg', '0 8px 24px rgba(0,0,0,0.08)');
-document.documentElement.style.setProperty('--shadow-xl', '0 12px 32px rgba(0,0,0,0.08)');
+// We'll set these in the ThemeProvider component instead to avoid SSR issues
 
 export default modernTheme;

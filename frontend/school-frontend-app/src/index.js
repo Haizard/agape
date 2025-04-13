@@ -5,6 +5,8 @@ import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import store from './store/index';
 import App from './App';
+import ThemeProvider from './theme/ThemeProvider';
+import './index.css';
 
 // Production-safe error handling
 const ErrorBoundary = ({ children }) => {
@@ -83,11 +85,13 @@ const root = createRoot(container);
 root.render(
   <React.StrictMode>
     <Provider store={store}>
-      <ErrorBoundary>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </ErrorBoundary>
+      <ThemeProvider>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ErrorBoundary>
+      </ThemeProvider>
     </Provider>
   </React.StrictMode>
 );
