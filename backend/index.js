@@ -77,6 +77,7 @@ const allowedOrigins = [
   'https://agape-seminary-school-system.netlify.app',
   'https://agape-seminary-school-backend.koyeb.app',
   'https://misty-roby-haizard-17a53e2a.koyeb.app',
+  'https://agape-school-system.onrender.com',
   // Add any additional origins here
 ];
 
