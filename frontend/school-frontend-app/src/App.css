@@ -416,20 +416,24 @@
 }
 
 /* Staggered animation for grid items */
-.staggered-item {
+.stagger-container {
+  opacity: 1;
+}
+
+.staggered-item, .stagger-item {
   opacity: 0;
   transform: translateY(20px);
   animation: fadeInStaggered 0.5s var(--transition-bounce) forwards;
 }
 
-.staggered-item:nth-child(1) { animation-delay: 0.1s; }
-.staggered-item:nth-child(2) { animation-delay: 0.2s; }
-.staggered-item:nth-child(3) { animation-delay: 0.3s; }
-.staggered-item:nth-child(4) { animation-delay: 0.4s; }
-.staggered-item:nth-child(5) { animation-delay: 0.5s; }
-.staggered-item:nth-child(6) { animation-delay: 0.6s; }
-.staggered-item:nth-child(7) { animation-delay: 0.7s; }
-.staggered-item:nth-child(8) { animation-delay: 0.8s; }
+.staggered-item:nth-child(1), .stagger-item:nth-child(1) { animation-delay: 0.1s; }
+.staggered-item:nth-child(2), .stagger-item:nth-child(2) { animation-delay: 0.2s; }
+.staggered-item:nth-child(3), .stagger-item:nth-child(3) { animation-delay: 0.3s; }
+.staggered-item:nth-child(4), .stagger-item:nth-child(4) { animation-delay: 0.4s; }
+.staggered-item:nth-child(5), .stagger-item:nth-child(5) { animation-delay: 0.5s; }
+.staggered-item:nth-child(6), .stagger-item:nth-child(6) { animation-delay: 0.6s; }
+.staggered-item:nth-child(7), .stagger-item:nth-child(7) { animation-delay: 0.7s; }
+.staggered-item:nth-child(8), .stagger-item:nth-child(8) { animation-delay: 0.8s; }
 
 @keyframes fadeInStaggered {
   to {

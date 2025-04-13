@@ -1,6 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { motion } from 'framer-motion';
 
 const StaggerItem = ({
   children,
@@ -9,54 +8,33 @@ const StaggerItem = ({
   distance = 50,
   ...props
 }) => {
-  // Define animation variants based on direction
-  const getVariants = () => {
-    // Base fade animation
-    if (!direction) {
-      return {
-        hidden: { opacity: 0 },
-        visible: {
-          opacity: 1,
-          transition: {
-            duration,
-            ease: "easeOut" // Standard easing
-          }
-        }
-      };
-    }
+  // Get transform based on direction
+  const getTransform = () => {
+    if (!direction) return '';
 
-    // Direction-based animations
     const directionMap = {
-      up: { y: distance },
-      down: { y: -distance },
-      left: { x: distance },
-      right: { x: -distance }
+      up: `translateY(${distance}px)`,
+      down: `translateY(-${distance}px)`,
+      left: `translateX(${distance}px)`,
+      right: `translateX(-${distance}px)`
     };
 
-    return {
-      hidden: {
-        opacity: 0,
-        ...directionMap[direction]
-      },
-      visible: {
-        opacity: 1,
-        x: 0,
-        y: 0,
-        transition: {
-          duration,
-          ease: "easeOut" // Standard easing
-        }
-      }
-    };
+    return directionMap[direction];
   };
 
   return (
-    <motion.div
-      variants={getVariants()}
+    <div
+      className="stagger-item"
+      style={{
+        opacity: 1,
+        transform: 'none',
+        transition: `opacity ${duration}s ease, transform ${duration}s ease`,
+        animationDelay: `${Math.random() * 0.5}s`
+      }}
       {...props}
     >
       {children}
-    </motion.div>
+    </div>
   );
 };
 

@@ -1,36 +1,25 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { motion } from 'framer-motion';
 
-const StaggerContainer = ({ 
-  children, 
-  staggerDelay = 0.1, 
+const StaggerContainer = ({
+  children,
+  staggerDelay = 0.1,
   initialDelay = 0,
   threshold = 0.1,
   once = true,
-  ...props 
+  ...props
 }) => {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        delayChildren: initialDelay,
-        staggerChildren: staggerDelay
-      }
-    }
-  };
-
   return (
-    <motion.div
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once, threshold }}
-      variants={containerVariants}
+    <div
+      className="stagger-container"
+      style={{
+        opacity: 1,
+        transition: `opacity 0.5s ease ${initialDelay}s`,
+      }}
       {...props}
     >
       {children}
-    </motion.div>
+    </div>
   );
 };
 
