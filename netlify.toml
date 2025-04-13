@@ -1,7 +1,7 @@
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && node scripts/install-functions-direct.js && npm run build:netlify"
+  command = "npm install --legacy-peer-deps && npm install jsonwebtoken bcryptjs mongoose --no-save && npm run build:netlify"
 
 [[plugins]]
 package = "@netlify/plugin-functions-install-core"
@@ -55,7 +55,7 @@ package = "@netlify/plugin-functions-install-core"
 # Handle all other API requests
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "/.netlify/functions/simple-proxy/:splat"
   status = 200
   force = true
   headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
