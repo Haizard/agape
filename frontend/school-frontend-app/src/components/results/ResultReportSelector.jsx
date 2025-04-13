@@ -39,9 +39,13 @@ const ResultReportSelector = () => {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [exams, setExams] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [terms, setTerms] = useState(['Term 1', 'Term 2', 'Term 3']);
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedExam, setSelectedExam] = useState('');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+  const [selectedTerm, setSelectedTerm] = useState('');
   const [educationLevel, setEducationLevel] = useState('O_LEVEL');
 
   // Fetch data on component mount
@@ -50,6 +54,16 @@ const ResultReportSelector = () => {
       try {
         setLoading(true);
         setError('');
+
+        // Fetch academic years
+        const yearsResponse = await api.get('/api/academic-years');
+        setAcademicYears(yearsResponse.data);
+        console.log('Academic Years fetched:', yearsResponse.data);
+        // Set the current academic year if available
+        const currentYear = yearsResponse.data.find(year => year.isCurrent);
+        if (currentYear) {
+          setSelectedAcademicYear(currentYear._id);
+        }
 
         // Fetch exams
         const examsResponse = await api.get('/api/exams');
@@ -182,7 +196,44 @@ const ResultReportSelector = () => {
             )}
 
             <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Academic Year</InputLabel>
+                  <Select
+                    value={selectedAcademicYear}
+                    onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                    label="Academic Year"
+                  >
+                    <MenuItem value="">Select an academic year</MenuItem>
+                    {academicYears.map((year) => (
+                      <MenuItem key={year._id} value={year._id}>
+                        {year.name} {year.isCurrent && '(Current)'}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Term</InputLabel>
+                  <Select
+                    value={selectedTerm}
+                    onChange={(e) => setSelectedTerm(e.target.value)}
+                    label="Term"
+                    disabled={!selectedAcademicYear}
+                  >
+                    <MenuItem value="">Select a term</MenuItem>
+                    {terms.map((term) => (
+                      <MenuItem key={term} value={term}>
+                        {term}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={3}>
                 <FormControl fullWidth>
                   <InputLabel>Education Level</InputLabel>
                   <Select
@@ -196,7 +247,7 @@ const ResultReportSelector = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={3}>
                 <FormControl fullWidth>
                   <InputLabel>Class</InputLabel>
                   <Select
@@ -219,7 +270,7 @@ const ResultReportSelector = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={3}>
                 <FormControl fullWidth>
                   <InputLabel>Student</InputLabel>
                   <Select
@@ -238,7 +289,7 @@ const ResultReportSelector = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={3}>
                 <FormControl fullWidth>
                   <InputLabel>Exam</InputLabel>
                   <Select
@@ -556,7 +607,44 @@ const ResultReportSelector = () => {
             )}
 
             <Grid container spacing={3}>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Academic Year</InputLabel>
+                  <Select
+                    value={selectedAcademicYear}
+                    onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                    label="Academic Year"
+                  >
+                    <MenuItem value="">Select an academic year</MenuItem>
+                    {academicYears.map((year) => (
+                      <MenuItem key={year._id} value={year._id}>
+                        {year.name} {year.isCurrent && '(Current)'}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Term</InputLabel>
+                  <Select
+                    value={selectedTerm}
+                    onChange={(e) => setSelectedTerm(e.target.value)}
+                    label="Term"
+                    disabled={!selectedAcademicYear}
+                  >
+                    <MenuItem value="">Select a term</MenuItem>
+                    {terms.map((term) => (
+                      <MenuItem key={term} value={term}>
+                        {term}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={3}>
                 <FormControl fullWidth>
                   <InputLabel>Education Level</InputLabel>
                   <Select
@@ -570,7 +658,7 @@ const ResultReportSelector = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <FormControl fullWidth>
                   <InputLabel>Class</InputLabel>
                   <Select
@@ -593,7 +681,7 @@ const ResultReportSelector = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <FormControl fullWidth>
                   <InputLabel>Exam</InputLabel>
                   <Select

@@ -34,18 +34,21 @@ services:
       - key: USE_MOCK_DATA
         value: "false"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://agape-school-system.onrender.com,https://agape-seminary-school-system.onrender.com,http://localhost:3000"
+        # Updated to include the correct frontend URL
+        value: "https://st-john-vianey-frontend.onrender.com,http://localhost:3000"
 
-  # Frontend Service
-  - type: web
+  # Frontend Service (Web Service using custom server.js)
+  - type: web # Corrected type
     name: st-john-vianey-frontend
-    runtime: node
+    runtime: node # Added back runtime
     rootDir: frontend/school-frontend-app
     region: ohio
     plan: free
     buildCommand: npm ci && npm run build
-    startCommand: npm start
-    healthCheckPath: /health
+    startCommand: node server.js # Use the custom server
+    healthCheckPath: /health # Added back health check
+    # publishDir: build # Removed for web service
+    # rewrites: # Removed for web service (handled in server.js)
     buildFilter:
       paths:
         - src/**/*.js
@@ -54,11 +57,12 @@ services:
         - public/**/*
         - package.json
         - package-lock.json
-    envVars:
+    envVars: # Environment variables needed for the build process
       - key: NODE_ENV
         value: production
       - key: REACT_APP_API_URL
-        value: https://agape-render.onrender.com/api
+        # Ensure this points to your deployed backend API URL
+        value: https://st-john-vianey-api.onrender.com/api
       - key: REACT_APP_USE_MOCK_DATA
         value: "false"
       - key: REACT_APP_TIMEOUT
