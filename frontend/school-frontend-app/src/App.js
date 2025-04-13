@@ -1,7 +1,7 @@
 // Third-party imports first
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { BrowserRouter as Routes, Route, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Box, Typography } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -117,23 +117,23 @@ function App() {
   }, [isAuthenticated, user]);
 
   return (
-      <LocalizationProvider dateAdapter={AdapterDateFns}>
-        <AuthProvider>
-          
-            <div className="App">
-          {isAuthenticated ? (
-            <>
-              <Box sx={{ display: 'flex' }}>
-                <Navigation />
-                <Box
-                  component="main"
-                  sx={{
-                    flexGrow: 1,
-                    p: 3,
-                    width: { sm: `calc(100% - ${drawerWidth}px)` },
-                    ml: { sm: `${drawerWidth}px` },
-                    mt: '64px',
-                  }}
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <AuthProvider>
+        <BrowserRouter>
+          <div className="App">
+            {isAuthenticated ? (
+              <>
+                <Box sx={{ display: 'flex' }}>
+                  <Navigation />
+                  <Box
+                    component="main"
+                    sx={{
+                      flexGrow: 1,
+                      p: 3,
+                      width: { sm: `calc(100% - ${drawerWidth}px)` },
+                      ml: { sm: `${drawerWidth}px` },
+                      mt: '64px',
+                    }}
                 >
                   <Routes>
                     {/* Admin Routes */}
@@ -341,9 +341,9 @@ function App() {
               </Box>
             </>
           )}
-        </div>
-      
-    </AuthProvider>
+          </div>
+        </BrowserRouter>
+      </AuthProvider>
     </LocalizationProvider>
   );
 }
