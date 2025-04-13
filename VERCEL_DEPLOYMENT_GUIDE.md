@@ -22,17 +22,52 @@ The easiest way to deploy this project is directly from GitHub:
    - Root Directory: Leave empty (to use the project root)
    - Build Command: `npm run build` (should be auto-detected)
    - Output Directory: `frontend/school-frontend-app/build` (should be auto-detected)
-5. Add the environment variables mentioned above
+5. Add the environment variables:
+   - Click on "Environment Variables" section
+   - Add each variable (MONGODB_URI, JWT_SECRET, JWT_REFRESH_SECRET) with their values
+   - Make sure to add them as plain text values, not as references to secrets
 6. Click "Deploy"
+
+## Setting Up Environment Variables
+
+There are two ways to set up environment variables in Vercel:
+
+### Method 1: Using the Vercel Dashboard (Easiest)
+
+1. Go to your project in the Vercel dashboard
+2. Click on "Settings" → "Environment Variables"
+3. Add each variable with its value
+4. Click "Save"
+
+### Method 2: Using Vercel CLI (More Secure)
+
+For production deployments, you might want to use Vercel Secrets:
+
+1. Install Vercel CLI: `npm install -g vercel`
+2. Log in: `vercel login`
+3. Add secrets:
+   ```
+   vercel secrets add jwt_secret "your-jwt-secret-value"
+   vercel secrets add jwt_refresh_secret "your-jwt-refresh-secret-value"
+   vercel secrets add mongodb_uri "your-mongodb-connection-string"
+   ```
+4. Update your vercel.json to use these secrets:
+   ```json
+   "env": {
+     "JWT_SECRET": "@jwt_secret",
+     "JWT_REFRESH_SECRET": "@jwt_refresh_secret",
+     "MONGODB_URI": "@mongodb_uri"
+   }
+   ```
 
 ## Troubleshooting Common Deployment Issues
 
-### Package.json Not Found Error
+### Environment Variable Issues
 
-If you see an error like "Could not read package.json", make sure:
-- The root package.json file exists in your repository
-- The file has valid JSON syntax
-- The file includes the necessary scripts and dependencies
+If you see errors related to environment variables:
+- Make sure all required environment variables are set in the Vercel dashboard
+- Check that the variable names match exactly what your code expects
+- For secrets, ensure they are created before referencing them with the @ symbol
 
 ### MongoDB Connection Issues
 
@@ -58,27 +93,3 @@ After deployment, test the following:
 ## Automatic Updates
 
 Once deployed, any changes pushed to your GitHub repository will automatically trigger a new deployment on Vercel.
-
-## Local Development with Vercel
-
-To run the project locally with Vercel:
-
-1. Install Vercel CLI:
-   ```
-   npm install -g vercel
-   ```
-
-2. Link your project:
-   ```
-   vercel link
-   ```
-
-3. Pull environment variables:
-   ```
-   vercel env pull
-   ```
-
-4. Run the development server:
-   ```
-   npm start
-   ```
