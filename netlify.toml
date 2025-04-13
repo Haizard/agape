@@ -29,7 +29,7 @@
 # Handle login requests first
 [[redirects]]
   from = "/api/users/login"
-  to = "/.netlify/functions/auth"
+  to = "/.netlify/functions/api/users/login"
   status = 200
   force = true
   headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
