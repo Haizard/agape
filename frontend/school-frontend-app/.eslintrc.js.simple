@@ -1,0 +1,19 @@
+module.exports = {
+  parserOptions: {
+    ecmaVersion: 2020,
+    sourceType: 'module',
+  },
+  extends: [
+    'react-app',
+  ],
+  rules: {
+    // Disable rules that might cause build failures
+    'no-unused-vars': 'off',
+    'react/prop-types': 'off',
+  },
+  settings: {
+    react: {
+      version: 'detect',
+    },
+  },
+};

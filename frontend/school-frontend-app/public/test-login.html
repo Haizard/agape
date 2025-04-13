@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Login Function</h1>
+    <p>This page tests the Netlify Function for login.</p>
+    
+    <button id="testLogin">Test Login</button>
+    <button id="testDirectLogin">Test Direct Function Call</button>
+    
+    <div class="result" id="result">Results will appear here...</div>
+    
+    <script>
+        document.getElementById('testLogin').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing login...';
+            
+            try {
+                const response = await fetch('/api/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'password'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.textContent = 'Response:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultDiv.textContent = 'Error:\n' + error.message;
+            }
+        });
+        
+        document.getElementById('testDirectLogin').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing direct function call...';
+            
+            try {
+                const response = await fetch('/.netlify/functions/mock-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'password'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.textContent = 'Response:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultDiv.textContent = 'Error:\n' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

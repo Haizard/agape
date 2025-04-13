@@ -1,0 +1,57 @@
+[build]
+  base = "frontend/school-frontend-app"
+  publish = "build"
+  command = "npm install --legacy-peer-deps && node scripts/modify-login-component.js && node scripts/simple-build.js"
+
+[build.environment]
+  NODE_VERSION = "16"
+  NPM_FLAGS = "--no-optional"
+  NETLIFY_USE_YARN = "false"
+  NODE_OPTIONS = "--max-old-space-size=1536"
+
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
+
+[build.processing.images]
+  compress = true
+
+# Handle login requests first
+[[redirects]]
+  from = "/api/users/login"
+  to = "/.netlify/functions/auth"
+  status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
+
+# Handle OPTIONS requests for CORS preflight
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/options"
+  status = 200
+  force = true
+  conditions = {Method = ["OPTIONS"]}
+
+# Handle all other API requests
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/simple-proxy/:splat"
+  status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
+
+# Handle all other routes with the SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
