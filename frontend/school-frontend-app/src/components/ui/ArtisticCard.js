@@ -33,19 +33,37 @@ const ArtisticCard = ({
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
+  // Default border radius values
+  const defaultBorderRadius = {
+    small: 4,
+    medium: 8,
+    large: 12,
+    xlarge: 16,
+    pill: '9999px',
+    asymmetric: {
+      topLeft: 4,
+      topRight: 16,
+      bottomRight: 4,
+      bottomLeft: 16,
+    }
+  };
+
   // Determine corner radius
   const getCornerRadius = () => {
+    // Get asymmetric border radius with fallback
+    const asymmetricBorderRadius = theme.shape?.borderRadiusAsymmetric || defaultBorderRadius.asymmetric;
+
     const radiusMap = {
       none: 0,
-      small: theme.shape.borderRadiusSmall,
-      medium: theme.shape.borderRadiusMedium,
-      large: theme.shape.borderRadiusLarge,
-      xlarge: theme.shape.borderRadiusXLarge,
-      pill: theme.shape.borderRadiusPill,
-      asymmetric: `${theme.shape.borderRadiusAsymmetric.topLeft}px
-                   ${theme.shape.borderRadiusAsymmetric.topRight}px
-                   ${theme.shape.borderRadiusAsymmetric.bottomRight}px
-                   ${theme.shape.borderRadiusAsymmetric.bottomLeft}px`,
+      small: theme.shape?.borderRadiusSmall || defaultBorderRadius.small,
+      medium: theme.shape?.borderRadiusMedium || defaultBorderRadius.medium,
+      large: theme.shape?.borderRadiusLarge || defaultBorderRadius.large,
+      xlarge: theme.shape?.borderRadiusXLarge || defaultBorderRadius.xlarge,
+      pill: theme.shape?.borderRadiusPill || defaultBorderRadius.pill,
+      asymmetric: `${asymmetricBorderRadius.topLeft}px
+                   ${asymmetricBorderRadius.topRight}px
+                   ${asymmetricBorderRadius.bottomRight}px
+                   ${asymmetricBorderRadius.bottomLeft}px`,
     };
 
     return radiusMap[cornerRadius] || cornerRadius;
@@ -53,13 +71,24 @@ const ArtisticCard = ({
 
   // Determine shadow
   const getShadow = (depth = shadowDepth) => {
+    // Default shadows if theme values are not available
+    const defaultShadows = {
+      none: 'none',
+      xsmall: '0 1px 2px rgba(0, 0, 0, 0.05)',
+      small: '0 1px 3px rgba(0, 0, 0, 0.1)',
+      medium: '0 4px 6px rgba(0, 0, 0, 0.1)',
+      large: '0 10px 15px rgba(0, 0, 0, 0.1)',
+      xlarge: '0 20px 25px rgba(0, 0, 0, 0.15)',
+    };
+
+    // Use theme shadows if available, otherwise use defaults
     const shadowMap = {
       none: 'none',
-      xsmall: theme.shadows[1],
-      small: theme.shadows[2],
-      medium: theme.shadows[4],
-      large: theme.shadows[8],
-      xlarge: theme.shadows[16],
+      xsmall: theme.shadows?.[1] || defaultShadows.xsmall,
+      small: theme.shadows?.[2] || defaultShadows.small,
+      medium: theme.shadows?.[4] || defaultShadows.medium,
+      large: theme.shadows?.[8] || defaultShadows.large,
+      xlarge: theme.shadows?.[16] || defaultShadows.xlarge,
     };
 
     return shadowMap[depth] || depth;
@@ -67,6 +96,12 @@ const ArtisticCard = ({
 
   // Determine hover animation
   const getHoverAnimation = () => {
+    // Default primary color if not available in theme
+    const defaultPrimaryColor = isDark ? '#3B82F6' : '#2563EB';
+
+    // Get primary color from theme or use default
+    const primaryMainColor = theme.palette?.primary?.main || defaultPrimaryColor;
+
     switch (hoverEffect) {
       case 'none':
         return {};
@@ -90,7 +125,7 @@ const ArtisticCard = ({
         };
       case 'glow':
         return {
-          boxShadow: `0 0 20px ${borderColor || theme.palette.primary.main}`,
+          boxShadow: `0 0 20px ${borderColor || primaryMainColor}`,
           transition: {
             duration: 0.3,
             ease: "easeOut",
@@ -98,7 +133,7 @@ const ArtisticCard = ({
         };
       case 'border':
         return {
-          borderColor: borderColor || theme.palette.primary.main,
+          borderColor: borderColor || primaryMainColor,
           transition: {
             duration: 0.3,
             ease: "easeOut",
@@ -111,6 +146,13 @@ const ArtisticCard = ({
 
   // Determine background style
   const getBackgroundStyle = () => {
+    // Default background colors if not available in theme
+    const defaultBackgrounds = {
+      paper: isDark ? '#1E293B' : '#FFFFFF',
+      default: isDark ? '#0F172A' : '#F8FAFC',
+      subtle: isDark ? '#1E293B' : '#F1F5F9',
+    };
+
     // Glass variant
     if (variant === 'glass') {
       return {
@@ -137,45 +179,60 @@ const ArtisticCard = ({
       };
     }
 
+    // Get background colors from theme or use defaults
+    const paperBg = theme.palette?.background?.paper || defaultBackgrounds.paper;
+    const defaultBg = theme.palette?.background?.default || defaultBackgrounds.default;
+    const subtleBg = theme.palette?.background?.subtle || defaultBackgrounds.subtle;
+
     // Default backgrounds based on variant
     const variantBackgrounds = {
-      elevated: isDark ? theme.palette.background.paper : theme.palette.background.paper,
-      flat: isDark ? theme.palette.background.default : theme.palette.background.default,
+      elevated: paperBg,
+      flat: defaultBg,
       outlined: 'transparent',
-      subtle: isDark ? theme.palette.background.subtle : theme.palette.background.subtle,
+      subtle: subtleBg,
     };
 
     return {
-      backgroundColor: variantBackgrounds[variant] || theme.palette.background.paper,
+      backgroundColor: variantBackgrounds[variant] || paperBg,
     };
   };
 
   // Determine border style
   const getBorderStyle = () => {
+    // Default border and primary colors if not available in theme
+    const defaultBorderColor = isDark ? 'rgba(203, 213, 225, 0.15)' : 'rgba(148, 163, 184, 0.2)';
+    const defaultPrimaryColor = isDark ? '#3B82F6' : '#2563EB';
+
+    // Get border color from theme or use default
+    const borderMainColor = theme.palette?.border?.main || defaultBorderColor;
+    const primaryMainColor = theme.palette?.primary?.main || defaultPrimaryColor;
+
     // Outlined variant
     if (variant === 'outlined') {
       return {
-        border: `1px solid ${isDark ? theme.palette.border.main : theme.palette.border.main}`,
+        border: `1px solid ${borderMainColor}`,
       };
     }
 
     // Border accent
     if (borderAccent) {
+      const accentColor = borderColor || primaryMainColor;
+
       const borderStyles = {
         all: {
-          border: `${borderWidth}px solid ${borderColor || theme.palette.primary.main}`,
+          border: `${borderWidth}px solid ${accentColor}`,
         },
         left: {
-          borderLeft: `${borderWidth}px solid ${borderColor || theme.palette.primary.main}`,
+          borderLeft: `${borderWidth}px solid ${accentColor}`,
         },
         right: {
-          borderRight: `${borderWidth}px solid ${borderColor || theme.palette.primary.main}`,
+          borderRight: `${borderWidth}px solid ${accentColor}`,
         },
         top: {
-          borderTop: `${borderWidth}px solid ${borderColor || theme.palette.primary.main}`,
+          borderTop: `${borderWidth}px solid ${accentColor}`,
         },
         bottom: {
-          borderBottom: `${borderWidth}px solid ${borderColor || theme.palette.primary.main}`,
+          borderBottom: `${borderWidth}px solid ${accentColor}`,
         },
       };
 

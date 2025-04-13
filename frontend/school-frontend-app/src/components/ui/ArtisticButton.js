@@ -32,32 +32,74 @@ const ArtisticButton = ({
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
+  // Default values for theme properties that might be missing
+  const defaultBorderRadius = {
+    small: 4,
+    medium: 8,
+    large: 12,
+    pill: '9999px',
+  };
+
   // Determine button shape (border radius)
   const getButtonShape = () => {
+    // Check if theme.shape.components exists, otherwise use fallbacks
+    const buttonRadius = theme.shape?.components?.button ||
+                         theme.shape?.borderRadius ||
+                         defaultBorderRadius.medium;
+
+    const pillRadius = theme.shape?.borderRadiusPill || defaultBorderRadius.pill;
+
     const shapeMap = {
       square: 0,
-      rounded: theme.shape.components.button || theme.shape.borderRadiusMedium,
-      pill: theme.shape.borderRadiusPill,
+      rounded: buttonRadius,
+      pill: pillRadius,
     };
 
     return shapeMap[shape] || shape;
+  };
+
+  // Default shadows if theme values are not available
+  const defaultShadows = {
+    none: 'none',
+    xsmall: '0 1px 2px rgba(0, 0, 0, 0.05)',
+    small: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    medium: '0 4px 6px rgba(0, 0, 0, 0.1)',
+    large: '0 10px 15px rgba(0, 0, 0, 0.1)',
   };
 
   // Determine shadow
   const getShadow = (depth = shadowDepth) => {
     const shadowMap = {
       none: 'none',
-      xsmall: theme.shadows[1],
-      small: theme.shadows[2],
-      medium: theme.shadows[3],
-      large: theme.shadows[4],
+      xsmall: theme.shadows?.[1] || defaultShadows.xsmall,
+      small: theme.shadows?.[2] || defaultShadows.small,
+      medium: theme.shadows?.[3] || defaultShadows.medium,
+      large: theme.shadows?.[4] || defaultShadows.large,
     };
 
     return shadowMap[depth] || depth;
   };
 
+  // Default color values if theme properties are missing
+  const getColorValue = (colorName) => {
+    const defaultColors = {
+      primary: isDark ? '#3B82F6' : '#2563EB',
+      secondary: isDark ? '#A855F7' : '#9333EA',
+      error: isDark ? '#F43F5E' : '#E11D48',
+      warning: isDark ? '#FB923C' : '#F97316',
+      info: isDark ? '#38BDF8' : '#0EA5E9',
+      success: isDark ? '#4ADE80' : '#22C55E',
+    };
+
+    return theme.palette?.[colorName]?.main || defaultColors[colorName] || defaultColors.primary;
+  };
+
   // Determine hover animation
   const getHoverAnimation = () => {
+    // Get the appropriate color value with fallback
+    const buttonColor = getColorValue(color);
+    const glowColorValue = glowColor || buttonColor;
+
     switch (hoverEffect) {
       case 'none':
         return {};
@@ -81,7 +123,7 @@ const ArtisticButton = ({
         };
       case 'glow':
         return {
-          boxShadow: `0 0 15px ${glowColor || theme.palette[color].main}`,
+          boxShadow: `0 0 15px ${glowColorValue}`,
           transition: {
             duration: 0.2,
             ease: 'easeOut',
@@ -99,6 +141,11 @@ const ArtisticButton = ({
 
   // Get custom styles based on variant
   const getCustomStyles = () => {
+    // Get the appropriate color values with fallbacks
+    const buttonColor = getColorValue(color);
+    const buttonLightColor = theme.palette?.[color]?.light || buttonColor;
+    const buttonContrastText = theme.palette?.[color]?.contrastText || (isDark ? '#000000' : '#FFFFFF');
+
     // Base styles
     const baseStyles = {
       textTransform: 'none',
@@ -131,33 +178,33 @@ const ArtisticButton = ({
     const variantStyles = {
       // Gradient variant
       gradient: {
-        background: gradient || `linear-gradient(45deg, ${theme.palette[color].main} 0%, ${theme.palette[color].light} 100%)`,
-        color: theme.palette[color].contrastText,
+        background: gradient || `linear-gradient(45deg, ${buttonColor} 0%, ${buttonLightColor} 100%)`,
+        color: buttonContrastText,
         border: 'none',
         boxShadow: getShadow('medium'),
       },
       // Ghost variant
       ghost: {
         backgroundColor: 'transparent',
-        color: theme.palette[color].main,
+        color: buttonColor,
         boxShadow: 'none',
         '&:hover': {
           backgroundColor: isDark
-            ? `rgba(${hexToRgb(theme.palette[color].main)}, 0.15)`
-            : `rgba(${hexToRgb(theme.palette[color].main)}, 0.08)`,
+            ? `rgba(${hexToRgb(buttonColor)}, 0.15)`
+            : `rgba(${hexToRgb(buttonColor)}, 0.08)`,
         },
       },
       // Soft variant
       soft: {
         backgroundColor: isDark
-          ? `rgba(${hexToRgb(theme.palette[color].main)}, 0.2)`
-          : `rgba(${hexToRgb(theme.palette[color].main)}, 0.1)`,
-        color: theme.palette[color].main,
+          ? `rgba(${hexToRgb(buttonColor)}, 0.2)`
+          : `rgba(${hexToRgb(buttonColor)}, 0.1)`,
+        color: buttonColor,
         boxShadow: 'none',
         '&:hover': {
           backgroundColor: isDark
-            ? `rgba(${hexToRgb(theme.palette[color].main)}, 0.3)`
-            : `rgba(${hexToRgb(theme.palette[color].main)}, 0.2)`,
+            ? `rgba(${hexToRgb(buttonColor)}, 0.3)`
+            : `rgba(${hexToRgb(buttonColor)}, 0.2)`,
         },
       },
       // Outlined variant customization

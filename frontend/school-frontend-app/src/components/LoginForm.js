@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import {
   Box,
-  TextField,
-  Button,
   Typography,
   CircularProgress,
   Alert,
@@ -13,6 +11,7 @@ import {
   DialogActions,
   IconButton
 } from '@mui/material';
+import { ArtisticFormField, ArtisticButton } from './ui';
 import CloseIcon from '@mui/icons-material/Close';
 import { setUser } from '../store/slices/userSlice';
 import api from '../services/api';
@@ -161,7 +160,7 @@ const LoginForm = ({ onClose }) => {
       <DialogContent>
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          <TextField
+          <ArtisticFormField
             margin="normal"
             required
             fullWidth
@@ -173,7 +172,7 @@ const LoginForm = ({ onClose }) => {
             value={emailOrUsername}
             onChange={(e) => setEmailOrUsername(e.target.value)}
           />
-          <TextField
+          <ArtisticFormField
             margin="normal"
             required
             fullWidth
@@ -185,21 +184,27 @@ const LoginForm = ({ onClose }) => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button
+          <ArtisticButton
             type="submit"
             fullWidth
-            variant="contained"
+            variant="gradient"
+            gradient="linear-gradient(45deg, #3B82F6, #60A5FA)"
+            size="large"
             sx={{ mt: 3, mb: 2 }}
             disabled={loading}
           >
             {loading ? <CircularProgress size={24} /> : 'Sign In'}
-          </Button>
+          </ArtisticButton>
         </Box>
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
-        <Button onClick={() => navigate('/register')}>
+        <ArtisticButton
+          onClick={() => navigate('/register')}
+          variant="ghost"
+          color="secondary"
+        >
           {"Don't have an account? Sign Up"}
-        </Button>
+        </ArtisticButton>
       </DialogActions>
     </>
   );
