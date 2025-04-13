@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend/school-frontend-app && npm install --legacy-peer-deps && npm run build:vercel",
+  "buildCommand": "npm run build",
   "outputDirectory": "frontend/school-frontend-app/build",
-  "installCommand": "npm install",
+  "installCommand": "npm run install:all",
   "framework": "create-react-app",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" }
@@ -19,6 +19,9 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "JWT_SECRET": "@jwt_secret",
+    "JWT_REFRESH_SECRET": "@jwt_refresh_secret",
+    "MONGODB_URI": "@mongodb_uri"
   }
 }

@@ -2,6 +2,14 @@
 
 This project is configured for deployment on Vercel with both frontend and backend components.
 
+## Important: Environment Variables
+
+Before deploying, you need to set up the following environment variables in Vercel:
+
+1. `MONGODB_URI`: Your MongoDB connection string
+2. `JWT_SECRET`: Secret key for JWT token generation
+3. `JWT_REFRESH_SECRET`: Secret key for JWT refresh token generation
+
 ## Automatic Deployment from GitHub
 
 The easiest way to deploy this project is directly from GitHub:
@@ -10,54 +18,34 @@ The easiest way to deploy this project is directly from GitHub:
 2. Click "Add New..." → "Project"
 3. Import your GitHub repository (agape)
 4. Configure the project settings:
-   - Framework Preset: Create React App
+   - Framework Preset: Create React App (should be auto-detected)
    - Root Directory: Leave empty (to use the project root)
-   - Build Command: Leave as is (will use the one from vercel.json)
-   - Output Directory: Leave as is (will use the one from vercel.json)
-5. Add the following environment variables:
-   - `MONGODB_URI`: Your MongoDB connection string
-   - `JWT_SECRET`: A secret key for JWT token generation
+   - Build Command: `npm run build` (should be auto-detected)
+   - Output Directory: `frontend/school-frontend-app/build` (should be auto-detected)
+5. Add the environment variables mentioned above
 6. Click "Deploy"
 
-## Manual Deployment with Vercel CLI
+## Troubleshooting Common Deployment Issues
 
-If you prefer to deploy manually:
+### Package.json Not Found Error
 
-1. Install the Vercel CLI:
-   ```
-   npm install -g vercel
-   ```
+If you see an error like "Could not read package.json", make sure:
+- The root package.json file exists in your repository
+- The file has valid JSON syntax
+- The file includes the necessary scripts and dependencies
 
-2. Log in to Vercel:
-   ```
-   vercel login
-   ```
+### MongoDB Connection Issues
 
-3. Deploy from your project directory:
-   ```
-   cd /path/to/agape
-   vercel
-   ```
+If your API fails to connect to MongoDB:
+- Verify that your MONGODB_URI environment variable is correctly set
+- Ensure your MongoDB instance allows connections from Vercel's IP addresses
+- Check that your database user has the correct permissions
 
-4. Follow the prompts to configure your project
-5. For production deployment:
-   ```
-   vercel --prod
-   ```
+### JWT Secret Issues
 
-## Environment Variables
-
-The following environment variables need to be set in Vercel:
-
-- `MONGODB_URI`: MongoDB connection string
-- `JWT_SECRET`: Secret key for JWT token generation
-- `NODE_ENV`: Set to "production" for production deployments
-
-## Project Structure
-
-- `/frontend/school-frontend-app`: React frontend application
-- `/api`: Serverless API functions for Vercel
-- `/backend`: Original backend code (adapted for serverless)
+If authentication fails:
+- Make sure both JWT_SECRET and JWT_REFRESH_SECRET are set in Vercel
+- These should match the values you were using in your local development
 
 ## Testing Your Deployment
 
@@ -71,16 +59,7 @@ After deployment, test the following:
 
 Once deployed, any changes pushed to your GitHub repository will automatically trigger a new deployment on Vercel.
 
-## Troubleshooting
-
-If you encounter any issues:
-
-1. Check the Vercel deployment logs in the Vercel dashboard
-2. Verify that your environment variables are set correctly
-3. Make sure your MongoDB instance is accessible from Vercel
-4. Check that the serverless functions are properly configured
-
-## Local Development
+## Local Development with Vercel
 
 To run the project locally with Vercel:
 
@@ -101,5 +80,5 @@ To run the project locally with Vercel:
 
 4. Run the development server:
    ```
-   vercel dev
+   npm start
    ```
