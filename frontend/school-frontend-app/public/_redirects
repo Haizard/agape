@@ -1,4 +1,3 @@
-# Redirect API requests to the backend
-/api/*  https://agape-seminary-school.onrender.com/api/:splat  200!
-# Handle all other routes with the SPA
-/*    /index.html   200
+# Cloudflare Pages redirects
+/api/* https://misty-roby-haizard-17a53e2a.koyeb.app/api/:splat 200
+/* /index.html 200

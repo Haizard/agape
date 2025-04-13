@@ -1,0 +1,14 @@
+# Cloudflare Pages configuration
+
+[build]
+  command = "cd frontend/school-frontend-app && npm install --legacy-peer-deps && npm run build:cloudflare"
+  publish = "frontend/school-frontend-app/build"
+
+[build.environment]
+  NODE_VERSION = "16"
+  NPM_VERSION = "8"
+  DISABLE_ESLINT_PLUGIN = "true"
+  ESLINT_NO_DEV_ERRORS = "true"
+  GENERATE_SOURCEMAP = "false"
+  REACT_APP_API_URL = "/api"
+  REACT_APP_BACKEND_URL = "https://misty-roby-haizard-17a53e2a.koyeb.app"
