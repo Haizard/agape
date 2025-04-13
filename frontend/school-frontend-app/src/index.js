@@ -2,6 +2,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import store from './store';
 import App from './App';
 
 // Production-safe error handling
@@ -45,14 +47,14 @@ const ErrorBoundary = ({ children }) => {
       <div style={{ padding: '20px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '4px', margin: '20px' }}>
         <h2>Navigation Error</h2>
         <p>{error && error.message}</p>
-        <button 
-          onClick={() => window.location.href = '/'} 
+        <button
+          onClick={() => window.location.href = '/'}
           style={{ padding: '8px 16px', backgroundColor: '#0d6efd', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
         >
           Go to Home
         </button>
-        <button 
-          onClick={() => setHasError(false)} 
+        <button
+          onClick={() => setHasError(false)}
           style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginLeft: '8px' }}
         >
           Try Again
@@ -80,10 +82,12 @@ const root = createRoot(container);
 // - No nested Routers
 root.render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </ErrorBoundary>
+    <Provider store={store}>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ErrorBoundary>
+    </Provider>
   </React.StrictMode>
 );
