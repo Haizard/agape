@@ -43,7 +43,7 @@
     "scripts":  {
                     "start":  "node server.js",
                     "dev":  "set SET NODE_OPTIONS=--openssl-legacy-provider \u0026\u0026 react-scripts start",
-                    "build":  "node scripts/build-no-eslint.js",
+                    "build":  "DISABLE_ESLINT_PLUGIN=true CI=false react-scripts build",
                     "build:windows":  "set SET NODE_OPTIONS=--openssl-legacy-provider \u0026\u0026 react-scripts build",
                     "build:netlify":  "CI=true DISABLE_ESLINT_PLUGIN=true react-scripts build",
                     "build:simple":  "react-scripts build --max-old-space-size=1536",

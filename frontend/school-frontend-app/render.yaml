@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: agape-seminary-frontend
-    env: node
-    buildCommand: npm install && npm run build:render
-    startCommand: npm start
+    name: agape-school-app
+    runtime: node
+    buildCommand: cd frontend/school-frontend-app && npm install && npm run build
+    startCommand: cd frontend/school-frontend-app && npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,7 +13,5 @@ services:
         value: "true"
       - key: CI
         value: "false"
-      - key: REACT_APP_USE_MOCK_DATA
-        value: "false"
-    autoDeploy: true
     healthCheckPath: /health
+    autoDeploy: true
