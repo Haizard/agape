@@ -134,7 +134,7 @@ function App() {
                       ml: { sm: `${drawerWidth}px` },
                       mt: '64px',
                     }}
-                >
+                  >
                   <Routes>
                     {/* Admin Routes */}
                     <Route path="admin/*" element={
@@ -349,4 +349,3 @@ function App() {
 }
 
 export default App;
-
