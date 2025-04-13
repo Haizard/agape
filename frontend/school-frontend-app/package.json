@@ -43,7 +43,7 @@
     "scripts":  {
                     "start":  "node server.js",
                     "dev":  "set SET NODE_OPTIONS=--openssl-legacy-provider \u0026\u0026 react-scripts start",
-                    "build":  "CI= react-scripts build",
+                    "build":  "node scripts/build-no-eslint.js",
                     "build:windows":  "set SET NODE_OPTIONS=--openssl-legacy-provider \u0026\u0026 react-scripts build",
                     "build:netlify":  "CI=true DISABLE_ESLINT_PLUGIN=true react-scripts build",
                     "build:simple":  "react-scripts build --max-old-space-size=1536",
@@ -56,7 +56,7 @@
                     "test-classes-api":  "node scripts/test-classes-api.js",
                     "dev:prod-api":  "npm run use-production-api \u0026\u0026 npm run dev",
                     "dev:local-api":  "npm run use-local-api \u0026\u0026 npm run dev",
-                    "postinstall":  "echo \u0027Skipping postinstall\u0027",
+                    "postinstall":  "npm install --save-dev eslint-plugin-react-hooks express compression helmet",
                     "build:static":  "CI=true DISABLE_ESLINT_PLUGIN=true REACT_APP_USE_STATIC_MODE=true react-scripts build",
                     "build:static:script":  "node scripts/static-build.js",
                     "build:direct":  "node scripts/direct-deploy.js",

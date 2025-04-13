@@ -1,0 +1,38 @@
+name: agape-frontend
+type: web
+regions:
+  - fra
+ports:
+  - port: 3000
+    protocol: http
+env:
+  - key: NODE_ENV
+    value: production
+  - key: REACT_APP_API_URL
+    value: https://misty-roby-haizard-17a53e2a.koyeb.app
+  - key: PORT
+    value: 3000
+build:
+  builder: nodejs
+  nodejs:
+    version: 18
+    build_command: npm run build:koyeb
+    run_command: npm start
+health_checks:
+  - type: http
+    port: 3000
+    path: /health
+    initial_delay: 10s
+    interval: 30s
+    timeout: 5s
+    success_threshold: 1
+    failure_threshold: 3
+resources:
+  cpu: 0.25
+  memory: 512Mi
+  gpu:
+    count: 0
+    type: ""
+scaling:
+  min: 1
+  max: 1
