@@ -6,8 +6,7 @@ import reportWebVitals from './reportWebVitals';
 import { Provider } from 'react-redux';
 import store from './store/index';
 import axios from 'axios';
-import { ThemeProvider } from '@mui/material/styles';
-import theme from './theme';
+import ThemeProvider from './theme/ThemeProvider';
 import { UserProvider } from './contexts/UserContext';
 // The fix for React object rendering errors is applied in index.html
 // This ensures that all objects are safely rendered
@@ -20,7 +19,14 @@ if (token) {
 }
 
 // Configure axios base URL
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000'; // Make sure this matches your backend port
+let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Remove trailing slash if present
+if (baseURL.endsWith('/')) {
+  baseURL = baseURL.slice(0, -1);
+}
+
+console.log('Global Axios: Using base URL:', baseURL);
+axios.defaults.baseURL = baseURL;
 
 // Create the root and render the app
 const rootElement = document.getElementById('root');
@@ -30,7 +36,7 @@ root.render(
   <React.StrictMode>
     <UserProvider>
       <Provider store={store}>
-        <ThemeProvider theme={theme}>
+        <ThemeProvider>
           <App />
         </ThemeProvider>
       </Provider>

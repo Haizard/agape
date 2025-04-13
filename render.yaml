@@ -6,9 +6,18 @@ services:
     rootDir: backend
     region: ohio
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: node scripts/ensureJwtSecret.js && npm start
     healthCheckPath: /api/health
+    buildFilter:
+      paths:
+        - routes/**/*.js
+        - models/**/*.js
+        - middleware/**/*.js
+        - controllers/**/*.js
+        - app.js
+        - package.json
+        - package-lock.json
     envVars:
       - key: NODE_ENV
         value: production
@@ -34,9 +43,17 @@ services:
     rootDir: frontend/school-frontend-app
     region: ohio
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /health
+    buildFilter:
+      paths:
+        - src/**/*.js
+        - src/**/*.jsx
+        - src/**/*.css
+        - public/**/*
+        - package.json
+        - package-lock.json
     envVars:
       - key: NODE_ENV
         value: production

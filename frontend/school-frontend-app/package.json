@@ -39,7 +39,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts start",
-    "build": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
+    "build": "CI= react-scripts build",
+    "build:windows": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
+    "build:netlify": "CI= react-scripts build",
+    "build:simple": "react-scripts build --max-old-space-size=1536",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint src --fix",
@@ -48,7 +51,8 @@
     "test-api": "node scripts/test-api-connection.js",
     "test-classes-api": "node scripts/test-classes-api.js",
     "dev:prod-api": "npm run use-production-api && npm run dev",
-    "dev:local-api": "npm run use-local-api && npm run dev"
+    "dev:local-api": "npm run use-local-api && npm run dev",
+    "postinstall": "npm prune --production"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -58,6 +62,10 @@
       "react-app",
       "react-app/jest"
     ]
+  },
+  "build-cache": {
+    "enabled": true,
+    "strategy": "content-hash"
   },
   "browserslist": {
     "production": [
@@ -73,6 +81,7 @@
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
+    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "gh-pages": "^6.3.0",
     "http-proxy-middleware": "^2.0.6"

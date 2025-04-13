@@ -49,6 +49,7 @@ const PublicNavigation = () => {
     { label: 'Home', path: '/', icon: <HomeIcon /> },
     { label: 'About', path: '/about', icon: <InfoIcon /> },
     { label: 'Academics', path: '/academics', icon: <MenuBookIcon /> },
+    { label: 'Campus Life', path: '/campus-life', icon: <SchoolIcon /> },
     { label: 'News', path: '/news', icon: <NewspaperIcon /> },
     { label: 'Contact', path: '/contact', icon: <ContactMailIcon /> }
   ];
@@ -83,9 +84,10 @@ const PublicNavigation = () => {
     <>
       <AppBar
         position="fixed"
-        elevation={4}
+        elevation={0}
         sx={{
-          backgroundColor: '#3f51b5',
+          backgroundColor: 'primary.main',
+          backgroundImage: 'linear-gradient(45deg, var(--primary-color) 0%, var(--primary-dark) 100%)',
           zIndex: 1300,
           width: '100%',
           left: 0,

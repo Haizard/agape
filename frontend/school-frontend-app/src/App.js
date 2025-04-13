@@ -22,7 +22,9 @@ import AboutPage from './pages/AboutPage';
 import AcademicsPage from './pages/AcademicsPage';
 import NewsPage from './pages/NewsPage';
 import ContactPage from './pages/ContactPage';
+import CampusLifePage from './pages/CampusLifePage';
 import PublicNavigation from './components/PublicNavigation';
+import Footer from './components/Footer';
 import TeacherPanel from './components/TeacherPanel';
 import StudentPanel from './components/StudentPanel';
 import ParentPanel from './components/ParentPanel';
@@ -317,6 +319,8 @@ function App() {
               <Box sx={{
                 minHeight: '100vh',
                 paddingTop: '80px',
+                display: 'flex',
+                flexDirection: 'column',
                 '@media (max-width: 600px)': {
                   paddingTop: '70px',
                 }
@@ -325,6 +329,7 @@ function App() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/about" element={<AboutPage />} />
                   <Route path="/academics" element={<AcademicsPage />} />
+                  <Route path="/campus-life" element={<CampusLifePage />} />
                   <Route path="/news" element={<NewsPage />} />
                   <Route path="/contact" element={<ContactPage />} />
                   <Route path="/register" element={<RegisterForm />} />
@@ -332,6 +337,7 @@ function App() {
                   <Route path="/test-connection" element={<TestConnection />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
+                <Footer />
               </Box>
             </>
           )}

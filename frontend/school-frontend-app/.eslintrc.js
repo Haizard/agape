@@ -6,10 +6,9 @@ module.exports = {
   },
   extends: [
     'plugin:@typescript-eslint/recommended',
-    'plugin:react/recommended',
     'plugin:react-hooks/recommended',
   ],
-  plugins: ['@typescript-eslint', 'react', 'react-hooks'],
+  plugins: ['@typescript-eslint', 'react-hooks'],
   rules: {
     'react-hooks/exhaustive-deps': 'off',
     'react/no-unescaped-entities': 'off',

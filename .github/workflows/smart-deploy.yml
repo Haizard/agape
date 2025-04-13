@@ -1,0 +1,62 @@
+name: Smart Deploy to Render
+
+on:
+  push:
+    branches: [ main, master, feature/enhanced-reports ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+      - '**.gitignore'
+
+jobs:
+  check_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.filter.outputs.should_deploy }}
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Check for significant changes
+        id: filter
+        run: |
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
+          
+          # Check if any important files changed (adjust patterns as needed)
+          if echo "$CHANGED_FILES" | grep -q -E '(\.jsx?$|\.tsx?$|\.css$|\.scss$|package\.json|yarn\.lock|package-lock\.json)'; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    needs: check_changes
+    if: needs.check_changes.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+  
+  check_build_limit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          
+      - name: Install dependencies
+        run: npm install axios
+        
+      - name: Check and adjust build limit
+        run: node .github/scripts/auto-adjust-limit.js
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}

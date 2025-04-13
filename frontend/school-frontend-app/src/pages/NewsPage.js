@@ -16,22 +16,22 @@ const NewsPage = () => {
         // Use fallback data if API fails
         setNews([
           {
-            title: "Annual Science Fair 2024",
+            title: "School Farm Projects",
             date: "May 15, 2024",
-            content: "Join us for an exciting showcase of student projects...",
-            image: "/images/science-fair.jpg"
+            content: "The Seminary has a farm where we plant corn, vegetables, and bananas. We keep dairy cattle, goats, pigs, and poultry. All students are involved and encouraged to participate. The products subsidize food costs in the school.",
+            image: "/images/web content.jpg"
           },
           {
-            title: "Sports Day Champions",
+            title: "Educational Study Tours",
             date: "May 10, 2024",
-            content: "Congratulations to all participants and winners...",
-            image: "/images/sports-day.jpg"
+            content: "Students visit national, historical sites and geographical sites such as Hale Power Station, Amboni Caves, Mount Kilimanjaro, Serengeti, Ngorongoro and Manyara National Parks.",
+            image: "/images/web content1.jpg"
           },
           {
-            title: "Academic Excellence Awards",
+            title: "Sports and Games",
             date: "May 5, 2024",
-            content: "Celebrating our top performing students...",
-            image: "/images/awards.jpg"
+            content: "The Seminary values the physical health of students. There are several playgrounds for football, netball, basketball, and volleyball. Students participate in interschool competitions.",
+            image: "/images/web content.jpg"
           }
         ]);
       } finally {

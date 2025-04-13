@@ -1,8 +1,18 @@
 import axios from 'axios';
 import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 
+// Check if the API URL already includes /api
+let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Remove trailing slash if present
+if (baseURL.endsWith('/')) {
+  baseURL = baseURL.slice(0, -1);
+}
+
+// Log the base URL for debugging
+console.log('API Service: Using base URL:', baseURL);
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache',
