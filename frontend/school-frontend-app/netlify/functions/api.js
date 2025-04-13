@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // The API base URL
-const API_BASE_URL = 'https://misty-roby-haizard-17a53e2a.koyeb.app/api';
+const API_BASE_URL = 'https://agape-seminary-school-backend.koyeb.app/api';
 
 exports.handler = async function(event, context) {
   // Log the request details
