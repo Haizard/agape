@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Paper, Button, TextField, Grid, Card, CardContent, Divider, Link } from '@mui/material';
 import { Phone as PhoneIcon, Email as EmailIcon, ContactMail as ContactMailIcon } from '@mui/icons-material';
+import { createPhoneLink, createEmailLink, getSocialLinkAttributes } from '../../utils/socialMediaUtils';
 
 const ParentContactManagement = () => {
   return (
@@ -62,7 +63,7 @@ const ParentContactManagement = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <PhoneIcon sx={{ mr: 1, color: 'primary.main' }} />
                   <Link
-                    href={`tel:+2557${item}${item}${item}${item}${item}${item}${item}`}
+                    href={createPhoneLink(`+2557${item}${item}${item}${item}${item}${item}${item}`)}
                     underline="hover"
                     color="text.primary"
                     sx={{ '&:hover': { color: 'primary.main' } }}
@@ -73,9 +74,10 @@ const ParentContactManagement = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <EmailIcon sx={{ mr: 1, color: 'primary.main' }} />
                   <Link
-                    href={`mailto:parent${item}@example.com`}
+                    href={createEmailLink(`parent${item}@example.com`)}
                     underline="hover"
                     color="text.primary"
+                    {...getSocialLinkAttributes()}
                     sx={{ '&:hover': { color: 'primary.main' } }}
                   >
                     parent{item}@example.com

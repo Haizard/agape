@@ -7,7 +7,7 @@ import OptimizedImage from './OptimizedImage';
 
 /**
  * ImageCarousel - A component for displaying image carousels
- * 
+ *
  * Features:
  * - Smooth transitions
  * - Auto-play option
@@ -86,7 +86,7 @@ const ImageCarousel = ({
       {...props}
     >
       {/* Slides */}
-      <AnimatePresence initial={false} mode="wait">
+      <AnimatePresence initial={false}>
         <motion.div
           key={currentIndex}
           initial={{ opacity: 0 }}

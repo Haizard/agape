@@ -28,6 +28,8 @@ import {
   createInstagramLink,
   createLinkedInLink,
   createWhatsAppLink,
+  createPhoneLink,
+  createEmailLink,
   getSocialLinkAttributes
 } from '../utils/socialMediaUtils';
 

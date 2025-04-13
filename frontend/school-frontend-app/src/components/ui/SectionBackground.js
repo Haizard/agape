@@ -1,33 +1,34 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import { Box, Container, useTheme, alpha } from '@mui/material';
 import OptimizedImage from './OptimizedImage';
 
 /**
  * SectionBackground - A component for creating sections with background images
- * 
+ *
  * Features:
  * - Background image with overlay
  * - Customizable padding and spacing
  * - Container width control
  * - Optional parallax effect
  */
-const SectionBackground = ({
-  backgroundImage,
-  backgroundPosition = 'center',
-  overlay = true,
-  overlayColor,
-  overlayGradient,
-  parallax = false,
-  height = 'auto',
-  minHeight,
-  py = { xs: 6, md: 10 },
-  px,
-  maxWidth = 'lg',
-  children,
-  sx = {},
-  ...props
-}) => {
+const SectionBackground = forwardRef((
+  {
+    backgroundImage,
+    backgroundPosition = 'center',
+    overlay = true,
+    overlayColor,
+    overlayGradient,
+    parallax = false,
+    height = 'auto',
+    minHeight,
+    py = { xs: 6, md: 10 },
+    px,
+    maxWidth = 'lg',
+    children,
+    sx = {},
+    ...props
+  }, ref) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
@@ -46,6 +47,7 @@ const SectionBackground = ({
 
   return (
     <Box
+      ref={ref}
       sx={{
         position: 'relative',
         height,
@@ -95,7 +97,7 @@ const SectionBackground = ({
       </Container>
     </Box>
   );
-};
+});
 
 SectionBackground.propTypes = {
   backgroundImage: PropTypes.string,
