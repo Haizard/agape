@@ -10,8 +10,8 @@
                          "@mui/utils":  "^5.15.10",
                          "@mui/x-date-pickers":  "^6.20.2",
                          "@reduxjs/toolkit":  "^2.6.1",
-                         "@testing-library/dom":  "^10.4.0",
-                         "@testing-library/react":  "^16.2.0",
+                         "@testing-library/dom":  "^9.3.3",
+                         "@testing-library/react":  "^14.1.2",
                          "@testing-library/user-event":  "^13.5.0",
                          "axios":  "^1.8.4",
                          "compression":  "^1.8.0",
@@ -30,18 +30,21 @@
                          "react-dom":  "^18.2.0",
                          "react-material-ui-carousel":  "^3.4.2",
                          "react-redux":  "^9.2.0",
-                         "react-router-dom":  "^7.4.0",
+                         "react-router-dom":  "^6.20.0",
                          "react-scripts":  "5.0.1",
                          "recharts":  "^2.15.2",
                          "web-vitals":  "^2.1.4",
-                         "xlsx":  "^0.18.5"
+                         "xlsx":  "^0.18.5",
+                         "jsonwebtoken":  "^9.0.0",
+                         "bcryptjs":  "^2.4.3",
+                         "mongoose":  "^7.0.3"
                      },
     "scripts":  {
                     "start":  "node server.js",
                     "dev":  "set SET NODE_OPTIONS=--openssl-legacy-provider \u0026\u0026 react-scripts start",
                     "build":  "CI= react-scripts build",
                     "build:windows":  "set SET NODE_OPTIONS=--openssl-legacy-provider \u0026\u0026 react-scripts build",
-                    "build:netlify":  "CI= react-scripts build",
+                    "build:netlify":  "CI=true DISABLE_ESLINT_PLUGIN=true react-scripts build",
                     "build:simple":  "react-scripts build --max-old-space-size=1536",
                     "test":  "react-scripts test",
                     "eject":  "react-scripts eject",
@@ -52,7 +55,7 @@
                     "test-classes-api":  "node scripts/test-classes-api.js",
                     "dev:prod-api":  "npm run use-production-api \u0026\u0026 npm run dev",
                     "dev:local-api":  "npm run use-local-api \u0026\u0026 npm run dev",
-                    "postinstall":  "npm prune --production"
+                    "postinstall":  "echo \u0027Skipping postinstall\u0027"
                 },
     "engines":  {
                     "node":  "\u003e=16.0.0"

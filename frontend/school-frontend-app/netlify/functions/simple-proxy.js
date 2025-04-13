@@ -1,15 +1,11 @@
 exports.handler = async function(event, context) {
-  // Log the request for debugging
-  console.log('Simple proxy request:', event.path, event.httpMethod);
-  
-  // Return a simple response for testing
+  // Return a mock response for all API requests
   return {
     statusCode: 200,
     body: JSON.stringify({
-      message: 'This is a simple proxy response',
-      path: event.path,
-      method: event.httpMethod,
-      timestamp: new Date().toISOString()
+      success: true,
+      message: 'This is a mock API response',
+      data: []
     }),
     headers: {
       'Content-Type': 'application/json',
