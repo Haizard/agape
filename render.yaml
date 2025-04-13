@@ -34,7 +34,7 @@ services:
       - key: USE_MOCK_DATA
         value: "false"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://agape-seminary-school-system.onrender.com"
+        value: "https://agape-school-system.onrender.com,https://agape-seminary-school-system.onrender.com,http://localhost:3000"
 
   # Frontend Service
   - type: web
@@ -58,7 +58,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: REACT_APP_API_URL
-        value: https://agape-seminary-school.onrender.com/api
+        value: https://agape-render.onrender.com/api
       - key: REACT_APP_USE_MOCK_DATA
         value: "false"
       - key: REACT_APP_TIMEOUT

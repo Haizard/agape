@@ -266,9 +266,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Handle 404 routes - Make sure this is last
+// Handle 404 routes - Serve index.html for SPA routing - Make sure this is last
 app.use((req, res) => {
-  res.status(404).json({ message: `Route ${req.path} not found` });
+  // Serve the index.html file from the frontend build directory for any unmatched routes
+  res.sendFile(path.join(__dirname, '../frontend/school-frontend-app/build', 'index.html'));
 });
 
 module.exports = app;
