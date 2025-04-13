@@ -15,7 +15,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https://agape-seminary-school.onrender.com"],
-      connectSrc: ["'self'", "https://agape-seminary-school.onrender.com", "https://agape-seminary-school.onrender.com/api", "http://localhost:5000", "http://localhost:5000/api"]
+      connectSrc: ["'self'", "https://agape-seminary-school.onrender.com", "https://agape-seminary-school.onrender.com/api", "http://localhost:5000", "http://localhost:5000/api", "https://misty-roby-haizard-17a53e2a.koyeb.app", "https://misty-roby-haizard-17a53e2a.koyeb.app/api"]
     }
   },
   crossOriginEmbedderPolicy: false
