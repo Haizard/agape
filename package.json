@@ -1,22 +1,22 @@
 {
-  "name": "agape-school-system",
-  "version": "1.0.0",
-  "description": "Agape Seminary School Management System",
-  "private": true,
-  "scripts": {
-    "install:all": "npm install && cd frontend/school-frontend-app && npm install --legacy-peer-deps && cd ../../api && npm install",
-    "build": "cd frontend/school-frontend-app && npm run build:vercel",
-    "start": "vercel dev",
-    "deploy": "vercel --prod"
-  },
-  "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.0",
-    "mongoose": "^7.0.3",
-    "serverless-http": "^3.2.0"
-  },
-  "engines": {
-    "node": "18.x"
-  }
+    "name":  "agape-school-system",
+    "version":  "1.0.0",
+    "description":  "Agape Seminary School Management System",
+    "private":  true,
+    "scripts":  {
+                    "install:all":  "npm install \u0026\u0026 cd frontend/school-frontend-app \u0026\u0026 npm install --legacy-peer-deps \u0026\u0026 cd ../../api \u0026\u0026 npm install",
+                    "build":  "npm install ajv@8.12.0 ajv-keywords@5.1.0 --no-save \u0026\u0026 cd frontend/school-frontend-app \u0026\u0026 npm run build:vercel",
+                    "start":  "vercel dev",
+                    "deploy":  "vercel --prod"
+                },
+    "dependencies":  {
+                         "bcryptjs":  "^2.4.3",
+                         "express":  "^4.18.2",
+                         "jsonwebtoken":  "^9.0.0",
+                         "mongoose":  "^7.0.3",
+                         "serverless-http":  "^3.2.0"
+                     },
+    "engines":  {
+                    "node":  "18.x"
+                }
 }

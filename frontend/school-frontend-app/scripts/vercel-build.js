@@ -5,6 +5,14 @@ const fs = require("fs");
 
 console.log("Starting Vercel build process for frontend...");
 
+// Run pre-build dependency check
+try {
+  require('./pre-build');
+} catch (error) {
+  console.error('Error running pre-build script:', error.message);
+  // Continue with the build even if this fails
+}
+
 // Set environment variables for the build
 process.env.CI = "true";
 process.env.DISABLE_ESLINT_PLUGIN = "true";
@@ -99,3 +107,4 @@ try {
   console.error("Build failed:", error.message);
   process.exit(1);
 }
+
