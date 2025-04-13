@@ -55,7 +55,10 @@
                     "test-classes-api":  "node scripts/test-classes-api.js",
                     "dev:prod-api":  "npm run use-production-api \u0026\u0026 npm run dev",
                     "dev:local-api":  "npm run use-local-api \u0026\u0026 npm run dev",
-                    "postinstall":  "echo \u0027Skipping postinstall\u0027"
+                    "postinstall":  "echo \u0027Skipping postinstall\u0027",
+                    "build:static":  "CI=true DISABLE_ESLINT_PLUGIN=true REACT_APP_USE_STATIC_MODE=true react-scripts build",
+                    "build:static:script":  "node scripts/static-build.js",
+                    "build:direct":  "node scripts/direct-deploy.js"
                 },
     "engines":  {
                     "node":  "\u003e=16.0.0"

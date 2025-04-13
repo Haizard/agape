@@ -1,10 +1,7 @@
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && npm install jsonwebtoken bcryptjs mongoose --no-save && npm run build:netlify"
-
-[[plugins]]
-package = "@netlify/plugin-functions-install-core"
+  command = "npm install --legacy-peer-deps && npm run build:static:script"
 
 [build.environment]
   NODE_VERSION = "16"
@@ -15,9 +12,8 @@ package = "@netlify/plugin-functions-install-core"
   ESLINT_NO_DEV_ERRORS = "true"
   GENERATE_SOURCEMAP = "false"
   REACT_APP_API_URL = "/api"
-  REACT_APP_USE_PROXY = "true"
+  REACT_APP_USE_STATIC_MODE = "true"
   CI = "true"
-  BUILD_TIMEOUT = "20m"
 
 [build.processing]
   skip_processing = false
@@ -36,31 +32,7 @@ package = "@netlify/plugin-functions-install-core"
 [build.processing.images]
   compress = true
 
-# Handle login requests first
-[[redirects]]
-  from = "/api/users/login"
-  to = "/.netlify/functions/mock-login"
-  status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
-
-# Handle OPTIONS requests for CORS preflight
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/options"
-  status = 200
-  force = true
-  conditions = {Method = ["OPTIONS"]}
-
-# Handle all other API requests
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/simple-proxy/:splat"
-  status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
-
-# Handle all other routes with the SPA
+# Handle all routes with the SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
