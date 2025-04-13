@@ -8,15 +8,10 @@ module.exports = {
     'plugin:@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
   ],
-  plugins: ['@typescript-eslint', 'react-hooks'],
+  plugins: ['@typescript-eslint'],
   rules: {
     'react-hooks/exhaustive-deps': 'off',
     'react/no-unescaped-entities': 'off',
     '@typescript-eslint/no-unused-vars': 'off',
-  },
-  settings: {
-    react: {
-      version: 'detect',
-    },
-  },
+  }
 };

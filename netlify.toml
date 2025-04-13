@@ -1,7 +1,10 @@
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && node scripts/modify-login-component.js && node scripts/simple-build.js"
+  command = "npm install --legacy-peer-deps && node scripts/install-function-deps.js && node scripts/modify-login-component.js && node scripts/simple-build.js"
+
+[[plugins]]
+package = "@netlify/plugin-functions-install-core"
 
 [build.environment]
   NODE_VERSION = "16"
@@ -29,7 +32,7 @@
 # Handle login requests first
 [[redirects]]
   from = "/api/users/login"
-  to = "/.netlify/functions/api/users/login"
+  to = "/.netlify/functions/mock-login"
   status = 200
   force = true
   headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
