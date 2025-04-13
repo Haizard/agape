@@ -1,7 +1,8 @@
+# Cache bust: 20250412224323
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && npm install jsonwebtoken bcryptjs axios --no-save && node scripts/comprehensive-build.js"
+  command = "npm install --legacy-peer-deps && npm install jsonwebtoken bcryptjs axios --no-save && node scripts/quick-build.js"
 
 [[plugins]]
 package = "@netlify/plugin-functions-install-core"
@@ -16,52 +17,9 @@ package = "@netlify/plugin-functions-install-core"
   GENERATE_SOURCEMAP = "false"
   REACT_APP_API_URL = "/api"
   REACT_APP_BACKEND_URL = "https://misty-roby-haizard-17a53e2a.koyeb.app"
-  REACT_APP_FALLBACK_TO_STATIC = "true"
   CI = "true"
-  BUILD_TIMEOUT = "20m"
 
-[build.processing]
-  skip_processing = false
-
-[build.processing.css]
-  bundle = true
-  minify = true
-
-[build.processing.js]
-  bundle = true
-  minify = true
-
-[build.processing.html]
-  pretty_urls = true
-
-[build.processing.images]
-  compress = true
-
-# Handle OPTIONS requests for CORS preflight
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/options"
-  status = 200
-  force = true
-  conditions = {Method = ["OPTIONS"]}
-
-# Handle login requests with a dedicated function
-[[redirects]]
-  from = "/api/users/login"
-  to = "/.netlify/functions/auth"
-  status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
-
-# Proxy API requests to Koyeb backend
-[[redirects]]
-  from = "/api/*"
-  to = "https://misty-roby-haizard-17a53e2a.koyeb.app/api/:splat"
-  status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
-
-# Handle all other routes with the SPA
+# Handle all routes with the SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
