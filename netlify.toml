@@ -1,7 +1,7 @@
 [build]
   base = "frontend/school-frontend-app"
   publish = "build"
-  command = "npm install --legacy-peer-deps && npm run build:static:script"
+  command = "npm install --legacy-peer-deps && npm run build:koyeb:script"
 
 [build.environment]
   NODE_VERSION = "16"
@@ -12,7 +12,7 @@
   ESLINT_NO_DEV_ERRORS = "true"
   GENERATE_SOURCEMAP = "false"
   REACT_APP_API_URL = "/api"
-  REACT_APP_USE_STATIC_MODE = "true"
+  REACT_APP_BACKEND_URL = "https://misty-roby-haizard-17a53e2a.koyeb.app"
   CI = "true"
 
 [build.processing]
@@ -32,7 +32,23 @@
 [build.processing.images]
   compress = true
 
-# Handle all routes with the SPA
+# Handle OPTIONS requests for CORS preflight
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/options"
+  status = 200
+  force = true
+  conditions = {Method = ["OPTIONS"]}
+
+# Proxy API requests to Koyeb backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://misty-roby-haizard-17a53e2a.koyeb.app/api/:splat"
+  status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS", Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"}
+
+# Handle all other routes with the SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
