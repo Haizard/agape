@@ -1,3 +1,1 @@
-# Cloudflare Pages redirects
-/api/* https://misty-roby-haizard-17a53e2a.koyeb.app/api/:splat 200
 /* /index.html 200
