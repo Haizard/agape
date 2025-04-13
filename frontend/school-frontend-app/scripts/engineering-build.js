@@ -3,7 +3,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-console.log('Starting engineering solution build process...');
+console.log('Starting engineering solution build process with debugging...');\n\n// Implement debugging framework\ntry {\n  require('./implement-debugging');\n} catch (error) {\n  console.error('Error implementing debugging framework:', error);\n}
 
 // Set environment variables for the build
 process.env.CI = 'false'; // Prevents treating warnings as errors
@@ -134,3 +134,4 @@ try {
   console.error('Build failed:', error.message);
   process.exit(1);
 }
+
