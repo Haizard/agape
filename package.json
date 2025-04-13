@@ -4,7 +4,7 @@
     "description":  "Agape Seminary School Management System",
     "private":  true,
     "scripts":  {
-                    "build":  "cd frontend/school-frontend-app \u0026\u0026 node scripts/patched-build.js",
+                    "build":  "cd frontend/school-frontend-app \u0026\u0026 node scripts/engineering-build.js",
                     "start":  "vercel dev",
                     "deploy":  "vercel --prod"
                 },

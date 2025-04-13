@@ -12,33 +12,6 @@
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <title>Agape Seminary School</title>
-    <script>
-      // Fix for React Router history issues (Error #299)
-      window.__REACT_ROUTER_HISTORY_FIX__ = true;
-      
-      // Ensure base URL is properly set
-      window.__API_BASE_URL__ = '/api';
-      
-      // Prevent multiple Router instances
-      window.__ROUTER_INSTANCE_COUNT__ = 0;
-      
-      // Error handling for React Router
-      window.addEventListener('error', function(event) {
-        if (event.message && event.message.includes('Router history')) {
-          console.warn('Caught Router history error, attempting to recover...');
-          event.preventDefault();
-          
-          // Force reload if needed
-          if (!window.__ROUTER_RECOVERY_ATTEMPTED__) {
-            window.__ROUTER_RECOVERY_ATTEMPTED__ = true;
-            // Use setTimeout to allow the error to be logged
-            setTimeout(function() {
-              window.location.href = '/';
-            }, 100);
-          }
-        }
-      });
-    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
