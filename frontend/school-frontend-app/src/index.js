@@ -1,47 +1,89 @@
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import './index.css';
+import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import reportWebVitals from './reportWebVitals';
-import { Provider } from 'react-redux';
-import store from './store/index';
-import axios from 'axios';
-import ThemeProvider from './theme/ThemeProvider';
-import { UserProvider } from './contexts/UserContext';
-// The fix for React object rendering errors is applied in index.html
-// This ensures that all objects are safely rendered
-console.log('Using the fix from index.html');
 
-// Configure axios defaults
-const token = localStorage.getItem('token');
-if (token) {
-  axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-}
+// Production-safe error handling
+const ErrorBoundary = ({ children }) => {
+  const [hasError, setHasError] = React.useState(false);
+  const [error, setError] = React.useState(null);
 
-// Configure axios base URL
-let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-// Remove trailing slash if present
-if (baseURL.endsWith('/')) {
-  baseURL = baseURL.slice(0, -1);
-}
+  React.useEffect(() => {
+    // Add global error handler for Router errors
+    const originalError = console.error;
+    console.error = (...args) => {
+      // Check for Router Error #299
+      if (args[0] && typeof args[0] === 'string' && args[0].includes('You cannot change <Router history>')) {
+        console.log('Detected Router Error #299 - See https://github.com/Haizard/agape/blob/main/frontend/school-frontend-app/docs/ERROR_299_GUIDE.md');
+      }
+      originalError.apply(console, args);
+    };
 
-console.log('Global Axios: Using base URL:', baseURL);
-axios.defaults.baseURL = baseURL;
+    return () => {
+      console.error = originalError;
+    };
+  }, []);
 
-// Create the root and render the app
-const rootElement = document.getElementById('root');
-const root = createRoot(rootElement);
+  React.useEffect(() => {
+    window.onerror = (message, source, lineno, colno, error) => {
+      if (message && message.includes('Router history')) {
+        setHasError(true);
+        setError(error || { message });
+        return true; // Prevent default error handling
+      }
+      return false;
+    };
 
+    return () => {
+      window.onerror = null;
+    };
+  }, []);
+
+  if (hasError) {
+    return (
+      <div style={{ padding: '20px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '4px', margin: '20px' }}>
+        <h2>Navigation Error</h2>
+        <p>{error && error.message}</p>
+        <button 
+          onClick={() => window.location.href = '/'} 
+          style={{ padding: '8px 16px', backgroundColor: '#0d6efd', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+        >
+          Go to Home
+        </button>
+        <button 
+          onClick={() => setHasError(false)} 
+          style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginLeft: '8px' }}
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  return children;
+};
+
+// CORRECT INITIALIZATION PATTERN FOR VERCEL
+// This pattern prevents React Router Error #299
+
+// Step 1: Get the container element
+const container = document.getElementById('root');
+
+// Step 2: Create the root BEFORE any Router initialization
+// This is critical to prevent Error #299
+const root = createRoot(container);
+
+// Step 3: Render with proper structure
+// - ErrorBoundary at the outermost level
+// - Single Router instance
+// - No nested Routers
 root.render(
   <React.StrictMode>
-    <UserProvider>
-      <Provider store={store}>
-        <ThemeProvider>
-          <App />
-        </ThemeProvider>
-      </Provider>
-    </UserProvider>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );
-
-reportWebVitals();

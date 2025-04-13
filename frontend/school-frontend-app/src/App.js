@@ -1,7 +1,7 @@
 // Third-party imports first
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Routes, Route, Routes, Route, Navigate } from 'react-router-dom';
 import { Box, Typography } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -119,7 +119,7 @@ function App() {
   return (
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <AuthProvider>
-          <Router>
+          
             <div className="App">
           {isAuthenticated ? (
             <>
@@ -342,7 +342,7 @@ function App() {
             </>
           )}
         </div>
-      </Router>
+      
     </AuthProvider>
     </LocalizationProvider>
   );
