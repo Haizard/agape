@@ -5,7 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import store from './store/index';
 import App from './App';
-import ThemeProvider from './theme/ThemeProvider';
+import AdvancedThemeProvider from './theme/AdvancedThemeProvider';
 import './index.css';
 
 // Production-safe error handling
@@ -85,13 +85,13 @@ const root = createRoot(container);
 root.render(
   <React.StrictMode>
     <Provider store={store}>
-      <ThemeProvider>
+      <AdvancedThemeProvider>
         <ErrorBoundary>
           <BrowserRouter>
             <App />
           </BrowserRouter>
         </ErrorBoundary>
-      </ThemeProvider>
+      </AdvancedThemeProvider>
     </Provider>
   </React.StrictMode>
 );

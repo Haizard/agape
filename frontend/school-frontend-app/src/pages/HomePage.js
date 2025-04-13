@@ -22,6 +22,20 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import GroupIcon from '@mui/icons-material/Group';
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu';
 import Carousel from 'react-material-ui-carousel';
+import { motion } from 'framer-motion';
+
+// Import custom animation components
+import { FadeIn, ScaleIn, StaggerContainer, StaggerItem, ParallaxScroll } from '../components/animations';
+import {
+  GlassmorphicCard,
+  AnimatedButton,
+  GradientText,
+  AnimatedCounter,
+  ArtisticCard,
+  ArtisticButton,
+  ArtisticText,
+  ArtisticDivider
+} from '../components/ui';
 
 const HomePage = () => {
   const theme = useTheme();
@@ -321,9 +335,12 @@ const HomePage = () => {
                   >
                     {stat.icon}
                   </Box>
-                  <Typography
+                  <AnimatedCounter
+                    end={Number.parseInt(stat.number.replace(/[^0-9]/g, ''), 10)}
+                    duration={2.5}
+                    prefix={stat.number.startsWith('+') ? '+' : ''}
+                    suffix={stat.number.includes('%') ? '%' : ''}
                     variant="h3"
-                    className="stat-number"
                     sx={{
                       fontWeight: 800,
                       mb: 1,
@@ -332,9 +349,7 @@ const HomePage = () => {
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                     }}
-                  >
-                    {stat.number}
-                  </Typography>
+                  />
                   <Typography
                     variant="h6"
                     className="stat-label"
@@ -376,51 +391,57 @@ const HomePage = () => {
             >
               STAY UPDATED
             </Typography>
-            <Typography
+            <ArtisticText
               variant="h2"
+              effect="gradient"
+              gradient="linear-gradient(45deg, #2563EB, #60A5FA, #8B5CF6)"
+              gradientAnimation
+              fontWeight={700}
+              letterSpacing="-0.02em"
               sx={{
-                fontWeight: 700,
                 mb: 2,
                 fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.8rem' },
-                background: 'linear-gradient(45deg, var(--primary-color), var(--primary-dark))',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
               }}
             >
               Latest News & Events
-            </Typography>
-            <Divider
+            </ArtisticText>
+            <ArtisticDivider
+              variant="gradient"
+              gradient="linear-gradient(90deg, #2563EB, #8B5CF6, #2563EB)"
+              thickness={4}
+              length={{ xs: '80px', md: '120px' }}
+              spacing={4}
               sx={{
-                width: { xs: '80px', md: '120px' },
-                borderWidth: '4px',
-                borderColor: 'secondary.main',
-                borderRadius: 2,
+                borderRadius: 'var(--radius-md)',
                 mx: { xs: 'auto', md: 0 },
-                mb: 4,
               }}
             />
           </Box>
 
-          <Grid container spacing={4} className="responsive-grid">
-            {newsItems.map((news) => (
-              <Grid item xs={12} sm={6} md={4} key={news.id} className="staggered-item">
-                <Card
-                  sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    borderRadius: 'var(--radius-lg)',
-                    overflow: 'hidden',
-                    boxShadow: 'var(--shadow-md)',
-                    transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-                    '&:hover': {
-                      transform: 'translateY(-12px)',
-                      boxShadow: 'var(--shadow-lg)',
-                      '& .MuiCardMedia-root': {
+          <StaggerContainer>
+            <Grid container spacing={4} className="responsive-grid">
+              {newsItems.map((news) => (
+                <Grid item xs={12} sm={6} md={4} key={news.id}>
+                <StaggerItem direction="up">
+                  <ArtisticCard
+                    variant="glass"
+                    hoverEffect="lift"
+                    cornerRadius="large"
+                    shadowDepth="medium"
+                    hoverShadowDepth="large"
+                    borderAccent
+                    borderSide="top"
+                    borderWidth={3}
+                    borderColor={news.tag === 'Academic' ? 'primary.main' : news.tag === 'Sports' ? 'success.main' : 'secondary.main'}
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      overflow: 'hidden',
+                      '&:hover .MuiCardMedia-root': {
                         transform: 'scale(1.05)',
                       }
-                    }
-                  }}
+                    }}
                 >
                   <Box sx={{ position: 'relative', overflow: 'hidden' }}>
                     <CardMedia
@@ -434,41 +455,56 @@ const HomePage = () => {
                     />
                     <Chip
                       label={news.tag}
-                      color="secondary"
+                      color={news.tag === 'Academic' ? 'primary' : news.tag === 'Sports' ? 'success' : 'secondary'}
                       size="small"
                       sx={{
                         position: 'absolute',
                         top: 16,
                         right: 16,
                         fontWeight: 600,
-                        boxShadow: 'var(--shadow-sm)',
+                        boxShadow: 'var(--shadow-md)',
+                        borderRadius: 'var(--radius-pill)',
+                        px: 1.5,
+                        backdropFilter: 'blur(8px)',
+                        backgroundColor: news.tag === 'Academic'
+                          ? 'rgba(59, 130, 246, 0.85)'
+                          : news.tag === 'Sports'
+                            ? 'rgba(16, 185, 129, 0.85)'
+                            : 'rgba(139, 92, 246, 0.85)',
                       }}
                     />
                   </Box>
                   <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Typography
+                    <ArtisticText
                       variant="subtitle2"
-                      color="primary"
+                      color={news.tag === 'Academic' ? 'primary' : news.tag === 'Sports' ? 'success' : 'secondary'}
+                      fontWeight={600}
+                      letterSpacing="0.5px"
                       sx={{
                         mb: 1,
-                        fontWeight: 600,
                         fontSize: '0.8rem',
                       }}
                     >
                       {news.date}
-                    </Typography>
-                    <Typography
+                    </ArtisticText>
+                    <ArtisticText
                       variant="h5"
+                      effect="gradient"
+                      gradient={news.tag === 'Academic'
+                        ? 'linear-gradient(45deg, #2563EB, #60A5FA)'
+                        : news.tag === 'Sports'
+                          ? 'linear-gradient(45deg, #0D9488, #2DD4BF)'
+                          : 'linear-gradient(45deg, #8B5CF6, #A78BFA)'}
+                      fontWeight={700}
                       sx={{
-                        fontWeight: 700,
                         mb: 2,
                         fontSize: { xs: '1.2rem', md: '1.4rem' },
                         lineHeight: 1.3,
                       }}
                     >
                       {news.title}
-                    </Typography>
-                    <Typography
+                    </ArtisticText>
+                    <ArtisticText
                       variant="body2"
                       color="text.secondary"
                       sx={{
@@ -477,27 +513,29 @@ const HomePage = () => {
                       }}
                     >
                       {news.excerpt}
-                    </Typography>
-                    <Button
-                      variant="text"
-                      color="primary"
+                    </ArtisticText>
+                    <ArtisticButton
+                      variant="ghost"
+                      color={news.tag === 'Academic' ? 'primary' : news.tag === 'Sports' ? 'success' : 'secondary'}
                       endIcon={<ArrowForwardIcon />}
+                      hoverEffect="none"
                       sx={{
                         alignSelf: 'flex-start',
                         fontWeight: 600,
-                        transition: 'all 0.3s ease',
                         '&:hover': {
                           transform: 'translateX(5px)',
                         }
                       }}
                     >
                       Read More
-                    </Button>
+                    </ArtisticButton>
                   </CardContent>
-                </Card>
+                  </ArtisticCard>
+                </StaggerItem>
               </Grid>
-            ))}
-          </Grid>
+              ))}
+            </Grid>
+          </StaggerContainer>
         </Container>
       </Box>
 
@@ -655,21 +693,18 @@ const HomePage = () => {
                     >
                       {feature.description}
                     </Typography>
-                    <Button
+                    <AnimatedButton
                       variant="outlined"
                       color="primary"
                       endIcon={<ArrowForwardIcon />}
+                      effect="scale"
                       sx={{
                         fontWeight: 600,
                         borderWidth: 2,
-                        '&:hover': {
-                          borderWidth: 2,
-                          bgcolor: 'rgba(46, 49, 146, 0.05)',
-                        }
                       }}
                     >
                       Learn More
-                    </Button>
+                    </AnimatedButton>
                   </Box>
                 </Paper>
               </Grid>

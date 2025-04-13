@@ -32,6 +32,7 @@ import LoginIcon from '@mui/icons-material/Login';
 import CloseIcon from '@mui/icons-material/Close';
 import LoginForm from './LoginForm';
 import FixedLoginForm from './FixedLoginForm';
+import ThemeToggle from './ThemeToggle';
 
 // Removed SlideTransition as it might be causing issues
 
@@ -136,7 +137,9 @@ const PublicNavigation = () => {
               </Typography>
             </Box>
 
-            {isMobile ? (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <ThemeToggle />
+              {isMobile ? (
               <IconButton
                 color="inherit"
                 aria-label="open drawer"
@@ -150,7 +153,7 @@ const PublicNavigation = () => {
               >
                 <MenuIcon />
               </IconButton>
-            ) : (
+              ) : (
               <Box sx={{ display: 'flex', gap: { xs: 1, md: 2 }, alignItems: 'center' }}>
                 {navigationItems.map((item, index) => {
                   const isActive = location.pathname === item.path;
@@ -219,7 +222,8 @@ const PublicNavigation = () => {
                   Sign In
                 </Button>
               </Box>
-            )}
+              )}
+            </Box>
           </Toolbar>
         </Container>
       </AppBar>
