@@ -243,4 +243,62 @@ router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) =>
   }
 });
 
+// Register a new user
+router.post('/register', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log('POST /api/users/register - Registering new user with data:', req.body);
+
+    // Validate required fields
+    const { username, email, password, role } = req.body;
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'Username, email, and password are required' });
+    }
+
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      console.log(`Username ${username} already exists`);
+      return res.status(400).json({ message: 'Username already exists' });
+    }
+
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      console.log(`Email ${email} already exists`);
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create the user
+    const newUser = new User({
+      username,
+      email,
+      password: hashedPassword,
+      role: role || 'student' // Default to student if no role provided
+    });
+
+    const savedUser = await newUser.save();
+    console.log(`User created successfully: ${savedUser._id}`);
+
+    // Return the user data without the password
+    const userResponse = {
+      _id: savedUser._id,
+      username: savedUser.username,
+      email: savedUser.email,
+      role: savedUser.role
+    };
+
+    res.status(201).json(userResponse);
+  } catch (error) {
+    console.error('Error registering user:', error);
+    res.status(400).json({
+      message: 'Failed to register user',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
