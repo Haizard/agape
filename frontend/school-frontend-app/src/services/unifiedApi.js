@@ -120,16 +120,28 @@ class UnifiedApiService {
    */
   async request(method, url, data = null, config = {}, retryCount = 0, maxRetries = 2) {
     try {
-      // Ensure URL doesn't start with a slash if we're using a full baseURL
+      // Process the URL to ensure it's correctly formatted
       let processedUrl = url;
+
+      // Always ensure the URL starts with '/api/' if it doesn't already
+      if (!processedUrl.startsWith('/api/') && !processedUrl.startsWith('api/')) {
+        // If the URL starts with a slash but not '/api/', add 'api'
+        if (processedUrl.startsWith('/')) {
+          processedUrl = `/api${processedUrl}`;
+        } else {
+          // If the URL doesn't start with a slash, add '/api/'
+          processedUrl = `/api/${processedUrl}`;
+        }
+      }
+
+      // If we have a full API URL and the processed URL starts with a slash,
+      // we need to remove the leading slash to avoid double slashes
       if (processedUrl.startsWith('/') && process.env.REACT_APP_API_URL) {
-        // If we have a full API URL with /api at the end and the URL starts with /,
-        // we need to remove the leading slash to avoid double slashes
-        processedUrl = url.substring(1);
+        processedUrl = processedUrl.substring(1);
       }
 
       console.log(`Making ${method.toUpperCase()} request to ${processedUrl}${retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : ''}`);
-      console.log(`Full URL: ${this.api.defaults.baseURL}${processedUrl}`);
+      console.log(`Full URL: ${this.api.defaults.baseURL}${processedUrl.startsWith('/') ? '' : '/'}${processedUrl}`);
 
       // Set default timeout if not provided in config
       const requestConfig = {
@@ -140,6 +152,7 @@ class UnifiedApiService {
       // Add request start time for logging
       const startTime = Date.now();
 
+      // Ensure the URL is properly formatted for the request
       const response = await this.api({
         method,
         url: processedUrl,

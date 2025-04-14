@@ -104,10 +104,39 @@ const SubjectSetup = ({ onComplete, standalone = false }) => {
         params.append('educationLevel', filter.educationLevel);
       }
 
-      const response = await unifiedApi.get(`/subjects?${params.toString()}`);
+      // Try multiple endpoint formats to handle potential URL issues
+      let response;
+      const endpoints = [
+        `subjects?${params.toString()}`,
+        `/subjects?${params.toString()}`,
+        `/api/subjects?${params.toString()}`,
+        `api/subjects?${params.toString()}`
+      ];
+
+      console.log('Trying endpoints:', endpoints);
+
+      // Try each endpoint until one works
+      let lastError;
+      for (const endpoint of endpoints) {
+        try {
+          console.log('Trying endpoint:', endpoint);
+          response = await unifiedApi.get(endpoint);
+          console.log('Success with endpoint:', endpoint);
+          break; // Exit the loop if successful
+        } catch (endpointError) {
+          console.error(`Error with endpoint ${endpoint}:`, endpointError);
+          lastError = endpointError;
+          // Continue to the next endpoint
+        }
+      }
+
+      // If all endpoints failed, throw the last error
+      if (!response) {
+        throw lastError || new Error('All endpoints failed');
+      }
 
       // Extract data from the response
-      const subjectsData = response.data || [];
+      const subjectsData = response || [];
       console.log('Fetched subjects:', subjectsData);
       setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
 
@@ -123,7 +152,9 @@ const SubjectSetup = ({ onComplete, standalone = false }) => {
       }
     } catch (err) {
       console.error('Error fetching subjects:', err);
-      setError('Failed to load subjects. Please try again.');
+      setError(`Failed to load subjects: ${err.message}. Please try again.`);
+      // Set subjects to empty array to prevent map errors
+      setSubjects([]);
     } finally {
       setLoading(false);
     }
