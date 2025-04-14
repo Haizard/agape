@@ -277,10 +277,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
             }
           });
 
-          if (response && response.data) {
-            console.log(`Endpoint ${endpoint} succeeded`);
-            break;
-          }
+          console.log(`Endpoint ${endpoint} succeeded`);
+          break;
         } catch (err) {
           console.error(`Endpoint ${endpoint} failed:`, err);
           error = err;
@@ -304,8 +302,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       console.log('Classes response:', response);
 
       // Check if response is valid
-      if (!response || !response.data) {
-        console.error('Invalid response: response or response.data is undefined');
+      if (!response) {
+        console.error('Invalid response: response is undefined');
         console.error('Response:', response);
 
         // Try to use mock data as fallback
@@ -320,8 +318,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         throw new Error('Invalid response from server');
       }
 
-      // Extract the data from the response
-      const responseData = response.data;
+      // The response is already the data array from the API
+      const responseData = response;
       console.log('Response data:', responseData);
 
       // Check if response data is an array

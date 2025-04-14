@@ -133,7 +133,7 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
 
       // Mark step as complete if not standalone
       if (!standalone) {
-        onComplete && onComplete();
+        onComplete?.();
       }
     }
   }, [filter]);
@@ -235,10 +235,8 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
             }
           });
 
-          if (response?.data) {
-            console.log(`Endpoint ${endpoint} succeeded`);
-            break;
-          }
+          console.log(`Endpoint ${endpoint} succeeded`);
+          break;
         } catch (err) {
           console.error(`Endpoint ${endpoint} failed:`, err);
           error = err;
@@ -529,7 +527,7 @@ const AcademicYearSetup = ({ onComplete, standalone = false }) => {
 
       // Mark step as complete if not standalone
       if (!standalone) {
-        onComplete && onComplete();
+        onComplete?.();
       }
     } catch (err) {
       console.error('Error saving academic year:', err);

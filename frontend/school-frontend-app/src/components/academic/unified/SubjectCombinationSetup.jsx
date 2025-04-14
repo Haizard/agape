@@ -118,11 +118,9 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
             }
           });
 
-          if (result && result.data) {
-            console.log(`Endpoint ${endpoint} succeeded`);
-            response = result.data;
-            break;
-          }
+          console.log(`Endpoint ${endpoint} succeeded`);
+          response = result; // The result is already the data array
+          break;
         } catch (err) {
           console.error(`Endpoint ${endpoint} failed:`, err);
           error = err;
@@ -294,11 +292,9 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
             }
           });
 
-          if (result?.data) {
-            console.log(`Endpoint ${endpoint} succeeded`);
-            response = result.data;
-            break;
-          }
+          console.log(`Endpoint ${endpoint} succeeded`);
+          response = result;
+          break;
         } catch (err) {
           console.error(`Endpoint ${endpoint} failed:`, err);
           error = err;
