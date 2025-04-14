@@ -1,11 +1,17 @@
 import axios from 'axios';
 import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 
-// Check if the API URL already includes /api
-let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Set the API URL to the backend server
+let baseURL = process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com';
 // Remove trailing slash if present
 if (baseURL.endsWith('/')) {
   baseURL = baseURL.slice(0, -1);
+}
+
+// Force the baseURL to be the render.com URL in production
+if (process.env.NODE_ENV === 'production') {
+  baseURL = 'https://agape-render.onrender.com';
+  console.log('Production environment detected, forcing API URL to:', baseURL);
 }
 
 // Log the base URL for debugging
@@ -158,6 +164,15 @@ api.interceptors.response.use(
       // Use exponential backoff for retries
       const backoffDelay = delay * Math.pow(2, retryCount - 1);
       console.log(`Retrying request (${originalRequest.retryCount}/${originalRequest.retry || api.defaults.retry || 3}) after ${backoffDelay}ms...`);
+
+      // Try the direct endpoint if available
+      if (originalRequest.url.startsWith('/api/classes') && !originalRequest.url.includes('-direct')) {
+        console.log('Trying direct classes endpoint...');
+        originalRequest.url = originalRequest.url.replace('/api/classes', '/api/classes-direct');
+      } else if (originalRequest.url.startsWith('/api/exams') && !originalRequest.url.includes('-direct')) {
+        console.log('Trying direct exams endpoint...');
+        originalRequest.url = originalRequest.url.replace('/api/exams', '/api/exams-direct');
+      }
 
       return new Promise(resolve => {
         setTimeout(() => resolve(axios(originalRequest)), backoffDelay);
