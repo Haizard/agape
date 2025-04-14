@@ -93,6 +93,7 @@ import ALevelMarksEntry from './components/results/ALevelMarksEntry';
 import OLevelMarksEntry from './components/results/OLevelMarksEntry';
 import ALevelFormSpecificReport from './components/results/ALevelFormSpecificReport';
 import ALevelFormStudentReport from './components/results/ALevelFormStudentReport';
+import Form5ClassReportDemo from './components/results/Form5ClassReportDemo';
 import UnifiedMarksEntry from './components/results/UnifiedMarksEntry';
 import CharacterAssessmentEntry from './components/results/CharacterAssessmentEntry';
 import ResultManagementWorkflow from './components/workflows/ResultManagementWorkflow';
@@ -247,6 +248,12 @@ function App() {
                     <Route path="/results/a-level/form6/class/:classId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <ALevelFormSpecificReport />
+                      </ProtectedRoute>
+                    } />
+                    {/* Demo Routes */}
+                    <Route path="/demo/form5-class-report" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <Form5ClassReportDemo />
                       </ProtectedRoute>
                     } />
                     <Route path="/results/a-level/form5/student/:studentId/:examId" element={

@@ -19,6 +19,7 @@ const financeRoutes = require('./routes/financeRoutes');
 const feeScheduleRoutes = require('./routes/feeScheduleRoutes');
 const studentSubjectSelectionRoutes = require('./routes/studentSubjectSelectionRoutes');
 const comprehensiveReportRoutes = require('./routes/comprehensiveReportRoutes');
+const demoDataRoutes = require('./routes/demoDataRoutes');
 
 const app = express();
 
@@ -82,6 +83,8 @@ app.use('/api/finance/fee-schedules', feeScheduleRoutes);
 app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
 // Legacy routes - will be deprecated in future versions
 app.use('/api/results/comprehensive', comprehensiveReportRoutes);
+// Demo data routes for testing
+app.use('/api/demo', demoDataRoutes);
 
 // Error handling middleware uses the logger imported above
 
