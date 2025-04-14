@@ -175,7 +175,7 @@ router.put('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async
 });
 
 // Delete a student
-router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const deletedStudent = await Student.findByIdAndDelete(req.params.id);
     if (deletedStudent) {
@@ -267,7 +267,7 @@ router.get('/a-level/class/:classId', authenticateToken, async (req, res) => {
 });
 
 // Add subjects to a student
-router.post('/:id/subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.post('/:id/subjects', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     console.log(`POST /api/students/${req.params.id}/subjects - Adding subjects to student`);
     console.log('Request body:', req.body);
@@ -548,6 +548,62 @@ router.get('/my-students', authenticateToken, authorizeRole('teacher'), async (r
   } catch (error) {
     console.error('Error fetching students for teacher:', error);
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Remove subjects from a student
+router.delete('/:id/subjects', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+  try {
+    console.log(`DELETE /api/students/${req.params.id}/subjects - Removing subjects from student`);
+    console.log('Request body:', req.body);
+
+    // First check if the student exists
+    const student = await Student.findById(req.params.id);
+    if (!student) {
+      console.log(`Student not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Get the subjects from the request
+    const { subjects } = req.body;
+    if (!subjects || !Array.isArray(subjects)) {
+      console.log('Invalid subjects array in request');
+      return res.status(400).json({ message: 'Invalid subjects array' });
+    }
+
+    // Check if the student has selectedSubjects
+    if (!student.selectedSubjects || !Array.isArray(student.selectedSubjects) || student.selectedSubjects.length === 0) {
+      return res.status(400).json({ message: 'Student has no selected subjects' });
+    }
+
+    // Convert all subject IDs to strings for comparison
+    const subjectIdsToRemove = subjects.map(id => id.toString());
+
+    // Filter out the subjects to remove
+    const originalCount = student.selectedSubjects.length;
+    student.selectedSubjects = student.selectedSubjects.filter(subjectId => {
+      const idStr = typeof subjectId === 'object' ? subjectId.toString() : subjectId.toString();
+      return !subjectIdsToRemove.includes(idStr);
+    });
+
+    // Calculate how many subjects were removed
+    const removedCount = originalCount - student.selectedSubjects.length;
+
+    // Save the updated student
+    await student.save();
+    console.log(`Removed ${removedCount} subjects from student ${student.firstName} ${student.lastName}`);
+
+    // Return the updated student with populated subjects
+    const updatedStudent = await Student.findById(req.params.id)
+      .populate('selectedSubjects', 'name code type description');
+
+    res.json({
+      message: `Successfully removed ${removedCount} subjects from student`,
+      student: updatedStudent
+    });
+  } catch (error) {
+    console.error(`Error removing subjects from student ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Failed to remove subjects from student. Please try again later.' });
   }
 });
 

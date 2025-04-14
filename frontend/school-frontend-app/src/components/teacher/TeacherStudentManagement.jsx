@@ -6,7 +6,7 @@ import {
   Paper, MenuItem, IconButton, FormControl, InputLabel, Select,
   Grid, Chip, Tooltip
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, School as SchoolIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, School as SchoolIcon, Warning as WarningIcon } from '@mui/icons-material';
 import api from '../../services/api';
 import SafeDisplay from '../common/SafeDisplay';
 
@@ -18,6 +18,7 @@ const TeacherStudentManagement = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -66,7 +67,7 @@ const TeacherStudentManagement = () => {
     try {
       setLoading(true);
       const response = await api.get('/api/students/my-students');
-      
+
       // Flatten the students from all classes
       const allStudents = [];
       response.data.forEach(classGroup => {
@@ -77,7 +78,7 @@ const TeacherStudentManagement = () => {
           });
         });
       });
-      
+
       setStudents(allStudents);
       console.log('Students:', allStudents);
     } catch (err) {
@@ -196,6 +197,34 @@ const TeacherStudentManagement = () => {
     }
   };
 
+  // Handle delete student
+  const handleDeleteStudent = async () => {
+    if (!selectedStudent) return;
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.delete(`/api/students/${selectedStudent._id}`);
+      setSuccess('Student deleted successfully');
+      fetchStudents(); // Refresh the list
+      setDeleteDialog(false);
+      setSelectedStudent(null);
+    } catch (err) {
+      console.error('Error deleting student:', err);
+      setError(err.response?.data?.message || 'Failed to delete student. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Open delete confirmation dialog
+  const openDeleteDialog = (student) => {
+    setSelectedStudent(student);
+    setDeleteDialog(true);
+  };
+
   // Check if a class is one of the teacher's classes
   const isTeacherClass = (classId) => {
     return teacherClasses.some(cls => cls._id === classId);
@@ -258,11 +287,11 @@ const TeacherStudentManagement = () => {
                       <TableCell>
                         <SafeDisplay value={student.class?.name} />
                         {student.class && isTeacherClass(student.class._id) && (
-                          <Chip 
-                            size="small" 
-                            label="Your Class" 
-                            color="primary" 
-                            variant="outlined" 
+                          <Chip
+                            size="small"
+                            label="Your Class"
+                            color="primary"
+                            variant="outlined"
                             sx={{ ml: 1 }}
                           />
                         )}
@@ -274,6 +303,14 @@ const TeacherStudentManagement = () => {
                             onClick={() => handleOpenDialog(student)}
                           >
                             <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Student">
+                          <IconButton
+                            color="error"
+                            onClick={() => openDeleteDialog(student)}
+                          >
+                            <DeleteIcon />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -404,6 +441,32 @@ const TeacherStudentManagement = () => {
             disabled={loading}
           >
             {loading ? <CircularProgress size={24} /> : (selectedStudent ? 'Update' : 'Save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center' }}>
+          <WarningIcon color="error" sx={{ mr: 1 }} /> Confirm Delete
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            Are you sure you want to delete the student <strong>{selectedStudent?.firstName} {selectedStudent?.lastName}</strong>?
+          </Typography>
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            This action cannot be undone. The student account and all associated data will be permanently removed.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
+          <Button
+            onClick={handleDeleteStudent}
+            variant="contained"
+            color="error"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

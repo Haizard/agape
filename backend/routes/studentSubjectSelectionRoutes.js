@@ -6,8 +6,8 @@ const Student = require('../models/Student');
 const Class = require('../models/Class');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
-// Get all subject selections (admin only)
-router.get('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+// Get all subject selections
+router.get('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const selections = await StudentSubjectSelection.find()
       .populate('student', 'firstName lastName admissionNumber')
@@ -40,7 +40,7 @@ router.get('/available-optional-subjects', authenticateToken, async (req, res) =
 });
 
 // Get all optional subjects (for management)
-router.get('/optional-subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.get('/optional-subjects', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const optionalSubjects = await Subject.find({
       type: 'OPTIONAL'
@@ -54,7 +54,7 @@ router.get('/optional-subjects', authenticateToken, authorizeRole(['admin']), as
 });
 
 // Create a new optional subject
-router.post('/optional-subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.post('/optional-subjects', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { name, code, description, educationLevel, passMark } = req.body;
 
@@ -89,7 +89,7 @@ router.post('/optional-subjects', authenticateToken, authorizeRole(['admin']), a
 });
 
 // Update an optional subject
-router.put('/optional-subjects/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.put('/optional-subjects/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, code, description, educationLevel, passMark } = req.body;
@@ -133,7 +133,7 @@ router.put('/optional-subjects/:id', authenticateToken, authorizeRole(['admin'])
 });
 
 // Delete an optional subject
-router.delete('/optional-subjects/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.delete('/optional-subjects/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -257,7 +257,7 @@ router.get('/core-subjects', authenticateToken, async (req, res) => {
 });
 
 // Create a new core subject
-router.post('/core-subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.post('/core-subjects', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { name, code, description } = req.body;
 
@@ -292,7 +292,7 @@ router.post('/core-subjects', authenticateToken, authorizeRole(['admin']), async
 });
 
 // Update a core subject
-router.put('/core-subjects/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.put('/core-subjects/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, code, description } = req.body;
@@ -337,7 +337,7 @@ router.put('/core-subjects/:id', authenticateToken, authorizeRole(['admin']), as
 });
 
 // Delete a core subject
-router.delete('/core-subjects/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.delete('/core-subjects/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -425,7 +425,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
 });
 
 // Create a new subject selection
-router.post('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.post('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const {
       student,
@@ -490,7 +490,7 @@ router.post('/', authenticateToken, authorizeRole(['admin']), async (req, res) =
 });
 
 // Update a subject selection
-router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.put('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -532,7 +532,7 @@ router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res)
 });
 
 // Delete a subject selection
-router.delete('/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
 
