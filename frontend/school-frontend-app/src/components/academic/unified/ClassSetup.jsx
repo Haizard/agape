@@ -523,13 +523,21 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         return;
       }
 
+      // Prepare data for API call - remove any empty classTeacher field
+      const classData = { ...formData };
+
+      // If there's a classTeacher field and it's an empty string, remove it
+      if ('classTeacher' in classData && (classData.classTeacher === '' || classData.classTeacher === null)) {
+        delete classData.classTeacher;
+      }
+
       if (editMode) {
         // Update existing class
-        await unifiedApi.put(`/classes/${editId}`, formData);
+        await unifiedApi.put(`/classes/${editId}`, classData);
         setSuccess('Class updated successfully.');
       } else {
         // Create new class
-        await unifiedApi.post('/classes', formData);
+        await unifiedApi.post('/classes', classData);
         setSuccess('Class created successfully.');
       }
 

@@ -126,13 +126,17 @@ const handleCreateClass = async () => {
     // Prepare the request data
     const classData = {
       name: formData.name,
-      classTeacher: formData.teacherId,
       academicYear: formData.academicYear,
       capacity: formData.capacity,
       section: formData.section,
       stream: formData.stream,
       educationLevel: formData.educationLevel
     };
+
+    // Only add classTeacher if a teacher is selected (not empty string)
+    if (formData.teacherId && formData.teacherId.trim() !== '') {
+      classData.classTeacher = formData.teacherId;
+    }
 
     // Add subject combination if it's an A_LEVEL class
     if (formData.educationLevel === 'A_LEVEL' && formData.subjectCombination) {
@@ -193,13 +197,17 @@ const handleUpdateClass = async (classId) => {
     // Prepare the request data
     const classData = {
       name: formData.name,
-      classTeacher: formData.teacherId,
       academicYear: formData.academicYear,
       capacity: formData.capacity,
       section: formData.section,
       stream: formData.stream,
       educationLevel: formData.educationLevel
     };
+
+    // Only add classTeacher if a teacher is selected (not empty string)
+    if (formData.teacherId && formData.teacherId.trim() !== '') {
+      classData.classTeacher = formData.teacherId;
+    }
 
     // Add subject combination for A-Level classes
     if (formData.educationLevel === 'A_LEVEL') {
