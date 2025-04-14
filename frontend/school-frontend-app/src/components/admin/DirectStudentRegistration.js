@@ -42,8 +42,35 @@ const DirectStudentRegistration = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await axios.get('/api/classes');
-        setClasses(response.data);
+        // Use the API service with the correct base URL
+        const baseURL = process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com';
+        console.log('Using API URL for classes:', baseURL);
+
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+
+        // Set up request config with authorization header
+        const config = {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        };
+
+        // Try the direct endpoint first
+        try {
+          console.log('Fetching classes from direct endpoint');
+          const response = await axios.get(`${baseURL}/api/classes-direct`, config);
+          console.log('Classes fetched successfully from direct endpoint:', response.data);
+          setClasses(response.data);
+        } catch (directError) {
+          console.warn('Failed to fetch from direct endpoint, falling back to regular endpoint', directError);
+
+          // Fall back to the regular endpoint
+          const response = await axios.get(`${baseURL}/api/classes`, config);
+          console.log('Classes fetched successfully from regular endpoint:', response.data);
+          setClasses(response.data);
+        }
       } catch (err) {
         console.error('Error fetching classes:', err);
         setError('Failed to load classes. Please try again.');
@@ -104,8 +131,12 @@ const DirectStudentRegistration = () => {
         }
       };
 
+      // Use the API service with the correct base URL
+      const baseURL = process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com';
+      console.log('Using API URL for registration:', baseURL);
       console.log('Sending request with token:', token);
-      const response = await axios.post('/api/direct-student-register', formData, config);
+
+      const response = await axios.post(`${baseURL}/api/direct-student-register`, formData, config);
 
       setSuccess('Student registered successfully!');
       console.log('Registration response:', response.data);
