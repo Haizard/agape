@@ -187,7 +187,17 @@ const TeacherStudentManagement = () => {
           gender: 'male' // Default gender
         };
 
-        await api.post('/api/direct-student-register', registrationData);
+        // Get the token directly from localStorage to ensure it's fresh
+        const token = localStorage.getItem('token');
+        console.log('Using token for student registration:', token ? 'Token exists' : 'No token');
+
+        // Make the API call with explicit headers
+        await api.post('/api/direct-student-register', registrationData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         setSuccess('Student registered successfully');
       }
 
@@ -196,7 +206,22 @@ const TeacherStudentManagement = () => {
       handleCloseDialog();
     } catch (err) {
       console.error('Error saving student:', err);
-      setError(err.response?.data?.message || 'Failed to save student. Please try again.');
+
+      // Check for specific authentication errors
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setError('Authentication error: You may not have permission to perform this action. Please try logging out and back in.');
+
+        // Log detailed information for debugging
+        console.error('Authentication error details:', {
+          status: err.response?.status,
+          message: err.response?.data?.message,
+          url: err.config?.url,
+          method: err.config?.method
+        });
+      } else {
+        // For other errors
+        setError(err.response?.data?.message || 'Failed to save student. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

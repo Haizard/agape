@@ -19,6 +19,11 @@ router.post('/direct-student-register', authenticateToken, authorizeRole(['admin
 
   try {
     console.log('Direct student registration request received:', req.body);
+    console.log('User making the request:', req.user);
+
+    // Log the authorization header for debugging
+    const authHeader = req.headers.authorization;
+    console.log('Authorization header:', authHeader ? `${authHeader.substring(0, 15)}...` : 'Not provided');
 
     const {
       username,
@@ -108,6 +113,29 @@ router.post('/direct-student-register', authenticateToken, authorizeRole(['admin
 
     console.error('Direct student registration error:', error);
     console.error('Error stack:', error.stack);
+
+    // Check if this is a MongoDB duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        message: `A student with this ${field} already exists`,
+        field: field,
+        error: 'duplicate_key'
+      });
+    }
+
+    // Check for validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = {};
+      for (const field in error.errors) {
+        validationErrors[field] = error.errors[field].message;
+      }
+      return res.status(400).json({
+        message: 'Validation error',
+        errors: validationErrors,
+        error: 'validation_error'
+      });
+    }
 
     res.status(500).json({
       message: 'Server error during student registration',

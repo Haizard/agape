@@ -24,7 +24,10 @@ import {
   Select,
   Alert,
   Typography,
-  CircularProgress
+  CircularProgress,
+  Box,
+  Chip,
+  FormHelperText
 } from '@mui/material';
 
 const ClassManagement = () => {
@@ -301,6 +304,15 @@ const handleDeleteClass = async (classId) => {
     fetchData();
   }, [fetchData]);
 
+  // Handle multiple subject combinations selection
+  const handleSubjectCombinationsChange = (event) => {
+    const { value } = event.target;
+    setFormData(prev => ({
+      ...prev,
+      subjectCombinations: value
+    }));
+  };
+
   return (
     <div style={{ padding: '20px' }}>
       {state.loading && <Alert severity="info">Loading...</Alert>}
@@ -331,6 +343,7 @@ const handleDeleteClass = async (classId) => {
               <TableCell>Education Level</TableCell>
               <TableCell>Capacity</TableCell>
               <TableCell>Section</TableCell>
+              <TableCell>Subject Combinations</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -351,6 +364,39 @@ const handleDeleteClass = async (classId) => {
                 </TableCell>
                 <TableCell><SafeDisplay value={classItem.capacity} /></TableCell>
                 <TableCell><SafeDisplay value={classItem.section} /></TableCell>
+                <TableCell>
+                  {classItem.educationLevel === 'A_LEVEL' && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {classItem.subjectCombinations && classItem.subjectCombinations.length > 0 ? (
+                        classItem.subjectCombinations.map((combination) => {
+                          const combinationObj = typeof combination === 'object' ? combination : state.subjectCombinations.find(sc => sc._id === combination);
+                          return (
+                            <Chip
+                              key={typeof combination === 'object' ? combination._id : combination}
+                              label={combinationObj ? `${combinationObj.code}` : 'Unknown'}
+                              size="small"
+                              color="info"
+                              sx={{ mr: 0.5 }}
+                            />
+                          );
+                        })
+                      ) : classItem.subjectCombination ? (
+                        <Chip
+                          label={typeof classItem.subjectCombination === 'object' ?
+                            classItem.subjectCombination.code :
+                            state.subjectCombinations.find(sc => sc._id === classItem.subjectCombination)?.code || 'Unknown'}
+                          size="small"
+                          color="primary"
+                        />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">None</Typography>
+                      )}
+                    </Box>
+                  )}
+                  {classItem.educationLevel === 'O_LEVEL' && (
+                    <Typography variant="body2" color="text.secondary">N/A</Typography>
+                  )}
+                </TableCell>
 <TableCell>
   {userIsAdmin ? (
     <>
@@ -461,22 +507,59 @@ const handleDeleteClass = async (classId) => {
           </FormControl>
 
           {formData.educationLevel === 'A_LEVEL' && (
-            <FormControl fullWidth margin="dense">
-              <InputLabel>Subject Combination</InputLabel>
-              <Select
-                value={formData.subjectCombination}
-                onChange={(e) => setFormData({ ...formData, subjectCombination: e.target.value })}
-                required
-              >
-                {state.subjectCombinations
-                  .filter(combo => combo.educationLevel === 'A_LEVEL')
-                  .map((combo) => (
-                    <MenuItem key={combo._id} value={combo._id}>
-                      <SafeDisplay value={`${combo.name} (${combo.code})`} />
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
+            <>
+              <FormControl fullWidth margin="dense">
+                <InputLabel>Subject Combination (Legacy)</InputLabel>
+                <Select
+                  value={formData.subjectCombination}
+                  onChange={(e) => setFormData({ ...formData, subjectCombination: e.target.value })}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {state.subjectCombinations
+                    .filter(combo => combo.educationLevel === 'A_LEVEL')
+                    .map((combo) => (
+                      <MenuItem key={combo._id} value={combo._id}>
+                        <SafeDisplay value={`${combo.name} (${combo.code})`} />
+                      </MenuItem>
+                    ))}
+                </Select>
+                <FormHelperText>This is for backward compatibility. Use the multiple selector below for new classes.</FormHelperText>
+              </FormControl>
+
+              <FormControl fullWidth margin="dense">
+                <InputLabel>Subject Combinations</InputLabel>
+                <Select
+                  multiple
+                  value={formData.subjectCombinations}
+                  onChange={handleSubjectCombinationsChange}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => {
+                        const combination = state.subjectCombinations.find(sc => sc._id === value);
+                        return (
+                          <Chip
+                            key={value}
+                            label={combination ? `${combination.code}` : value}
+                            size="small"
+                          />
+                        );
+                      })}
+                    </Box>
+                  )}
+                >
+                  {state.subjectCombinations
+                    .filter(combo => combo.educationLevel === 'A_LEVEL')
+                    .map((combo) => (
+                      <MenuItem key={combo._id} value={combo._id}>
+                        <SafeDisplay value={`${combo.name} (${combo.code})`} />
+                      </MenuItem>
+                    ))}
+                </Select>
+                <FormHelperText>
+                  Select multiple subject combinations for this A-Level class. Students will be assigned to specific combinations later.
+                </FormHelperText>
+              </FormControl>
+            </>
           )}
 
           <FormControl fullWidth margin="dense">

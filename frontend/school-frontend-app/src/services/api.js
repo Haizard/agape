@@ -130,9 +130,9 @@ api.interceptors.response.use(
     if (error.response?.status === 403 || error.response?.status === 401) {
       console.log('Authentication error detected');
 
-      // Check if this is a login request
-      if (originalRequest.url.includes('/login')) {
-        console.log('Login request failed with auth error');
+      // Check if this is a login request or direct student registration
+      if (originalRequest.url.includes('/login') || originalRequest.url.includes('/direct-student-register')) {
+        console.log('Login or student registration request failed with auth error');
         return Promise.reject(error);
       }
 
