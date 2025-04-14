@@ -2,15 +2,16 @@ import axios from 'axios';
 import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 
 // Set the API URL to the backend server
-let baseURL = process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com';
-// Remove trailing slash if present
-if (baseURL.endsWith('/')) {
-  baseURL = baseURL.slice(0, -1);
+let baseURL = process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com/';
+
+// Ensure the baseURL ends with a trailing slash
+if (!baseURL.endsWith('/')) {
+  baseURL = baseURL + '/';
 }
 
 // Force the baseURL to be the render.com URL in production
 if (process.env.NODE_ENV === 'production') {
-  baseURL = 'https://agape-render.onrender.com';
+  baseURL = 'https://agape-render.onrender.com/';
   console.log('Production environment detected, forcing API URL to:', baseURL);
 }
 

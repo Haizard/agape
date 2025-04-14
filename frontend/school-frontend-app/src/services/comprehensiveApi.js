@@ -3,9 +3,15 @@ import axios from 'axios';
 // Check if we should use fallback mode
 const useFallback = process.env.REACT_APP_FALLBACK_TO_STATIC === 'true';
 
+// Get the API URL and ensure it ends with a slash
+let baseURL = process.env.REACT_APP_API_URL || '/api';
+if (!baseURL.endsWith('/')) {
+  baseURL = `${baseURL}/`;
+}
+
 // Create a base axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
+  baseURL: baseURL,
   timeout: parseInt(process.env.REACT_APP_TIMEOUT || '30000'),
   headers: {
     'Content-Type': 'application/json'
@@ -14,7 +20,7 @@ const api = axios.create({
 
 // Log configuration for debugging
 console.log('API Configuration:');
-console.log('- Base URL:', process.env.REACT_APP_API_URL || '/api');
+console.log('- Base URL:', baseURL);
 console.log('- Backend URL:', process.env.REACT_APP_BACKEND_URL || 'Not set');
 console.log('- Fallback Mode:', useFallback ? 'Enabled' : 'Disabled');
 
@@ -28,7 +34,7 @@ const FALLBACK_DATA = {
     "role": "admin",
     "name": "Admin User"
   },
-  
+
   // Common API responses
   "apiResponses": {
     "/api/users/login": {
@@ -65,15 +71,15 @@ const FALLBACK_DATA = {
 const getFallbackData = (url) => {
   // Extract the API path
   const apiPath = url.split('?')[0]; // Remove query parameters
-  
+
   // Check if we have fallback data for this API path
   for (const mockPath in FALLBACK_DATA.apiResponses) {
     if (apiPath.includes(mockPath)) {
-      console.log([Fallback] Using fallback data for: \);
+      console.log(`[Fallback] Using fallback data for: ${mockPath}`);
       return FALLBACK_DATA.apiResponses[mockPath];
     }
   }
-  
+
   // Default fallback data
   return { success: true, data: [] };
 };
@@ -84,9 +90,9 @@ api.interceptors.request.use(
     // Add auth token if available
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = Bearer \;
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     return config;
   },
   error => {
@@ -102,11 +108,11 @@ api.interceptors.response.use(
   error => {
     // Handle errors with fallback if enabled
     if (useFallback && error.config && !error.config.__isRetry) {
-      console.log([Fallback] API request failed, using fallback data for: \);
-      
+      console.log(`[Fallback] API request failed, using fallback data for: ${error.config.url}`);
+
       // Get fallback data for this endpoint
       const fallbackData = getFallbackData(error.config.url);
-      
+
       // Return a successful response with the fallback data
       return Promise.resolve({
         data: fallbackData,
@@ -116,12 +122,12 @@ api.interceptors.response.use(
         config: error.config
       });
     }
-    
+
     // Handle errors normally if fallback is disabled or already tried
     if (error.response) {
       // Server responded with an error status
       console.error('API Error:', error.response.status, error.response.data);
-      
+
       // Handle authentication errors
       if (error.response.status === 401) {
         localStorage.removeItem('token');
@@ -138,7 +144,7 @@ api.interceptors.response.use(
       // Something else happened
       console.error('API Error:', error.message);
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -147,11 +153,11 @@ api.interceptors.response.use(
 export const autoLogin = () => {
   if (useFallback && !localStorage.getItem('token')) {
     console.log('[Fallback] Auto-login initialized');
-    
+
     // Store the token and user data in localStorage
     localStorage.setItem('token', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEyMyIsInVzZXJuYW1lIjoiYWRtaW4iLCJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNjE2MTYyMjIwLCJleHAiOjE2MTYyNDg2MjB9.7M8V3XFjTRRrKDYLT5a9xIb0jLDTGMBIGGSLIL9pMTo");
     localStorage.setItem('user', JSON.stringify(FALLBACK_DATA.currentUser));
-    
+
     console.log('[Fallback] User automatically logged in');
     return true;
   }

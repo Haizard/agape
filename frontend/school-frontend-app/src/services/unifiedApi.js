@@ -140,8 +140,13 @@ class UnifiedApiService {
         processedUrl = processedUrl.substring(1);
       }
 
+      // Ensure the baseURL ends with a slash
+      const baseURL = this.api.defaults.baseURL.endsWith('/')
+        ? this.api.defaults.baseURL
+        : `${this.api.defaults.baseURL}/`;
+
       console.log(`Making ${method.toUpperCase()} request to ${processedUrl}${retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : ''}`);
-      console.log(`Full URL: ${this.api.defaults.baseURL}${processedUrl.startsWith('/') ? '' : '/'}${processedUrl}`);
+      console.log(`Full URL: ${baseURL}${processedUrl}`);
 
       // Set default timeout if not provided in config
       const requestConfig = {
