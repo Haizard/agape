@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const gradeCalculator = require('../utils/gradeCalculator');
+const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
+const logger = require('../utils/logger');
 
 const ALevelResultSchema = new mongoose.Schema({
   // Core fields
@@ -41,33 +44,14 @@ ALevelResultSchema.pre('save', function(next) {
 
   // Calculate grade and points based on A-LEVEL grading system
   if (this.marksObtained !== undefined) {
-    // A-LEVEL grading logic based on Tanzania's A Level system
-    if (this.marksObtained >= 80) {
-      this.grade = 'A';
-      this.points = 1;
-    } else if (this.marksObtained >= 70) {
-      this.grade = 'B';
-      this.points = 2;
-    } else if (this.marksObtained >= 60) {
-      this.grade = 'C';
-      this.points = 3;
-    } else if (this.marksObtained >= 50) {
-      this.grade = 'D';
-      this.points = 4;
-    } else if (this.marksObtained >= 40) {
-      this.grade = 'E';
-      this.points = 5;
-    } else if (this.marksObtained >= 35) {
-      this.grade = 'S';
-      this.points = 6;
-    } else {
-      this.grade = 'F';
-      this.points = 7;
-    }
+    // Use the centralized grade calculator
+    const { grade, points } = gradeCalculator.calculateGradeAndPoints(this.marksObtained, EDUCATION_LEVELS.A_LEVEL);
+    this.grade = grade;
+    this.points = points;
 
     // Log the grade calculation for debugging
-    console.log(`[A-LEVEL] Calculated grade for marks ${this.marksObtained}: ${this.grade} (${this.points} points)`);
-    console.log(`[A-LEVEL] Result for student ${this.studentId}, subject ${this.subjectId}, exam ${this.examId}`);
+    logger.debug(`[A-LEVEL] Calculated grade for marks ${this.marksObtained}: ${this.grade} (${this.points} points)`);
+    logger.debug(`[A-LEVEL] Result for student ${this.studentId}, subject ${this.subjectId}, exam ${this.examId}`);
   }
 
   next();
@@ -107,12 +91,12 @@ ALevelResultSchema.pre('save', async function(next) {
     });
 
     if (existingResult) {
-      console.log(`[A-LEVEL] Found existing result for student ${this.studentId} in exam ${this.examId} for subject ${existingResult.subjectId}`);
-      console.log(`[A-LEVEL] Ensuring marks are not duplicated from subject ${existingResult.subjectId} to ${this.subjectId}`);
+      logger.debug(`[A-LEVEL] Found existing result for student ${this.studentId} in exam ${this.examId} for subject ${existingResult.subjectId}`);
+      logger.debug(`[A-LEVEL] Ensuring marks are not duplicated from subject ${existingResult.subjectId} to ${this.subjectId}`);
 
       // If the marks are exactly the same, it might be a duplicate
       if (existingResult.marksObtained === this.marksObtained) {
-        console.warn(`[A-LEVEL] Potential duplicate marks detected: ${this.marksObtained} for student ${this.studentId} across subjects ${existingResult.subjectId} and ${this.subjectId}`);
+        logger.warn(`[A-LEVEL] Potential duplicate marks detected: ${this.marksObtained} for student ${this.studentId} across subjects ${existingResult.subjectId} and ${this.subjectId}`);
         // We'll allow it but log a warning, as it could be legitimate that a student got the same marks in different subjects
       }
     }

@@ -1,27 +1,31 @@
 /**
  * Utility functions for calculating grades, points, and divisions
+ * @deprecated Use gradeCalculator.js instead
  */
+const gradeCalculator = require('./gradeCalculator');
+const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
+const logger = require('./logger');
 
 /**
  * Calculate grade based on marks
  * @param {Number} marks - The marks obtained
  * @returns {String} - The grade (A, B, C, D, F)
+ * @deprecated Use gradeCalculator.calculateGradeAndPoints instead
  */
 const calculateGrade = (marks) => {
-  if (marks === undefined || marks === null) return '-';
-  if (marks >= 75) return 'A';
-  if (marks >= 65) return 'B';
-  if (marks >= 50) return 'C';
-  if (marks >= 30) return 'D';
-  return 'F';
+  // Use the centralized grade calculator
+  const { grade } = gradeCalculator.calculateGradeAndPoints(marks, EDUCATION_LEVELS.O_LEVEL);
+  return grade;
 };
 
 /**
  * Calculate points based on grade
  * @param {String} grade - The grade (A, B, C, D, F)
  * @returns {Number} - The points (1-5)
+ * @deprecated Use gradeCalculator.calculateGradeAndPoints instead
  */
 const calculatePoints = (grade) => {
+  // For backward compatibility, we'll map the grade to points using O-LEVEL system
   switch (grade) {
     case 'A': return 1;
     case 'B': return 2;
@@ -36,82 +40,33 @@ const calculatePoints = (grade) => {
  * Calculate division based on points
  * @param {Number} points - The total points from best 7 subjects
  * @returns {String} - The division (I, II, III, IV, 0)
+ * @deprecated Use gradeCalculator.calculateOLevelDivision instead
  */
 const calculateDivision = (points) => {
-  if (points >= 7 && points <= 14) return 'I';
-  if (points >= 15 && points <= 21) return 'II';
-  if (points >= 22 && points <= 25) return 'III';
-  if (points >= 26 && points <= 32) return 'IV';
-  if (points >= 33 && points <= 36) return '0';
-  return '-';
+  // Use the centralized grade calculator
+  return gradeCalculator.calculateOLevelDivision(points);
 };
 
 /**
  * Get remarks based on grade
  * @param {String} grade - The grade (A, B, C, D, F)
  * @returns {String} - The remarks
+ * @deprecated Use gradeCalculator.getRemarks instead
  */
 const getRemarks = (grade) => {
-  switch (grade) {
-    case 'A': return 'Excellent';
-    case 'B': return 'Very Good';
-    case 'C': return 'Good';
-    case 'D': return 'Satisfactory';
-    case 'F': return 'Fail';
-    default: return '-';
-  }
+  // Use the centralized grade calculator
+  return gradeCalculator.getRemarks(grade);
 };
 
 /**
  * Calculate best seven subjects and division
  * @param {Array} results - Array of subject results
  * @returns {Object} - Object containing bestSevenResults, bestSevenPoints, and division
+ * @deprecated Use gradeCalculator.calculateBestSevenAndDivision instead
  */
 const calculateBestSevenAndDivision = (results) => {
-  // Ensure each result has points
-  const resultsWithPoints = results.map(result => {
-    if (result.points === undefined) {
-      const grade = result.grade || calculateGrade(result.marksObtained);
-      return {
-        ...result,
-        grade,
-        points: calculatePoints(grade)
-      };
-    }
-    return result;
-  });
-
-  // Filter out results with no marks or grades
-  const validResults = resultsWithPoints.filter(result => {
-    // Check if the result has valid marks or grade
-    return (result.marksObtained > 0 || result.marks > 0 || result.grade !== '-');
-  });
-
-  // Sort by points (ascending, since lower points are better)
-  const sortedResults = [...validResults].sort((a, b) => (a.points || 5) - (b.points || 5));
-
-  // Take the best 7 subjects (or all if less than 7)
-  const bestSevenResults = sortedResults.slice(0, Math.min(7, sortedResults.length));
-
-  // Calculate total points from best subjects
-  const bestSevenPoints = bestSevenResults.reduce((sum, result) => sum + (result.points || 5), 0);
-
-  // Log for debugging
-  console.log('Division calculation:', {
-    totalResults: resultsWithPoints.length,
-    validResults: validResults.length,
-    bestSevenResults: bestSevenResults.map(r => ({ name: r.name || r.subject, marks: r.marksObtained || r.marks, grade: r.grade, points: r.points })),
-    bestSevenPoints
-  });
-
-  // Calculate division based on total points
-  const division = calculateDivision(bestSevenPoints);
-
-  return {
-    bestSevenResults,
-    bestSevenPoints,
-    division
-  };
+  // Use the centralized grade calculator
+  return gradeCalculator.calculateBestSevenAndDivision(results);
 };
 
 module.exports = {

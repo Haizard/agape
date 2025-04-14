@@ -3,19 +3,41 @@ const Student = require('../models/Student');
 const Class = require('../models/Class');
 const Exam = require('../models/Exam');
 const Subject = require('../models/Subject');
+const logger = require('../utils/logger');
 
 // Import PDF generators
 const { generateStudentResultPDF } = require('../utils/studentReportPdfGenerator');
 const { generateClassResultPDF } = require('../utils/classReportPdfGenerator');
 
-// Import division calculator utility
+// Import centralized grade calculator utility
+const gradeCalculator = require('../utils/gradeCalculator');
+const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
+
+// For backward compatibility, use the same function names
 const {
-  calculateGrade,
-  calculatePoints,
-  calculateDivision,
+  calculateGradeAndPoints,
+  calculateOLevelDivision: calculateDivision,
   getRemarks,
   calculateBestSevenAndDivision
-} = require('../utils/divisionCalculator');
+} = gradeCalculator;
+
+// Helper functions for backward compatibility
+const calculateGrade = (marks) => {
+  const { grade } = calculateGradeAndPoints(marks, EDUCATION_LEVELS.O_LEVEL);
+  return grade;
+};
+
+const calculatePoints = (grade) => {
+  // For backward compatibility, we'll map the grade to points using O-LEVEL system
+  switch (grade) {
+    case 'A': return 1;
+    case 'B': return 2;
+    case 'C': return 3;
+    case 'D': return 4;
+    case 'F': return 5;
+    default: return 0;
+  }
+};
 
 /**
  * Generate a student result report PDF
@@ -45,7 +67,7 @@ exports.generateStudentResultPDF = async (req, res) => {
     }
 
     // Fetch the results
-    console.log('Fetching results with studentId:', studentId, 'and examId:', examId);
+    logger.info('Fetching results with studentId:', studentId, 'and examId:', examId);
     const results = await Result.find({
       $or: [
         { studentId: studentId, examId: examId },
@@ -57,7 +79,7 @@ exports.generateStudentResultPDF = async (req, res) => {
     .sort({ 'subjectId': 1 }); // Sort by subject ID to ensure consistent ordering
 
     // Log the results for debugging
-    console.log('Results found:', results.map(r => ({
+    logger.debug('Results found:', results.map(r => ({
       subject: r.subject?.name || r.subjectId?.name || 'Unknown',
       subjectId: r.subject?._id || r.subjectId?._id || 'Unknown',
       marks: r.marksObtained,
@@ -73,9 +95,9 @@ exports.generateStudentResultPDF = async (req, res) => {
         uniqueSubjects.add(subjectId.toString());
       }
     }
-    console.log(`Found ${uniqueSubjects.size} unique subjects in results:`, Array.from(uniqueSubjects));
+    logger.debug(`Found ${uniqueSubjects.size} unique subjects in results:`, Array.from(uniqueSubjects));
 
-    console.log('Results found:', results.length);
+    logger.info('Results found:', results.length);
     if (results.length === 0) {
       return res.status(404).json({ message: 'No results found for this student and exam' });
     }
@@ -92,7 +114,7 @@ exports.generateStudentResultPDF = async (req, res) => {
       if (subject?._id) {
         const subjectId = subject._id.toString();
         subjectResultsMap[subjectId] = result;
-        console.log(`Mapped subject ${subject.name} (${subjectId}) to marks: ${result.marksObtained}`);
+        logger.debug(`Mapped subject ${subject.name} (${subjectId}) to marks: ${result.marksObtained}`);
       }
     }
 
@@ -120,7 +142,7 @@ exports.generateStudentResultPDF = async (req, res) => {
     // Calculate best seven subjects and division using the utility function
     const { bestSevenResults, bestSevenPoints, division } = calculateBestSevenAndDivision(validResults);
 
-    console.log('Student report division calculation:', {
+    logger.debug('Student report division calculation:', {
       totalResults: results.length,
       validResults: validResults.length,
       bestSevenPoints,
@@ -146,7 +168,7 @@ exports.generateStudentResultPDF = async (req, res) => {
         const points = result.points !== undefined ? result.points : calculatePoints(grade);
 
         // Log the subject mapping for debugging
-        console.log(`Mapping subject: ${subject?.name || 'Unknown'} (${subject?._id || 'Unknown'}) with marks: ${result.marksObtained}`);
+        logger.debug(`Mapping subject: ${subject?.name || 'Unknown'} (${subject?._id || 'Unknown'}) with marks: ${result.marksObtained}`);
 
         return {
           subject: subject ? subject.name : 'Unknown Subject',
@@ -191,7 +213,7 @@ exports.generateStudentResultPDF = async (req, res) => {
     // Generate the PDF using the new generator
     generateStudentResultPDF(report, res);
   } catch (error) {
-    console.error('Error generating student result PDF:', error);
+    logger.error('Error generating student result PDF:', error);
     res.status(500).json({ message: 'Error generating PDF', error: error.message });
   }
 };
@@ -254,8 +276,8 @@ exports.generateClassResultPDF = async (req, res) => {
       .sort({ 'subjectId': 1, 'studentId': 1 }); // Sort by subject ID and then student ID
 
     // Log the results for debugging
-    console.log(`Found ${results.length} results for class ${classId} and exam ${examId}`);
-    console.log('Sample results:', results.slice(0, 3).map(r => ({
+    logger.info(`Found ${results.length} results for class ${classId} and exam ${examId}`);
+    logger.debug('Sample results:', results.slice(0, 3).map(r => ({
       student: r.student?.firstName || r.studentId?.firstName || 'Unknown',
       subject: r.subject?.name || r.subjectId?.name || 'Unknown',
       subjectId: r.subject?._id || r.subjectId?._id || 'Unknown',
@@ -272,7 +294,7 @@ exports.generateClassResultPDF = async (req, res) => {
         uniqueSubjects.add(subjectId.toString());
       }
     }
-    console.log(`Found ${uniqueSubjects.size} unique subjects in results:`, Array.from(uniqueSubjects));
+    logger.debug(`Found ${uniqueSubjects.size} unique subjects in results:`, Array.from(uniqueSubjects));
 
     // Create a map of subject results for easy lookup and debugging
     const subjectMap = {};
@@ -343,7 +365,7 @@ exports.generateClassResultPDF = async (req, res) => {
           grade,
           points
         });
-        console.log(`Added subject ${subject.name} (${subjectId}) with marks ${marks} to student ${studentId}`);
+        logger.debug(`Added subject ${subject.name} (${subjectId}) with marks ${marks} to student ${studentId}`);
       }
 
       // Update student totals only if it has valid marks
@@ -375,7 +397,7 @@ exports.generateClassResultPDF = async (req, res) => {
       });
 
       // Log the sorted subjects for this student
-      console.log(`Sorted subjects for student ${student.name}:`,
+      logger.debug(`Sorted subjects for student ${student.name}:`,
         student.subjects.map(s => `${s.name} (${s.subjectId}): ${s.marks}`))
 
       // Calculate best seven subjects and division using the utility function
@@ -487,7 +509,7 @@ exports.generateClassResultPDF = async (req, res) => {
     // Generate the PDF using the new generator
     generateClassResultPDF(report, res);
   } catch (error) {
-    console.error('Error generating class result PDF:', error);
+    logger.error('Error generating class result PDF:', error);
     res.status(500).json({ message: 'Failed to generate PDF', error: error.message });
   }
 };

@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const gradeCalculator = require('../utils/gradeCalculator');
+const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
+const logger = require('../utils/logger');
 
 const FixedResultSchema = new mongoose.Schema({
   // Original fields with proper references
@@ -35,18 +38,18 @@ const FixedResultSchema = new mongoose.Schema({
 FixedResultSchema.pre('validate', function(next) {
   // Ensure classId is set
   if (!this.classId) {
-    console.log('Missing classId, using fallback');
+    logger.warn('Missing classId, using fallback');
     this.classId = '67f2fe0fdcc60fd7fef2ef36';
   }
 
   // Ensure classId is a valid ObjectId
   try {
     if (!mongoose.Types.ObjectId.isValid(this.classId)) {
-      console.log('Invalid classId format, using fallback');
+      logger.warn('Invalid classId format, using fallback');
       this.classId = '67f2fe0fdcc60fd7fef2ef36';
     }
   } catch (err) {
-    console.log('Error validating classId, using fallback');
+    logger.error('Error validating classId, using fallback', err);
     this.classId = '67f2fe0fdcc60fd7fef2ef36';
   }
 
@@ -65,23 +68,14 @@ FixedResultSchema.pre('save', function(next) {
 
   // Calculate grade and points if not already set
   if (this.marksObtained !== undefined && !this.grade) {
-    // Simple grading logic - can be customized based on requirements
-    if (this.marksObtained >= 80) {
-      this.grade = 'A';
-      this.points = 1;
-    } else if (this.marksObtained >= 65) {
-      this.grade = 'B';
-      this.points = 2;
-    } else if (this.marksObtained >= 50) {
-      this.grade = 'C';
-      this.points = 3;
-    } else if (this.marksObtained >= 40) {
-      this.grade = 'D';
-      this.points = 4;
-    } else {
-      this.grade = 'F';
-      this.points = 5;
-    }
+    // Use the centralized grade calculator
+    // Default to O-LEVEL grading for fixed results
+    const { grade, points } = gradeCalculator.calculateGradeAndPoints(this.marksObtained, EDUCATION_LEVELS.O_LEVEL);
+    this.grade = grade;
+    this.points = points;
+
+    // Log the grade calculation for debugging
+    logger.debug(`[FixedResult] Calculated grade for marks ${this.marksObtained}: ${this.grade} (${this.points} points)`);
   }
 
   next();

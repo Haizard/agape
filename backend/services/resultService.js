@@ -20,6 +20,7 @@ const AcademicYear = require('../models/AcademicYear');
 const mongoose = require('mongoose');
 const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
 const logger = require('../utils/logger');
+const gradeCalculator = require('../utils/gradeCalculator');
 
 /**
  * Service to handle result operations with automatic model selection based on education level
@@ -154,28 +155,8 @@ class ResultService {
    * @returns {Object} - The grade and points
    */
   static calculateGradeAndPoints(marks, educationLevel) {
-    let grade;
-    let points;
-
-    if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
-      // A-LEVEL grading
-      if (marks >= 80) { grade = 'A'; points = 1; }
-      else if (marks >= 70) { grade = 'B'; points = 2; }
-      else if (marks >= 60) { grade = 'C'; points = 3; }
-      else if (marks >= 50) { grade = 'D'; points = 4; }
-      else if (marks >= 40) { grade = 'E'; points = 5; }
-      else if (marks >= 35) { grade = 'S'; points = 6; }
-      else { grade = 'F'; points = 7; }
-    } else {
-      // O-LEVEL grading
-      if (marks >= 75) { grade = 'A'; points = 1; }
-      else if (marks >= 65) { grade = 'B'; points = 2; }
-      else if (marks >= 50) { grade = 'C'; points = 3; }
-      else if (marks >= 30) { grade = 'D'; points = 4; }
-      else { grade = 'F'; points = 5; }
-    }
-
-    return { grade, points };
+    // Use the centralized grade calculator
+    return gradeCalculator.calculateGradeAndPoints(marks, educationLevel);
   }
 
   /**

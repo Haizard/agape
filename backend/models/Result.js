@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
+const gradeCalculator = require('../utils/gradeCalculator');
+const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
+const logger = require('../utils/logger');
 
 /**
  * @deprecated This model is deprecated. Use OLevelResult or ALevelResult instead.
@@ -11,8 +14,8 @@ const deprecatedFlagPath = path.join(__dirname, 'RESULT_MODEL_DEPRECATED');
 const isDeprecated = fs.existsSync(deprecatedFlagPath);
 
 if (isDeprecated) {
-  console.warn('WARNING: The Result model is deprecated and will be removed in a future version.');
-  console.warn('Please use OLevelResult or ALevelResult instead.');
+  logger.warn('WARNING: The Result model is deprecated and will be removed in a future version.');
+  logger.warn('Please use OLevelResult or ALevelResult instead.');
 }
 
 const ResultSchema = new mongoose.Schema({
@@ -65,55 +68,16 @@ ResultSchema.pre('save', function(next) {
   // This ensures consistency between marks and grades
   if (this.marksObtained !== undefined) {
     // Get the education level
-    const educationLevel = this.educationLevel || 'O_LEVEL';
+    const educationLevel = this.educationLevel || EDUCATION_LEVELS.O_LEVEL;
 
-    if (educationLevel === 'O_LEVEL') {
-      // Grading logic based on Tanzania's CSEE O Level system
-      if (this.marksObtained >= 75) {
-        this.grade = 'A';
-        this.points = 1;
-      } else if (this.marksObtained >= 65) {
-        this.grade = 'B';
-        this.points = 2;
-      } else if (this.marksObtained >= 50) {
-        this.grade = 'C';
-        this.points = 3;
-      } else if (this.marksObtained >= 30) {
-        this.grade = 'D';
-        this.points = 4;
-      } else {
-        this.grade = 'F';
-        this.points = 5;
-      }
-    } else if (educationLevel === 'A_LEVEL') {
-      // Grading logic based on Tanzania's A Level system
-      if (this.marksObtained >= 80) {
-        this.grade = 'A';
-        this.points = 1;
-      } else if (this.marksObtained >= 70) {
-        this.grade = 'B';
-        this.points = 2;
-      } else if (this.marksObtained >= 60) {
-        this.grade = 'C';
-        this.points = 3;
-      } else if (this.marksObtained >= 50) {
-        this.grade = 'D';
-        this.points = 4;
-      } else if (this.marksObtained >= 40) {
-        this.grade = 'E';
-        this.points = 5;
-      } else if (this.marksObtained >= 35) {
-        this.grade = 'S';
-        this.points = 6;
-      } else {
-        this.grade = 'F';
-        this.points = 7;
-      }
-    }
+    // Use the centralized grade calculator
+    const { grade, points } = gradeCalculator.calculateGradeAndPoints(this.marksObtained, educationLevel);
+    this.grade = grade;
+    this.points = points;
 
     // Log the grade calculation for debugging
-    console.log(`Calculated grade for marks ${this.marksObtained}: ${this.grade} (${this.points} points)`);
-    console.log(`Result for student ${this.studentId}, subject ${this.subjectId}, exam ${this.examId}`);
+    logger.debug(`Calculated grade for marks ${this.marksObtained}: ${this.grade} (${this.points} points)`);
+    logger.debug(`Result for student ${this.studentId}, subject ${this.subjectId}, exam ${this.examId}`);
   }
 
   next();
@@ -153,19 +117,19 @@ ResultSchema.pre('save', async function(next) {
     });
 
     if (existingResult) {
-      console.log(`Found existing result for student ${this.studentId} in exam ${this.examId} for subject ${existingResult.subjectId}`);
-      console.log(`Ensuring marks are not duplicated from subject ${existingResult.subjectId} to ${this.subjectId}`);
+      logger.debug(`Found existing result for student ${this.studentId} in exam ${this.examId} for subject ${existingResult.subjectId}`);
+      logger.debug(`Ensuring marks are not duplicated from subject ${existingResult.subjectId} to ${this.subjectId}`);
 
       // If the marks are exactly the same, it might be a duplicate
       if (existingResult.marksObtained === this.marksObtained) {
-        console.warn(`Potential duplicate marks detected: ${this.marksObtained} for student ${this.studentId} across subjects ${existingResult.subjectId} and ${this.subjectId}`);
+        logger.warn(`Potential duplicate marks detected: ${this.marksObtained} for student ${this.studentId} across subjects ${existingResult.subjectId} and ${this.subjectId}`);
         // We'll allow it but log a warning, as it could be legitimate that a student got the same marks in different subjects
       }
     }
 
     next();
   } catch (error) {
-    console.error('Error in Result pre-save validation:', error);
+    logger.error('Error in Result pre-save validation:', error);
     next(error);
   }
 });
