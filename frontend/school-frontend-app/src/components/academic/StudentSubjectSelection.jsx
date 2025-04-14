@@ -103,16 +103,33 @@ const StudentSubjectSelection = () => {
 
     // Check if student already has a selection
     const existingSelection = existingSelections.find(
-      selection => selection.student._id === studentId
+      selection => selection?.student?._id === studentId
     );
 
     if (existingSelection) {
-      setSelectedClass(existingSelection.selectionClass._id);
-      setSelectedAcademicYear(existingSelection.academicYear._id);
-      setSelectedOptionalSubjects(
-        existingSelection.optionalSubjects.map(subject => subject._id)
-      );
-      setNotes(existingSelection.notes || '');
+      try {
+        // Use optional chaining to safely access properties
+        setSelectedClass(existingSelection.selectionClass?._id || '');
+        setSelectedAcademicYear(existingSelection.academicYear?._id || '');
+
+        // Safely handle optional subjects
+        if (existingSelection.optionalSubjects && Array.isArray(existingSelection.optionalSubjects)) {
+          setSelectedOptionalSubjects(
+            existingSelection.optionalSubjects
+              .filter(subject => !!subject?._id) // Filter out null/undefined subjects
+              .map(subject => subject?._id)
+          );
+        } else {
+          setSelectedOptionalSubjects([]);
+        }
+
+        setNotes(existingSelection.notes || '');
+      } catch (err) {
+        console.error('Error processing existing selection:', err);
+        // Reset selections on error
+        setSelectedOptionalSubjects([]);
+        setNotes('');
+      }
     } else {
       // Reset other selections
       setSelectedOptionalSubjects([]);
@@ -192,13 +209,13 @@ const StudentSubjectSelection = () => {
     try {
       // Check if student already has a selection
       const existingSelection = existingSelections.find(
-        selection => selection.student._id === selectedStudent &&
-                    selection.academicYear._id === selectedAcademicYear
+        selection => selection?.student?._id === selectedStudent &&
+                    selection?.academicYear?._id === selectedAcademicYear
       );
 
       let response;
 
-      if (existingSelection) {
+      if (existingSelection?._id) {
         // Update existing selection
         response = await api.put(`/api/student-subject-selections/${existingSelection._id}`, {
           optionalSubjects: selectedOptionalSubjects,
@@ -459,19 +476,19 @@ const StudentSubjectSelection = () => {
                 {existingSelections.map(selection => (
                   <TableRow key={selection._id}>
                     <TableCell>
-                      {selection.student.firstName} {selection.student.lastName}
+                      {selection.student?.firstName || 'Unknown'} {selection.student?.lastName || ''}
                     </TableCell>
                     <TableCell>
-                      {selection.selectionClass.name} {selection.selectionClass.stream}
+                      {selection.selectionClass?.name || 'Unknown Class'} {selection.selectionClass?.stream || ''}
                     </TableCell>
                     <TableCell>
-                      {selection.academicYear.name}
+                      {selection.academicYear?.name || 'Unknown Year'}
                     </TableCell>
                     <TableCell>
-                      {selection.optionalSubjects.map(subject => (
+                      {selection.optionalSubjects?.map(subject => (
                         <Chip
-                          key={subject._id}
-                          label={subject.name}
+                          key={subject?._id || 'unknown'}
+                          label={subject?.name || 'Unknown Subject'}
                           size="small"
                           sx={{ mr: 0.5, mb: 0.5 }}
                         />

@@ -25,9 +25,21 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['https://agape-school-system.onrender.com', 'http://localhost:3000'],
+  origin: [
+    'https://agape-school-system.onrender.com',
+    'http://localhost:3000',
+    'https://agape-render.onrender.com',
+    'https://st-john-vianey-frontend.onrender.com',
+    'https://agape-seminary-school-system.onrender.com',
+    'https://agape-seminary-school.onrender.com',
+    'https://agape-seminary-school-frontend.onrender.com',
+    'https://agape-seminary-school-system.netlify.app',
+    'https://agape-seminary-school-backend.koyeb.app',
+    'https://misty-roby-haizard-17a53e2a.koyeb.app'
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
+  credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -2,13 +2,32 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const cors = require('cors');
 const mongoose = require('mongoose'); // Add this line
 const User = require('../models/User');
 const Teacher = require('../models/Teacher');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
+// Special CORS middleware for login route
+const loginCors = cors({
+  origin: '*', // Allow all origins for login
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
+  credentials: true
+});
+
+// Handle OPTIONS requests for login route
+router.options('/login', loginCors, (req, res) => {
+  // Set CORS headers explicitly
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  res.sendStatus(204); // No content
+});
+
 // Login route
-router.post('/login', async (req, res) => {
+router.post('/login', loginCors, async (req, res) => {
   try {
     console.log('Login request received:', req.body);
 
@@ -89,6 +108,12 @@ router.post('/login', async (req, res) => {
     };
 
     console.log('Sending login response with role:', finalRole);
+
+    // Set CORS headers explicitly for the response
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
     res.json(responseData);
   } catch (error) {
     console.error('Login error:', error);

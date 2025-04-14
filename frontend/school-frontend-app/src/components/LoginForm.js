@@ -79,23 +79,21 @@ const LoginForm = ({ onClose }) => {
       console.log('Attempting login for:', emailOrUsername);
 
       try {
-        // First try with fetch to bypass any axios issues
+        // First try with the direct login endpoint to bypass CORS issues
         // Get the base API URL
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-        // Ensure the URL ends with /api
-        const baseUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
-        // Remove any double /api/api
-        const cleanBaseUrl = baseUrl.replace('/api/api', '/api');
-        // Construct the login URL
-        const loginUrl = `${cleanBaseUrl}/users/login`;
-        console.log('Using login URL:', loginUrl);
-        const fetchResponse = await fetch(loginUrl, {
+        const apiUrl = process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com';
+        // Construct the direct login URL
+        const directLoginUrl = `${apiUrl}/api/login-direct`;
+        console.log('Using direct login URL:', directLoginUrl);
+        const fetchResponse = await fetch(directLoginUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            'Origin': window.location.origin
           },
-          body: JSON.stringify({ emailOrUsername, password })
+          body: JSON.stringify({ emailOrUsername, password }),
+          mode: 'cors'
         });
 
         if (fetchResponse.ok) {
@@ -113,10 +111,14 @@ const LoginForm = ({ onClose }) => {
         console.log('Trying with axios instead...');
       }
 
-      // If fetch fails, try with axios
-      const response = await api.post('/api/users/login', {
+      // If fetch fails, try with axios using the direct login endpoint
+      const response = await api.post('/api/login-direct', {
         emailOrUsername,
         password
+      }, {
+        headers: {
+          'Origin': window.location.origin
+        }
       });
 
       // Handle successful login with axios

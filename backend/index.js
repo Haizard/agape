@@ -81,6 +81,21 @@ const allowedOrigins = [
   // Add any additional origins here
 ];
 
+// Add any origins from environment variable
+if (process.env.CORS_ALLOWED_ORIGINS) {
+  try {
+    const envOrigins = process.env.CORS_ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+    console.log('Adding origins from environment variable:', envOrigins);
+    allowedOrigins.push(...envOrigins);
+  } catch (error) {
+    console.error('Error parsing CORS_ALLOWED_ORIGINS:', error);
+  }
+}
+
+// Always include these critical domains
+allowedOrigins.push('https://agape-school-system.onrender.com');
+allowedOrigins.push('https://agape-render.onrender.com');
+
 // Configure CORS options
 const corsOptions = {
   origin: function (origin, callback) {
@@ -102,7 +117,7 @@ const corsOptions = {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
-    
+
     console.log('Allowed origin:', origin);
     return callback(null, true);
   },
@@ -171,7 +186,7 @@ app.use((req, res, next) => {
 
   // Log request headers for debugging
   console.log('Request headers:', req.headers);
-  
+
   next();
 });
 
@@ -216,6 +231,32 @@ app.get('/api/exams-direct', criticalRoutesCors, async (req, res) => {
     return examRoutes(req, res);
   } catch (error) {
     console.error('Error in direct exams endpoint:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Direct login endpoint to bypass CORS issues
+app.options('/api/login-direct', criticalRoutesCors, (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  res.sendStatus(204);
+});
+
+app.post('/api/login-direct', criticalRoutesCors, async (req, res) => {
+  try {
+    console.log('Direct login endpoint called');
+    // Set CORS headers explicitly
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Forward to the user routes login handler
+    req.url = '/api/users/login';
+    return userRoutes(req, res);
+  } catch (error) {
+    console.error('Error in direct login endpoint:', error);
     return res.status(500).json({ error: error.message });
   }
 });
