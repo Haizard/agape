@@ -9,21 +9,23 @@ const logger = require('../utils/logger');
 const { generateStudentResultPDF } = require('../utils/studentReportPdfGenerator');
 const { generateClassResultPDF } = require('../utils/classReportPdfGenerator');
 
-// Import centralized grade calculator utility
-const gradeCalculator = require('../utils/gradeCalculator');
+// Import level-specific grade calculator utilities
+const oLevelGradeCalculator = require('../utils/oLevelGradeCalculator');
+const aLevelGradeCalculator = require('../utils/aLevelGradeCalculator');
 const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
 
-// For backward compatibility, use the same function names
+// For backward compatibility, use the O-Level calculator functions
+// This controller is primarily used for O-Level reports
 const {
   calculateGradeAndPoints,
-  calculateOLevelDivision: calculateDivision,
+  calculateDivision,
   getRemarks,
   calculateBestSevenAndDivision
-} = gradeCalculator;
+} = oLevelGradeCalculator;
 
 // Helper functions for backward compatibility
 const calculateGrade = (marks) => {
-  const { grade } = calculateGradeAndPoints(marks, EDUCATION_LEVELS.O_LEVEL);
+  const { grade } = calculateGradeAndPoints(marks);
   return grade;
 };
 

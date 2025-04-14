@@ -9,35 +9,31 @@ const AcademicYear = require('../models/AcademicYear');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const { generateOLevelStudentReportPDF, generateOLevelClassReportPDF } = require('../utils/oLevelReportGenerator');
 const resultConsistencyChecker = require('../utils/resultConsistencyChecker');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
+const oLevelGradeCalculator = require('../utils/oLevelGradeCalculator');
+const logger = require('../utils/logger');
 
 // Helper function to log to file
 const logToFile = (message) => {
-  const logDir = path.join(__dirname, '../logs');
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-  }
-  const logFile = path.join(logDir, 'o-level-results.log');
-  const timestamp = new Date().toISOString();
-  fs.appendFileSync(logFile, `${timestamp} - ${message}\n`);
+  logger.info(message);
 };
 
 // Test endpoint to check if routes are working
 router.get('/test', (req, res) => {
-  console.log('O-Level test endpoint accessed');
+  logger.info('O-Level test endpoint accessed');
   res.json({ message: 'O-Level result routes are working' });
 });
 
 // Root endpoint to check if routes are registered
 router.get('/', (req, res) => {
-  console.log('O-Level root endpoint accessed');
+  logger.info('O-Level root endpoint accessed');
   res.json({ message: 'O-Level result routes are registered' });
 });
 
 // API endpoint for student results (JSON only, no PDF)
 router.get('/api/student/:studentId/:examId', async (req, res) => {
-  console.log(`O-Level API student report requested for student ${req.params.studentId} and exam ${req.params.examId}`);
+  logger.info(`O-Level API student report requested for student ${req.params.studentId} and exam ${req.params.examId}`);
   try {
     const { studentId, examId } = req.params;
 
@@ -131,18 +127,7 @@ router.get('/api/student/:studentId/:examId', async (req, res) => {
     }
 
     // Calculate division based on best seven subjects
-    let division = '';
-    if (bestSevenPoints >= 7 && bestSevenPoints <= 14) {
-      division = 'I';
-    } else if (bestSevenPoints >= 15 && bestSevenPoints <= 21) {
-      division = 'II';
-    } else if (bestSevenPoints >= 22 && bestSevenPoints <= 25) {
-      division = 'III';
-    } else if (bestSevenPoints >= 26 && bestSevenPoints <= 32) {
-      division = 'IV';
-    } else {
-      division = '0';
-    }
+    const division = oLevelGradeCalculator.calculateDivision(bestSevenPoints);
 
     // Calculate grade distribution
     const gradeDistribution = {
@@ -335,18 +320,7 @@ router.get('/api/class/:classId/:examId', async (req, res) => {
       }
 
       // Calculate division based on best seven subjects
-      let division = '';
-      if (bestSevenPoints >= 7 && bestSevenPoints <= 14) {
-        division = 'I';
-      } else if (bestSevenPoints >= 15 && bestSevenPoints <= 21) {
-        division = 'II';
-      } else if (bestSevenPoints >= 22 && bestSevenPoints <= 25) {
-        division = 'III';
-      } else if (bestSevenPoints >= 26 && bestSevenPoints <= 32) {
-        division = 'IV';
-      } else {
-        division = '0';
-      }
+      const division = oLevelGradeCalculator.calculateDivision(bestSevenPoints);
 
       // Update division summary
       if (divisionSummary[division] !== undefined) {
@@ -379,12 +353,12 @@ router.get('/api/class/:classId/:examId', async (req, res) => {
     });
 
     // Finalize subject analysis
-    subjectAnalysis.forEach(subject => {
+    for (const subject of subjectAnalysis) {
       const totalStudents = Object.values(subject.grades).reduce((sum, count) => sum + count, 0);
       if (totalStudents > 0) {
         subject.averageMarks = subject.averageMarks / totalStudents;
       }
-    });
+    }
 
     // Format the report
     const report = {
@@ -515,18 +489,7 @@ router.get('/student/:studentId/:examId', async (req, res) => {
     }
 
     // Calculate division based on best seven subjects
-    let division = '';
-    if (bestSevenPoints >= 7 && bestSevenPoints <= 14) {
-      division = 'I';
-    } else if (bestSevenPoints >= 15 && bestSevenPoints <= 21) {
-      division = 'II';
-    } else if (bestSevenPoints >= 22 && bestSevenPoints <= 25) {
-      division = 'III';
-    } else if (bestSevenPoints >= 26 && bestSevenPoints <= 32) {
-      division = 'IV';
-    } else {
-      division = '0';
-    }
+    const division = oLevelGradeCalculator.calculateDivision(bestSevenPoints);
 
     // Calculate grade distribution
     const gradeDistribution = {
@@ -565,8 +528,8 @@ router.get('/student/:studentId/:examId', async (req, res) => {
     };
 
     // Return JSON data for API requests
-    if (req.headers.accept && req.headers.accept.includes('application/json')) {
-      console.log('Returning JSON data for API request');
+    if (req.headers.accept?.includes('application/json')) {
+      logger.info('Returning JSON data for API request');
       return res.json({
         ...report,
         educationLevel: 'O_LEVEL'
@@ -693,18 +656,7 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
       }
 
       // Calculate division based on best seven subjects
-      let division = '';
-      if (bestSevenPoints >= 7 && bestSevenPoints <= 14) {
-        division = 'I';
-      } else if (bestSevenPoints >= 15 && bestSevenPoints <= 21) {
-        division = 'II';
-      } else if (bestSevenPoints >= 22 && bestSevenPoints <= 25) {
-        division = 'III';
-      } else if (bestSevenPoints >= 26 && bestSevenPoints <= 32) {
-        division = 'IV';
-      } else {
-        division = '0';
-      }
+      const division = oLevelGradeCalculator.calculateDivision(bestSevenPoints);
 
       // Add student result summary
       studentResults.push({
@@ -726,7 +678,7 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
     const classAverage = classCount > 0 ? classTotal / classCount : 0;
 
     // Sort students by average marks (descending) and assign ranks
-    studentResults.sort((a, b) => parseFloat(b.averageMarks) - parseFloat(a.averageMarks));
+    studentResults.sort((a, b) => Number.parseFloat(b.averageMarks) - Number.parseFloat(a.averageMarks));
     studentResults.forEach((student, index) => {
       student.rank = index + 1;
     });
@@ -746,8 +698,8 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
     };
 
     // Return JSON data for API requests
-    if (req.headers.accept && req.headers.accept.includes('application/json')) {
-      console.log('Returning JSON data for API request');
+    if (req.headers.accept?.includes('application/json')) {
+      logger.info('Returning JSON data for API request');
       return res.json({
         ...report,
         educationLevel: 'O_LEVEL'

@@ -20,14 +20,16 @@ const classSchema = new mongoose.Schema({
     required: true,
     default: 'O_LEVEL'
   },
+  // Legacy field - kept for backward compatibility
   subjectCombination: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'SubjectCombination',
-    // Only required for A_LEVEL
-    required: function() {
-      return this.educationLevel === 'A_LEVEL';
-    }
+    ref: 'SubjectCombination'
   },
+  // New field for multiple subject combinations
+  subjectCombinations: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SubjectCombination'
+  }],
   classTeacher: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher'

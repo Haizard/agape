@@ -88,6 +88,8 @@ import SingleStudentReport from './components/results/SingleStudentReport';
 import BulkReportDownloader from './components/results/BulkReportDownloader';
 import ALevelMarksEntry from './components/results/ALevelMarksEntry';
 import OLevelMarksEntry from './components/results/OLevelMarksEntry';
+import ALevelFormSpecificReport from './components/results/ALevelFormSpecificReport';
+import ALevelFormStudentReport from './components/results/ALevelFormStudentReport';
 import UnifiedMarksEntry from './components/results/UnifiedMarksEntry';
 import CharacterAssessmentEntry from './components/results/CharacterAssessmentEntry';
 import ResultManagementWorkflow from './components/workflows/ResultManagementWorkflow';
@@ -232,6 +234,28 @@ function App() {
                         <BulkReportDownloader />
                       </ProtectedRoute>
                     } />
+                    {/* A-Level Form-Specific Routes */}
+                    <Route path="/results/a-level/form5/class/:classId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelFormSpecificReport />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/a-level/form6/class/:classId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelFormSpecificReport />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/a-level/form5/student/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <ALevelFormStudentReport />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/a-level/form6/student/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <ALevelFormStudentReport />
+                      </ProtectedRoute>
+                    } />
+
                     {/* Legacy Mark Entry Routes */}
                     <Route path="/results/a-level/enter-marks" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>

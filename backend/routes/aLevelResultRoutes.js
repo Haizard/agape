@@ -12,20 +12,14 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const { generateALevelStudentReportPDF, generateALevelClassReportPDF } = require('../utils/aLevelReportGenerator');
 const resultConsistencyChecker = require('../utils/resultConsistencyChecker');
 const { getFullSubjectCombination } = require('../utils/subjectCombinationUtils');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
+const aLevelGradeCalculator = require('../utils/aLevelGradeCalculator');
+const logger = require('../utils/logger');
 
-// Setup logging
-const logDir = path.join(__dirname, '../logs');
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir);
-}
-
-const logFile = path.join(logDir, `a_level_report_${new Date().toISOString().split('T')[0]}.log`);
+// Setup logging - using centralized logger
 const logToFile = (message) => {
-  const timestamp = new Date().toISOString();
-  const logMessage = `[${timestamp}] ${message}\n`;
-  fs.appendFileSync(logFile, logMessage);
+  logger.info(message);
 };
 
 /**
@@ -34,16 +28,7 @@ const logToFile = (message) => {
  * @returns {String} - The remarks
  */
 function getRemarks(grade) {
-  switch (grade) {
-    case 'A': return 'Excellent';
-    case 'B': return 'Very Good';
-    case 'C': return 'Good';
-    case 'D': return 'Satisfactory';
-    case 'E': return 'Pass';
-    case 'S': return 'Subsidiary Pass';
-    case 'F': return 'Fail';
-    default: return 'N/A';
-  }
+  return aLevelGradeCalculator.getRemarks(grade);
 }
 
 /**
@@ -53,49 +38,21 @@ function getRemarks(grade) {
  */
 function calculateALevelDivision(points) {
   // Log the points for debugging
-  console.log(`Calculating A-Level division for ${points} points`);
+  logger.debug(`Calculating A-Level division for ${points} points`);
   logToFile(`Calculating A-Level division for ${points} points`);
 
-  // Handle edge cases
-  if (points === 0) {
-    console.log('No points or no principal subjects with grades');
+  // Use the A-Level specific grade calculator
+  const division = aLevelGradeCalculator.calculateDivision(points);
+
+  // Format the division for display
+  if (division === '0') {
     return 'Division 0';
   }
 
-  // Convert points to a number to ensure proper comparison
-  const numPoints = Number(points);
-  if (Number.isNaN(numPoints)) {
-    console.log(`Invalid points value: ${points}`);
-    return 'Invalid Division';
-  }
-
-  // In A-Level, lower points are better (A=1, B=2, etc.)
-  if (numPoints >= 3 && numPoints <= 9) {
-    console.log('Division I (3-9 points)');
-    return 'Division I';
-  }
-  if (numPoints >= 10 && numPoints <= 12) {
-    console.log('Division II (10-12 points)');
-    return 'Division II';
-  }
-  if (numPoints >= 13 && numPoints <= 17) {
-    console.log('Division III (13-17 points)');
-    return 'Division III';
-  }
-  if (numPoints >= 18 && numPoints <= 19) {
-    console.log('Division IV (18-19 points)');
-    return 'Division IV';
-  }
-  if (numPoints >= 20 && numPoints <= 21) {
-    console.log('Division V (20-21 points)');
-    return 'Division V';
-  }
-
-  console.log(`Division 0 (points ${numPoints} outside valid ranges)`);
-  return 'Division 0';
+  return `Division ${division}`;
 }
 
-// Get student result report
+// Get student result report (general endpoint)
 router.get('/student/:studentId/:examId', authenticateToken, async (req, res) => {
   try {
     const { studentId, examId } = req.params;
@@ -1059,13 +1016,9 @@ router.post('/enter-marks', authenticateToken, authorizeRole(['admin', 'teacher'
  * @returns {String} - The grade (A, B, C, D, E, S, F)
  */
 function calculateGrade(marks) {
-  if (marks >= 80) return 'A';
-  if (marks >= 70) return 'B';
-  if (marks >= 60) return 'C';
-  if (marks >= 50) return 'D';
-  if (marks >= 40) return 'E';
-  if (marks >= 35) return 'S';
-  return 'F';
+  // Use the A-Level specific grade calculator
+  const { grade } = aLevelGradeCalculator.calculateGradeAndPoints(marks);
+  return grade;
 }
 
 /**
@@ -1074,6 +1027,8 @@ function calculateGrade(marks) {
  * @returns {Number} - The points (1-7)
  */
 function calculatePoints(grade) {
+  // Use the A-Level specific grade calculator's mapping
+  // This is a fallback for when we only have the grade but not the marks
   switch (grade) {
     case 'A': return 1;
     case 'B': return 2;
@@ -1168,6 +1123,418 @@ router.post('/send-sms/:studentId/:examId', authenticateToken, authorizeRole(['a
   } catch (error) {
     logToFile(`Error sending A-Level result SMS: ${error.message}`);
     res.status(500).json({ message: `Error sending A-Level result SMS: ${error.message}` });
+  }
+});
+
+// Get Form 5 class result report
+router.get('/form5/class/:classId/:examId', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+  try {
+    const { classId, examId } = req.params;
+
+    logToFile(`GET /api/a-level-results/form5/class/${classId}/${examId} - Generating Form 5 A-Level class result report`);
+
+    // Get class details
+    const classObj = await Class.findById(classId)
+      .populate('students')
+      .populate('subjectCombinations')
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject'
+      })
+      .populate('academicYear')
+      .populate('classTeacher');
+
+    if (!classObj) {
+      logToFile(`Class not found with ID: ${classId}`);
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    // Verify this is an A-Level class
+    if (classObj.level !== 'A_LEVEL') {
+      logToFile(`Class ${classId} is not an A-Level class`);
+      return res.status(400).json({ message: 'This is not an A-Level class' });
+    }
+
+    // Get the exam
+    const exam = await Exam.findById(examId).populate('academicYear');
+    if (!exam) {
+      logToFile(`Exam not found with ID: ${examId}`);
+      return res.status(404).json({ message: 'Exam not found' });
+    }
+
+    // Filter for Form 5 students only
+    const students = classObj.students.filter(student => student.form === 5);
+
+    if (students.length === 0) {
+      logToFile(`No Form 5 students found in class ${classId}`);
+      return res.status(404).json({ message: 'No Form 5 students found in this class' });
+    }
+
+    // Get all subject combinations for this class
+    const subjectCombinations = classObj.subjectCombinations || [];
+
+    // If no combinations are set, try to get them from students
+    if (subjectCombinations.length === 0 && classObj.subjectCombination) {
+      subjectCombinations.push(classObj.subjectCombination);
+    }
+
+    // Get all subject combinations with full details
+    const populatedCombinations = [];
+    for (const combinationId of subjectCombinations) {
+      const combination = await getFullSubjectCombination(combinationId);
+      if (combination) {
+        populatedCombinations.push(combination);
+      }
+    }
+
+    // Prepare student results
+    const studentResults = [];
+    const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, 'V': 0, '0': 0 };
+
+    for (const student of students) {
+      // Get student's combination
+      const studentCombination = await getFullSubjectCombination(student.subjectCombination);
+      if (!studentCombination) continue;
+
+      // Get principal subject IDs
+      const principalSubjectIds = studentCombination.principalSubjects.map(s => s._id);
+
+      // Get student's results
+      const results = await ALevelResult.find({
+        studentId: student._id,
+        examId
+      }).populate('subjectId');
+
+      if (results.length === 0) continue;
+
+      // Format subject results
+      const subjectResults = [];
+      let studentTotal = 0;
+      let studentPoints = 0;
+      let validSubjects = 0;
+
+      // Process all subjects in the combination
+      for (const subject of [...studentCombination.principalSubjects, ...studentCombination.subsidiarySubjects]) {
+        const result = results.find(r => r.subjectId._id.toString() === subject._id.toString());
+
+        if (result) {
+          subjectResults.push({
+            subject: subject.name,
+            code: subject.code,
+            marks: result.marksObtained,
+            grade: result.grade,
+            points: result.points,
+            isPrincipal: subject.isPrincipal
+          });
+
+          studentTotal += result.marksObtained;
+          studentPoints += result.points;
+          validSubjects++;
+        } else {
+          subjectResults.push({
+            subject: subject.name,
+            code: subject.code,
+            marks: 0,
+            grade: '-',
+            points: 0,
+            isPrincipal: subject.isPrincipal
+          });
+        }
+      }
+
+      // Calculate average
+      const studentAverage = validSubjects > 0 ? studentTotal / validSubjects : 0;
+
+      // Calculate best three and division
+      const { bestThreeResults, bestThreePoints, division } =
+        aLevelGradeCalculator.calculateBestThreeAndDivision(results, principalSubjectIds);
+
+      // Update division distribution
+      if (divisionDistribution[division] !== undefined) {
+        divisionDistribution[division]++;
+      }
+
+      // Add student result summary
+      studentResults.push({
+        id: student._id,
+        name: `${student.firstName} ${student.lastName}`,
+        rollNumber: student.rollNumber,
+        sex: student.gender === 'male' ? 'M' : 'F',
+        combination: studentCombination.name,
+        results: subjectResults,
+        totalMarks: studentTotal,
+        averageMarks: studentAverage.toFixed(2),
+        totalPoints: studentPoints,
+        bestThreePoints,
+        division,
+        rank: 'N/A' // Will be calculated below
+      });
+    }
+
+    // Sort students by average marks (descending) and assign ranks
+    studentResults.sort((a, b) => Number.parseFloat(b.averageMarks) - Number.parseFloat(a.averageMarks));
+    for (let i = 0; i < studentResults.length; i++) {
+      studentResults[i].rank = i + 1;
+    }
+
+    // Format the report
+    const report = {
+      reportTitle: `Form 5 ${exam.name} Class Result Report`,
+      schoolName: 'St. John Vianney School Management System',
+      academicYear: exam.academicYear ? exam.academicYear.name : 'Unknown',
+      examName: exam.name,
+      examDate: exam.startDate ? `${new Date(exam.startDate).toLocaleDateString()} - ${new Date(exam.endDate).toLocaleDateString()}` : 'N/A',
+      className: classObj.name,
+      section: classObj.section || '',
+      stream: classObj.stream || '',
+      form: 5,
+      students: studentResults,
+      totalStudents: studentResults.length,
+      divisionDistribution,
+      subjectCombinations: populatedCombinations,
+      educationLevel: 'A_LEVEL'
+    };
+
+    // Return the report as JSON
+    res.json(report);
+  } catch (error) {
+    logToFile(`Error generating Form 5 A-Level class report: ${error.message}`);
+    console.error('Error generating Form 5 A-Level class report:', error);
+    res.status(500).json({ message: `Error generating report: ${error.message}` });
+  }
+});
+
+// Get Form 6 class result report
+router.get('/form6/class/:classId/:examId', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+  try {
+    const { classId, examId } = req.params;
+
+    logToFile(`GET /api/a-level-results/form6/class/${classId}/${examId} - Generating Form 6 A-Level class result report`);
+
+    // Get class details
+    const classObj = await Class.findById(classId)
+      .populate('students')
+      .populate('subjectCombinations')
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject'
+      })
+      .populate('academicYear')
+      .populate('classTeacher');
+
+    if (!classObj) {
+      logToFile(`Class not found with ID: ${classId}`);
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    // Verify this is an A-Level class
+    if (classObj.level !== 'A_LEVEL') {
+      logToFile(`Class ${classId} is not an A-Level class`);
+      return res.status(400).json({ message: 'This is not an A-Level class' });
+    }
+
+    // Get the exam
+    const exam = await Exam.findById(examId).populate('academicYear');
+    if (!exam) {
+      logToFile(`Exam not found with ID: ${examId}`);
+      return res.status(404).json({ message: 'Exam not found' });
+    }
+
+    // Filter for Form 6 students only
+    const students = classObj.students.filter(student => student.form === 6);
+
+    if (students.length === 0) {
+      logToFile(`No Form 6 students found in class ${classId}`);
+      return res.status(404).json({ message: 'No Form 6 students found in this class' });
+    }
+
+    // Get all subject combinations for this class
+    const subjectCombinations = classObj.subjectCombinations || [];
+
+    // If no combinations are set, try to get them from students
+    if (subjectCombinations.length === 0 && classObj.subjectCombination) {
+      subjectCombinations.push(classObj.subjectCombination);
+    }
+
+    // Get all subject combinations with full details
+    const populatedCombinations = [];
+    for (const combinationId of subjectCombinations) {
+      const combination = await getFullSubjectCombination(combinationId);
+      if (combination) {
+        populatedCombinations.push(combination);
+      }
+    }
+
+    // Prepare student results
+    const studentResults = [];
+    const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, 'V': 0, '0': 0 };
+
+    for (const student of students) {
+      // Get student's combination
+      const studentCombination = await getFullSubjectCombination(student.subjectCombination);
+      if (!studentCombination) continue;
+
+      // Get principal subject IDs
+      const principalSubjectIds = studentCombination.principalSubjects.map(s => s._id);
+
+      // Get student's results
+      const results = await ALevelResult.find({
+        studentId: student._id,
+        examId
+      }).populate('subjectId');
+
+      if (results.length === 0) continue;
+
+      // Format subject results
+      const subjectResults = [];
+      let studentTotal = 0;
+      let studentPoints = 0;
+      let validSubjects = 0;
+
+      // Process all subjects in the combination
+      for (const subject of [...studentCombination.principalSubjects, ...studentCombination.subsidiarySubjects]) {
+        const result = results.find(r => r.subjectId._id.toString() === subject._id.toString());
+
+        if (result) {
+          subjectResults.push({
+            subject: subject.name,
+            code: subject.code,
+            marks: result.marksObtained,
+            grade: result.grade,
+            points: result.points,
+            isPrincipal: subject.isPrincipal
+          });
+
+          studentTotal += result.marksObtained;
+          studentPoints += result.points;
+          validSubjects++;
+        } else {
+          subjectResults.push({
+            subject: subject.name,
+            code: subject.code,
+            marks: 0,
+            grade: '-',
+            points: 0,
+            isPrincipal: subject.isPrincipal
+          });
+        }
+      }
+
+      // Calculate average
+      const studentAverage = validSubjects > 0 ? studentTotal / validSubjects : 0;
+
+      // Calculate best three and division
+      const { bestThreeResults, bestThreePoints, division } =
+        aLevelGradeCalculator.calculateBestThreeAndDivision(results, principalSubjectIds);
+
+      // Update division distribution
+      if (divisionDistribution[division] !== undefined) {
+        divisionDistribution[division]++;
+      }
+
+      // Try to get Form 5 results for comparison
+      let form5Results = null;
+      try {
+        // Find Form 5 exams (final exam of the year)
+        const form5Exams = await Exam.find({
+          type: 'FINAL',
+          academicYear: { $ne: exam.academicYear } // Different academic year
+        }).sort({ startDate: -1 }).limit(1);
+
+        if (form5Exams.length > 0) {
+          const form5Exam = form5Exams[0];
+
+          // Get Form 5 results
+          const form5ResultsData = await ALevelResult.find({
+            studentId: student._id,
+            examId: form5Exam._id
+          }).populate('subjectId');
+
+          if (form5ResultsData.length > 0) {
+            // Calculate Form 5 summary
+            let form5TotalMarks = 0;
+            for (const result of form5ResultsData) {
+              form5TotalMarks += result.marksObtained || 0;
+            }
+
+            const form5AverageMarks = form5ResultsData.length > 0 ?
+              form5TotalMarks / form5ResultsData.length : 0;
+
+            // Calculate Form 5 division
+            const form5PrincipalResults = form5ResultsData.filter(result =>
+              result.subjectId?.isPrincipal);
+
+            // Sort by points (ascending)
+            form5PrincipalResults.sort((a, b) => a.points - b.points);
+
+            // Take best 3 (lowest points)
+            const form5BestThree = form5PrincipalResults.slice(0, 3);
+            const form5BestThreePoints = form5BestThree.reduce((sum, result) =>
+              sum + (result.points || 0), 0);
+
+            const form5Division = calculateALevelDivision(form5BestThreePoints);
+
+            form5Results = {
+              averageMarks: form5AverageMarks.toFixed(2),
+              bestThreePoints: form5BestThreePoints,
+              division: form5Division,
+              examName: form5Exam.name
+            };
+          }
+        }
+      } catch (form5Error) {
+        console.error('Error fetching Form 5 results:', form5Error);
+        // Continue without Form 5 results
+      }
+
+      // Add student result summary
+      studentResults.push({
+        id: student._id,
+        name: `${student.firstName} ${student.lastName}`,
+        rollNumber: student.rollNumber,
+        sex: student.gender === 'male' ? 'M' : 'F',
+        combination: studentCombination.name,
+        results: subjectResults,
+        totalMarks: studentTotal,
+        averageMarks: studentAverage.toFixed(2),
+        totalPoints: studentPoints,
+        bestThreePoints,
+        division,
+        form5Results,
+        rank: 'N/A' // Will be calculated below
+      });
+    }
+
+    // Sort students by average marks (descending) and assign ranks
+    studentResults.sort((a, b) => Number.parseFloat(b.averageMarks) - Number.parseFloat(a.averageMarks));
+    for (let i = 0; i < studentResults.length; i++) {
+      studentResults[i].rank = i + 1;
+    }
+
+    // Format the report
+    const report = {
+      reportTitle: `Form 6 ${exam.name} Class Result Report`,
+      schoolName: 'St. John Vianney School Management System',
+      academicYear: exam.academicYear ? exam.academicYear.name : 'Unknown',
+      examName: exam.name,
+      examDate: exam.startDate ? `${new Date(exam.startDate).toLocaleDateString()} - ${new Date(exam.endDate).toLocaleDateString()}` : 'N/A',
+      className: classObj.name,
+      section: classObj.section || '',
+      stream: classObj.stream || '',
+      form: 6,
+      students: studentResults,
+      totalStudents: studentResults.length,
+      divisionDistribution,
+      subjectCombinations: populatedCombinations,
+      educationLevel: 'A_LEVEL'
+    };
+
+    // Return the report as JSON
+    res.json(report);
+  } catch (error) {
+    logToFile(`Error generating Form 6 A-Level class report: ${error.message}`);
+    console.error('Error generating Form 6 A-Level class report:', error);
+    res.status(500).json({ message: `Error generating report: ${error.message}` });
   }
 });
 

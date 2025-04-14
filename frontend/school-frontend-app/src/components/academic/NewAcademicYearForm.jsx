@@ -13,6 +13,10 @@ import {
   IconButton,
   Divider,
   FormControlLabel,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Switch,
   Alert
 } from '@mui/material';
@@ -28,9 +32,10 @@ const NewAcademicYearForm = ({ open, onClose, onSubmit, academicYear }) => {
     startDate: null,
     endDate: null,
     isActive: false,
+    educationLevel: '', // Added education level field
     terms: []
   });
-  
+
   const [errors, setErrors] = useState({});
 
   // Reset form when academicYear changes
@@ -42,6 +47,7 @@ const NewAcademicYearForm = ({ open, onClose, onSubmit, academicYear }) => {
         startDate: academicYear.startDate ? new Date(academicYear.startDate) : null,
         endDate: academicYear.endDate ? new Date(academicYear.endDate) : null,
         isActive: academicYear.isActive || false,
+        educationLevel: academicYear.educationLevel || '', // Added education level field
         terms: academicYear.terms ? [...academicYear.terms].map(term => ({
           ...term,
           startDate: term.startDate ? new Date(term.startDate) : null,
@@ -56,6 +62,7 @@ const NewAcademicYearForm = ({ open, onClose, onSubmit, academicYear }) => {
         startDate: null,
         endDate: null,
         isActive: false,
+        educationLevel: '', // Added education level field
         terms: []
       });
     }
@@ -64,24 +71,25 @@ const NewAcademicYearForm = ({ open, onClose, onSubmit, academicYear }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     // Validate required fields
     if (!formData.name) newErrors.name = 'Name is required';
     if (!formData.year) newErrors.year = 'Year is required';
     if (!formData.startDate) newErrors.startDate = 'Start date is required';
     if (!formData.endDate) newErrors.endDate = 'End date is required';
-    
+    if (!formData.educationLevel) newErrors.educationLevel = 'Education Level is required';
+
     // Validate year format
     const yearNum = Number(formData.year);
     if (formData.year && (Number.isNaN(yearNum) || yearNum < 2000 || yearNum > 2100)) {
       newErrors.year = 'Year must be a valid number between 2000 and 2100';
     }
-    
+
     // Validate date range
     if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
       newErrors.endDate = 'End date must be after start date';
     }
-    
+
     // Validate terms
     const termErrors = [];
     formData.terms.forEach((term, index) => {
@@ -89,12 +97,12 @@ const NewAcademicYearForm = ({ open, onClose, onSubmit, academicYear }) => {
       if (!term.name) termError.name = 'Term name is required';
       if (!term.startDate) termError.startDate = 'Term start date is required';
       if (!term.endDate) termError.endDate = 'Term end date is required';
-      
+
       // Validate term date range
       if (term.startDate && term.endDate && term.startDate > term.endDate) {
         termError.endDate = 'Term end date must be after start date';
       }
-      
+
       // Validate term dates are within academic year
       if (formData.startDate && term.startDate && term.startDate < formData.startDate) {
         termError.startDate = 'Term start date must be within academic year';
@@ -102,16 +110,16 @@ const NewAcademicYearForm = ({ open, onClose, onSubmit, academicYear }) => {
       if (formData.endDate && term.endDate && term.endDate > formData.endDate) {
         termError.endDate = 'Term end date must be within academic year';
       }
-      
+
       if (Object.keys(termError).length > 0) {
         termErrors[index] = termError;
       }
     });
-    
+
     if (termErrors.length > 0) {
       newErrors.terms = termErrors;
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -194,6 +202,26 @@ const NewAcademicYearForm = ({ open, onClose, onSubmit, academicYear }) => {
                 helperText={errors.year}
                 inputProps={{ min: 2000, max: 2100 }}
               />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth error={!!errors.educationLevel} required>
+                <InputLabel id="education-level-label">Education Level</InputLabel>
+                <Select
+                  labelId="education-level-label"
+                  value={formData.educationLevel}
+                  label="Education Level"
+                  onChange={(e) => setFormData({ ...formData, educationLevel: e.target.value })}
+                >
+                  <MenuItem value=""><em>Select Education Level</em></MenuItem>
+                  <MenuItem value="O_LEVEL">O-Level</MenuItem>
+                  <MenuItem value="A_LEVEL">A-Level</MenuItem>
+                </Select>
+                {errors.educationLevel && (
+                  <Typography variant="caption" color="error">
+                    {errors.educationLevel}
+                  </Typography>
+                )}
+              </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>

@@ -1,9 +1,11 @@
 /**
  * Centralized utility for all grade, point, and division calculations
- * This replaces all duplicate calculation logic across the codebase
+ * This acts as a facade that delegates to the appropriate level-specific calculator
  */
-const { EDUCATION_LEVELS } = require('./constants');
+const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
 const logger = require('./logger');
+const oLevelGradeCalculator = require('./oLevelGradeCalculator');
+const aLevelGradeCalculator = require('./aLevelGradeCalculator');
 
 /**
  * Calculate grade and points based on marks and education level
@@ -12,41 +14,12 @@ const logger = require('./logger');
  * @returns {Object} - Object containing grade and points
  */
 const calculateGradeAndPoints = (marks, educationLevel) => {
-  // Validate inputs
-  if (marks === undefined || marks === null) {
-    return { grade: '-', points: 0 };
-  }
-
-  // Convert to number if string
-  const numMarks = Number(marks);
-  
-  // Check for NaN
-  if (Number.isNaN(numMarks)) {
-    logger.warn(`Invalid marks value: ${marks}`);
-    return { grade: '-', points: 0 };
-  }
-
-  let grade, points;
-
+  // Delegate to the appropriate level-specific calculator
   if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
-    // A-LEVEL grading based on Tanzania's ACSEE system
-    if (numMarks >= 80) { grade = 'A'; points = 1; }
-    else if (numMarks >= 70) { grade = 'B'; points = 2; }
-    else if (numMarks >= 60) { grade = 'C'; points = 3; }
-    else if (numMarks >= 50) { grade = 'D'; points = 4; }
-    else if (numMarks >= 40) { grade = 'E'; points = 5; }
-    else if (numMarks >= 35) { grade = 'S'; points = 6; }
-    else { grade = 'F'; points = 7; }
+    return aLevelGradeCalculator.calculateGradeAndPoints(marks);
   } else {
-    // O-LEVEL grading based on Tanzania's CSEE system
-    if (numMarks >= 75) { grade = 'A'; points = 1; }
-    else if (numMarks >= 65) { grade = 'B'; points = 2; }
-    else if (numMarks >= 50) { grade = 'C'; points = 3; }
-    else if (numMarks >= 30) { grade = 'D'; points = 4; }
-    else { grade = 'F'; points = 5; }
+    return oLevelGradeCalculator.calculateGradeAndPoints(marks);
   }
-
-  return { grade, points };
 };
 
 /**
@@ -55,21 +28,8 @@ const calculateGradeAndPoints = (marks, educationLevel) => {
  * @returns {String} - Division (I, II, III, IV, 0)
  */
 const calculateOLevelDivision = (points) => {
-  // Handle edge cases
-  if (points === undefined || points === null || Number.isNaN(Number(points))) {
-    logger.warn(`Invalid points value for O-Level division calculation: ${points}`);
-    return '0';
-  }
-
-  // Convert to number
-  const numPoints = Number(points);
-
-  // Calculate division based on Tanzania's CSEE system
-  if (numPoints >= 7 && numPoints <= 14) return 'I';
-  if (numPoints >= 15 && numPoints <= 21) return 'II';
-  if (numPoints >= 22 && numPoints <= 25) return 'III';
-  if (numPoints >= 26 && numPoints <= 32) return 'IV';
-  return '0';
+  // Delegate to the O-Level calculator
+  return oLevelGradeCalculator.calculateDivision(points);
 };
 
 /**
@@ -78,21 +38,8 @@ const calculateOLevelDivision = (points) => {
  * @returns {String} - Division (I, II, III, IV, 0)
  */
 const calculateALevelDivision = (points) => {
-  // Handle edge cases
-  if (points === undefined || points === null || Number.isNaN(Number(points))) {
-    logger.warn(`Invalid points value for A-Level division calculation: ${points}`);
-    return '0';
-  }
-
-  // Convert to number
-  const numPoints = Number(points);
-
-  // Calculate division based on Tanzania's ACSEE system
-  if (numPoints >= 3 && numPoints <= 9) return 'I';
-  if (numPoints >= 10 && numPoints <= 12) return 'II';
-  if (numPoints >= 13 && numPoints <= 17) return 'III';
-  if (numPoints >= 18 && numPoints <= 19) return 'IV';
-  return '0';
+  // Delegate to the A-Level calculator
+  return aLevelGradeCalculator.calculateDivision(points);
 };
 
 /**
@@ -109,21 +56,17 @@ const calculateDivision = (points, educationLevel) => {
 };
 
 /**
- * Get remarks based on grade
+ * Get remarks based on grade and education level
  * @param {String} grade - The grade (A, B, C, D, E, S, F)
+ * @param {String} educationLevel - The education level (O_LEVEL or A_LEVEL)
  * @returns {String} - The remarks
  */
-const getRemarks = (grade) => {
-  switch (grade) {
-    case 'A': return 'Excellent';
-    case 'B': return 'Very Good';
-    case 'C': return 'Good';
-    case 'D': return 'Satisfactory';
-    case 'E': return 'Average';
-    case 'S': return 'Below Average';
-    case 'F': return 'Fail';
-    default: return '-';
+const getRemarks = (grade, educationLevel) => {
+  // Delegate to the appropriate level-specific calculator
+  if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
+    return aLevelGradeCalculator.getRemarks(grade);
   }
+  return oLevelGradeCalculator.getRemarks(grade);
 };
 
 /**
@@ -132,276 +75,62 @@ const getRemarks = (grade) => {
  * @returns {Object} - Object containing bestSevenResults, bestSevenPoints, and division
  */
 const calculateBestSevenAndDivision = (results) => {
-  // Ensure each result has points
-  const resultsWithPoints = results.map(result => {
-    if (result.points === undefined) {
-      const { grade, points } = calculateGradeAndPoints(
-        result.marksObtained || result.marks, 
-        EDUCATION_LEVELS.O_LEVEL
-      );
-      return {
-        ...result,
-        grade,
-        points
-      };
-    }
-    return result;
-  });
-
-  // Filter out results with no marks or grades
-  const validResults = resultsWithPoints.filter(result => {
-    // Check if the result has valid marks or grade
-    return (
-      (result.marksObtained > 0 || result.marks > 0) && 
-      result.grade !== '-'
-    );
-  });
-
-  // Sort by points (ascending, since lower points are better)
-  const sortedResults = [...validResults].sort((a, b) => (a.points || 5) - (b.points || 5));
-
-  // Take the best 7 subjects (or all if less than 7)
-  const bestSevenResults = sortedResults.slice(0, Math.min(7, sortedResults.length));
-
-  // Calculate total points from best subjects
-  const bestSevenPoints = bestSevenResults.reduce((sum, result) => sum + (result.points || 5), 0);
-
-  // Log for debugging
-  logger.debug('O-Level division calculation:', {
-    totalResults: resultsWithPoints.length,
-    validResults: validResults.length,
-    bestSevenResults: bestSevenResults.map(r => ({ 
-      name: r.name || r.subject?.name || r.subjectId?.name || 'Unknown', 
-      marks: r.marksObtained || r.marks, 
-      grade: r.grade, 
-      points: r.points 
-    })),
-    bestSevenPoints
-  });
-
-  // Calculate division based on total points
-  const division = calculateOLevelDivision(bestSevenPoints);
-
-  return {
-    bestSevenResults,
-    bestSevenPoints,
-    division
-  };
+  // Delegate to the O-Level calculator
+  return oLevelGradeCalculator.calculateBestSevenAndDivision(results);
 };
 
 /**
  * Calculate best three principal subjects and division for A-Level
  * @param {Array} results - Array of subject results
+ * @param {Array} principalSubjectIds - Array of principal subject IDs (optional)
  * @returns {Object} - Object containing bestThreeResults, bestThreePoints, and division
  */
-const calculateBestThreeAndDivision = (results) => {
-  // Filter principal subjects
-  const principalSubjects = results.filter(result => {
-    // Check if the subject is principal
-    return (
-      result.isPrincipal === true || 
-      (result.subjectId && result.subjectId.isPrincipal === true)
-    );
-  });
-
-  // Ensure each result has points
-  const principalWithPoints = principalSubjects.map(result => {
-    if (result.points === undefined) {
-      const { grade, points } = calculateGradeAndPoints(
-        result.marksObtained || result.marks, 
-        EDUCATION_LEVELS.A_LEVEL
-      );
-      return {
-        ...result,
-        grade,
-        points
-      };
-    }
-    return result;
-  });
-
-  // Filter out results with no marks or grades
-  const validResults = principalWithPoints.filter(result => {
-    // Check if the result has valid marks or grade
-    return (
-      (result.marksObtained > 0 || result.marks > 0) && 
-      result.grade !== '-'
-    );
-  });
-
-  // Sort by points (ascending, since lower points are better)
-  const sortedResults = [...validResults].sort((a, b) => (a.points || 7) - (b.points || 7));
-
-  // Take the best 3 subjects (or all if less than 3)
-  const bestThreeResults = sortedResults.slice(0, Math.min(3, sortedResults.length));
-
-  // Calculate total points from best subjects
-  const bestThreePoints = bestThreeResults.reduce((sum, result) => sum + (result.points || 7), 0);
-
-  // Log for debugging
-  logger.debug('A-Level division calculation:', {
-    totalPrincipalSubjects: principalSubjects.length,
-    validResults: validResults.length,
-    bestThreeResults: bestThreeResults.map(r => ({ 
-      name: r.name || r.subject?.name || r.subjectId?.name || 'Unknown', 
-      marks: r.marksObtained || r.marks, 
-      grade: r.grade, 
-      points: r.points 
-    })),
-    bestThreePoints
-  });
-
-  // Calculate division based on total points
-  const division = calculateALevelDivision(bestThreePoints);
-
-  return {
-    bestThreeResults,
-    bestThreePoints,
-    division
-  };
+const calculateBestThreeAndDivision = (results, principalSubjectIds) => {
+  // Delegate to the A-Level calculator
+  return aLevelGradeCalculator.calculateBestThreeAndDivision(results, principalSubjectIds);
 };
 
 /**
  * Calculate class statistics for a set of results
  * @param {Array} results - Array of results with marks
+ * @param {String} educationLevel - The education level (O_LEVEL or A_LEVEL)
  * @returns {Object} - Object containing mean, median, mode, and standardDeviation
  */
-const calculateClassStatistics = (results) => {
-  // Extract marks from results
-  const marks = results.map(result => 
-    Number(result.marksObtained || result.marks || 0)
-  ).filter(mark => !Number.isNaN(mark));
-
-  // Handle empty array
-  if (marks.length === 0) {
-    return {
-      mean: 0,
-      median: 0,
-      mode: 0,
-      standardDeviation: 0
-    };
+const calculateClassStatistics = (results, educationLevel) => {
+  // Delegate to the appropriate level-specific calculator
+  if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
+    return aLevelGradeCalculator.calculateClassStatistics(results);
   }
-
-  // Calculate mean
-  const sum = marks.reduce((acc, mark) => acc + mark, 0);
-  const mean = sum / marks.length;
-
-  // Calculate median
-  const sortedMarks = [...marks].sort((a, b) => a - b);
-  const middle = Math.floor(sortedMarks.length / 2);
-  const median = sortedMarks.length % 2 === 0
-    ? (sortedMarks[middle - 1] + sortedMarks[middle]) / 2
-    : sortedMarks[middle];
-
-  // Calculate mode
-  const frequency = {};
-  marks.forEach(mark => {
-    frequency[mark] = (frequency[mark] || 0) + 1;
-  });
-  
-  let mode = 0;
-  let maxFrequency = 0;
-  
-  for (const [mark, freq] of Object.entries(frequency)) {
-    if (freq > maxFrequency) {
-      maxFrequency = freq;
-      mode = Number(mark);
-    }
-  }
-
-  // Calculate standard deviation
-  const squaredDifferences = marks.map(mark => Math.pow(mark - mean, 2));
-  const variance = squaredDifferences.reduce((acc, val) => acc + val, 0) / marks.length;
-  const standardDeviation = Math.sqrt(variance);
-
-  return {
-    mean: parseFloat(mean.toFixed(2)),
-    median: parseFloat(median.toFixed(2)),
-    mode: parseFloat(mode.toFixed(2)),
-    standardDeviation: parseFloat(standardDeviation.toFixed(2))
-  };
+  return oLevelGradeCalculator.calculateClassStatistics(results);
 };
 
 /**
  * Calculate student rankings based on average marks or points
  * @param {Array} students - Array of students with results
+ * @param {String} educationLevel - The education level (O_LEVEL or A_LEVEL)
  * @param {String} rankBy - Field to rank by ('averageMarks' or 'totalPoints')
  * @returns {Array} - Array of students with rank property added
  */
-const calculateStudentRankings = (students, rankBy = 'averageMarks') => {
-  // Sort students by the ranking field (descending)
-  const sortedStudents = [...students].sort((a, b) => {
-    // For points, lower is better
-    if (rankBy === 'totalPoints' || rankBy === 'bestSevenPoints' || rankBy === 'bestThreePoints') {
-      return (a[rankBy] || 0) - (b[rankBy] || 0);
-    }
-    // For marks, higher is better
-    return (b[rankBy] || 0) - (a[rankBy] || 0);
-  });
-
-  // Assign ranks (handling ties)
-  let currentRank = 1;
-  let previousValue = null;
-  let skippedRanks = 0;
-
-  return sortedStudents.map((student, index) => {
-    const currentValue = student[rankBy] || 0;
-    
-    // If this is the first student or the value is different from the previous one
-    if (index === 0 || currentValue !== previousValue) {
-      currentRank = index + 1;
-      skippedRanks = 0;
-    } else {
-      // This is a tie, so keep the same rank but increment skipped ranks
-      skippedRanks++;
-    }
-    
-    previousValue = currentValue;
-    
-    return {
-      ...student,
-      rank: currentRank
-    };
-  });
+const calculateStudentRankings = (students, educationLevel, rankBy = 'averageMarks') => {
+  // Delegate to the appropriate level-specific calculator
+  if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
+    return aLevelGradeCalculator.calculateStudentRankings(students, rankBy);
+  }
+  return oLevelGradeCalculator.calculateStudentRankings(students, rankBy);
 };
 
 /**
  * Calculate subject positions for students in a class
  * @param {Array} results - Array of results for a specific subject
+ * @param {String} educationLevel - The education level (O_LEVEL or A_LEVEL)
  * @returns {Array} - Array of results with subjectPosition property added
  */
-const calculateSubjectPositions = (results) => {
-  // Sort results by marks (descending)
-  const sortedResults = [...results].sort((a, b) => {
-    const marksA = Number(a.marksObtained || a.marks || 0);
-    const marksB = Number(b.marksObtained || b.marks || 0);
-    return marksB - marksA;
-  });
-
-  // Assign positions (handling ties)
-  let currentPosition = 1;
-  let previousMarks = null;
-  let skippedPositions = 0;
-
-  return sortedResults.map((result, index) => {
-    const currentMarks = Number(result.marksObtained || result.marks || 0);
-    
-    // If this is the first result or the marks are different from the previous one
-    if (index === 0 || currentMarks !== previousMarks) {
-      currentPosition = index + 1;
-      skippedPositions = 0;
-    } else {
-      // This is a tie, so keep the same position but increment skipped positions
-      skippedPositions++;
-    }
-    
-    previousMarks = currentMarks;
-    
-    return {
-      ...result,
-      subjectPosition: currentPosition
-    };
-  });
+const calculateSubjectPositions = (results, educationLevel) => {
+  // Delegate to the appropriate level-specific calculator
+  if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
+    return aLevelGradeCalculator.calculateSubjectPositions(results);
+  }
+  return oLevelGradeCalculator.calculateSubjectPositions(results);
 };
 
 module.exports = {

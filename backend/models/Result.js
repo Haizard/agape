@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const fs = require('node:fs');
 const path = require('node:path');
-const gradeCalculator = require('../utils/gradeCalculator');
+const oLevelGradeCalculator = require('../utils/oLevelGradeCalculator');
+const aLevelGradeCalculator = require('../utils/aLevelGradeCalculator');
 const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
 const logger = require('../utils/logger');
 
@@ -70,10 +71,16 @@ ResultSchema.pre('save', function(next) {
     // Get the education level
     const educationLevel = this.educationLevel || EDUCATION_LEVELS.O_LEVEL;
 
-    // Use the centralized grade calculator
-    const { grade, points } = gradeCalculator.calculateGradeAndPoints(this.marksObtained, educationLevel);
-    this.grade = grade;
-    this.points = points;
+    // Use the appropriate level-specific calculator
+    let gradeResult;
+    if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
+      gradeResult = aLevelGradeCalculator.calculateGradeAndPoints(this.marksObtained);
+    } else {
+      gradeResult = oLevelGradeCalculator.calculateGradeAndPoints(this.marksObtained);
+    }
+
+    this.grade = gradeResult.grade;
+    this.points = gradeResult.points;
 
     // Log the grade calculation for debugging
     logger.debug(`Calculated grade for marks ${this.marksObtained}: ${this.grade} (${this.points} points)`);

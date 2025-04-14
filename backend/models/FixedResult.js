@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
-const gradeCalculator = require('../utils/gradeCalculator');
-const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
+const oLevelGradeCalculator = require('../utils/oLevelGradeCalculator');
 const logger = require('../utils/logger');
 
 const FixedResultSchema = new mongoose.Schema({
@@ -68,9 +67,9 @@ FixedResultSchema.pre('save', function(next) {
 
   // Calculate grade and points if not already set
   if (this.marksObtained !== undefined && !this.grade) {
-    // Use the centralized grade calculator
-    // Default to O-LEVEL grading for fixed results
-    const { grade, points } = gradeCalculator.calculateGradeAndPoints(this.marksObtained, EDUCATION_LEVELS.O_LEVEL);
+    // Use the O-Level specific grade calculator
+    // Fixed results always use O-LEVEL grading
+    const { grade, points } = oLevelGradeCalculator.calculateGradeAndPoints(this.marksObtained);
     this.grade = grade;
     this.points = points;
 

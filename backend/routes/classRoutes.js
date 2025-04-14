@@ -37,6 +37,7 @@ router.get('/', authenticateToken, async (req, res) => {
       .populate('academicYear', 'name year')
       .populate('classTeacher', 'firstName lastName')
       .populate('subjectCombination', 'name code')
+      .populate('subjectCombinations', 'name code')
       .populate({
         path: 'subjects.subject',
         model: 'Subject',
@@ -47,7 +48,7 @@ router.get('/', authenticateToken, async (req, res) => {
         model: 'Teacher',
         select: 'firstName lastName'
       })
-      .populate('students', 'firstName lastName rollNumber educationLevel');
+      .populate('students', 'firstName lastName rollNumber educationLevel form subjectCombination');
 
     // Race the query against the timeout
     const classes = await Promise.race([queryPromise, timeoutPromise]);
@@ -84,6 +85,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const classItem = await Class.findById(req.params.id)
       .populate('academicYear', 'name year')
       .populate('classTeacher', 'firstName lastName')
+      .populate('subjectCombination', 'name code description')
+      .populate('subjectCombinations', 'name code description')
       .populate({
         path: 'subjects.subject',
         model: 'Subject',
@@ -308,10 +311,40 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
 // Create a new class
 router.post('/', authenticateToken, authorizeRole('admin'), async (req, res) => {
   try {
-    const classItem = new Class(req.body);
+    console.log('POST /api/classes - Creating new class');
+    console.log('Request body:', req.body);
+
+    const classData = { ...req.body };
+
+    // Handle A-Level class with multiple subject combinations
+    if (classData.educationLevel === 'A_LEVEL') {
+      // If single subjectCombination is provided, add it to subjectCombinations array
+      if (classData.subjectCombination && !classData.subjectCombinations) {
+        classData.subjectCombinations = [classData.subjectCombination];
+      }
+
+      // If subjectCombinations is provided as a string or single ID, convert to array
+      if (classData.subjectCombinations && !Array.isArray(classData.subjectCombinations)) {
+        classData.subjectCombinations = [classData.subjectCombinations];
+      }
+
+      console.log(`Creating A-Level class with ${classData.subjectCombinations?.length || 0} subject combinations`);
+    }
+
+    const classItem = new Class(classData);
     const newClass = await classItem.save();
-    res.status(201).json(newClass);
+
+    // Populate the new class with related data
+    const populatedClass = await Class.findById(newClass._id)
+      .populate('academicYear', 'name year')
+      .populate('classTeacher', 'firstName lastName')
+      .populate('subjectCombination', 'name code')
+      .populate('subjectCombinations', 'name code');
+
+    console.log(`Created new class: ${newClass.name} (${newClass._id})`);
+    res.status(201).json(populatedClass);
   } catch (error) {
+    console.error('Error creating class:', error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -319,12 +352,45 @@ router.post('/', authenticateToken, authorizeRole('admin'), async (req, res) => 
 // Update a class
 router.put('/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
   try {
-    const classItem = await Class.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('academicYear classTeacher');
+    console.log(`PUT /api/classes/${req.params.id} - Updating class`);
+    console.log('Request body:', req.body);
+
+    const classData = { ...req.body };
+
+    // Handle A-Level class with multiple subject combinations
+    if (classData.educationLevel === 'A_LEVEL') {
+      // If single subjectCombination is provided, add it to subjectCombinations array
+      if (classData.subjectCombination && !classData.subjectCombinations) {
+        classData.subjectCombinations = [classData.subjectCombination];
+      }
+
+      // If subjectCombinations is provided as a string or single ID, convert to array
+      if (classData.subjectCombinations && !Array.isArray(classData.subjectCombinations)) {
+        classData.subjectCombinations = [classData.subjectCombinations];
+      }
+
+      console.log(`Updating A-Level class with ${classData.subjectCombinations?.length || 0} subject combinations`);
+    }
+
+    const classItem = await Class.findByIdAndUpdate(
+      req.params.id,
+      classData,
+      { new: true, runValidators: true }
+    )
+    .populate('academicYear', 'name year')
+    .populate('classTeacher', 'firstName lastName')
+    .populate('subjectCombination', 'name code')
+    .populate('subjectCombinations', 'name code');
+
     if (!classItem) {
+      console.log(`Class not found with ID: ${req.params.id}`);
       return res.status(404).json({ message: 'Class not found' });
     }
+
+    console.log(`Updated class: ${classItem.name}`);
     res.json(classItem);
   } catch (error) {
+    console.error(`Error updating class ${req.params.id}:`, error);
     res.status(400).json({ message: error.message });
   }
 });

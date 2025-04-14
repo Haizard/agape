@@ -396,6 +396,77 @@ const ResultReportSelector = () => {
                     </CardActions>
                   </Card>
                 </Grid>
+
+                {/* Form-Specific A-Level Reports */}
+                <Grid item xs={12} md={6}>
+                  <Card sx={{ bgcolor: '#f8f0ff', border: '1px solid #9c27b0' }}>
+                    <CardContent>
+                      <Typography variant="h6" color="secondary" gutterBottom>
+                        Form 5 A-Level Report
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Generate a Form 5 specific A-Level report with:
+                      </Typography>
+                      <ul>
+                        <li>Form 5 students only</li>
+                        <li>Subject combination specific results</li>
+                        <li>Principal and subsidiary subjects</li>
+                        <li>Best 3 principal subjects calculation</li>
+                      </ul>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        size="small"
+                        onClick={() => {
+                          if (selectedClass && selectedExam) {
+                            navigate(`/results/a-level/form5/class/${selectedClass}/${selectedExam}`);
+                          } else {
+                            setError('Please select a class and an exam first');
+                          }
+                        }}
+                        fullWidth
+                        sx={{ mt: 1 }}
+                      >
+                        Generate Form 5 Class Report
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Card sx={{ bgcolor: '#fff0f0', border: '1px solid #f44336' }}>
+                    <CardContent>
+                      <Typography variant="h6" color="error" gutterBottom>
+                        Form 6 A-Level Report
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Generate a Form 6 specific A-Level report with:
+                      </Typography>
+                      <ul>
+                        <li>Form 6 students only</li>
+                        <li>Subject combination specific results</li>
+                        <li>Comparison with Form 5 results</li>
+                        <li>Final recommendations</li>
+                      </ul>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => {
+                          if (selectedClass && selectedExam) {
+                            navigate(`/results/a-level/form6/class/${selectedClass}/${selectedExam}`);
+                          } else {
+                            setError('Please select a class and an exam first');
+                          }
+                        }}
+                        fullWidth
+                        sx={{ mt: 1 }}
+                      >
+                        Generate Form 6 Class Report
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Grid>
                 {/* Deprecated report types have been removed */}
                 <Grid item xs={12}>
                   <Card sx={{ bgcolor: '#f0f7ff', border: '1px solid #2196f3' }}>
@@ -671,6 +742,86 @@ const ResultReportSelector = () => {
                         Select A-Level
                       </Button>
                     </CardActions>
+                  </Card>
+                </Grid>
+
+                {/* Form-Specific A-Level Class Reports */}
+                <Grid item xs={12}>
+                  <Card sx={{ bgcolor: '#f5f5f5', border: '1px solid #9e9e9e', p: 2 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Form-Specific A-Level Reports
+                    </Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ bgcolor: '#f8f0ff', border: '1px solid #9c27b0' }}>
+                          <CardContent>
+                            <Typography variant="h6" color="secondary" gutterBottom>
+                              Form 5 A-Level Class Report
+                            </Typography>
+                            <Typography variant="body2">
+                              Generate a Form 5 specific class report with:
+                            </Typography>
+                            <ul>
+                              <li>Form 5 students only</li>
+                              <li>Multiple subject combinations</li>
+                              <li>Principal and subsidiary subjects</li>
+                              <li>Division distribution</li>
+                            </ul>
+                            <Button
+                              variant="contained"
+                              color="secondary"
+                              size="small"
+                              onClick={() => {
+                                if (selectedClass && selectedExam) {
+                                  navigate(`/results/a-level/form5/class/${selectedClass}/${selectedExam}`);
+                                } else {
+                                  setError('Please select a class and an exam first');
+                                }
+                              }}
+                              fullWidth
+                              sx={{ mt: 1 }}
+                            >
+                              Generate Form 5 Report
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ bgcolor: '#fff0f0', border: '1px solid #f44336' }}>
+                          <CardContent>
+                            <Typography variant="h6" color="error" gutterBottom>
+                              Form 6 A-Level Class Report
+                            </Typography>
+                            <Typography variant="body2">
+                              Generate a Form 6 specific class report with:
+                            </Typography>
+                            <ul>
+                              <li>Form 6 students only</li>
+                              <li>Multiple subject combinations</li>
+                              <li>Comparison with Form 5 results</li>
+                              <li>Final recommendations</li>
+                            </ul>
+                            <Button
+                              variant="contained"
+                              color="error"
+                              size="small"
+                              onClick={() => {
+                                if (selectedClass && selectedExam) {
+                                  navigate(`/results/a-level/form6/class/${selectedClass}/${selectedExam}`);
+                                } else {
+                                  setError('Please select a class and an exam first');
+                                }
+                              }}
+                              fullWidth
+                              sx={{ mt: 1 }}
+                            >
+                              Generate Form 6 Report
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </Grid>
                   </Card>
                 </Grid>
               </Grid>

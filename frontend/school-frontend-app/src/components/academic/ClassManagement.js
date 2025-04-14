@@ -52,12 +52,14 @@ const ClassManagement = () => {
     section: '',
     stream: '',  // Added missing required field
     educationLevel: 'O_LEVEL', // Default to O_LEVEL
-    subjectCombination: '' // For A_LEVEL classes
+    subjectCombination: '', // Legacy field for A_LEVEL classes
+    subjectCombinations: [] // New field for multiple subject combinations
   });
 
   const [openDialog, setOpenDialog] = useState(false);
   const [openTeacherAssignmentDialog, setOpenTeacherAssignmentDialog] = useState(false);
   const [newlyCreatedClass, setNewlyCreatedClass] = useState(null);
+  const [editingClassId, setEditingClassId] = useState(null);
   const [subjectsToAssign, setSubjectsToAssign] = useState([]);
 
   const fetchData = useCallback(async (page = 1, limit = 10) => {
@@ -196,15 +198,34 @@ const handleUpdateClass = async (classId) => {
       educationLevel: formData.educationLevel
     };
 
-    // Add subject combination if it's an A_LEVEL class
-    if (formData.educationLevel === 'A_LEVEL' && formData.subjectCombination) {
-      classData.subjectCombination = formData.subjectCombination;
+    // Add subject combination for A-Level classes
+    if (formData.educationLevel === 'A_LEVEL') {
+      // Include the legacy field for backward compatibility
+      if (formData.subjectCombination) {
+        classData.subjectCombination = formData.subjectCombination;
+      }
 
-      // Check if the subject combination has changed
-      const currentClass = state.classes.find(c => c._id === classId);
-      const currentCombinationId = currentClass?.subjectCombination?._id || currentClass?.subjectCombination;
+      // Include the new field for multiple combinations
+      if (formData.subjectCombinations && formData.subjectCombinations.length > 0) {
+        classData.subjectCombinations = formData.subjectCombinations;
+      } else if (formData.subjectCombination) {
+        // If only legacy field is available, use it for the array too
+        classData.subjectCombinations = [formData.subjectCombination];
+      }
 
-      if (currentCombinationId !== formData.subjectCombination) {
+      console.log('Updating A-Level class with combinations:', classData.subjectCombinations);
+    }
+
+    // Get the current class to check if subject combination has changed
+    const currentClass = state.classes.find(c => c._id === classId);
+    const currentCombinationId = currentClass?.subjectCombination?._id || currentClass?.subjectCombination;
+
+    // If the subject combination has changed, update the subjects
+    if (formData.educationLevel === 'A_LEVEL' &&
+        formData.subjectCombination &&
+        currentCombinationId !== formData.subjectCombination) {
+
+      try {
         // Get the subject combination details to extract subjects
         const combinationResponse = await api.get(`/api/subject-combinations/${formData.subjectCombination}`);
         const combination = combinationResponse.data;
@@ -216,6 +237,9 @@ const handleUpdateClass = async (classId) => {
             teacher: null // Initially no teacher assigned
           }));
         }
+      } catch (error) {
+        console.error('Error fetching subject combination:', error);
+        // Continue with the update even if we can't get the subjects
       }
     }
 
@@ -227,15 +251,28 @@ const handleUpdateClass = async (classId) => {
         classItem._id === classId ? response.data : classItem
       )
     }));
+    // Reset the form and close the dialog
     setOpenDialog(false);
+    setEditingClassId(null);
     setFormData({
       name: '',
       teacherId: '',
       academicYear: '',
       capacity: '',
       section: '',
-      stream: ''
+      stream: '',
+      educationLevel: 'O_LEVEL',
+      subjectCombination: '',
+      subjectCombinations: []
     });
+
+    // Show success message
+    setState(prev => ({
+      ...prev,
+      error: ''
+    }));
+
+    console.log('Class updated successfully');
   } catch (error) {
     setState(prev => ({
       ...prev,
@@ -318,6 +355,23 @@ const handleDeleteClass = async (classId) => {
   {userIsAdmin ? (
     <>
       <Button size="small" color="primary" onClick={() => {
+        // Prepare subjectCombinations array
+        let subjectCombinations = [];
+        if (classItem.subjectCombinations && Array.isArray(classItem.subjectCombinations)) {
+          subjectCombinations = classItem.subjectCombinations.map(combo =>
+            typeof combo === 'object' ? combo._id : combo
+          );
+        } else if (classItem.subjectCombination) {
+          // If only legacy field is available, use it
+          subjectCombinations = [typeof classItem.subjectCombination === 'object' ?
+            classItem.subjectCombination._id : classItem.subjectCombination];
+        }
+
+        console.log('Editing class with subjectCombinations:', subjectCombinations);
+
+        // Set the editing class ID
+        setEditingClassId(classItem._id);
+
         setFormData({
           name: classItem.name,
           teacherId: classItem.classTeacher ? classItem.classTeacher._id : '',
@@ -326,7 +380,9 @@ const handleDeleteClass = async (classId) => {
           section: classItem.section,
           stream: classItem.stream,
           educationLevel: classItem.educationLevel || 'O_LEVEL',
-          subjectCombination: classItem.subjectCombination ? classItem.subjectCombination._id : ''
+          subjectCombination: classItem.subjectCombination ?
+            (typeof classItem.subjectCombination === 'object' ? classItem.subjectCombination._id : classItem.subjectCombination) : '',
+          subjectCombinations: subjectCombinations
         });
         setOpenDialog(true);
       }}>Edit</Button>
@@ -342,8 +398,22 @@ const handleDeleteClass = async (classId) => {
         </Table>
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Create New Class</DialogTitle>
+      <Dialog open={openDialog} onClose={() => {
+        setOpenDialog(false);
+        setEditingClassId(null);
+        setFormData({
+          name: '',
+          teacherId: '',
+          academicYear: '',
+          capacity: '',
+          section: '',
+          stream: '',
+          educationLevel: 'O_LEVEL',
+          subjectCombination: '',
+          subjectCombinations: []
+        });
+      }}>
+        <DialogTitle>{editingClassId ? 'Edit Class' : 'Create New Class'}</DialogTitle>
         <DialogContent>
           <TextField
             fullWidth
@@ -438,8 +508,33 @@ const handleDeleteClass = async (classId) => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleCreateClass} color="primary">Create</Button>
+          <Button onClick={() => {
+            setOpenDialog(false);
+            setEditingClassId(null);
+            setFormData({
+              name: '',
+              teacherId: '',
+              academicYear: '',
+              capacity: '',
+              section: '',
+              stream: '',
+              educationLevel: 'O_LEVEL',
+              subjectCombination: '',
+              subjectCombinations: []
+            });
+          }}>Cancel</Button>
+
+          {/* Determine if we're editing an existing class or creating a new one */}
+          {editingClassId ? (
+            <Button
+              onClick={() => handleUpdateClass(editingClassId)}
+              color="primary"
+            >
+              Update
+            </Button>
+          ) : (
+            <Button onClick={handleCreateClass} color="primary">Create</Button>
+          )}
         </DialogActions>
       </Dialog>
 

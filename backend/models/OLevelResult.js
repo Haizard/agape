@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
-const gradeCalculator = require('../utils/gradeCalculator');
-const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
+const oLevelGradeCalculator = require('../utils/oLevelGradeCalculator');
 const logger = require('../utils/logger');
 
 const OLevelResultSchema = new mongoose.Schema({
@@ -43,8 +42,8 @@ OLevelResultSchema.pre('save', function(next) {
 
   // Calculate grade and points based on O-LEVEL grading system
   if (this.marksObtained !== undefined) {
-    // Use the centralized grade calculator
-    const { grade, points } = gradeCalculator.calculateGradeAndPoints(this.marksObtained, EDUCATION_LEVELS.O_LEVEL);
+    // Use the O-Level specific grade calculator
+    const { grade, points } = oLevelGradeCalculator.calculateGradeAndPoints(this.marksObtained);
     this.grade = grade;
     this.points = points;
 
