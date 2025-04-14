@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path'); // Add path module for file path operations
 
 // --- Add Model Imports Here ---
 require('./models/User');
