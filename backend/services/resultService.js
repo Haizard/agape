@@ -1,3 +1,15 @@
+/**
+ * Result Service
+ *
+ * This service handles all result-related operations, including:
+ * - Creating and retrieving results
+ * - Entering marks
+ * - Calculating grades and points
+ *
+ * It supports both O-Level and A-Level results through a unified interface.
+ */
+
+const Result = require('../models/Result');
 const OLevelResult = require('../models/OLevelResult');
 const ALevelResult = require('../models/ALevelResult');
 const Student = require('../models/Student');
@@ -6,22 +18,8 @@ const Subject = require('../models/Subject');
 const Exam = require('../models/Exam');
 const AcademicYear = require('../models/AcademicYear');
 const mongoose = require('mongoose');
-const fs = require('fs');
-const path = require('path');
-
-// Create logs directory if it doesn't exist
-const logDir = path.join(__dirname, '../logs');
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir);
-}
-
-// Setup logging
-const logFile = path.join(logDir, `results_${new Date().toISOString().split('T')[0]}.log`);
-const logToFile = (message) => {
-  const timestamp = new Date().toISOString();
-  const logMessage = `[${timestamp}] ${message}\n`;
-  fs.appendFileSync(logFile, logMessage);
-};
+const { EDUCATION_LEVELS } = require('../constants/apiEndpoints');
+const logger = require('../utils/logger');
 
 /**
  * Service to handle result operations with automatic model selection based on education level
@@ -33,7 +31,7 @@ class ResultService {
    * @returns {Model} - The appropriate Mongoose model
    */
   static getResultModel(educationLevel) {
-    if (educationLevel === 'A_LEVEL') {
+    if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
       return ALevelResult;
     }
     return OLevelResult; // Default to O_LEVEL
@@ -50,9 +48,9 @@ class ResultService {
       if (!student) {
         throw new Error(`Student not found with ID: ${studentId}`);
       }
-      return student.educationLevel || 'O_LEVEL';
+      return student.educationLevel || EDUCATION_LEVELS.O_LEVEL;
     } catch (error) {
-      console.error(`Error getting student education level: ${error.message}`);
+      logger.error(`Error getting student education level: ${error.message}`);
       throw error;
     }
   }
@@ -68,9 +66,9 @@ class ResultService {
       if (!classObj) {
         throw new Error(`Class not found with ID: ${classId}`);
       }
-      return classObj.educationLevel || 'O_LEVEL';
+      return classObj.educationLevel || EDUCATION_LEVELS.O_LEVEL;
     } catch (error) {
-      console.error(`Error getting class education level: ${error.message}`);
+      logger.error(`Error getting class education level: ${error.message}`);
       throw error;
     }
   }
@@ -87,7 +85,7 @@ class ResultService {
     for (const field of requiredFields) {
       if (!resultData[field]) {
         const error = new Error(`Missing required field: ${field}`);
-        logToFile(`Validation error: ${error.message}`);
+        logger.error(`Validation error: ${error.message}`);
         throw error;
       }
     }
@@ -97,7 +95,7 @@ class ResultService {
       const student = await Student.findById(resultData.studentId);
       if (!student) {
         const error = new Error(`Student not found with ID: ${resultData.studentId}`);
-        logToFile(`Validation error: ${error.message}`);
+        logger.error(`Validation error: ${error.message}`);
         throw error;
       }
     }
@@ -107,7 +105,7 @@ class ResultService {
       const exam = await Exam.findById(resultData.examId);
       if (!exam) {
         const error = new Error(`Exam not found with ID: ${resultData.examId}`);
-        logToFile(`Validation error: ${error.message}`);
+        logger.error(`Validation error: ${error.message}`);
         throw error;
       }
     }
@@ -117,17 +115,17 @@ class ResultService {
       const subject = await Subject.findById(resultData.subjectId);
       if (!subject) {
         const error = new Error(`Subject not found with ID: ${resultData.subjectId}`);
-        logToFile(`Validation error: ${error.message}`);
+        logger.error(`Validation error: ${error.message}`);
         throw error;
       }
     }
 
     // Validate marks range
     if (resultData.marksObtained !== undefined) {
-      const marks = parseFloat(resultData.marksObtained);
-      if (isNaN(marks) || marks < 0 || marks > 100) {
+      const marks = Number.parseFloat(resultData.marksObtained);
+      if (Number.isNaN(marks) || marks < 0 || marks > 100) {
         const error = new Error(`Invalid marks: ${resultData.marksObtained}. Marks must be between 0 and 100.`);
-        logToFile(`Validation error: ${error.message}`);
+        logger.error(`Validation error: ${error.message}`);
         throw error;
       }
       // Ensure marks is a number
@@ -156,9 +154,10 @@ class ResultService {
    * @returns {Object} - The grade and points
    */
   static calculateGradeAndPoints(marks, educationLevel) {
-    let grade, points;
+    let grade;
+    let points;
 
-    if (educationLevel === 'A_LEVEL') {
+    if (educationLevel === EDUCATION_LEVELS.A_LEVEL) {
       // A-LEVEL grading
       if (marks >= 80) { grade = 'A'; points = 1; }
       else if (marks >= 70) { grade = 'B'; points = 2; }
@@ -197,12 +196,11 @@ class ResultService {
       await result.save();
 
       // Log the creation
-      logToFile(`Created result: ${result._id} for student ${validatedData.studentId}, subject ${validatedData.subjectId}, exam ${validatedData.examId}`);
+      logger.info(`Created result: ${result._id} for student ${validatedData.studentId}, subject ${validatedData.subjectId}, exam ${validatedData.examId}`);
 
       return result;
     } catch (error) {
-      console.error(`Error creating result: ${error.message}`);
-      logToFile(`Error creating result: ${error.message}`);
+      logger.error(`Error creating result: ${error.message}`);
       throw error;
     }
   }
@@ -218,7 +216,7 @@ class ResultService {
     try {
       // Determine education level if not provided
       const effectiveEducationLevel = educationLevel ||
-        (resultData.studentId ? await ResultService.getStudentEducationLevel(resultData.studentId) : 'O_LEVEL');
+        (resultData.studentId ? await ResultService.getStudentEducationLevel(resultData.studentId) : EDUCATION_LEVELS.O_LEVEL);
 
       // Get the appropriate model
       const ResultModel = ResultService.getResultModel(effectiveEducationLevel);
@@ -227,7 +225,7 @@ class ResultService {
       const existingResult = await ResultModel.findById(resultId);
       if (!existingResult) {
         const error = new Error(`Result not found with ID: ${resultId}`);
-        logToFile(`Error updating result: ${error.message}`);
+        logger.error(`Error updating result: ${error.message}`);
         throw error;
       }
 
@@ -245,12 +243,11 @@ class ResultService {
       );
 
       // Log the update
-      logToFile(`Updated result: ${result._id} for student ${validatedData.studentId}, subject ${validatedData.subjectId}, exam ${validatedData.examId}`);
+      logger.info(`Updated result: ${result._id} for student ${validatedData.studentId}, subject ${validatedData.subjectId}, exam ${validatedData.examId}`);
 
       return result;
     } catch (error) {
-      console.error(`Error updating result: ${error.message}`);
-      logToFile(`Error updating result: ${error.message}`);
+      logger.error(`Error updating result: ${error.message}`);
       throw error;
     }
   }
@@ -266,7 +263,7 @@ class ResultService {
       // Validate student ID
       if (!studentId) {
         const error = new Error('Student ID is required');
-        logToFile(`Error getting student results: ${error.message}`);
+        logger.error(`Error getting student results: ${error.message}`);
         throw error;
       }
 
@@ -274,12 +271,12 @@ class ResultService {
       const student = await Student.findById(studentId);
       if (!student) {
         const error = new Error(`Student not found with ID: ${studentId}`);
-        logToFile(`Error getting student results: ${error.message}`);
+        logger.error(`Error getting student results: ${error.message}`);
         throw error;
       }
 
       // Determine education level
-      const educationLevel = student.educationLevel || 'O_LEVEL';
+      const educationLevel = student.educationLevel || EDUCATION_LEVELS.O_LEVEL;
 
       // Get the appropriate model
       const ResultModel = ResultService.getResultModel(educationLevel);
@@ -288,7 +285,7 @@ class ResultService {
       const query = { studentId, ...filters };
 
       // Log the query
-      logToFile(`Fetching results for student ${studentId} with filters: ${JSON.stringify(filters)}`);
+      logger.info(`Fetching results for student ${studentId} with filters: ${JSON.stringify(filters)}`);
 
       // Get results
       const results = await ResultModel.find(query)
@@ -299,12 +296,11 @@ class ResultService {
         .populate('classId', 'name section stream');
 
       // Log the results count
-      logToFile(`Found ${results.length} results for student ${studentId}`);
+      logger.info(`Found ${results.length} results for student ${studentId}`);
 
       return results;
     } catch (error) {
-      console.error(`Error getting student results: ${error.message}`);
-      logToFile(`Error getting student results: ${error.message}`);
+      logger.error(`Error getting student results: ${error.message}`);
       throw error;
     }
   }
@@ -320,7 +316,7 @@ class ResultService {
       // Validate class ID
       if (!classId) {
         const error = new Error('Class ID is required');
-        logToFile(`Error getting class results: ${error.message}`);
+        logger.error(`Error getting class results: ${error.message}`);
         throw error;
       }
 
@@ -328,12 +324,12 @@ class ResultService {
       const classObj = await Class.findById(classId);
       if (!classObj) {
         const error = new Error(`Class not found with ID: ${classId}`);
-        logToFile(`Error getting class results: ${error.message}`);
+        logger.error(`Error getting class results: ${error.message}`);
         throw error;
       }
 
       // Determine education level
-      const educationLevel = classObj.educationLevel || 'O_LEVEL';
+      const educationLevel = classObj.educationLevel || EDUCATION_LEVELS.O_LEVEL;
 
       // Get the appropriate model
       const ResultModel = ResultService.getResultModel(educationLevel);
@@ -349,7 +345,7 @@ class ResultService {
       };
 
       // Log the query
-      logToFile(`Fetching results for class ${classId} with filters: ${JSON.stringify(filters)}`);
+      logger.info(`Fetching results for class ${classId} with filters: ${JSON.stringify(filters)}`);
 
       // Get results
       const results = await ResultModel.find(query)
@@ -360,12 +356,11 @@ class ResultService {
         .populate('classId', 'name section stream');
 
       // Log the results count
-      logToFile(`Found ${results.length} results for class ${classId}`);
+      logger.info(`Found ${results.length} results for class ${classId}`);
 
       return results;
     } catch (error) {
-      console.error(`Error getting class results: ${error.message}`);
-      logToFile(`Error getting class results: ${error.message}`);
+      logger.error(`Error getting class results: ${error.message}`);
       throw error;
     }
   }
@@ -381,14 +376,14 @@ class ResultService {
       // Validate result ID
       if (!resultId) {
         const error = new Error('Result ID is required');
-        logToFile(`Error deleting result: ${error.message}`);
+        logger.error(`Error deleting result: ${error.message}`);
         throw error;
       }
 
       // Validate education level
       if (!educationLevel) {
         const error = new Error('Education level is required');
-        logToFile(`Error deleting result: ${error.message}`);
+        logger.error(`Error deleting result: ${error.message}`);
         throw error;
       }
 
@@ -396,24 +391,23 @@ class ResultService {
       const ResultModel = ResultService.getResultModel(educationLevel);
 
       // Log the deletion attempt
-      logToFile(`Attempting to delete result ${resultId} from ${educationLevel} model`);
+      logger.info(`Attempting to delete result ${resultId} from ${educationLevel} model`);
 
       // Delete the result
       const result = await ResultModel.findByIdAndDelete(resultId);
 
       if (!result) {
         const error = new Error(`Result not found with ID: ${resultId}`);
-        logToFile(`Error deleting result: ${error.message}`);
+        logger.error(`Error deleting result: ${error.message}`);
         throw error;
       }
 
       // Log the successful deletion
-      logToFile(`Successfully deleted result ${resultId} from ${educationLevel} model`);
+      logger.info(`Successfully deleted result ${resultId} from ${educationLevel} model`);
 
       return true;
     } catch (error) {
-      console.error(`Error deleting result: ${error.message}`);
-      logToFile(`Error deleting result: ${error.message}`);
+      logger.error(`Error deleting result: ${error.message}`);
       throw error;
     }
   }
@@ -428,12 +422,12 @@ class ResultService {
       // Validate input
       if (!resultsData || !Array.isArray(resultsData) || resultsData.length === 0) {
         const error = new Error('Invalid or empty results data');
-        logToFile(`Error creating batch results: ${error.message}`);
+        logger.error(`Error creating batch results: ${error.message}`);
         throw error;
       }
 
       // Log the batch operation
-      logToFile(`Starting batch creation of ${resultsData.length} results`);
+      logger.info(`Starting batch creation of ${resultsData.length} results`);
 
       const createdResults = [];
       const validatedResults = [];
@@ -445,39 +439,37 @@ class ResultService {
           const validatedData = await ResultService.validateResultData(resultData);
           validatedResults.push(validatedData);
         } catch (validationError) {
-          logToFile(`Skipping invalid result: ${validationError.message}`);
-          // Continue with other results instead of failing the whole batch
-          continue;
+          logger.warn(`Skipping invalid result: ${validationError.message}`);
+          // No need for continue as it's the last statement in the loop
         }
       }
 
       // Group results by education level
-      const oLevelResults = validatedResults.filter(result => result.educationLevel !== 'A_LEVEL');
-      const aLevelResults = validatedResults.filter(result => result.educationLevel === 'A_LEVEL');
+      const oLevelResults = validatedResults.filter(result => result.educationLevel !== EDUCATION_LEVELS.A_LEVEL);
+      const aLevelResults = validatedResults.filter(result => result.educationLevel === EDUCATION_LEVELS.A_LEVEL);
 
       // Process O-LEVEL results
       if (oLevelResults.length > 0) {
-        logToFile(`Creating ${oLevelResults.length} O-LEVEL results`);
+        logger.info(`Creating ${oLevelResults.length} O-LEVEL results`);
         const oLevelCreated = await OLevelResult.insertMany(oLevelResults);
         createdResults.push(...oLevelCreated);
-        logToFile(`Successfully created ${oLevelCreated.length} O-LEVEL results`);
+        logger.info(`Successfully created ${oLevelCreated.length} O-LEVEL results`);
       }
 
       // Process A-LEVEL results
       if (aLevelResults.length > 0) {
-        logToFile(`Creating ${aLevelResults.length} A-LEVEL results`);
+        logger.info(`Creating ${aLevelResults.length} A-LEVEL results`);
         const aLevelCreated = await ALevelResult.insertMany(aLevelResults);
         createdResults.push(...aLevelCreated);
-        logToFile(`Successfully created ${aLevelCreated.length} A-LEVEL results`);
+        logger.info(`Successfully created ${aLevelCreated.length} A-LEVEL results`);
       }
 
       // Log the summary
-      logToFile(`Batch creation completed: ${createdResults.length} results created out of ${resultsData.length} requested`);
+      logger.info(`Batch creation completed: ${createdResults.length} results created out of ${resultsData.length} requested`);
 
       return createdResults;
     } catch (error) {
-      console.error(`Error creating batch results: ${error.message}`);
-      logToFile(`Error creating batch results: ${error.message}`);
+      logger.error(`Error creating batch results: ${error.message}`);
       throw error;
     }
   }
