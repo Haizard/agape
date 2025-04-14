@@ -1,11 +1,11 @@
 /**
  * Demo Form 5 Exam Results
- * 
+ *
  * This file contains demo exam results for 10 Form 5 students with different subject combinations
  * for testing the Form 5 class report feature.
  */
 
-const { calculateGrade, calculatePoints } = require('../utils/aLevelGradeCalculator');
+const { calculateGradeAndPoints, calculateDivision } = require('../utils/aLevelGradeCalculator');
 const demoSubjectCombinations = require('./demoSubjectCombinations');
 const demoForm5Students = require('./demoForm5Students');
 
@@ -14,23 +14,23 @@ const generateMarks = (studentStrength, subjectDifficulty) => {
   // Base range for marks
   const baseMin = 35; // Minimum passing mark
   const baseMax = 95; // Maximum realistic mark
-  
+
   // Adjust based on student strength (0-10 scale)
   const strengthFactor = studentStrength / 10;
-  
+
   // Adjust based on subject difficulty (0-10 scale, higher means more difficult)
   const difficultyFactor = (10 - subjectDifficulty) / 10;
-  
+
   // Calculate adjusted range
   const adjustedMin = baseMin + (strengthFactor * 10);
   const adjustedMax = baseMax - ((1 - strengthFactor) * 15) - (subjectDifficulty * 2);
-  
+
   // Generate random mark within adjusted range
   const mark = Math.floor(Math.random() * (adjustedMax - adjustedMin + 1)) + adjustedMin;
-  
+
   // Add some variability
   const variability = Math.random() * 10 - 5; // -5 to +5
-  
+
   // Ensure final mark is within valid range (0-100)
   return Math.max(0, Math.min(100, Math.round(mark + variability)));
 };
@@ -71,17 +71,16 @@ const generateStudentResults = (student) => {
   // Find the student's combination
   const combination = demoSubjectCombinations.find(c => c.code === student.combination);
   if (!combination) return [];
-  
+
   const results = [];
   const studentStrength = studentStrengths[student.id] || 7.0; // Default to 7.0 if not specified
-  
+
   // Generate results for principal subjects
   combination.subjects.principal.forEach(subject => {
     const subjectDifficulty = subjectDifficulties[subject.code] || 7.0;
     const marksObtained = generateMarks(studentStrength, subjectDifficulty);
-    const grade = calculateGrade(marksObtained);
-    const points = calculatePoints(grade);
-    
+    const { grade, points } = calculateGradeAndPoints(marksObtained);
+
     results.push({
       studentId: student.id,
       subjectId: subject.code,
@@ -92,14 +91,13 @@ const generateStudentResults = (student) => {
       isPrincipal: true
     });
   });
-  
+
   // Generate results for subsidiary subjects
   combination.subjects.subsidiary.forEach(subject => {
     const subjectDifficulty = subjectDifficulties[subject.code] || 5.0;
     const marksObtained = generateMarks(studentStrength, subjectDifficulty);
-    const grade = calculateGrade(marksObtained);
-    const points = calculatePoints(grade);
-    
+    const { grade, points } = calculateGradeAndPoints(marksObtained);
+
     results.push({
       studentId: student.id,
       subjectId: subject.code,
@@ -110,14 +108,14 @@ const generateStudentResults = (student) => {
       isPrincipal: false
     });
   });
-  
+
   return results;
 };
 
 // Generate all results
 const generateAllResults = () => {
   const allResults = [];
-  
+
   demoForm5Students.forEach(student => {
     const studentResults = generateStudentResults(student);
     allResults.push({
@@ -125,7 +123,7 @@ const generateAllResults = () => {
       results: studentResults
     });
   });
-  
+
   return allResults;
 };
 
@@ -135,26 +133,20 @@ const calculateStudentSummaries = (allResults) => {
     // Calculate total and average marks
     const totalMarks = results.reduce((sum, result) => sum + result.marksObtained, 0);
     const averageMarks = results.length > 0 ? totalMarks / results.length : 0;
-    
+
     // Get principal subjects
     const principalSubjects = results.filter(result => result.isPrincipal);
-    
+
     // Calculate best three principal subjects (lowest points = best grades)
     const bestThreePrincipal = [...principalSubjects]
       .sort((a, b) => a.points - b.points)
       .slice(0, Math.min(3, principalSubjects.length));
-    
+
     const bestThreePoints = bestThreePrincipal.reduce((sum, result) => sum + result.points, 0);
-    
+
     // Calculate division based on best three points
-    let division;
-    if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
-    else if (bestThreePoints >= 10 && bestThreePoints <= 12) division = 'II';
-    else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
-    else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
-    else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
-    else division = '0';
-    
+    const division = calculateDivision(bestThreePoints);
+
     return {
       student,
       results,
@@ -196,33 +188,33 @@ const demoClass = {
 const generateForm5ClassReport = () => {
   const allResults = generateAllResults();
   const studentSummaries = calculateStudentSummaries(allResults);
-  
+
   // Sort students by division and then by best three points
   studentSummaries.sort((a, b) => {
     // First sort by division (I is better than V)
     const divisionOrder = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, '0': 6 };
     const divisionDiff = divisionOrder[a.summary.division] - divisionOrder[b.summary.division];
-    
+
     if (divisionDiff !== 0) return divisionDiff;
-    
+
     // Then sort by best three points (lower is better)
     return a.summary.bestThreePoints - b.summary.bestThreePoints;
   });
-  
+
   // Assign ranks
   studentSummaries.forEach((summary, index) => {
     summary.summary.rank = index + 1;
   });
-  
+
   // Calculate class statistics
   const classAverage = studentSummaries.reduce((sum, summary) => sum + parseFloat(summary.summary.averageMarks), 0) / studentSummaries.length;
-  
+
   // Count students in each division
   const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, 'V': 0, '0': 0 };
   studentSummaries.forEach(summary => {
     divisionDistribution[summary.summary.division]++;
   });
-  
+
   return {
     exam: demoExam,
     class: demoClass,

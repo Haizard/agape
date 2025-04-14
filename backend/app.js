@@ -86,6 +86,73 @@ app.use('/api/results/comprehensive', comprehensiveReportRoutes);
 // Demo data routes for testing
 app.use('/api/demo', demoDataRoutes);
 
+// Proxy specific routes to demo data for testing
+// This allows using the real frontend components with demo data
+const USE_DEMO_DATA = process.env.USE_DEMO_DATA === 'true';
+if (USE_DEMO_DATA) {
+  logger.info('Using demo data for specific routes');
+
+  // Proxy A-Level Form 5 class report requests to demo data
+  app.use('/api/a-level-results/form5/class/:classId/:examId', (req, res, next) => {
+    if (req.params.classId === 'CLS001' && req.params.examId === 'EXAM001') {
+      logger.info(`Proxying A-Level Form 5 class report request to demo data: ${req.originalUrl}`);
+      req.url = `/demo/a-level-results/form5/class/${req.params.classId}/${req.params.examId}`;
+      return demoDataRoutes(req, res, next);
+    }
+    next();
+  });
+
+  // Proxy A-Level Form 5 student report requests to demo data
+  app.use('/api/a-level-results/form5/student/:studentId/:examId', (req, res, next) => {
+    if (req.params.examId === 'EXAM001' && req.params.studentId.startsWith('STU')) {
+      logger.info(`Proxying A-Level Form 5 student report request to demo data: ${req.originalUrl}`);
+      req.url = `/demo/a-level-results/form5/student/${req.params.studentId}/${req.params.examId}`;
+      return demoDataRoutes(req, res, next);
+    }
+    next();
+  });
+
+  // Proxy classes requests to demo data when specific query parameters are present
+  app.use('/api/classes', (req, res, next) => {
+    if (req.query.demo === 'true') {
+      logger.info(`Proxying classes request to demo data: ${req.originalUrl}`);
+      req.url = '/demo/classes';
+      return demoDataRoutes(req, res, next);
+    }
+    next();
+  });
+
+  // Proxy exams requests to demo data when specific query parameters are present
+  app.use('/api/exams', (req, res, next) => {
+    if (req.query.demo === 'true' || req.query.class === 'CLS001') {
+      logger.info(`Proxying exams request to demo data: ${req.originalUrl}`);
+      req.url = '/demo/exams';
+      return demoDataRoutes(req, res, next);
+    }
+    next();
+  });
+
+  // Proxy students requests to demo data when specific query parameters are present
+  app.use('/api/students', (req, res, next) => {
+    if (req.query.demo === 'true' || req.query.class === 'CLS001') {
+      logger.info(`Proxying students request to demo data: ${req.originalUrl}`);
+      req.url = '/demo/students';
+      return demoDataRoutes(req, res, next);
+    }
+    next();
+  });
+
+  // Proxy specific student requests to demo data
+  app.use('/api/students/:id', (req, res, next) => {
+    if (req.params.id.startsWith('STU')) {
+      logger.info(`Proxying student request to demo data: ${req.originalUrl}`);
+      req.url = `/demo/students/${req.params.id}`;
+      return demoDataRoutes(req, res, next);
+    }
+    next();
+  });
+}
+
 // Error handling middleware uses the logger imported above
 
 // Error handling middleware
