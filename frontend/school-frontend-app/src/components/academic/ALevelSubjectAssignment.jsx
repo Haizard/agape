@@ -163,14 +163,15 @@ const ALevelSubjectAssignment = () => {
 
       // Filter for A-Level students with subject combinations
       const studentsWithCombinations = response.data
-        .filter(student => student.educationLevel === 'A_LEVEL' && student.subjectCombination)
+        .filter(student => student && student.educationLevel === 'A_LEVEL' && student.subjectCombination)
         .map(student => ({
           id: student._id,
-          name: `${student.firstName} ${student.lastName}`,
-          rollNumber: student.rollNumber,
-          class: student.class,
-          subjectCombination: student.subjectCombination
-        }));
+          name: `${student.firstName || 'Unknown'} ${student.lastName || ''}`,
+          rollNumber: student.rollNumber || 'N/A',
+          class: student.class || null,
+          subjectCombination: student.subjectCombination || null
+        }))
+        .filter(assignment => assignment?.id); // Filter out any invalid assignments
 
       console.log(`Found ${studentsWithCombinations.length} A-Level students with subject combinations`);
       setStudentAssignments(studentsWithCombinations);
@@ -473,31 +474,36 @@ const ALevelSubjectAssignment = () => {
             </TableHead>
             <TableBody>
               {studentAssignments.map(assignment => {
+                if (!assignment) {
+                  console.warn('Null assignment found in studentAssignments array');
+                  return null; // Skip null assignments
+                }
+
                 // Find the combination details
-                const combinationId = typeof assignment.subjectCombination === 'object'
+                const combinationId = assignment.subjectCombination && typeof assignment.subjectCombination === 'object'
                   ? assignment.subjectCombination._id
                   : assignment.subjectCombination;
-                const combination = combinations.find(c => c._id === combinationId);
+                const combination = combinationId ? combinations.find(c => c && c._id === combinationId) : null;
 
                 // Find the class details
-                const classId = typeof assignment.class === 'object'
+                const classId = assignment.class && typeof assignment.class === 'object'
                   ? assignment.class._id
                   : assignment.class;
-                const classDetails = classes.find(c => c._id === classId);
+                const classDetails = classId ? classes.find(c => c && c._id === classId) : null;
 
-                console.log(`Assignment for ${assignment.name}: Class=${classId}, Combination=${combinationId}`);
+                console.log(`Assignment for ${assignment.name || 'Unknown'}: Class=${classId || 'Unknown'}, Combination=${combinationId || 'Unknown'}`);
 
                 return (
-                  <TableRow key={assignment.id}>
-                    <TableCell>{assignment.name}</TableCell>
-                    <TableCell>{assignment.rollNumber}</TableCell>
+                  <TableRow key={assignment.id || `unknown-${Math.random()}`}>
+                    <TableCell>{assignment.name || 'Unknown Student'}</TableCell>
+                    <TableCell>{assignment.rollNumber || 'N/A'}</TableCell>
                     <TableCell>
-                      {classDetails
+                      {classDetails?.name
                         ? `${classDetails.name} ${classDetails.section || ''} ${classDetails.stream || ''}`
                         : 'Unknown Class'}
                     </TableCell>
                     <TableCell>
-                      {combination
+                      {combination?.name && combination?.code
                         ? (
                           <Chip
                             label={`${combination.name} (${combination.code})`}
