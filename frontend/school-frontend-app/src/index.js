@@ -6,10 +6,11 @@ import { Provider } from 'react-redux';
 import store from './store/index';
 import App from './App';
 import EnhancedThemeProvider from './theme/EnhancedThemeProvider';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import './index.css';
 
-// Production-safe error handling
-const ErrorBoundary = ({ children }) => {
+// Production-safe error handling for Router errors
+const RouterErrorBoundary = ({ children }) => {
   const [hasError, setHasError] = React.useState(false);
   const [error, setError] = React.useState(null);
 
@@ -87,9 +88,11 @@ root.render(
     <Provider store={store}>
       <EnhancedThemeProvider>
         <ErrorBoundary>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <RouterErrorBoundary>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </RouterErrorBoundary>
         </ErrorBoundary>
       </EnhancedThemeProvider>
     </Provider>

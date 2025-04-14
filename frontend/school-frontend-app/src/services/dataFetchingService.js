@@ -168,7 +168,11 @@ export const useClasses = (educationLevel) => {
 export const useExams = (classId) => {
   return useCachedData({
     fetchFn: async () => {
-      if (!classId) return [];
+      // Validate classId
+      if (!classId || classId === 'undefined' || classId === 'null') {
+        console.warn('Invalid classId provided:', classId);
+        return [];
+      }
 
       // Use the API service with the correct base URL
       const baseURL = process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com';
@@ -176,7 +180,7 @@ export const useExams = (classId) => {
 
       try {
         // Try the direct endpoint first
-        const directUrl = `${baseURL}/api/exams-direct${classId ? `?class=${classId}` : ''}`;
+        const directUrl = `${baseURL}/api/exams-direct?class=${classId}`;
         console.log('Fetching exams from direct endpoint:', directUrl);
         const response = await axios.get(directUrl);
         console.log('Exams fetched successfully from direct endpoint');
@@ -185,7 +189,7 @@ export const useExams = (classId) => {
         console.warn('Failed to fetch from direct endpoint, falling back to regular endpoint', error);
 
         // Fall back to the regular endpoint
-        const regularUrl = `${baseURL}/api/exams${classId ? `?class=${classId}` : ''}`;
+        const regularUrl = `${baseURL}/api/exams?class=${classId}`;
         console.log('Fetching exams from regular endpoint:', regularUrl);
         const response = await axios.get(regularUrl);
         console.log('Exams fetched successfully from regular endpoint');
@@ -195,7 +199,7 @@ export const useExams = (classId) => {
     resourceType: 'exams',
     resourceId: classId || 'all',
     params: { classId },
-    enabled: !!classId
+    enabled: !!classId && classId !== 'undefined' && classId !== 'null'
   });
 };
 

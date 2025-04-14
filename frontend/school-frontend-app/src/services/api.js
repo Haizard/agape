@@ -40,6 +40,16 @@ const api = axios.create({
 // Add request interceptor to add auth token and handle caching
 api.interceptors.request.use(
   (config) => {
+    // Validate URL to prevent requests with undefined or null IDs
+    if (config.url) {
+      // Check for undefined or null in URL
+      if (config.url.includes('/undefined') || config.url.includes('/null')) {
+        console.error('Invalid URL detected:', config.url);
+        // Reject the request with a clear error message
+        return Promise.reject(new Error(`Invalid URL: ${config.url} - Contains undefined or null ID`));
+      }
+    }
+
     // Get token using our utility function
     const token = getAuthToken();
     if (token) {

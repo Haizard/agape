@@ -311,6 +311,21 @@ const ClassTabularReport = () => {
       console.log('Current state before fetching data:');
       console.log('academicYear:', academicYear);
       console.log('term:', term);
+      console.log('classId:', classId);
+      console.log('examId:', examId);
+
+      // Validate classId and examId
+      if (!classId || classId === 'undefined' || classId === 'null') {
+        setError('Invalid class ID. Please select a valid class.');
+        setLoading(false);
+        return;
+      }
+
+      if (!examId || examId === 'undefined' || examId === 'null') {
+        setError('Invalid exam ID. Please select a valid exam.');
+        setLoading(false);
+        return;
+      }
 
       // Check if this is a demo request
       if (classId === 'demo-class' && examId === 'demo-exam') {
