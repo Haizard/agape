@@ -133,6 +133,12 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running' });
 });
 
+// Frontend health check endpoint
+app.get('/health', (req, res) => {
+  console.log('Frontend health check request received');
+  res.status(200).json({ status: 'ok', message: 'Frontend server is running' });
+});
+
 // Authentication test endpoint
 app.get('/api/auth-test', (req, res) => {
   const authHeader = req.headers.authorization || req.headers.Authorization;
@@ -154,9 +160,29 @@ app.get('/api/auth-test', (req, res) => {
 // Parse JSON request bodies
 app.use(express.json({ limit: '10mb' }));
 
-// Debug middleware to log all requests
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, '../frontend/school-frontend-app/build')));
+
+// Debug middleware to log all requests and fix API URL duplication
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`);
+
+  // Fix API URL duplication issue (e.g., /api/api/classes)
+  if (req.path.startsWith('/api/api/')) {
+    const correctedPath = req.path.replace('/api/api/', '/api/');
+    console.log(`Correcting duplicated API path: ${req.path} -> ${correctedPath}`);
+    req.url = req.url.replace('/api/api/', '/api/');
+  }
+
+  // Handle requests with undefined IDs
+  if (req.path.includes('/undefined') || req.path.includes('/null')) {
+    console.log(`Blocking request with undefined/null ID: ${req.path}`);
+    return res.status(400).json({
+      status: 'error',
+      message: 'Invalid ID: undefined or null IDs are not allowed'
+    });
+  }
+
   next();
 });
 
