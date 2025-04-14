@@ -57,6 +57,31 @@ const ClassTabularReport = () => {
   });
   const [filterForm, setFilterForm] = useState('');
   const [combinations, setCombinations] = useState([]);
+  // Add academicYear and term state variables with default values
+  const [academicYear, setAcademicYear] = useState('current');
+  const [term, setTerm] = useState('current');
+
+  // Extract query parameters from URL
+  useEffect(() => {
+    try {
+      const queryParams = new URLSearchParams(window.location.search);
+      const yearParam = queryParams.get('academicYear');
+      const termParam = queryParams.get('term');
+
+      if (yearParam) {
+        setAcademicYear(yearParam);
+      }
+
+      if (termParam) {
+        setTerm(termParam);
+      }
+    } catch (err) {
+      console.error('Error parsing URL parameters:', err);
+      // Use default values if there's an error
+      setAcademicYear('current');
+      setTerm('current');
+    }
+  }, []);
 
   // Generate demo data for testing
   const generateDemoData = useCallback(() => {
@@ -282,6 +307,11 @@ const ClassTabularReport = () => {
       setLoading(true);
       setError(null);
 
+      // Log current state for debugging
+      console.log('Current state before fetching data:');
+      console.log('academicYear:', academicYear);
+      console.log('term:', term);
+
       // Check if this is a demo request
       if (classId === 'demo-class' && examId === 'demo-exam') {
         console.log('Generating demo data');
@@ -295,9 +325,23 @@ const ClassTabularReport = () => {
         return;
       }
 
-      // Construct the API URL with academicYear and term
+      // Construct the API URL with academicYear and term if available
       let classUrl = `${process.env.REACT_APP_API_URL || ''}/api/classes/${classId}`;
-      classUrl += `?academicYear=${academicYear}&term=${term}`;
+
+      // Add academicYear and term as query parameters if they are valid
+      const queryParams = [];
+      if (academicYear && academicYear !== 'current') {
+        queryParams.push(`academicYear=${academicYear}`);
+      }
+      if (term && term !== 'current') {
+        queryParams.push(`term=${term}`);
+      }
+
+      // Add query parameters to URL if any exist
+      if (queryParams.length > 0) {
+        classUrl += `?${queryParams.join('&')}`;
+      }
+
       console.log('Fetching class data from:', classUrl);
 
       const classResponse = await axios.get(classUrl, {
@@ -320,9 +364,23 @@ const ClassTabularReport = () => {
 
       // If this is not an A-Level class, we'll adapt the data structure later
 
-      // Construct the API URL with academicYear and term
+      // Construct the API URL with academicYear and term if available
       let examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
-      examUrl += `?academicYear=${academicYear}&term=${term}`;
+
+      // Add academicYear and term as query parameters if they are valid
+      const examQueryParams = [];
+      if (academicYear && academicYear !== 'current') {
+        examQueryParams.push(`academicYear=${academicYear}`);
+      }
+      if (term && term !== 'current') {
+        examQueryParams.push(`term=${term}`);
+      }
+
+      // Add query parameters to URL if any exist
+      if (examQueryParams.length > 0) {
+        examUrl += `?${examQueryParams.join('&')}`;
+      }
+
       console.log('Fetching exam data from:', examUrl);
 
       const examResponse = await axios.get(examUrl, {
@@ -334,9 +392,23 @@ const ClassTabularReport = () => {
 
       setExamData(examResponse.data);
 
-      // Construct the API URL with academicYear and term
+      // Construct the API URL with academicYear and term if available
       let studentsUrl = `${process.env.REACT_APP_API_URL || ''}/api/students?class=${classId}`;
-      studentsUrl += `&academicYear=${academicYear}&term=${term}`;
+
+      // Add academicYear and term as query parameters if they are valid
+      const studentsQueryParams = [];
+      if (academicYear && academicYear !== 'current') {
+        studentsQueryParams.push(`academicYear=${academicYear}`);
+      }
+      if (term && term !== 'current') {
+        studentsQueryParams.push(`term=${term}`);
+      }
+
+      // Add query parameters to URL if any exist
+      if (studentsQueryParams.length > 0) {
+        studentsUrl += `&${studentsQueryParams.join('&')}`;
+      }
+
       console.log('Fetching students from:', studentsUrl);
 
       const studentsResponse = await axios.get(studentsUrl, {
@@ -638,6 +710,30 @@ const ClassTabularReport = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  // Create safe versions of classData and examData with default values
+  const safeClassData = classData || {
+    name: 'Class',
+    section: '',
+    stream: '',
+    academicYear: '2023-2024'
+  };
+
+  const safeExamData = examData || {
+    name: 'Exam',
+    academicYear: '2023-2024',
+    term: 'Term'
+  };
+
+  // Log the safe data for debugging
+  if (!classData || !examData) {
+    console.warn('Using safe data for rendering:', {
+      classDataExists: !!classData,
+      examDataExists: !!examData,
+      safeClassData,
+      safeExamData
+    });
+  }
+
   return (
     <Box className="class-tabular-report-container">
       {/* Snackbar for notifications */}
@@ -709,13 +805,29 @@ const ClassTabularReport = () => {
       <Box className="report-header">
         <Box className="header-left">
           <Typography variant="h6" className="school-name">
-            AGAPE LUTHERAN JUNIOR SEMINARY
+            ST. JOHN VIANNEY SCHOOL MANAGEMENT SYSTEM
           </Typography>
           <Typography variant="body2" className="school-address">
             P.O. BOX 8882, MOSHI, KILIMANJARO
           </Typography>
           <Typography variant="body1" className="exam-info">
-            {examData.name} - {examData.academicYear || classData.academicYear}
+            {(() => {
+              try {
+                return safeExamData.name || 'Exam';
+              } catch (err) {
+                console.error('Error accessing safeExamData.name:', err);
+                return 'Exam';
+              }
+            })()} - {
+              (() => {
+                try {
+                  return safeExamData.academicYear || safeClassData.academicYear || '2023-2024';
+                } catch (err) {
+                  console.error('Error accessing academicYear:', err);
+                  return '2023-2024';
+                }
+              })()
+            }
           </Typography>
         </Box>
 
@@ -735,10 +847,10 @@ const ClassTabularReport = () => {
             CLASS ACADEMIC REPORT
           </Typography>
           <Typography variant="body2" className="class-info">
-            {classData.name}
+            {safeClassData.name}
           </Typography>
           <Typography variant="body2" className="term-info">
-            {examData.term || classData.term}
+            {safeExamData.term || safeClassData.term || 'Term'}
           </Typography>
         </Box>
       </Box>
