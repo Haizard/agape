@@ -707,9 +707,24 @@ const SubjectCombinationSetup = ({ onComplete, standalone = false }) => {
 
   // Get subject name by ID
   const getSubjectName = (subjectId) => {
-    const allSubjects = [...subjects.principal, ...subjects.subsidiary];
-    const subject = allSubjects.find(s => s._id === subjectId);
-    return subject ? subject.name : 'Unknown Subject';
+    if (!subjectId) {
+      console.warn('getSubjectName called with null or undefined subjectId');
+      return 'Unknown Subject';
+    }
+
+    if (!subjects || !subjects.principal || !subjects.subsidiary) {
+      console.warn('getSubjectName called with invalid subjects object:', subjects);
+      return 'Unknown Subject';
+    }
+
+    try {
+      const allSubjects = [...(subjects.principal || []), ...(subjects.subsidiary || [])];
+      const subject = allSubjects.find(s => s && s._id === subjectId);
+      return subject && subject.name ? subject.name : 'Unknown Subject';
+    } catch (error) {
+      console.error('Error in getSubjectName:', error);
+      return 'Unknown Subject';
+    }
   };
 
   return (

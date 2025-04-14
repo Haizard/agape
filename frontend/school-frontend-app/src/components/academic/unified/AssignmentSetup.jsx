@@ -572,8 +572,18 @@ const AssignmentSetup = ({ onComplete, standalone = false }) => {
 
   // Get subject name by ID
   const getSubjectName = (subjectId) => {
-    const subject = subjects.find(s => s._id === subjectId);
-    return subject ? subject.name : 'Unknown Subject';
+    if (!subjectId) {
+      console.warn('getSubjectName called with null or undefined subjectId');
+      return 'Unknown Subject';
+    }
+
+    if (!subjects || !Array.isArray(subjects)) {
+      console.warn('getSubjectName called with invalid subjects array:', subjects);
+      return 'Unknown Subject';
+    }
+
+    const subject = subjects.find(s => s && s._id === subjectId);
+    return subject && subject.name ? subject.name : 'Unknown Subject';
   };
 
   return (
