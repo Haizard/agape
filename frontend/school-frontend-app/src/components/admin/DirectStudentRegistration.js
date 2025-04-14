@@ -25,6 +25,7 @@ const DirectStudentRegistration = () => {
     email: '',
     password: '',
     firstName: '',
+    middleName: '',
     lastName: '',
     dateOfBirth: null,
     gender: 'male',
@@ -147,6 +148,7 @@ const DirectStudentRegistration = () => {
         email: '',
         password: '',
         firstName: '',
+        middleName: '',
         lastName: '',
         dateOfBirth: null,
         gender: 'male',
@@ -229,7 +231,7 @@ const DirectStudentRegistration = () => {
               <Typography variant="h6">Student Information</Typography>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 label="First Name"
@@ -242,7 +244,17 @@ const DirectStudentRegistration = () => {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label="Middle Name"
+                name="middleName"
+                value={formData.middleName}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 label="Last Name"
@@ -337,6 +349,7 @@ const DirectStudentRegistration = () => {
                     email: '',
                     password: '',
                     firstName: '',
+                    middleName: '',
                     lastName: '',
                     dateOfBirth: null,
                     gender: 'male',

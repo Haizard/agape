@@ -22,6 +22,7 @@ const TeacherStudentManagement = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     email: '',
     rollNumber: '',
@@ -70,14 +71,14 @@ const TeacherStudentManagement = () => {
 
       // Flatten the students from all classes
       const allStudents = [];
-      response.data.forEach(classGroup => {
-        classGroup.students.forEach(student => {
+      for (const classGroup of response.data) {
+        for (const student of classGroup.students) {
           allStudents.push({
             ...student,
             class: classGroup.classInfo
           });
-        });
-      });
+        }
+      }
 
       setStudents(allStudents);
       console.log('Students:', allStudents);
@@ -106,6 +107,7 @@ const TeacherStudentManagement = () => {
   const resetForm = () => {
     setFormData({
       firstName: '',
+      middleName: '',
       lastName: '',
       email: '',
       rollNumber: '',
@@ -122,6 +124,7 @@ const TeacherStudentManagement = () => {
     if (student) {
       setFormData({
         firstName: student.firstName,
+        middleName: student.middleName || '',
         lastName: student.lastName,
         email: student.email || '',
         rollNumber: student.rollNumber || '',
@@ -161,6 +164,7 @@ const TeacherStudentManagement = () => {
         // Update existing student
         const updateData = {
           firstName: formData.firstName,
+          middleName: formData.middleName,
           lastName: formData.lastName,
           email: formData.email,
           rollNumber: formData.rollNumber,
@@ -176,6 +180,7 @@ const TeacherStudentManagement = () => {
           email: formData.email || `${formData.firstName.toLowerCase()}.${formData.lastName.toLowerCase()}@example.com`,
           password: formData.password || 'password123', // Default password
           firstName: formData.firstName,
+          middleName: formData.middleName,
           lastName: formData.lastName,
           classId: formData.class,
           admissionNumber: formData.rollNumber || '',
@@ -270,6 +275,7 @@ const TeacherStudentManagement = () => {
                 <TableRow>
                   <TableCell>Roll Number</TableCell>
                   <TableCell>First Name</TableCell>
+                  <TableCell>Middle Name</TableCell>
                   <TableCell>Last Name</TableCell>
                   <TableCell>Email</TableCell>
                   <TableCell>Class</TableCell>
@@ -282,6 +288,7 @@ const TeacherStudentManagement = () => {
                     <TableRow key={student._id}>
                       <TableCell><SafeDisplay value={student.rollNumber} /></TableCell>
                       <TableCell><SafeDisplay value={student.firstName} /></TableCell>
+                      <TableCell><SafeDisplay value={student.middleName} /></TableCell>
                       <TableCell><SafeDisplay value={student.lastName} /></TableCell>
                       <TableCell><SafeDisplay value={student.email} /></TableCell>
                       <TableCell>
@@ -318,7 +325,7 @@ const TeacherStudentManagement = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={7} align="center">
                       No students found
                     </TableCell>
                   </TableRow>
@@ -337,7 +344,7 @@ const TeacherStudentManagement = () => {
         <DialogContent>
           <Box component="form" noValidate sx={{ mt: 2 }}>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="First Name"
@@ -347,7 +354,16 @@ const TeacherStudentManagement = () => {
                   required
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Middle Name"
+                  name="middleName"
+                  value={formData.middleName}
+                  onChange={handleChange}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
                   label="Last Name"

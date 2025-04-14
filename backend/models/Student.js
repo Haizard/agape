@@ -16,6 +16,10 @@ const studentSchema = new mongoose.Schema({
     required: [true, 'Last name is required'],
     trim: true
   },
+  middleName: {
+    type: String,
+    trim: true
+  },
   email: {
     type: String,
     trim: true

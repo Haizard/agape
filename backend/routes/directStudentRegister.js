@@ -25,6 +25,7 @@ router.post('/direct-student-register', authenticateToken, authorizeRole(['admin
       email,
       password,
       firstName,
+      middleName,
       lastName,
       dateOfBirth,
       gender,
@@ -70,6 +71,7 @@ router.post('/direct-student-register', authenticateToken, authorizeRole(['admin
     const student = new Student({
       userId: savedUser._id,
       firstName,
+      middleName: middleName || '',
       lastName,
       email: email || `${username}@example.com`,
       dateOfBirth: dateOfBirth || null,
