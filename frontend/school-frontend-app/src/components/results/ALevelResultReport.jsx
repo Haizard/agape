@@ -6,20 +6,12 @@ import {
   Box,
   Typography,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Grid,
   Divider,
   Button,
   CircularProgress,
   Alert,
   Card,
   CardContent,
-  Chip,
   Snackbar
 } from '@mui/material';
 import {
@@ -27,17 +19,29 @@ import {
   Share as ShareIcon,
   Download as DownloadIcon
 } from '@mui/icons-material';
-import resultApi from '../../services/resultApi';
-import { generateALevelStudentResultPDF } from '../../utils/aLevelPdfGenerator';
 import SubjectCombinationDisplay from '../common/SubjectCombinationDisplay';
 
-// Import new utilities
-import { EducationLevels, separatePrincipalAndSubsidiarySubjects } from '../../utils/educationLevelUtils';
-import { handleApiError, validateEducationLevel } from '../../utils/errorHandling';
-import { fetchWithCache, generateCacheKey } from '../../utils/cacheUtils';
-import withErrorHandling from '../../components/common/withErrorHandling';
-import withEducationLevel from '../../components/common/withEducationLevel';
-import useCachedData from '../../hooks/useCachedData';
+// Import services
+import { useALevelStudentReport } from '../../services/dataFetchingService';
+import { generateALevelStudentResultPDF } from '../../utils/aLevelPdfGenerator';
+
+// Import utilities
+import { EducationLevels } from '../../utils/educationLevelUtils';
+import { handleApiError, getUserFriendlyErrorMessage } from '../../utils/errorHandler';
+
+// Import context
+import { useResultContext } from '../../contexts/ResultContext';
+
+// Import reusable components
+import {
+  ResultTable,
+  GradeChip,
+  DivisionChip,
+  ReportSummary,
+  StudentDetails,
+  withErrorHandling,
+  withEducationLevel
+} from '../../components/common';
 import ALevelReportSummary from './common/ALevelReportSummary';
 
 /**

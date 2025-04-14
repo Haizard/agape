@@ -16,6 +16,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const aLevelGradeCalculator = require('../utils/aLevelGradeCalculator');
 const logger = require('../utils/logger');
+const {
+  formatALevelStudentResponse,
+  formatALevelClassResponse,
+  formatErrorResponse,
+  formatSuccessResponse
+} = require('../utils/responseFormatter');
+const {
+  validateALevelResult,
+  formatValidationErrors
+} = require('../utils/dataValidator');
 
 // Setup logging - using centralized logger
 const logToFile = (message) => {
@@ -905,22 +915,30 @@ router.post('/enter-marks', authenticateToken, authorizeRole(['admin', 'teacher'
 
     // Log whether this is a principal subject
     logToFile(`Subject ${subjectId} is ${isPrincipal ? 'a principal' : 'a subsidiary'} subject`);
-    console.log(`Subject ${subjectId} is ${isPrincipal ? 'a principal' : 'a subsidiary'} subject`);
 
     logToFile(`POST /api/a-level-results/enter-marks - Entering A-Level marks for student ${studentId}, subject ${subjectId}, exam ${examId}`);
-    console.log('Entering A-Level marks:', req.body);
 
-    // Validate required fields
-    if (!studentId || !examId || !academicYearId || !subjectId || marksObtained === undefined) {
-      logToFile('Missing required fields');
-      return res.status(400).json({ message: 'Missing required fields' });
+    // Validate input data
+    const validationResult = validateALevelResult({
+      studentId,
+      examId,
+      subjectId,
+      marksObtained,
+      grade,
+      points,
+      isPrincipal
+    });
+
+    if (!validationResult.isValid) {
+      const errorResponse = formatValidationErrors(validationResult);
+      return res.status(422).json(errorResponse);
     }
 
-    // Check if student exists and is A-Level
+    // Check if student exists
     const student = await Student.findById(studentId);
     if (!student) {
       logToFile(`Student not found with ID: ${studentId}`);
-      return res.status(404).json({ message: 'Student not found' });
+      return res.status(404).json(formatErrorResponse(new Error('Student not found'), 'enter-marks'));
     }
 
     // Update student to A-Level if not already
@@ -934,45 +952,43 @@ router.post('/enter-marks', authenticateToken, authorizeRole(['admin', 'teacher'
     const subject = await Subject.findById(subjectId);
     if (!subject) {
       logToFile(`Subject not found with ID: ${subjectId}`);
-      return res.status(404).json({ message: 'Subject not found' });
+      return res.status(404).json(formatErrorResponse(new Error('Subject not found'), 'enter-marks'));
     }
 
     // Check if exam exists
     const exam = await Exam.findById(examId);
     if (!exam) {
       logToFile(`Exam not found with ID: ${examId}`);
-      return res.status(404).json({ message: 'Exam not found' });
+      return res.status(404).json(formatErrorResponse(new Error('Exam not found'), 'enter-marks'));
     }
 
     // Check if result already exists
-    let result = await ALevelResult.findOne({
+    const existingResult = await ALevelResult.findOne({
       studentId,
       examId,
       subjectId,
       academicYearId
     });
 
-    if (result) {
+    if (existingResult) {
       // Update existing result
       logToFile(`Updating existing result for student ${studentId}, subject ${subjectId}, exam ${examId}`);
 
-      result.marksObtained = marksObtained;
-      result.grade = grade || calculateGrade(marksObtained);
-      result.points = points || calculatePoints(result.grade);
-      result.comment = comment;
-      result.isPrincipal = isPrincipal; // Update the isPrincipal flag
+      existingResult.marksObtained = marksObtained;
+      existingResult.grade = grade || aLevelGradeCalculator.calculateGrade(marksObtained);
+      existingResult.points = points || aLevelGradeCalculator.calculatePoints(existingResult.grade);
+      existingResult.comment = comment;
+      existingResult.isPrincipal = isPrincipal; // Update the isPrincipal flag
 
       // Log the updated result
-      logToFile(`Updated result: Subject=${subjectId}, Marks=${marksObtained}, Grade=${result.grade}, Points=${result.points}, IsPrincipal=${isPrincipal}`);
-      console.log(`Updated result: Subject=${subjectId}, Marks=${marksObtained}, Grade=${result.grade}, Points=${result.points}, IsPrincipal=${isPrincipal}`);
+      logToFile(`Updated result: Subject=${subjectId}, Marks=${marksObtained}, Grade=${existingResult.grade}, Points=${existingResult.points}, IsPrincipal=${isPrincipal}`);
 
-      await result.save();
+      await existingResult.save();
 
-      res.json({
-        success: true,
-        message: 'A-Level marks updated successfully',
-        result
-      });
+      return res.json(formatSuccessResponse(
+        existingResult,
+        'A-Level marks updated successfully'
+      ));
     } else {
       // Create new result
       logToFile(`Creating new result for student ${studentId}, subject ${subjectId}, exam ${examId}`);
@@ -985,28 +1001,25 @@ router.post('/enter-marks', authenticateToken, authorizeRole(['admin', 'teacher'
         subjectId,
         classId,
         marksObtained,
-        grade: grade || calculateGrade(marksObtained),
-        points: points || calculatePoints(grade || calculateGrade(marksObtained)),
+        grade: grade || aLevelGradeCalculator.calculateGrade(marksObtained),
+        points: points || aLevelGradeCalculator.calculatePoints(grade || aLevelGradeCalculator.calculateGrade(marksObtained)),
         comment,
-        isPrincipal // Include the isPrincipal flag
+        isPrincipal
       });
 
       // Log the new result
       logToFile(`New result: Subject=${subjectId}, Marks=${marksObtained}, Grade=${newResult.grade}, Points=${newResult.points}, IsPrincipal=${isPrincipal}`);
-      console.log(`New result: Subject=${subjectId}, Marks=${marksObtained}, Grade=${newResult.grade}, Points=${newResult.points}, IsPrincipal=${isPrincipal}`);
 
       await newResult.save();
 
-      res.json({
-        success: true,
-        message: 'A-Level marks saved successfully',
-        result: newResult
-      });
+      return res.status(201).json(formatSuccessResponse(
+        newResult,
+        'A-Level marks saved successfully'
+      ));
     }
   } catch (error) {
     logToFile(`Error entering A-Level marks: ${error.message}`);
-    console.error('Error entering A-Level marks:', error);
-    res.status(500).json({ message: `Error entering A-Level marks: ${error.message}` });
+    return res.status(500).json(formatErrorResponse(error, 'enter-marks'));
   }
 });
 
@@ -1123,6 +1136,240 @@ router.post('/send-sms/:studentId/:examId', authenticateToken, authorizeRole(['a
   } catch (error) {
     logToFile(`Error sending A-Level result SMS: ${error.message}`);
     res.status(500).json({ message: `Error sending A-Level result SMS: ${error.message}` });
+  }
+});
+
+// Get Form 5 student result report
+router.get('/form5/student/:studentId/:examId', authenticateToken, async (req, res) => {
+  try {
+    const { studentId, examId } = req.params;
+
+    logToFile(`GET /api/a-level-results/form5/student/${studentId}/${examId} - Generating Form 5 A-Level student result report`);
+
+    // Find the student
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json(formatErrorResponse(new Error('Student not found'), 'form5/student'));
+    }
+
+    // Verify this is an A-Level student
+    if (student.educationLevel !== 'A_LEVEL') {
+      return res.status(400).json(formatErrorResponse(
+        new Error('This is not an A-Level student'),
+        'form5/student',
+        { educationLevel: student.educationLevel }
+      ));
+    }
+
+    // Verify this is a Form 5 student
+    if (student.form !== 5 && student.form !== '5' && student.form !== 'Form 5') {
+      return res.status(400).json(formatErrorResponse(
+        new Error('This is not a Form 5 student'),
+        'form5/student',
+        { form: student.form }
+      ));
+    }
+
+    // Find the class
+    const classObj = await Class.findById(student.class);
+    if (!classObj) {
+      return res.status(404).json(formatErrorResponse(new Error('Class not found for student'), 'form5/student'));
+    }
+
+    // Find the exam
+    const exam = await Exam.findById(examId).populate('academicYear');
+    if (!exam) {
+      return res.status(404).json(formatErrorResponse(new Error('Exam not found'), 'form5/student'));
+    }
+
+    // Get results for this student
+    const results = await ALevelResult.find({ studentId, examId })
+      .populate('subjectId', 'name code isPrincipal');
+
+    if (!results || results.length === 0) {
+      return res.status(404).json(formatErrorResponse(new Error('No results found for this student'), 'form5/student'));
+    }
+
+    // Get subject combination if available
+    let subjectCombination = null;
+    if (student.subjectCombination || classObj.subjectCombination) {
+      const combinationId = student.subjectCombination ||
+        (typeof classObj.subjectCombination === 'object'
+          ? classObj.subjectCombination._id
+          : classObj.subjectCombination);
+
+      if (combinationId) {
+        try {
+          subjectCombination = await getFullSubjectCombination(combinationId);
+        } catch (err) {
+          logger.error(`Error fetching subject combination: ${err.message}`);
+          // Continue without the combination
+        }
+      }
+    }
+
+    // Format the response using the standardized formatter
+    const formattedResponse = formatALevelStudentResponse(student, results, exam, classObj);
+
+    // Add form-specific data
+    formattedResponse.form = 5;
+    formattedResponse.subjectCombination = subjectCombination;
+    formattedResponse.reportTitle = `Form 5 ${exam.name} Result Report`;
+
+    // Return the formatted response
+    return res.json(formattedResponse);
+  } catch (error) {
+    logToFile(`Error generating Form 5 A-Level student report: ${error.message}`);
+    return res.status(500).json(formatErrorResponse(error, 'form5/student'));
+  }
+});
+
+// Get Form 6 student result report
+router.get('/form6/student/:studentId/:examId', authenticateToken, async (req, res) => {
+  try {
+    const { studentId, examId } = req.params;
+
+    logToFile(`GET /api/a-level-results/form6/student/${studentId}/${examId} - Generating Form 6 A-Level student result report`);
+
+    // Find the student
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json(formatErrorResponse(new Error('Student not found'), 'form6/student'));
+    }
+
+    // Verify this is an A-Level student
+    if (student.educationLevel !== 'A_LEVEL') {
+      return res.status(400).json(formatErrorResponse(
+        new Error('This is not an A-Level student'),
+        'form6/student',
+        { educationLevel: student.educationLevel }
+      ));
+    }
+
+    // Verify this is a Form 6 student
+    if (student.form !== 6 && student.form !== '6' && student.form !== 'Form 6') {
+      return res.status(400).json(formatErrorResponse(
+        new Error('This is not a Form 6 student'),
+        'form6/student',
+        { form: student.form }
+      ));
+    }
+
+    // Find the class
+    const classObj = await Class.findById(student.class);
+    if (!classObj) {
+      return res.status(404).json(formatErrorResponse(new Error('Class not found for student'), 'form6/student'));
+    }
+
+    // Find the exam
+    const exam = await Exam.findById(examId).populate('academicYear');
+    if (!exam) {
+      return res.status(404).json(formatErrorResponse(new Error('Exam not found'), 'form6/student'));
+    }
+
+    // Get results for this student
+    const results = await ALevelResult.find({ studentId, examId })
+      .populate('subjectId', 'name code isPrincipal');
+
+    if (!results || results.length === 0) {
+      return res.status(404).json(formatErrorResponse(new Error('No results found for this student'), 'form6/student'));
+    }
+
+    // Get subject combination if available
+    let subjectCombination = null;
+    if (student.subjectCombination || classObj.subjectCombination) {
+      const combinationId = student.subjectCombination ||
+        (typeof classObj.subjectCombination === 'object'
+          ? classObj.subjectCombination._id
+          : classObj.subjectCombination);
+
+      if (combinationId) {
+        try {
+          subjectCombination = await getFullSubjectCombination(combinationId);
+        } catch (err) {
+          logger.error(`Error fetching subject combination: ${err.message}`);
+          // Continue without the combination
+        }
+      }
+    }
+
+    // Try to get Form 5 results for comparison
+    let form5Results = null;
+    try {
+      // Find Form 5 exams (final exam of the year)
+      const form5Exams = await Exam.find({
+        type: 'FINAL',
+        academicYear: { $ne: exam.academicYear } // Different academic year
+      }).sort({ startDate: -1 }).limit(1);
+
+      if (form5Exams.length > 0) {
+        const form5Exam = form5Exams[0];
+
+        // Get the student's results for this exam
+        const form5ResultsData = await ALevelResult.find({
+          studentId: studentId,
+          examId: form5Exam._id
+        }).populate('subjectId');
+
+        if (form5ResultsData.length > 0) {
+          // Calculate average marks
+          let totalMarks = 0;
+          for (const result of form5ResultsData) {
+            totalMarks += result.marksObtained || 0;
+          }
+          const averageMarks = (totalMarks / form5ResultsData.length).toFixed(2);
+
+          // Calculate division
+          const principalResults = form5ResultsData.filter(result =>
+            result.subjectId?.isPrincipal);
+
+          // Sort by points (ascending)
+          principalResults.sort((a, b) => a.points - b.points);
+
+          // Take best 3 (lowest points)
+          const bestThree = principalResults.slice(0, 3);
+          const bestThreePoints = bestThree.reduce((sum, result) => sum + (result.points || 0), 0);
+          const division = aLevelGradeCalculator.calculateDivision(bestThreePoints);
+
+          form5Results = {
+            averageMarks,
+            bestThreePoints,
+            division,
+            examName: form5Exam.name
+          };
+        }
+      }
+    } catch (err) {
+      logger.error(`Error fetching Form 5 results: ${err.message}`);
+      // Continue without Form 5 results
+    }
+
+    // Format the response using the standardized formatter
+    const formattedResponse = formatALevelStudentResponse(student, results, exam, classObj);
+
+    // Add form-specific data
+    formattedResponse.form = 6;
+    formattedResponse.subjectCombination = subjectCombination;
+    formattedResponse.form5Results = form5Results;
+    formattedResponse.reportTitle = `Form 6 ${exam.name} Result Report`;
+
+    // Add final recommendation for Form 6 students
+    const division = formattedResponse.summary.division;
+    const divisionNumber = division.replace('Division ', '');
+
+    if (divisionNumber === 'I' || divisionNumber === 'II') {
+      formattedResponse.finalRecommendation = 'Qualified for University Admission';
+    } else if (divisionNumber === 'III') {
+      formattedResponse.finalRecommendation = 'Qualified for College Admission';
+    } else {
+      formattedResponse.finalRecommendation = 'Recommended for Vocational Training';
+    }
+
+    // Return the formatted response
+    return res.json(formattedResponse);
+  } catch (error) {
+    logToFile(`Error generating Form 6 A-Level student report: ${error.message}`);
+    return res.status(500).json(formatErrorResponse(error, 'form6/student'));
   }
 });
 

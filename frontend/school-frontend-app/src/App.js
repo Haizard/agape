@@ -6,6 +6,9 @@ import { Box, Typography } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
+// Context providers
+import { ResultProvider } from './contexts/ResultContext';
+
 // Local components next
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -121,7 +124,8 @@ function App() {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <AuthProvider>
-        <div className="App">
+        <ResultProvider>
+          <div className="App">
             {isAuthenticated ? (
               <>
                 <Box sx={{ display: 'flex' }}>
@@ -365,6 +369,7 @@ function App() {
             </>
           )}
           </div>
+        </ResultProvider>
       </AuthProvider>
     </LocalizationProvider>
   );
