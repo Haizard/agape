@@ -322,7 +322,9 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
         path: 'subjects.subject',
         model: 'Subject',
         select: 'name code type description educationLevel isPrincipal isCompulsory'
-      });
+      })
+      .populate('subjectCombination')
+      .populate('subjectCombinations');
 
     if (!classDetails) {
       console.log(`Class not found with ID: ${classId}`);
@@ -334,17 +336,26 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
       .filter(subjectAssignment => subjectAssignment.subject) // Filter out null subjects
       .map(subjectAssignment => subjectAssignment.subject);
 
-    // If student is A-Level, also get subjects from subject combination
-    if (student.educationLevel === 'A_LEVEL' && student.subjectCombination) {
-      console.log(`Student ${studentId} is A-Level with subject combination: ${student.subjectCombination}`);
+    // Helper function to process a subject combination
+    const processSubjectCombination = async (combinationId) => {
+      try {
+        // Validate the subject combination ID
+        if (!mongoose.Types.ObjectId.isValid(combinationId)) {
+          console.error(`Invalid subject combination ID format: ${combinationId}`);
+          return;
+        }
 
-      // Get the subject combination
-      const SubjectCombination = require('../models/SubjectCombination');
-      const combination = await SubjectCombination.findById(student.subjectCombination)
-        .populate('subjects', 'name code type description educationLevel isPrincipal isCompulsory')
-        .populate('compulsorySubjects', 'name code type description educationLevel isPrincipal isCompulsory');
+        // Get the subject combination
+        const SubjectCombination = require('../models/SubjectCombination');
+        const combination = await SubjectCombination.findById(combinationId)
+          .populate('subjects', 'name code type description educationLevel isPrincipal isCompulsory')
+          .populate('compulsorySubjects', 'name code type description educationLevel isPrincipal isCompulsory');
 
-      if (combination) {
+        if (!combination) {
+          console.log(`Subject combination not found with ID: ${combinationId}`);
+          return;
+        }
+
         // Add subjects from combination if they're not already in the list
         if (combination.subjects && Array.isArray(combination.subjects)) {
           for (const subject of combination.subjects) {
@@ -362,6 +373,37 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
             }
           }
         }
+      } catch (error) {
+        console.error(`Error processing subject combination ${combinationId}:`, error);
+        // Continue without the combination - don't fail the entire request
+      }
+    };
+
+    // If student is A-Level, get subjects from student's subject combination
+    if (student.educationLevel === 'A_LEVEL') {
+      // First try the student's own subject combination
+      if (student.subjectCombination) {
+        console.log(`Student ${studentId} is A-Level with subject combination: ${student.subjectCombination}`);
+        await processSubjectCombination(student.subjectCombination);
+      }
+
+      // Then try the class's subject combinations
+      if (classDetails.subjectCombination) {
+        console.log(`Class ${classId} has a subject combination: ${classDetails.subjectCombination}`);
+        // If it's already populated, use the _id, otherwise use it directly
+        const combinationId = typeof classDetails.subjectCombination === 'object'
+          ? classDetails.subjectCombination._id
+          : classDetails.subjectCombination;
+        await processSubjectCombination(combinationId);
+      }
+
+      // Process multiple subject combinations if available
+      if (classDetails.subjectCombinations && Array.isArray(classDetails.subjectCombinations) && classDetails.subjectCombinations.length > 0) {
+        console.log(`Class ${classId} has ${classDetails.subjectCombinations.length} subject combinations`);
+        for (const combination of classDetails.subjectCombinations) {
+          const combinationId = typeof combination === 'object' ? combination._id : combination;
+          await processSubjectCombination(combinationId);
+        }
       }
     }
 
@@ -369,7 +411,20 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
     res.json(subjects);
   } catch (error) {
     console.error(`Error fetching subjects for student ${req.params.id}:`, error);
-    res.status(500).json({ message: 'Failed to fetch student subjects' });
+    // Log the error stack trace for better debugging
+    console.error('Error stack:', error.stack);
+
+    // Return a more detailed error message in development
+    if (process.env.NODE_ENV === 'development') {
+      res.status(500).json({
+        message: 'Failed to fetch student subjects',
+        error: error.message,
+        stack: error.stack
+      });
+    } else {
+      // In production, don't expose error details
+      res.status(500).json({ message: 'Failed to fetch student subjects' });
+    }
   }
 });
 

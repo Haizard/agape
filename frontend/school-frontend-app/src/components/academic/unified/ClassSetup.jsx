@@ -60,7 +60,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
     educationLevel: 'O_LEVEL',
     capacity: 40,
     isActive: true,
-    customFields: []
+    customFields: [],
+    subjectCombinations: [] // Array to store multiple subject combinations for A-Level
   });
 
   // State for custom fields
@@ -72,6 +73,7 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
   // State for classes list
   const [classes, setClasses] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
+  const [subjectCombinations, setSubjectCombinations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -85,10 +87,11 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
     educationLevel: ''
   });
 
-  // Fetch classes and academic years on component mount
+  // Fetch classes, academic years, and subject combinations on component mount
   useEffect(() => {
     fetchAcademicYears();
     fetchClasses();
+    fetchSubjectCombinations();
   }, []);
 
   // Fetch classes when filter changes
@@ -417,6 +420,18 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
     }
   };
 
+  // Fetch subject combinations for A-Level classes
+  const fetchSubjectCombinations = async () => {
+    try {
+      const response = await unifiedApi.get('/subject-combinations');
+      setSubjectCombinations(response || []);
+      console.log('Fetched subject combinations:', response);
+    } catch (err) {
+      console.error('Error fetching subject combinations:', err);
+      setSubjectCombinations([]);
+    }
+  };
+
   // Handle form input change
   const handleInputChange = (e) => {
     const { name, value, checked, type } = e.target;
@@ -435,12 +450,35 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
           [name]: numValue
         }));
       }
+    } else if (name === 'educationLevel') {
+      // When education level changes, reset subject combinations if changing from A-Level to O-Level
+      if (value === 'O_LEVEL') {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value,
+          subjectCombinations: []
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value
       }));
     }
+  };
+
+  // Handle subject combinations selection
+  const handleSubjectCombinationsChange = (event) => {
+    const { value } = event.target;
+    setFormData(prev => ({
+      ...prev,
+      subjectCombinations: value
+    }));
   };
 
   // Handle filter change
@@ -504,7 +542,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
         educationLevel: 'O_LEVEL',
         capacity: 40,
         isActive: true,
-        customFields: []
+        customFields: [],
+        subjectCombinations: []
       });
 
       // Reset custom fields state
@@ -546,8 +585,11 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       educationLevel: classObj.educationLevel,
       capacity: classObj.capacity,
       isActive: classObj.isActive,
-      customFields: classObj.customFields || []
+      customFields: classObj.customFields || [],
+      subjectCombinations: classObj.subjectCombinations?.map(sc => typeof sc === 'object' ? sc._id : sc) || []
     });
+
+    console.log('Editing class with subject combinations:', classObj.subjectCombinations);
 
     // Show custom fields if there are any
     if (classObj.customFields && classObj.customFields.length > 0) {
@@ -595,7 +637,8 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
       educationLevel: 'O_LEVEL',
       capacity: 40,
       isActive: true,
-      customFields: []
+      customFields: [],
+      subjectCombinations: []
     });
 
     // Reset custom fields state
@@ -854,6 +897,44 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
               </FormControl>
             </Grid>
 
+            {/* Show subject combinations multi-select only for A-Level classes */}
+            {formData.educationLevel === 'A_LEVEL' && (
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Subject Combinations</InputLabel>
+                  <Select
+                    multiple
+                    name="subjectCombinations"
+                    value={formData.subjectCombinations}
+                    onChange={handleSubjectCombinationsChange}
+                    label="Subject Combinations"
+                    renderValue={(selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {selected.map((value) => {
+                          const combination = subjectCombinations.find(sc => sc._id === value);
+                          return (
+                            <Chip
+                              key={value}
+                              label={combination ? `${combination.name} (${combination.code})` : value}
+                            />
+                          );
+                        })}
+                      </Box>
+                    )}
+                  >
+                    {subjectCombinations.map((combination) => (
+                      <MenuItem key={combination._id} value={combination._id}>
+                        {combination.name} ({combination.code})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>
+                    Select one or more subject combinations for this A-Level class
+                  </FormHelperText>
+                </FormControl>
+              </Grid>
+            )}
+
             <Grid item xs={12} md={6}>
               <FormControlLabel
                 control={
@@ -1047,6 +1128,7 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
                   <TableCell>Education Level</TableCell>
                   <TableCell>Capacity</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Subject Combinations</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -1081,6 +1163,31 @@ const ClassSetup = ({ onComplete, standalone = false }) => {
                         color={classObj.isActive ? 'success' : 'default'}
                         size="small"
                       />
+                    </TableCell>
+                    <TableCell>
+                      {classObj.educationLevel === 'A_LEVEL' && (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {classObj.subjectCombinations && classObj.subjectCombinations.length > 0 ? (
+                            classObj.subjectCombinations.map((combination) => {
+                              const combinationObj = typeof combination === 'object' ? combination : subjectCombinations.find(sc => sc._id === combination);
+                              return (
+                                <Chip
+                                  key={typeof combination === 'object' ? combination._id : combination}
+                                  label={combinationObj ? `${combinationObj.code}` : 'Unknown'}
+                                  size="small"
+                                  color="info"
+                                  sx={{ mr: 0.5 }}
+                                />
+                              );
+                            })
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">None</Typography>
+                          )}
+                        </Box>
+                      )}
+                      {classObj.educationLevel === 'O_LEVEL' && (
+                        <Typography variant="body2" color="text.secondary">N/A</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <IconButton
