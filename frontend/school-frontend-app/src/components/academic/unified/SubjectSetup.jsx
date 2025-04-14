@@ -105,16 +105,20 @@ const SubjectSetup = ({ onComplete, standalone = false }) => {
       }
 
       const response = await unifiedApi.get(`/subjects?${params.toString()}`);
-      setSubjects(response);
+
+      // Extract data from the response
+      const subjectsData = response.data || [];
+      console.log('Fetched subjects:', subjectsData);
+      setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
 
       // Check if there's at least one subject for each education level
       if (!standalone) {
-        const oLevelSubjects = response.filter(subj => subj.educationLevel === 'O_LEVEL');
-        const aLevelSubjects = response.filter(subj => subj.educationLevel === 'A_LEVEL');
+        const oLevelSubjects = Array.isArray(subjectsData) ? subjectsData.filter(subj => subj && subj.educationLevel === 'O_LEVEL') : [];
+        const aLevelSubjects = Array.isArray(subjectsData) ? subjectsData.filter(subj => subj && subj.educationLevel === 'A_LEVEL') : [];
 
         if (oLevelSubjects.length > 0 && aLevelSubjects.length > 0) {
           // Mark step as complete if at least one subject exists for each education level
-          onComplete && onComplete();
+          onComplete?.();
         }
       }
     } catch (err) {
@@ -230,7 +234,7 @@ const SubjectSetup = ({ onComplete, standalone = false }) => {
 
         if (oLevelSubjects.length > 0 && aLevelSubjects.length > 0) {
           // Mark step as complete
-          onComplete && onComplete();
+          onComplete?.();
         }
       }
     } catch (err) {
@@ -357,7 +361,7 @@ const SubjectSetup = ({ onComplete, standalone = false }) => {
 
       // Mark step as complete if not standalone
       if (!standalone) {
-        onComplete && onComplete();
+        onComplete?.();
       }
     } catch (err) {
       console.error('Error creating bulk subjects:', err);

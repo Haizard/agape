@@ -196,7 +196,9 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with response data
    */
   async get(url, config = {}) {
-    return this.request('get', url, null, config);
+    const response = await this.request('get', url, null, config);
+    // Extract and return the data property from the response
+    return response.data;
   }
 
   /**
@@ -207,7 +209,9 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with response data
    */
   async post(url, data, config = {}) {
-    return this.request('post', url, data, config);
+    const response = await this.request('post', url, data, config);
+    // Extract and return the data property from the response
+    return response.data;
   }
 
   /**
@@ -218,7 +222,9 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with response data
    */
   async put(url, data, config = {}) {
-    return this.request('put', url, data, config);
+    const response = await this.request('put', url, data, config);
+    // Extract and return the data property from the response
+    return response.data;
   }
 
   /**
@@ -229,7 +235,9 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with response data
    */
   async patch(url, data, config = {}) {
-    return this.request('patch', url, data, config);
+    const response = await this.request('patch', url, data, config);
+    // Extract and return the data property from the response
+    return response.data;
   }
 
   /**
@@ -239,7 +247,9 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with response data
    */
   async delete(url, config = {}) {
-    return this.request('delete', url, null, config);
+    const response = await this.request('delete', url, null, config);
+    // Extract and return the data property from the response
+    return response.data;
   }
 
   /**
