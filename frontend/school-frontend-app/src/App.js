@@ -99,7 +99,7 @@ import CharacterAssessmentEntry from './components/results/CharacterAssessmentEn
 import ResultManagementWorkflow from './components/workflows/ResultManagementWorkflow';
 import UnifiedAcademicManagement from './components/academic/UnifiedAcademicManagement';
 import ResultReportSelector from './components/results/ResultReportSelector';
-import EnhancedClassReportContainer from './components/results/EnhancedClassReportContainer';
+import EnhancedOLevelClassReportContainer from './components/results/EnhancedOLevelClassReportContainer';
 import RoleFixButton from './components/common/RoleFixButton';
 import { checkAndFixUserRole } from './utils/roleFixUtil';
 // StudentPanel is already imported on line 25
@@ -155,7 +155,7 @@ function App() {
                           {/* Keep individual routes for direct access */}
                           <Route path="results" element={<DirectResultsPage />} />
                           <Route path="result-reports" element={<ResultReportSelector />} />
-                          <Route path="enhanced-class-report/:classId/:examId" element={<EnhancedClassReportContainer />} />
+                          <Route path="enhanced-o-level-report/:classId/:examId" element={<EnhancedOLevelClassReportContainer />} />
 
                           {/* Keep individual routes for direct access */}
                           <Route path="education-levels" element={<EducationLevelManagement />} />

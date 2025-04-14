@@ -688,14 +688,14 @@ const ResultReportSelector = () => {
                   color="secondary"
                   onClick={() => {
                     if (selectedClass && selectedExam) {
-                      navigate(`/admin/enhanced-class-report/${selectedClass}/${selectedExam}?educationLevel=${educationLevel}`);
+                      navigate(`/admin/enhanced-o-level-report/${selectedClass}/${selectedExam}?educationLevel=O_LEVEL`);
                     }
                   }}
                   disabled={!selectedClass || !selectedExam || loading}
                   startIcon={<AssignmentIcon />}
                   fullWidth
                 >
-                  Generate Enhanced Class Report
+                  Generate Enhanced O-Level Report
                 </Button>
               </Grid>
             </Grid>
@@ -767,10 +767,10 @@ const ResultReportSelector = () => {
                   <Card sx={{ bgcolor: '#e8f5e9', border: '1px solid #4caf50', p: 2, mb: 3 }}>
                     <CardContent>
                       <Typography variant="h6" color="success.main" gutterBottom>
-                        Enhanced Class Report (New!)
+                        Enhanced O-Level Class Report (New!)
                       </Typography>
                       <Typography variant="body2" color="text.secondary" paragraph>
-                        Our new enhanced class report format includes:
+                        Our new enhanced O-Level class report format includes:
                       </Typography>
                       <Grid container spacing={2}>
                         <Grid item xs={12} md={8}>
@@ -789,7 +789,7 @@ const ResultReportSelector = () => {
                             color="success"
                             onClick={() => {
                               if (selectedClass && selectedExam) {
-                                navigate(`/admin/enhanced-class-report/${selectedClass}/${selectedExam}?educationLevel=${educationLevel}`);
+                                navigate(`/admin/enhanced-o-level-report/${selectedClass}/${selectedExam}?educationLevel=O_LEVEL`);
                               } else {
                                 setError('Please select a class and exam first');
                               }
@@ -797,7 +797,7 @@ const ResultReportSelector = () => {
                             fullWidth
                             sx={{ mt: 2 }}
                           >
-                            Try Enhanced Report
+                            Try Enhanced O-Level Report
                           </Button>
                         </Grid>
                       </Grid>

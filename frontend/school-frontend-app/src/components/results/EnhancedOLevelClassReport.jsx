@@ -58,60 +58,65 @@ const EnhancedOLevelClassReport = ({
   const [studentsPerPage, setStudentsPerPage] = useState(25);
   const [processedData, setProcessedData] = useState(null);
   const [showApprovals, setShowApprovals] = useState(true);
-
+  const [reportError, setReportError] = useState(error);
+  
   // Process and prepare data for display
   useEffect(() => {
     if (!data) return;
-
+    
     // Validate that this is O-Level data
     if (data.educationLevel && data.educationLevel !== 'O_LEVEL') {
-      setError('This report is only for O-Level results. Please use the A-Level report for A-Level results.');
+      setReportError('This report is only for O-Level results. Please use the A-Level report for A-Level results.');
       return;
     }
-
+    
     // Deep clone to avoid modifying original data
     const processedData = JSON.parse(JSON.stringify(data));
-
+    
     // Get current year for the title if not provided
     if (!processedData.year) {
       processedData.year = new Date().getFullYear();
     }
-
+    
     // Sort students based on current sort settings
     if (processedData.students) {
       processedData.students.sort((a, b) => {
         let aValue = a[sortField];
         let bValue = b[sortField];
-
+        
         // Handle numeric values
-        if (typeof aValue === 'string' && !isNaN(aValue)) {
-          aValue = parseFloat(aValue);
+        if (typeof aValue === 'string' && !Number.isNaN(Number(aValue))) {
+          aValue = Number.parseFloat(aValue);
         }
-        if (typeof bValue === 'string' && !isNaN(bValue)) {
-          bValue = parseFloat(bValue);
+        if (typeof bValue === 'string' && !Number.isNaN(Number(bValue))) {
+          bValue = Number.parseFloat(bValue);
         }
-
+        
         // Handle missing values
-        if (aValue === undefined || aValue === null) aValue = sortDirection === 'asc' ? Infinity : -Infinity;
-        if (bValue === undefined || bValue === null) bValue = sortDirection === 'asc' ? Infinity : -Infinity;
-
+        if (aValue === undefined || aValue === null) aValue = sortDirection === 'asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+        if (bValue === undefined || bValue === null) bValue = sortDirection === 'asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+        
         // Compare values
         if (sortDirection === 'asc') {
           return aValue > bValue ? 1 : -1;
-        } else {
-          return aValue < bValue ? 1 : -1;
         }
+        return aValue < bValue ? 1 : -1;
       });
     }
-
+    
     setProcessedData(processedData);
   }, [data, sortField, sortDirection]);
-
+  
+  // Update error from props
+  useEffect(() => {
+    setReportError(error);
+  }, [error]);
+  
   // Handle page change
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
   };
-
+  
   // Handle sort change
   const handleSortChange = (field) => {
     if (sortField === field) {
@@ -123,63 +128,66 @@ const EnhancedOLevelClassReport = ({
       setSortDirection('asc');
     }
   };
-
+  
   // Handle download as PDF
   const handleDownloadPDF = () => {
     if (!processedData) return;
-
+    
     try {
-      const doc = generateEnhancedClassReportPDF(processedData);
-      const fileName = `${processedData.className || 'Class'}_${processedData.examName || 'Exam'}_Result.pdf`;
+      const doc = generateEnhancedClassReportPDF(processedData, 'O_LEVEL');
+      const fileName = `${processedData.className || 'Class'}_${processedData.examName || 'Exam'}_O_Level_Result.pdf`;
       doc.save(fileName);
-
+      
       if (onDownload) onDownload('pdf');
     } catch (err) {
       console.error('Error generating PDF:', err);
+      setReportError(`Failed to generate PDF: ${err.message}`);
     }
   };
-
+  
   // Handle download as Excel
   const handleDownloadExcel = async () => {
     if (!processedData) return;
-
+    
     try {
-      const buffer = await generateExcelReport(processedData, processedData.className);
-
+      const buffer = await generateExcelReport(processedData, processedData.className, 'O_LEVEL');
+      
       // Create a Blob from the buffer
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
+      
       // Create a download link and trigger download
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${processedData.className || 'Class'}_${processedData.examName || 'Exam'}_Result.xlsx`;
+      a.download = `${processedData.className || 'Class'}_${processedData.examName || 'Exam'}_O_Level_Result.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-
+      
       if (onDownload) onDownload('excel');
     } catch (err) {
       console.error('Error generating Excel:', err);
+      setReportError(`Failed to generate Excel: ${err.message}`);
     }
   };
-
+  
   // Handle print
   const handlePrint = () => {
     if (!processedData) return;
-
+    
     try {
-      const doc = generateEnhancedClassReportPDF(processedData);
+      const doc = generateEnhancedClassReportPDF(processedData, 'O_LEVEL');
       doc.autoPrint();
       doc.output('dataurlnewwindow');
-
+      
       if (onPrint) onPrint();
     } catch (err) {
       console.error('Error printing report:', err);
+      setReportError(`Failed to print report: ${err.message}`);
     }
   };
-
+  
   // If loading, show loading indicator
   if (loading) {
     return (
@@ -188,16 +196,16 @@ const EnhancedOLevelClassReport = ({
       </Box>
     );
   }
-
+  
   // If error, show error message
-  if (error) {
+  if (reportError) {
     return (
       <Alert severity="error" sx={{ mb: 3 }}>
-        {error}
+        {reportError}
       </Alert>
     );
   }
-
+  
   // If no data, show message
   if (!processedData) {
     return (
@@ -206,17 +214,17 @@ const EnhancedOLevelClassReport = ({
       </Alert>
     );
   }
-
+  
   // Calculate pagination
   const totalStudents = processedData.students?.length || 0;
   const totalPages = Math.ceil(totalStudents / studentsPerPage);
   const startIndex = (currentPage - 1) * studentsPerPage;
   const endIndex = Math.min(startIndex + studentsPerPage, totalStudents);
   const currentStudents = processedData.students?.slice(startIndex, endIndex) || [];
-
+  
   // Get all subjects
   const subjects = processedData.subjects || [];
-
+  
   return (
     <Box className="enhanced-class-report" sx={{ p: 2 }}>
       {/* Report Header */}
@@ -227,8 +235,11 @@ const EnhancedOLevelClassReport = ({
         <Typography variant="h6" gutterBottom>
           Class Name: {processedData.className}
         </Typography>
+        <Typography variant="subtitle1" color="text.secondary">
+          O-Level Results
+        </Typography>
       </Paper>
-
+      
       {/* Action Buttons */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item>
@@ -286,29 +297,29 @@ const EnhancedOLevelClassReport = ({
           />
         </Grid>
       </Grid>
-
+      
       {/* Student Results Table */}
       <TableContainer component={Paper} sx={{ mb: 3, maxHeight: 600, overflow: 'auto' }}>
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell
+              <TableCell 
                 onClick={() => handleSortChange('rank')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
                 # {sortField === 'rank' && (sortDirection === 'asc' ? '↑' : '↓')}
               </TableCell>
-              <TableCell
+              <TableCell 
                 onClick={() => handleSortChange('studentName')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
                 STUDENT NAME {sortField === 'studentName' && (sortDirection === 'asc' ? '↑' : '↓')}
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>SEX</TableCell>
-
+              
               {/* Subject Columns */}
               {subjects.map((subject) => (
-                <TableCell
+                <TableCell 
                   key={subject.id || subject.code || subject.name}
                   align="center"
                   sx={{ fontWeight: 'bold' }}
@@ -316,37 +327,37 @@ const EnhancedOLevelClassReport = ({
                   {subject.code || subject.name}
                 </TableCell>
               ))}
-
+              
               {/* Summary Columns */}
-              <TableCell
-                align="center"
+              <TableCell 
+                align="center" 
                 onClick={() => handleSortChange('totalMarks')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
                 TOTAL {sortField === 'totalMarks' && (sortDirection === 'asc' ? '↑' : '↓')}
               </TableCell>
-              <TableCell
+              <TableCell 
                 align="center"
                 onClick={() => handleSortChange('averageMarks')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
                 AVERAGE {sortField === 'averageMarks' && (sortDirection === 'asc' ? '↑' : '↓')}
               </TableCell>
-              <TableCell
+              <TableCell 
                 align="center"
                 onClick={() => handleSortChange('division')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
                 DIVISION {sortField === 'division' && (sortDirection === 'asc' ? '↑' : '↓')}
               </TableCell>
-              <TableCell
+              <TableCell 
                 align="center"
                 onClick={() => handleSortChange('points')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
                 POINTS {sortField === 'points' && (sortDirection === 'asc' ? '↑' : '↓')}
               </TableCell>
-              <TableCell
+              <TableCell 
                 align="center"
                 onClick={() => handleSortChange('rank')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
@@ -361,21 +372,21 @@ const EnhancedOLevelClassReport = ({
                 <TableCell>{startIndex + index + 1}</TableCell>
                 <TableCell>{student.studentName || `${student.firstName} ${student.lastName}`}</TableCell>
                 <TableCell>{student.sex || student.gender || '-'}</TableCell>
-
+                
                 {/* Subject Marks */}
                 {subjects.map((subject) => {
                   // Find the subject result for this student
-                  const subjectResult = student.subjects?.[subject.id] ||
+                  const subjectResult = student.subjects?.[subject.id] || 
                                        student.subjectResults?.find(r => r.subjectId === subject.id) ||
                                        student.results?.find(r => r.subject?.name === subject.name);
-
+                  
                   // Get the marks, handling missing values
-                  const marks = subjectResult?.marks ||
-                               subjectResult?.marksObtained ||
+                  const marks = subjectResult?.marks || 
+                               subjectResult?.marksObtained || 
                                (subjectResult?.present ? subjectResult.marks : '-');
-
+                  
                   return (
-                    <TableCell
+                    <TableCell 
                       key={`${student.id}-${subject.id}`}
                       align="center"
                     >
@@ -383,7 +394,7 @@ const EnhancedOLevelClassReport = ({
                     </TableCell>
                   );
                 })}
-
+                
                 {/* Summary Columns */}
                 <TableCell align="center">{student.totalMarks || '-'}</TableCell>
                 <TableCell align="center">{student.averageMarks || '-'}</TableCell>
@@ -395,13 +406,13 @@ const EnhancedOLevelClassReport = ({
           </TableBody>
         </Table>
       </TableContainer>
-
+      
       {/* Pagination */}
       {totalPages > 1 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <Pagination
-            count={totalPages}
-            page={currentPage}
+          <Pagination 
+            count={totalPages} 
+            page={currentPage} 
             onChange={handlePageChange}
             color="primary"
             showFirstButton
@@ -409,7 +420,7 @@ const EnhancedOLevelClassReport = ({
           />
         </Box>
       )}
-
+      
       {/* Subject Summary Table */}
       <Paper sx={{ p: 3, mb: 3 }} elevation={2}>
         <Typography variant="h6" gutterBottom>
@@ -435,26 +446,28 @@ const EnhancedOLevelClassReport = ({
                 const gradeDistribution = { A: 0, B: 0, C: 0, D: 0, F: 0 };
                 let totalPoints = 0;
                 let studentCount = 0;
-
+                
                 // Process each student's result for this subject
-                processedData.students?.forEach(student => {
-                  const subjectResult = student.subjects?.[subject.id] ||
-                                       student.subjectResults?.find(r => r.subjectId === subject.id) ||
-                                       student.results?.find(r => r.subject?.name === subject.name);
-
-                  if (subjectResult && subjectResult.grade) {
-                    gradeDistribution[subjectResult.grade] = (gradeDistribution[subjectResult.grade] || 0) + 1;
-                    totalPoints += subjectResult.points || 0;
-                    studentCount++;
+                if (processedData.students) {
+                  for (const student of processedData.students) {
+                    const subjectResult = student.subjects?.[subject.id] || 
+                                         student.subjectResults?.find(r => r.subjectId === subject.id) ||
+                                         student.results?.find(r => r.subject?.name === subject.name);
+                    
+                    if (subjectResult?.grade) {
+                      gradeDistribution[subjectResult.grade] = (gradeDistribution[subjectResult.grade] || 0) + 1;
+                      totalPoints += subjectResult.points || 0;
+                      studentCount++;
+                    }
                   }
-                });
-
+                }
+                
                 // Calculate GPA (1-5 scale, A=1, F=5)
-                const gpa = studentCount > 0 ?
-                  ((gradeDistribution.A * 1 + gradeDistribution.B * 2 + gradeDistribution.C * 3 +
-                    gradeDistribution.D * 4 + gradeDistribution.F * 5) / studentCount).toFixed(2) :
+                const gpa = studentCount > 0 ? 
+                  ((gradeDistribution.A * 1 + gradeDistribution.B * 2 + gradeDistribution.C * 3 + 
+                    gradeDistribution.D * 4 + gradeDistribution.F * 5) / studentCount).toFixed(2) : 
                   '-';
-
+                
                 return (
                   <TableRow key={subject.id || subject.code || subject.name}>
                     <TableCell>{subject.name}</TableCell>
@@ -472,7 +485,7 @@ const EnhancedOLevelClassReport = ({
           </Table>
         </TableContainer>
       </Paper>
-
+      
       {/* Approvals Section */}
       {showApprovals && (
         <Paper sx={{ p: 3 }} elevation={2}>
