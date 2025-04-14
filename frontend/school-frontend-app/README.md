@@ -1,14 +1,15 @@
-# St. John Vianney School Management System
+# AGAPE LUTHERAN JUNIOR SEMINARY School Management System
 
-A comprehensive school management system for St. John Vianney School, supporting both O-Level and A-Level education systems.
+A comprehensive school management system for AGAPE LUTHERAN JUNIOR SEMINARY, supporting both O-Level and A-Level education systems.
 
 ## Features
 
 - **Academic Management**: Manage academic years, terms, classes, and subjects
-- **Marks Entry**: Enter and manage student marks, with offline capability
-- **Student Reports**: Generate and download student reports for O-Level and A-Level
-- **Batch Report Download**: Download multiple student reports at once
+- **Marks Entry**: Enter and manage student marks, with offline capability for marks, students, classes, and subjects
+- **Unified Reports System (v2.0)**: Generate and download comprehensive reports for both O-Level and A-Level students
+- **Batch Report Download**: Download multiple student reports at once with filtering options
 - **Offline Capability**: Work offline and sync when online
+- **SMS Notifications**: Send SMS notifications to parents and students with multiple provider support
 
 ## Technology Stack
 
@@ -90,13 +91,35 @@ This project is configured for easy deployment on Render.
 - `src/components`: React components
   - `academic`: Academic management components
   - `marks`: Marks entry components
-  - `reports`: Report generation components
+  - `results`: Report generation components (Unified Reports System v2.0)
+  - `admin`: Administrative components including SMS settings
   - `common`: Common components
 - `src/services`: Service modules
   - `offlineDataService.js`: Service for offline data storage and sync
   - `unifiedApi.js`: Service for API communication
 - `src/routes`: Application routes
 - `public`: Static assets
+
+## Notes
+
+### Deprecated Features
+
+The following report types have been deprecated and replaced by the Unified Reports System (v2.0):
+
+- A-Level Comprehensive Report
+- Academic Report Book
+- Tabular Academic Report
+
+### Offline Support
+
+Offline support is currently available for:
+
+- Marks entry
+- Student data
+- Class data
+- Subject data
+
+Data is automatically synced when the application comes back online.
 
 ## License
 

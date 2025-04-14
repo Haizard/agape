@@ -206,10 +206,10 @@ const SingleStudentReport = () => {
         return;
       }
 
-      console.log(`Fetching real data for student ${studentId} and exam ${examId}`);
+      console.log(`Fetching real data for student ${studentId} and exam ${examId} with academicYear=${academicYear} and term=${term}`);
 
       // Try multiple API endpoints to ensure compatibility
-      let apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
+      let apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}?academicYear=${academicYear}&term=${term}`;
       console.log('Trying primary API endpoint:', apiUrl);
 
       try {

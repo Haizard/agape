@@ -345,7 +345,7 @@ router.get('/subject/:subjectId', authenticateToken, async (req, res) => {
 router.get('/class/:classId', authenticateToken, async (req, res) => {
   try {
     const { classId } = req.params;
-    const { examId, examTypeId } = req.query;
+    const { examId, examTypeId, academicYear, term } = req.query;
 
     // Get all students in the class
     const students = await Student.find({ class: classId });
@@ -355,6 +355,8 @@ router.get('/class/:classId', authenticateToken, async (req, res) => {
     const query = { studentId: { $in: studentIds } };
     if (examId) query.examId = examId;
     if (examTypeId) query.examTypeId = examTypeId;
+    if (academicYear) query.academicYearId = academicYear;
+    if (term) query.term = term;
 
     // Get results for these students
     const results = await Result.find(query)

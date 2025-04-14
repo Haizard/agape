@@ -295,8 +295,9 @@ const ClassTabularReport = () => {
         return;
       }
 
-      // Fetch the class data
-      const classUrl = `${process.env.REACT_APP_API_URL || ''}/api/classes/${classId}`;
+      // Construct the API URL with academicYear and term
+      let classUrl = `${process.env.REACT_APP_API_URL || ''}/api/classes/${classId}`;
+      classUrl += `?academicYear=${academicYear}&term=${term}`;
       console.log('Fetching class data from:', classUrl);
 
       const classResponse = await axios.get(classUrl, {
@@ -319,8 +320,9 @@ const ClassTabularReport = () => {
 
       // If this is not an A-Level class, we'll adapt the data structure later
 
-      // Fetch the exam data
-      const examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
+      // Construct the API URL with academicYear and term
+      let examUrl = `${process.env.REACT_APP_API_URL || ''}/api/exams/${examId}`;
+      examUrl += `?academicYear=${academicYear}&term=${term}`;
       console.log('Fetching exam data from:', examUrl);
 
       const examResponse = await axios.get(examUrl, {
@@ -332,8 +334,9 @@ const ClassTabularReport = () => {
 
       setExamData(examResponse.data);
 
-      // Fetch students in this class
-      const studentsUrl = `${process.env.REACT_APP_API_URL || ''}/api/students?class=${classId}`;
+      // Construct the API URL with academicYear and term
+      let studentsUrl = `${process.env.REACT_APP_API_URL || ''}/api/students?class=${classId}`;
+      studentsUrl += `&academicYear=${academicYear}&term=${term}`;
       console.log('Fetching students from:', studentsUrl);
 
       const studentsResponse = await axios.get(studentsUrl, {
@@ -349,6 +352,7 @@ const ClassTabularReport = () => {
           try {
             // Try multiple API endpoints to ensure compatibility
             let resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${student._id}/${examId}`;
+            resultsUrl += `?academicYear=${academicYear}&term=${term}`;
             let resultsResponse;
 
             try {
@@ -365,6 +369,7 @@ const ClassTabularReport = () => {
               try {
                 // Try the A-Level fallback endpoint
                 resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+                resultsUrl += `?academicYear=${academicYear}&term=${term}`;
                 console.log(`Trying A-Level fallback endpoint for student ${student._id}:`, resultsUrl);
 
                 resultsResponse = await axios.get(resultsUrl, {
@@ -378,6 +383,7 @@ const ClassTabularReport = () => {
 
                 // Try the O-Level fallback endpoint
                 resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${student._id}/${examId}`;
+                resultsUrl += `?academicYear=${academicYear}&term=${term}`;
                 console.log(`Trying O-Level fallback endpoint for student ${student._id}:`, resultsUrl);
 
                 // This will throw if it fails, which is what we want
@@ -488,7 +494,7 @@ const ClassTabularReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [classId, examId, generateDemoData]);
+  }, [classId, examId, generateDemoData, academicYear, term]);
 
   // Load data on component mount
   useEffect(() => {

@@ -149,24 +149,24 @@ const ResultReportSelector = () => {
 
   // Generate student report
   const handleGenerateStudentReport = async () => {
-    if (!selectedStudent || !selectedExam) {
-      setError('Please select a student and an exam');
+    if (!selectedStudent || !selectedExam || !selectedAcademicYear || !selectedTerm) {
+      setError('Please select a student, an exam, an academic year, and a term');
       return;
     }
 
     // Use the new unified report route for all education levels
-    navigate(`/results/student-report/${selectedStudent}/${selectedExam}`);
+    navigate(`/results/student-report/${selectedStudent}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
   };
 
   // Generate class report
   const handleGenerateClassReport = () => {
-    if (!selectedClass || !selectedExam) {
-      setError('Please select a class and an exam');
+    if (!selectedClass || !selectedExam || !selectedAcademicYear || !selectedTerm) {
+      setError('Please select a class, an exam, an academic year, and a term');
       return;
     }
 
     // Use the unified class report route for all education levels
-    navigate(`/results/class-report/${selectedClass}/${selectedExam}`);
+    navigate(`/results/class-report/${selectedClass}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
   };
 
   return (
@@ -396,108 +396,7 @@ const ResultReportSelector = () => {
                     </CardActions>
                   </Card>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Card sx={{ opacity: 0.7 }}>
-                    <Box sx={{ position: 'absolute', top: 10, right: 10, bgcolor: '#ffebee', color: '#d32f2f', px: 1, py: 0.5, borderRadius: 1, fontSize: '0.75rem', fontWeight: 'bold' }}>
-                      DEPRECATED
-                    </Box>
-                    <CardContent>
-                      <Typography variant="h6" color="text.secondary" gutterBottom>
-                        A-Level Comprehensive Report
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Generate a comprehensive A-Level report with:
-                      </Typography>
-                      <ul>
-                        <li>Both Principal and Subsidiary subjects</li>
-                        <li>Form 5 and Form 6 specific formats</li>
-                        <li>Empty templates for subjects without results</li>
-                        <li>Detailed performance metrics</li>
-                      </ul>
-                      <Typography variant="caption" color="error">
-                        This report type is being phased out. Please use the Unified Class Tabular Report instead.
-                      </Typography>
-                    </CardContent>
-                    <CardActions>
-                      <Button
-                        size="small"
-                        onClick={() => navigate('/results/a-level-comprehensive-selector')}
-                        color="secondary"
-                        disabled
-                      >
-                        View Comprehensive Reports
-                      </Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Card sx={{ opacity: 0.7 }}>
-                    <Box sx={{ position: 'absolute', top: 10, right: 10, bgcolor: '#ffebee', color: '#d32f2f', px: 1, py: 0.5, borderRadius: 1, fontSize: '0.75rem', fontWeight: 'bold' }}>
-                      DEPRECATED
-                    </Box>
-                    <CardContent>
-                      <Typography variant="h6" color="text.secondary" gutterBottom>
-                        Academic Report Book
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Generate a complete academic report book with:
-                      </Typography>
-                      <ul>
-                        <li>Book-style format with multiple pages</li>
-                        <li>Academic results for all subjects</li>
-                        <li>Character assessment and attendance records</li>
-                        <li>Teacher comments and parent signature section</li>
-                      </ul>
-                      <Typography variant="caption" color="error">
-                        This report type is being phased out. Please use the Unified Class Tabular Report instead.
-                      </Typography>
-                    </CardContent>
-                    <CardActions>
-                      <Button
-                        size="small"
-                        onClick={() => navigate('/results/report-book-selector')}
-                        color="secondary"
-                        disabled
-                      >
-                        View Report Books
-                      </Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Card sx={{ opacity: 0.7 }}>
-                    <Box sx={{ position: 'absolute', top: 10, right: 10, bgcolor: '#ffebee', color: '#d32f2f', px: 1, py: 0.5, borderRadius: 1, fontSize: '0.75rem', fontWeight: 'bold' }}>
-                      DEPRECATED
-                    </Box>
-                    <CardContent>
-                      <Typography variant="h6" color="text.secondary" gutterBottom>
-                        Tabular Academic Report
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Generate a single-row tabular report with:
-                      </Typography>
-                      <ul>
-                        <li>All subjects in a single row format</li>
-                        <li>Principal and compulsory subjects together</li>
-                        <li>Student info, points, and division in header</li>
-                        <li>Marks, grades, and points for each subject</li>
-                      </ul>
-                      <Typography variant="caption" color="error">
-                        This report type is being phased out. Please use the Unified Class Tabular Report instead.
-                      </Typography>
-                    </CardContent>
-                    <CardActions>
-                      <Button
-                        size="small"
-                        onClick={() => navigate('/results/single-row-report/demo-form5/demo-exam')}
-                        color="secondary"
-                        disabled
-                      >
-                        View Student Report
-                      </Button>
-                    </CardActions>
-                  </Card>
-                </Grid>
+                {/* Deprecated report types have been removed */}
                 <Grid item xs={12}>
                   <Card sx={{ bgcolor: '#f0f7ff', border: '1px solid #2196f3' }}>
                     <CardContent>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -11,19 +11,78 @@ import {
   Grid,
   Card,
   CardContent,
-  Alert
+  Alert,
+  CircularProgress
 } from '@mui/material';
-import { Save as SaveIcon, Send as SendIcon } from '@mui/icons-material';
+import { Save as SaveIcon, Send as SendIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import axios from 'axios';
 
 const SMSSettings = () => {
   const [testNumber, setTestNumber] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [smsUsage, setSmsUsage] = useState({
+    balance: 'Loading...',
+    dailyUsage: 0,
+    monthlyUsage: 0,
+    successRate: '98.5%' // Default value
+  });
 
-  const handleTestSMS = () => {
-    // Simulate sending a test SMS
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 5000);
+  // Fetch SMS usage statistics on component mount
+  useEffect(() => {
+    fetchSMSUsage();
+  }, []);
+
+  // Fetch SMS usage statistics from the API
+  const fetchSMSUsage = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/sms/usage');
+      setSmsUsage({
+        ...smsUsage,
+        balance: response.data.balance || 'Not available',
+        dailyUsage: response.data.dailyUsage || 0,
+        monthlyUsage: response.data.monthlyUsage || 0,
+        successRate: response.data.successRate || '98.5%'
+      });
+    } catch (err) {
+      console.error('Error fetching SMS usage:', err);
+      setError('Failed to fetch SMS usage statistics');
+      // Keep the existing values if there's an error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTestSMS = async () => {
+    if (!testNumber) {
+      setError('Please enter a phone number');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      // Call the API to send a test SMS
+      const response = await axios.post('/api/sms/test', {
+        phoneNumber: testNumber,
+        message: testMessage || 'This is a test message from the school management system.'
+      });
+
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 5000);
+
+      // Refresh SMS usage after sending
+      fetchSMSUsage();
+    } catch (err) {
+      console.error('Error sending test SMS:', err);
+      setError(`Failed to send test SMS: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -38,6 +97,12 @@ const SMSSettings = () => {
       {showSuccess && (
         <Alert severity="success" sx={{ mb: 3 }}>
           Test SMS sent successfully!
+        </Alert>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
         </Alert>
       )}
 
@@ -115,7 +180,7 @@ const SMSSettings = () => {
               color="secondary"
               startIcon={<SendIcon />}
               onClick={handleTestSMS}
-              disabled={!testNumber || !testMessage}
+              disabled={loading || !testNumber || !testMessage}
             >
               Send Test SMS
             </Button>
@@ -158,27 +223,45 @@ const SMSSettings = () => {
 
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                SMS Usage Statistics
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" gutterBottom>
+                  SMS Usage Statistics
+                </Typography>
+                <Button
+                  size="small"
+                  startIcon={<RefreshIcon />}
+                  onClick={fetchSMSUsage}
+                  disabled={loading}
+                >
+                  Refresh
+                </Button>
+              </Box>
               <Divider sx={{ mb: 2 }} />
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">SMS Credits Available:</Typography>
-                <Typography variant="body1" fontWeight="bold">5,000</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">SMS Sent This Month:</Typography>
-                <Typography variant="body1" fontWeight="bold">1,245</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">SMS Sent Today:</Typography>
-                <Typography variant="body1" fontWeight="bold">42</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body1">Delivery Success Rate:</Typography>
-                <Typography variant="body1" fontWeight="bold">98.5%</Typography>
-              </Box>
+
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : (
+                <>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body1">SMS Credits Available:</Typography>
+                    <Typography variant="body1" fontWeight="bold">{smsUsage.balance}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body1">SMS Sent This Month:</Typography>
+                    <Typography variant="body1" fontWeight="bold">{smsUsage.monthlyUsage}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body1">SMS Sent Today:</Typography>
+                    <Typography variant="body1" fontWeight="bold">{smsUsage.dailyUsage}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body1">Delivery Success Rate:</Typography>
+                    <Typography variant="body1" fontWeight="bold">{smsUsage.successRate}</Typography>
+                  </Box>
+                </>
+              )}
             </CardContent>
           </Card>
         </Grid>

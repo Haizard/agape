@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import * as JSZip from 'jszip';
 import {
@@ -50,6 +50,7 @@ import {
  */
 const BulkReportDownloader = () => {
   const navigate = useNavigate();
+    const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -63,6 +64,7 @@ const BulkReportDownloader = () => {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedExam, setSelectedExam] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
+    const [selectedTerm, setSelectedTerm] = useState('');
   const [selectedExamType, setSelectedExamType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudents, setSelectedStudents] = useState([]);
@@ -73,6 +75,10 @@ const BulkReportDownloader = () => {
   const [currentBatch, setCurrentBatch] = useState(1);
   const [totalBatches, setTotalBatches] = useState(1);
   const [batchSize, setBatchSize] = useState(10); // Default batch size
+
+    // Get academicYear and term from URL
+    const academicYear = new URLSearchParams(location.search).get('academicYear');
+    const term = new URLSearchParams(location.search).get('term');
 
   // Fetch classes
   const fetchClasses = useCallback(async () => {
@@ -106,6 +112,7 @@ const BulkReportDownloader = () => {
       // Add filters if selected
       const params = new URLSearchParams();
       if (selectedYear) params.append('academicYearId', selectedYear);
+            if (selectedTerm) params.append('term', selectedTerm);
       if (selectedExamType) params.append('examTypeId', selectedExamType);
 
       if (params.toString()) {
@@ -131,7 +138,7 @@ const BulkReportDownloader = () => {
       console.error('Error fetching exams:', err);
       setError('Failed to load exams. Please try again.');
     }
-  }, [selectedYear, selectedExamType]);
+  }, [selectedYear, selectedExamType, selectedTerm]);
 
   // Fetch students
   const fetchStudents = useCallback(async () => {
@@ -185,6 +192,11 @@ const BulkReportDownloader = () => {
   const handleYearChange = (event) => {
     setSelectedYear(event.target.value);
   };
+
+    // Handle term selection
+    const handleTermChange = (event) => {
+        setSelectedTerm(event.target.value);
+    };
 
   // Handle exam type selection
   const handleExamTypeChange = (event) => {
@@ -241,8 +253,10 @@ const BulkReportDownloader = () => {
   const processBatch = async (studentBatch, examId, zip) => {
     const batchPromises = studentBatch.map(async (studentId) => {
       try {
-        // Try multiple API endpoints to ensure compatibility
+        // Construct the API URL with academicYear and term
         let apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
+        apiUrl += `?academicYear=${academicYear}&term=${term}`;
+
         let response;
 
         try {
@@ -260,6 +274,7 @@ const BulkReportDownloader = () => {
             // Try the A-Level fallback endpoint
             apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
             console.log(`Trying A-Level fallback endpoint for student ${studentId}:`, apiUrl);
+            apiUrl += `?academicYear=${academicYear}&term=${term}`;
 
             response = await axios.get(apiUrl, {
               headers: {
@@ -273,6 +288,7 @@ const BulkReportDownloader = () => {
             // Try the O-Level fallback endpoint
             apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${studentId}/${examId}`;
             console.log(`Trying O-Level fallback endpoint for student ${studentId}:`, apiUrl);
+            apiUrl += `?academicYear=${academicYear}&term=${term}`;
 
             // This will throw if it fails, which is what we want
             response = await axios.get(apiUrl, {
