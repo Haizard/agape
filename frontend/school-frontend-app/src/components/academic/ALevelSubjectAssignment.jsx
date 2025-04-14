@@ -103,49 +103,34 @@ const ALevelSubjectAssignment = () => {
     try {
       console.log(`Fetching students for class: ${classId}`);
 
-      // First, get all students in the class to check for non-A-Level students
+      // Get all students in the class, regardless of education level
       const allStudentsResponse = await api.get(`/api/students/class/${classId}`);
       console.log('All students in class:', allStudentsResponse.data);
 
-      // Check if there are any non-A-Level students
-      const nonALevel = allStudentsResponse.data.filter(student => student.educationLevel !== 'A_LEVEL');
-      setNonALevelStudents(nonALevel);
-
-      if (nonALevel.length > 0) {
-        console.log(`Found ${nonALevel.length} non-A-Level students in class ${classId}`);
-        for (const student of nonALevel) {
-          console.log(`Non-A-Level student: ${student.firstName} ${student.lastName}, ID: ${student._id}, Level: ${student.educationLevel}`);
-        }
-      }
-
-      // Use the new endpoint specifically for A-Level students
-      const response = await api.get(`/api/students/a-level/class/${classId}`);
-      console.log('API response for A-Level students:', response.data);
-
-      if (!response.data || response.data.length === 0) {
-        console.log(`No A-Level students found in class ${classId}`);
+      if (!allStudentsResponse.data || allStudentsResponse.data.length === 0) {
+        console.log(`No students found in class ${classId}`);
         setClassStudents([]);
-
-        // If there are non-A-Level students, show a message
-        if (nonALevel.length > 0) {
-          setError(`No A-Level students found in this class. There are ${nonALevel.length} students that need to be updated to A-Level.`);
-        } else {
-          setError('No students found in this class.');
-        }
+        setNonALevelStudents([]);
+        setError('No students found in this class.');
         return;
       }
 
-      // No need to filter as the endpoint already returns only A-Level students
-      const aLevelStudents = response.data;
+      // Separate students by education level
+      const aLevelStudents = allStudentsResponse.data.filter(student => student.educationLevel === 'A_LEVEL');
+      const nonALevel = allStudentsResponse.data.filter(student => student.educationLevel !== 'A_LEVEL');
 
-      console.log(`Found ${aLevelStudents.length} A-Level students in class ${classId}`);
+      // Set both types of students
+      setClassStudents(allStudentsResponse.data); // Set ALL students to display in dropdown
+      setNonALevelStudents(nonALevel);
 
-      // Log each student for debugging
-      for (const student of aLevelStudents) {
-        console.log(`A-Level student: ${student.firstName} ${student.lastName}, ID: ${student._id}`);
+      console.log(`Found ${aLevelStudents.length} A-Level students and ${nonALevel.length} non-A-Level students in class ${classId}`);
+
+      // Show informational message if there are non-A-Level students
+      if (nonALevel.length > 0) {
+        setError(`Note: ${nonALevel.length} students in this class are not marked as A-Level. You can still select them and they will be automatically updated when assigned a combination.`);
+      } else {
+        setError(''); // Clear any previous error
       }
-
-      setClassStudents(aLevelStudents);
     } catch (err) {
       console.error('Error fetching students:', err);
       setError(`Failed to load students: ${err.message}`);
@@ -224,10 +209,16 @@ const ALevelSubjectAssignment = () => {
     setLoading(true);
     try {
       // Find the student and combination details for better logging
-      const student = students.find(s => s._id === selectedStudent);
+      const student = classStudents.find(s => s._id === selectedStudent);
       const combination = combinations.find(c => c._id === selectedCombination);
 
+      // Check if student is already A-Level
+      const wasAlreadyALevel = student.educationLevel === 'A_LEVEL';
+
       console.log(`Assigning combination ${combination?.name || selectedCombination} to student ${student?.firstName} ${student?.lastName || selectedStudent}`);
+      if (!wasAlreadyALevel) {
+        console.log(`Student was not A-Level, will be updated automatically`);
+      }
 
       // Update student with selected combination
       const response = await api.put(`/api/students/${selectedStudent}`, {
@@ -241,7 +232,7 @@ const ALevelSubjectAssignment = () => {
       setStudents(prevStudents =>
         prevStudents.map(student =>
           student._id === selectedStudent
-            ? { ...student, subjectCombination: selectedCombination }
+            ? { ...student, subjectCombination: selectedCombination, educationLevel: 'A_LEVEL' }
             : student
         )
       );
@@ -250,18 +241,27 @@ const ALevelSubjectAssignment = () => {
       setClassStudents(prevStudents =>
         prevStudents.map(student =>
           student._id === selectedStudent
-            ? { ...student, subjectCombination: selectedCombination }
+            ? { ...student, subjectCombination: selectedCombination, educationLevel: 'A_LEVEL' }
             : student
         )
       );
 
+      // If student was not A-Level before, update nonALevelStudents list
+      if (!wasAlreadyALevel) {
+        setNonALevelStudents(prev => prev.filter(s => s._id !== selectedStudent));
+      }
+
       // Refresh assignments
       await fetchExistingAssignments();
 
-      // Show success message
+      // Show success message with additional info if student was updated to A-Level
+      const successMessage = wasAlreadyALevel
+        ? `Subject combination ${combination?.name || ''} assigned successfully to ${student?.firstName || ''} ${student?.lastName || ''}`
+        : `Student ${student?.firstName || ''} ${student?.lastName || ''} was updated to A-Level and assigned to ${combination?.name || ''} combination`;
+
       setSnackbar({
         open: true,
-        message: `Subject combination ${combination?.name || ''} assigned successfully to ${student?.firstName || ''} ${student?.lastName || ''}`,
+        message: successMessage,
         severity: 'success'
       });
 
@@ -350,21 +350,9 @@ const ALevelSubjectAssignment = () => {
 
       {error && (
         <Alert
-          severity="error"
+          severity={error.startsWith('Note:') ? "info" : "error"}
           sx={{ mb: 2 }}
           onClose={() => setError('')}
-          action={
-            nonALevelStudents.length > 0 && (
-              <Button
-                color="inherit"
-                size="small"
-                onClick={updateStudentsToALevel}
-                disabled={loading}
-              >
-                {loading ? 'Updating...' : `Update ${nonALevelStudents.length} Students to A-Level`}
-              </Button>
-            )
-          }
         >
           {error}
         </Alert>
@@ -411,8 +399,31 @@ const ALevelSubjectAssignment = () => {
                 <em>Select a student</em>
               </MenuItem>
               {classStudents.map(student => (
-                <MenuItem key={student._id} value={student._id}>
+                <MenuItem
+                  key={student._id}
+                  value={student._id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
                   {student.firstName} {student.lastName} ({student.rollNumber || 'No Roll Number'})
+                  {student.educationLevel === 'A_LEVEL' ? (
+                    <Chip
+                      size="small"
+                      label="A-Level"
+                      color="primary"
+                      sx={{ ml: 1 }}
+                    />
+                  ) : (
+                    <Chip
+                      size="small"
+                      label="Not A-Level"
+                      color="default"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
                 </MenuItem>
               ))}
             </Select>
