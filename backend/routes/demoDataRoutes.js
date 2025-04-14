@@ -209,7 +209,7 @@ router.get('/a-level-results/form5/class/:classId/:examId', authenticateToken, (
     const formattedResponse = {
       reportTitle: `Form 5 ${report.exam.name} Result Report`,
       schoolName: 'St. John Vianney School Management System',
-      academicYear: report.exam.academicYear,
+      academicYear: report.exam.academicYear || '2023-2024',
       examName: report.exam.name,
       examDate: `${report.exam.startDate} - ${report.exam.endDate}`,
       className: report.class.name,
@@ -246,6 +246,68 @@ router.get('/a-level-results/form5/class/:classId/:examId', authenticateToken, (
   } catch (error) {
     logger.error(`Error generating demo Form 5 class report: ${error.message}`);
     return res.status(500).json(formatErrorResponse(error, 'demo/a-level-results/form5/class'));
+  }
+});
+
+// Special route for demo class report page
+router.get('/results/class-report/demo-class/demo-exam', authenticateToken, (req, res) => {
+  try {
+    logger.info('Demo class report page accessed');
+
+    // Generate the class report
+    const report = generateForm5ClassReport();
+
+    // Format the response as expected by the ClassTabularReport component
+    const formattedResponse = {
+      reportTitle: `Form 5 ${report.exam.name} Result Report`,
+      schoolName: 'St. John Vianney School Management System',
+      academicYear: '2023-2024',
+      examName: report.exam.name,
+      examDate: `${report.exam.startDate} - ${report.exam.endDate}`,
+      className: report.class.name,
+      section: report.class.section,
+      stream: report.class.stream,
+      form: 5,
+      classDetails: {
+        name: report.class.name,
+        section: report.class.section,
+        stream: report.class.stream,
+        totalStudents: report.students.length,
+        classTeacher: 'Mr. John Doe'
+      },
+      summary: {
+        classAverage: report.classStatistics.classAverage,
+        totalStudents: report.classStatistics.totalStudents,
+        divisionDistribution: report.classStatistics.divisionDistribution,
+        passRate: '85%'
+      },
+      students: report.students.map(item => ({
+        id: item.student.id,
+        name: `${item.student.firstName} ${item.student.lastName}`,
+        rollNumber: item.student.rollNumber,
+        gender: item.student.gender,
+        combination: item.student.combination,
+        averageMarks: item.summary.averageMarks,
+        totalMarks: item.summary.totalMarks,
+        bestThreePoints: item.summary.bestThreePoints,
+        division: item.summary.division,
+        rank: item.summary.rank,
+        subjectResults: item.results.map(result => ({
+          subject: result.subjectName,
+          code: result.subjectId,
+          marks: result.marksObtained,
+          grade: result.grade,
+          points: result.points,
+          isPrincipal: result.isPrincipal
+        }))
+      })),
+      educationLevel: 'A_LEVEL'
+    };
+
+    return res.json(formattedResponse);
+  } catch (error) {
+    logger.error(`Error generating demo class report page: ${error.message}`);
+    return res.status(500).json(formatErrorResponse(error, 'demo/results/class-report'));
   }
 });
 
@@ -289,7 +351,7 @@ router.get('/a-level-results/form5/student/:studentId/:examId', authenticateToke
     const formattedResponse = {
       reportTitle: `Form 5 ${demoExam.name} Result Report`,
       schoolName: 'St. John Vianney School Management System',
-      academicYear: demoExam.academicYear,
+      academicYear: demoExam.academicYear || '2023-2024',
       examName: demoExam.name,
       examDate: `${demoExam.startDate} - ${demoExam.endDate}`,
       studentDetails: {

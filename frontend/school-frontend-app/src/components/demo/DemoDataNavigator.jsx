@@ -22,7 +22,7 @@ import {
 
 /**
  * Demo Data Navigator Component
- * 
+ *
  * This component provides links to navigate to the demo data using the existing components.
  * It doesn't create new UI components for the demo data, but rather helps users access
  * the demo data through the existing system components.
@@ -46,6 +46,11 @@ const DemoDataNavigator = () => {
     navigate(`/results/a-level/form5/class/${demoInfo.classId}/${demoInfo.examId}`);
   };
 
+  // Navigate to special class report page
+  const navigateToSpecialClassReport = () => {
+    navigate('/results/class-report/demo-class/demo-exam');
+  };
+
   // Navigate to Form 5 student report
   const navigateToStudentReport = (studentId) => {
     navigate(`/results/a-level/form5/student/${studentId}/${demoInfo.examId}`);
@@ -56,21 +61,21 @@ const DemoDataNavigator = () => {
       <Typography variant="h4" gutterBottom>
         Form 5 A-Level Demo Data Navigator
       </Typography>
-      
+
       <Alert severity="info" sx={{ mb: 3 }}>
         <AlertTitle>Demo Data Information</AlertTitle>
         This page helps you navigate to the demo data using the existing system components.
         The demo data includes a Form 5 class with 10 students across different subject combinations.
         You can view the class report or individual student reports.
       </Alert>
-      
+
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h5" gutterBottom>
           <SchoolIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
           Class Information
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        
+
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <Typography variant="body1">
@@ -89,8 +94,8 @@ const DemoDataNavigator = () => {
             </Typography>
           </Grid>
         </Grid>
-        
-        <Box sx={{ mt: 2 }}>
+
+        <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             color="primary"
@@ -100,15 +105,24 @@ const DemoDataNavigator = () => {
           >
             View Form 5 Class Report
           </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<AssessmentIcon />}
+            onClick={navigateToSpecialClassReport}
+            sx={{ mt: 2 }}
+          >
+            View Special Class Report
+          </Button>
         </Box>
       </Paper>
-      
+
       <Typography variant="h5" gutterBottom>
         <GroupIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
         Student Reports
       </Typography>
       <Divider sx={{ mb: 2 }} />
-      
+
       <Grid container spacing={2}>
         {demoInfo.students.map((student) => (
           <Grid item xs={12} sm={6} md={4} key={student.id}>

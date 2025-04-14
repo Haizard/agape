@@ -112,6 +112,13 @@ if (USE_DEMO_DATA) {
     next();
   });
 
+  // Proxy special class report page requests to demo data
+  app.use('/api/results/class-report/demo-class/demo-exam', (req, res, next) => {
+    logger.info(`Proxying special class report page request to demo data: ${req.originalUrl}`);
+    req.url = '/demo/results/class-report/demo-class/demo-exam';
+    return demoDataRoutes(req, res, next);
+  });
+
   // Proxy classes requests to demo data when specific query parameters are present
   app.use('/api/classes', (req, res, next) => {
     if (req.query.demo === 'true') {

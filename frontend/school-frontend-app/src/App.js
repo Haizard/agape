@@ -256,6 +256,11 @@ function App() {
                         <DemoDataNavigator />
                       </ProtectedRoute>
                     } />
+                    <Route path="/results/class-report/demo-class/demo-exam" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ClassTabularReport />
+                      </ProtectedRoute>
+                    } />
                     <Route path="/results/a-level/form5/student/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
                         <ALevelFormStudentReport />
