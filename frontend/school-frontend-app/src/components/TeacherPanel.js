@@ -8,6 +8,7 @@ import TeacherStudentResults from './teacher/TeacherStudentResults';
 import ResultSmsNotification from './teacher/ResultSmsNotification';
 import WorkingTeacherSubjectsClasses from './teacher/WorkingTeacherSubjectsClasses';
 import MyStudents from './teacher/MyStudents';
+import TeacherStudentManagement from './teacher/TeacherStudentManagement';
 import ExamList from './ExamList';
 import StudentManagement from './StudentManagement';
 import ResultReportSelector from './results/ResultReportSelector';
@@ -26,6 +27,7 @@ const TeacherPanel = () => {
         <Route path="sms-notification" element={<ResultSmsNotification />} />
         <Route path="exams" element={<ExamList />} />
         <Route path="students" element={<StudentManagement />} />
+        <Route path="student-management" element={<TeacherStudentManagement />} />
       </Routes>
     </Box>
   );

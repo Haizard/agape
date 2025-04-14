@@ -12,7 +12,7 @@ const Student = require('../models/Student');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 // Direct student registration route
-router.post('/direct-student-register', authenticateToken, authorizeRole(['admin', 'ADMIN', 'Admin']), async (req, res) => {
+router.post('/direct-student-register', authenticateToken, authorizeRole(['admin', 'ADMIN', 'Admin', 'teacher']), async (req, res) => {
   // Start a session for transaction
   const session = await mongoose.startSession();
   session.startTransaction();

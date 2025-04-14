@@ -11,7 +11,7 @@ router.use((req, res, next) => {
 });
 
 // Create a new student
-router.post('/', authenticateToken, authorizeRole('admin'), async (req, res) => {
+router.post('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     console.log('Creating student with data:', req.body);
     const student = new Student(req.body);
@@ -57,8 +57,64 @@ router.get('/search', authenticateToken, authorizeRole(['admin', 'finance', 'tea
   }
 });
 
+// Get all students for the current teacher
+router.get('/my-students', authenticateToken, authorizeRole(['teacher']), async (req, res) => {
+  try {
+    console.log('GET /api/students/my-students - Fetching students for current teacher');
+    const userId = req.user.userId;
+
+    if (!userId) {
+      console.log('No userId found in token');
+      return res.status(400).json({ message: 'Invalid user token' });
+    }
+
+    // Find the teacher profile
+    const Teacher = require('../models/Teacher');
+    const teacher = await Teacher.findOne({ userId });
+    if (!teacher) {
+      console.log('No teacher profile found for user:', userId);
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    console.log(`Found teacher profile: ${teacher._id}`);
+
+    // Find all classes where this teacher is assigned to teach subjects
+    const Class = require('../models/Class');
+    const classes = await Class.find({
+      'subjects.teacher': teacher._id
+    });
+
+    console.log(`Found ${classes.length} classes for teacher ${teacher._id}`);
+
+    // Get students for each class
+    const result = [];
+    for (const classObj of classes) {
+      const students = await Student.find({ class: classObj._id })
+        .populate('userId', 'username email')
+        .populate('class', 'name section stream')
+        .sort({ firstName: 1, lastName: 1 });
+
+      result.push({
+        classInfo: {
+          _id: classObj._id,
+          name: classObj.name,
+          section: classObj.section,
+          stream: classObj.stream
+        },
+        students: students
+      });
+    }
+
+    console.log(`Returning students from ${result.length} classes`);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching students for teacher:', error);
+    res.status(500).json({ message: 'Failed to fetch students', error: error.message });
+  }
+});
+
 // Get all students
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     console.log('GET /api/students - Fetching all students');
     const students = await Student.find().populate('class', 'name section');
@@ -106,7 +162,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Update a student
-router.put('/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
+router.put('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
     const updatedStudent = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!updatedStudent) {

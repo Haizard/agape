@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography, Grid } from '@mui/material';
+import { Link } from 'react-router-dom';
 import DashboardGrid from '../DashboardGrid';
 
 const TeacherDashboard = () => {
@@ -13,6 +14,12 @@ const TeacherDashboard = () => {
       title: 'My Students',
       description: 'View all your students',
       link: '/teacher/my-students'
+    },
+    {
+      title: 'Student Management',
+      description: 'Create and manage students',
+      link: '/teacher/student-management',
+      highlight: true
     },
     {
       title: 'Enter Marks',
@@ -63,8 +70,13 @@ const TeacherDashboard = () => {
         <Typography variant="body1" paragraph>
           Welcome to your teacher dashboard. Here you can manage your classes, grades, and student progress.
         </Typography>
+        <Box sx={{ mb: 2, p: 2, bgcolor: 'primary.light', color: 'primary.contrastText', borderRadius: 1 }}>
+          <Typography variant="body1">
+            <strong>NEW:</strong> You can now create and manage students directly from the <Link to="/teacher/student-management" style={{ color: 'inherit', textDecoration: 'underline' }}>Student Management</Link> page. This allows you to register new students and assign them to your classes.
+          </Typography>
+        </Box>
         <Typography variant="body1" color="secondary">
-          <strong>New API Available:</strong> The system now has separate storage and reporting for O-LEVEL and A-LEVEL results. Try the new features highlighted above.
+          <strong>Also Available:</strong> The system has separate storage and reporting for O-LEVEL and A-LEVEL results. Try the features highlighted above.
         </Typography>
       </Box>
     </Box>
