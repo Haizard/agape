@@ -49,26 +49,24 @@ const newAcademicRoutes = require('./routes/newAcademicRoutes');
 const directStudentRegister = require('./routes/directStudentRegister');
 const debugRoutes = require('./routes/debugRoutes');
 const teacherClassesRoute = require('./routes/teacherClassesRoute');
-const financeRoutes = require('./routes/financeRoutes');
-// const classRoutes = require('./routes/classRoutes');
-const classRoutes = require('./routes/fixedClassRoutes');
+const classRoutes = require('./routes/classRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const fixedSubjectRoutes = require('./routes/fixedSubjectRoutes');
 const parentContactRoutes = require('./routes/parentContactRoutes');
+const financeRoutes = require('./routes/financeRoutes');
 const smsRoutes = require('./routes/smsRoutes');
 const smsSettingsRoutes = require('./routes/smsSettingsRoutes');
 const assignmentRoutes = require('./routes/assignmentRoutes');
 const setupRoutes = require('./routes/setupRoutes');
+const pdfRoutes = require('./routes/pdfRoutes');
 const educationLevelRoutes = require('./routes/educationLevelRoutes');
 const subjectCombinationRoutes = require('./routes/subjectCombinationRoutes');
-const pdfRoutes = require('./routes/pdfRoutes');
 const studentSubjectSelectionRoutes = require('./routes/studentSubjectSelectionRoutes');
 const dataConsistencyRoutes = require('./routes/dataConsistencyRoutes');
 
 const app = express();
 
-// Middleware
-// Configure CORS with specific options
+// Define allowed origins for CORS
 const allowedOrigins = [
   'http://localhost:3000',
   'https://st-john-vianey-frontend.onrender.com',
@@ -79,50 +77,42 @@ const allowedOrigins = [
   'https://agape-seminary-school-backend.koyeb.app',
   'https://misty-roby-haizard-17a53e2a.koyeb.app',
   'https://agape-school-system.onrender.com',
+  'https://agape-render.onrender.com',
   // Add any additional origins here
 ];
 
-// Extract CORS origins from environment variable if available
-if (process.env.CORS_ALLOWED_ORIGINS) {
-  const corsOrigins = process.env.CORS_ALLOWED_ORIGINS.split(',');
-  corsOrigins.forEach(origin => {
-    if (origin && !allowedOrigins.includes(origin)) {
-      allowedOrigins.push(origin.trim());
+// Configure CORS options
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
     }
-  });
-}
-
-console.log('Allowed CORS origins:', allowedOrigins);
-
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc)
-    if (!origin) return callback(null, true);
 
     // Check if the origin is allowed
     if (allowedOrigins.indexOf(origin) === -1) {
       // For development, allow all origins
       if (process.env.NODE_ENV !== 'production') {
+        console.log('Development mode: Allowing origin:', origin);
         return callback(null, true);
       }
 
       console.log('Blocked origin:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
-
+    
+    console.log('Allowed origin:', origin);
     return callback(null, true);
   },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
-  exposedHeaders: ['Content-Length', 'X-Total-Count'],
-  credentials: true, // Allow cookies to be sent with requests
-  maxAge: 86400, // Cache preflight requests for 24 hours
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-}));
+};
 
-console.log(`CORS configured for environment: ${process.env.NODE_ENV || 'development'}`);
+// Apply CORS middleware
+app.use(cors(corsOptions));
 
 // Handle preflight requests
 app.options('*', cors());
@@ -139,22 +129,18 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Frontend server is running' });
 });
 
-// Authentication test endpoint
-app.get('/api/auth-test', (req, res) => {
-  const authHeader = req.headers.authorization || req.headers.Authorization;
-  console.log('Auth test request received with header:', authHeader);
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/agape', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
-  if (!authHeader) {
-    return res.status(401).json({ status: 'error', message: 'No authorization header found' });
-  }
+mongoose.connection.on('connected', () => {
+  console.log('Connected to MongoDB');
+});
 
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ status: 'error', message: 'No token found in authorization header' });
-  }
-
-  // We're not actually verifying the token here, just checking if it exists
-  res.status(200).json({ status: 'ok', message: 'Authorization header found', token_present: true });
+mongoose.connection.on('error', (err) => {
+  console.error('Error connecting to MongoDB:', err);
 });
 
 // Parse JSON request bodies
@@ -183,15 +169,19 @@ app.use((req, res, next) => {
     });
   }
 
+  // Log request headers for debugging
+  console.log('Request headers:', req.headers);
+  
   next();
 });
 
-// Mock data middleware for development
-if (process.env.USE_MOCK_DATA === 'true') {
-  console.log('Using mock data middleware');
-  const mockDataMiddleware = require('./middleware/mockDataMiddleware');
-  app.use(mockDataMiddleware);
-}
+// Special CORS middleware for critical routes
+const criticalRoutesCors = cors({
+  origin: '*', // Allow all origins for critical routes
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
+  credentials: true
+});
 
 // Register routes
 app.use('/api/users', userRoutes);
@@ -207,7 +197,46 @@ app.use('/api/o-level-results', oLevelResultRoutes);
 app.use('/api/a-level-comprehensive', aLevelComprehensiveReportRoutes);
 app.use('/api/character-assessments', characterAssessmentRoutes);
 app.use('/api/student-education-level', studentEducationLevelRoutes);
-app.use('/api/exams', examRoutes);
+
+// Apply special CORS for critical routes
+app.use('/api/exams', criticalRoutesCors, examRoutes);
+app.use('/api/classes', criticalRoutesCors, classRoutes);
+
+// Direct route handlers for critical endpoints with CORS issues
+app.get('/api/exams-direct', criticalRoutesCors, async (req, res) => {
+  try {
+    console.log('Direct exams endpoint called');
+    // Set CORS headers explicitly
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Forward to the exam routes
+    req.url = '/api/exams';
+    return examRoutes(req, res);
+  } catch (error) {
+    console.error('Error in direct exams endpoint:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/classes-direct', criticalRoutesCors, async (req, res) => {
+  try {
+    console.log('Direct classes endpoint called');
+    // Set CORS headers explicitly
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Forward to the class routes
+    req.url = '/api/classes';
+    return classRoutes(req, res);
+  } catch (error) {
+    console.error('Error in direct classes endpoint:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.use('/api/news', newsRoutes);
 app.use('/api/exam-types', examTypeRoutes);
 app.use('/api/academic-years', academicRoutes);
@@ -216,7 +245,6 @@ app.use('/api', directStudentRegister);
 app.use('/api/debug', debugRoutes);
 app.use('/api/direct-test', directTestRoutes);
 app.use('/api/teacher-classes', teacherClassesRoute);
-app.use('/api/classes', classRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/fixed-subjects', fixedSubjectRoutes);
 app.use('/api/parent-contacts', parentContactRoutes);
@@ -231,59 +259,6 @@ app.use('/api/subject-combinations', subjectCombinationRoutes);
 app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
 app.use('/api/data-consistency', dataConsistencyRoutes);
 
-// Add endpoint aliases for backward compatibility
-// These routes handle requests without the /api prefix
-console.log('Adding endpoint aliases for backward compatibility');
-
-// Alias for /classes to /api/classes
-app.use('/classes', (req, res, next) => {
-  console.log('Redirecting /classes to /api/classes');
-  req.url = '/api/classes' + req.url;
-  app._router.handle(req, res, next);
-});
-
-// Alias for /new-academic-years to /api/academic-years
-app.use('/new-academic-years', (req, res, next) => {
-  console.log('Redirecting /new-academic-years to /api/academic-years');
-  req.url = '/api/academic-years' + req.url;
-  app._router.handle(req, res, next);
-});
-
-// Alias for /o-level-results to /api/o-level-results
-app.use('/o-level-results', (req, res, next) => {
-  console.log('Redirecting /o-level-results to /api/o-level-results');
-  req.url = '/api/o-level-results' + req.url;
-  app._router.handle(req, res, next);
-});
-
-// Alias for /a-level-results to /api/a-level-results
-app.use('/a-level-results', (req, res, next) => {
-  console.log('Redirecting /a-level-results to /api/a-level-results');
-  req.url = '/api/a-level-results' + req.url;
-  app._router.handle(req, res, next);
-});
-
-// Alias for /a-level-comprehensive to /api/a-level-comprehensive
-app.use('/a-level-comprehensive', (req, res, next) => {
-  console.log('Redirecting /a-level-comprehensive to /api/a-level-comprehensive');
-  req.url = '/api/a-level-comprehensive' + req.url;
-  app._router.handle(req, res, next);
-});
-
-// Alias for /subjects to /api/subjects
-app.use('/subjects', (req, res, next) => {
-  console.log('Redirecting /subjects to /api/subjects');
-  req.url = '/api/subjects' + req.url;
-  app._router.handle(req, res, next);
-});
-
-// Alias for /subject-combinations to /api/subject-combinations
-app.use('/subject-combinations', (req, res, next) => {
-  console.log('Redirecting /subject-combinations to /api/subject-combinations');
-  req.url = '/api/subject-combinations' + req.url;
-  app._router.handle(req, res, next);
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
@@ -293,8 +268,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Handle 404 routes - Serve index.html for SPA routing - Make sure this is last
-app.use((req, res) => {
+// Catch-all route handler for client-side routing
+app.get('*', (req, res) => {
   // Serve the index.html file from the frontend build directory for any unmatched routes
   res.sendFile(path.join(__dirname, '../frontend/school-frontend-app/build', 'index.html'));
 });

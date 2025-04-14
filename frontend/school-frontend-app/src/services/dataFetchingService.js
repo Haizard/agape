@@ -128,11 +128,23 @@ export const useOLevelClassReport = (classId, examId) => {
 export const useClasses = (educationLevel) => {
   return useCachedData({
     fetchFn: async () => {
-      const url = educationLevel 
-        ? `/api/classes?educationLevel=${educationLevel}`
-        : '/api/classes';
-      const response = await axios.get(url);
-      return response.data;
+      // Try the direct endpoint first, then fall back to the regular endpoint
+      try {
+        const url = educationLevel
+          ? `/api/classes-direct?educationLevel=${educationLevel}`
+          : '/api/classes-direct';
+        console.log('Fetching classes from direct endpoint:', url);
+        const response = await axios.get(url);
+        console.log('Classes fetched successfully from direct endpoint');
+        return response.data;
+      } catch (error) {
+        console.warn('Failed to fetch from direct endpoint, falling back to regular endpoint', error);
+        const url = educationLevel
+          ? `/api/classes?educationLevel=${educationLevel}`
+          : '/api/classes';
+        const response = await axios.get(url);
+        return response.data;
+      }
     },
     resourceType: 'classes',
     resourceId: educationLevel || 'all',
@@ -149,8 +161,18 @@ export const useExams = (classId) => {
   return useCachedData({
     fetchFn: async () => {
       if (!classId) return [];
-      const response = await axios.get(`/api/exams?class=${classId}`);
-      return response.data;
+
+      // Try the direct endpoint first, then fall back to the regular endpoint
+      try {
+        console.log('Fetching exams from direct endpoint');
+        const response = await axios.get(`/api/exams-direct${classId ? `?class=${classId}` : ''}`);
+        console.log('Exams fetched successfully from direct endpoint');
+        return response.data;
+      } catch (error) {
+        console.warn('Failed to fetch from direct endpoint, falling back to regular endpoint', error);
+        const response = await axios.get(`/api/exams${classId ? `?class=${classId}` : ''}`);
+        return response.data;
+      }
     },
     resourceType: 'exams',
     resourceId: classId || 'all',
@@ -170,17 +192,17 @@ export const useStudents = (classId, form) => {
     fetchFn: async () => {
       if (!classId) return [];
       const response = await axios.get(`/api/students?class=${classId}`);
-      
+
       // Filter by form if provided
       if (form) {
         const formNumber = typeof form === 'string' ? parseInt(form.replace('Form ', ''), 10) : form;
-        return response.data.filter(student => 
-          student.form === formNumber || 
+        return response.data.filter(student =>
+          student.form === formNumber ||
           student.form === formNumber.toString() ||
           student.form === `Form ${formNumber}`
         );
       }
-      
+
       return response.data;
     },
     resourceType: 'students',
