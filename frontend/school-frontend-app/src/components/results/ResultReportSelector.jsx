@@ -669,7 +669,7 @@ const ResultReportSelector = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12}>
+              <Grid item xs={12} md={6}>
                 <Button
                   variant="contained"
                   color="primary"
@@ -678,7 +678,24 @@ const ResultReportSelector = () => {
                   startIcon={loading ? <CircularProgress size={20} /> : <AssignmentIcon />}
                   fullWidth
                 >
-                  {loading ? 'Loading...' : 'Generate Class Report'}
+                  {loading ? 'Loading...' : 'Generate Standard Class Report'}
+                </Button>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={() => {
+                    if (selectedClass && selectedExam) {
+                      navigate(`/admin/enhanced-class-report/${selectedClass}/${selectedExam}?educationLevel=${educationLevel}`);
+                    }
+                  }}
+                  disabled={!selectedClass || !selectedExam || loading}
+                  startIcon={<AssignmentIcon />}
+                  fullWidth
+                >
+                  Generate Enhanced Class Report
                 </Button>
               </Grid>
             </Grid>
@@ -742,6 +759,49 @@ const ResultReportSelector = () => {
                         Select A-Level
                       </Button>
                     </CardActions>
+                  </Card>
+                </Grid>
+
+                {/* Enhanced Class Report Card */}
+                <Grid item xs={12}>
+                  <Card sx={{ bgcolor: '#e8f5e9', border: '1px solid #4caf50', p: 2, mb: 3 }}>
+                    <CardContent>
+                      <Typography variant="h6" color="success.main" gutterBottom>
+                        Enhanced Class Report (New!)
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" paragraph>
+                        Our new enhanced class report format includes:
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} md={8}>
+                          <ul>
+                            <li>Clean, modern tabular layout with "OPEN TEST RESULT" header</li>
+                            <li>Comprehensive subject summary with GPA calculation</li>
+                            <li>Support for missing marks and proper handling of null values</li>
+                            <li>Approval section for academic teacher and head of school signatures</li>
+                            <li>Export to both PDF and Excel formats</li>
+                            <li>Pagination for large classes (25-30 students per page)</li>
+                          </ul>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            onClick={() => {
+                              if (selectedClass && selectedExam) {
+                                navigate(`/admin/enhanced-class-report/${selectedClass}/${selectedExam}?educationLevel=${educationLevel}`);
+                              } else {
+                                setError('Please select a class and exam first');
+                              }
+                            }}
+                            fullWidth
+                            sx={{ mt: 2 }}
+                          >
+                            Try Enhanced Report
+                          </Button>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
                   </Card>
                 </Grid>
 
