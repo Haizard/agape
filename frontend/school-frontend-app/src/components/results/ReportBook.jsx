@@ -243,8 +243,8 @@ const ReportBook = () => {
       }
 
       // Fetch the report data from the API
-      const reportUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
-      console.log('Fetching report data from:', reportUrl);
+      const reportUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
+      console.log('Fetching report data from unified endpoint:', reportUrl);
 
       const response = await axios.get(reportUrl, {
         headers: {

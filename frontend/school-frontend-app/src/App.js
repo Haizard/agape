@@ -109,6 +109,8 @@ import MarksHistoryDashboard from './components/marks/MarksHistoryDashboard';
 import MarksEntryDashboard from './components/results/MarksEntryDashboard';
 import ALevelBulkMarksEntry from './components/results/ALevelBulkMarksEntry';
 import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
+import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
+import ALevelComprehensiveReport from './components/results/ALevelComprehensiveReport';
 import RoleFixButton from './components/common/RoleFixButton';
 import { checkAndFixUserRole } from './utils/roleFixUtil';
 // StudentPanel is already imported on line 25
@@ -259,6 +261,16 @@ function App() {
                     <Route path="/results/bulk-download" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <BulkReportDownloader />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/a-level-comprehensive-selector" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelComprehensiveReportSelector />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/a-level-comprehensive/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelComprehensiveReport />
                       </ProtectedRoute>
                     } />
                     {/* A-Level Form-Specific Routes */}

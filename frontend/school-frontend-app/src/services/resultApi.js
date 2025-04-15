@@ -158,12 +158,31 @@ const resultApi = {
   },
 
   /**
-   * Get A-Level comprehensive student result report URL
+   * Get comprehensive student result report URL (works for both A-Level and O-Level)
+   * @param {String} studentId - The student ID
+   * @param {String} examId - The exam ID
+   * @param {Object} params - Optional parameters (academicYear, term)
+   * @returns {String} - The report URL
+   */
+  getComprehensiveReportUrl: (studentId, examId, params = {}) => {
+    // Build query string
+    const queryParams = new URLSearchParams();
+    if (params.academicYear) queryParams.append('academicYear', params.academicYear);
+    if (params.term) queryParams.append('term', params.term);
+
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return `${api.defaults.baseURL}/api/results/comprehensive/student/${studentId}/${examId}${queryString}`;
+  },
+
+  /**
+   * Get A-Level comprehensive student result report URL (legacy)
    * @param {String} studentId - The student ID
    * @param {String} examId - The exam ID
    * @returns {String} - The report URL
+   * @deprecated Use getComprehensiveReportUrl instead
    */
   getALevelComprehensiveReportUrl: (studentId, examId) => {
+    console.warn('getALevelComprehensiveReportUrl is deprecated. Use getComprehensiveReportUrl instead.');
     return `${api.defaults.baseURL}/api/a-level-comprehensive/student/${studentId}/${examId}`;
   },
 

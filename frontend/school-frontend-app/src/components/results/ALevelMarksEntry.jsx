@@ -22,8 +22,8 @@ import {
   Snackbar,
   Checkbox
 } from '@mui/material';
-import axios from 'axios';
 import api from '../../utils/api';
+import teacherAuthService from '../../services/teacherAuthService';
 
 /**
  * A-Level Marks Entry Component
@@ -78,13 +78,24 @@ const ALevelMarksEntry = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [classesRes, examsRes] = await Promise.all([
-        api.get('/classes'),
-        api.get('/exams')
-      ]);
+      // Check if user is admin
+      const isAdmin = teacherAuthService.isAdmin();
+
+      let classesData;
+      if (isAdmin) {
+        // Admin can see all classes
+        const classesRes = await api.get('/classes');
+        classesData = classesRes.data || [];
+      } else {
+        // Teachers can only see assigned classes
+        classesData = await teacherAuthService.getAssignedClasses();
+      }
+
+      // Get exams
+      const examsRes = await api.get('/exams');
 
       // Filter for A-Level classes
-      const aLevelClasses = (classesRes.data || []).filter(cls => cls.educationLevel === 'A_LEVEL');
+      const aLevelClasses = classesData.filter(cls => cls.educationLevel === 'A_LEVEL');
       setClasses(aLevelClasses);
       setExams(examsRes.data || []);
     } catch (err) {
@@ -99,11 +110,24 @@ const ALevelMarksEntry = () => {
   const fetchStudentsByClass = async (classId) => {
     setLoading(true);
     try {
-      // Use the correct endpoint for fetching students by class
-      const response = await api.get(`/students/class/${classId}`);
+      // Check if user is admin
+      const isAdmin = teacherAuthService.isAdmin();
+
+      let studentsData;
+      if (isAdmin) {
+        // Admin can see all students in the class
+        const response = await api.get(`/students/class/${classId}`);
+        studentsData = response.data || [];
+      } else {
+        // Teachers can only see assigned students
+        studentsData = await teacherAuthService.getAssignedStudents(classId);
+      }
 
       // Filter for A-Level students
-      const aLevelStudents = (response.data || []).filter(student => student.educationLevel === 'A_LEVEL');
+      const aLevelStudents = studentsData.filter(student =>
+        student.educationLevel === 'A_LEVEL'
+      );
+
       setStudents(aLevelStudents);
     } catch (err) {
       console.error('Error fetching students:', err);
@@ -117,28 +141,43 @@ const ALevelMarksEntry = () => {
   const fetchSubjectsByClass = async (classId) => {
     setLoading(true);
     try {
-      const response = await api.get(`/classes/${classId}`);
-      const classData = response.data;
+      // Check if user is admin
+      const isAdmin = teacherAuthService.isAdmin();
 
-      if (classData.subjects && classData.subjects.length > 0) {
-        // Extract subject IDs from class data
-        const subjectIds = classData.subjects.map(s =>
-          typeof s === 'object' ? s.subject._id || s.subject : s
-        );
+      let classSubjects;
+      if (isAdmin) {
+        // Admin can see all subjects in the class
+        const response = await api.get(`/classes/${classId}`);
+        const classData = response.data;
 
-        // Fetch subject details
-        const subjectsResponse = await api.get('/subjects');
-        const allSubjects = subjectsResponse.data || [];
+        if (classData.subjects && classData.subjects.length > 0) {
+          // Extract subject IDs from class data
+          const subjectIds = classData.subjects.map(s =>
+            typeof s === 'object' ? s.subject._id || s.subject : s
+          );
 
-        // Filter subjects that belong to this class
-        const classSubjects = allSubjects.filter(subject =>
-          subjectIds.includes(subject._id)
-        );
+          // Fetch subject details
+          const subjectsResponse = await api.get('/subjects');
+          const allSubjects = subjectsResponse.data || [];
 
-        setSubjects(classSubjects);
+          // Filter subjects that belong to this class
+          classSubjects = allSubjects.filter(subject =>
+            subjectIds.includes(subject._id)
+          );
+        } else {
+          classSubjects = [];
+        }
       } else {
-        setSubjects([]);
+        // Teachers can only see assigned subjects
+        classSubjects = await teacherAuthService.getAssignedSubjects(classId);
       }
+
+      // Filter for A-Level subjects
+      const aLevelSubjects = classSubjects.filter(subject =>
+        subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
+      );
+
+      setSubjects(aLevelSubjects);
     } catch (err) {
       console.error('Error fetching subjects:', err);
       setError('Failed to load subjects. Please try again.');
@@ -236,6 +275,30 @@ const ALevelMarksEntry = () => {
 
     setLoading(true);
     try {
+      // Check if user is admin
+      const isAdmin = teacherAuthService.isAdmin();
+
+      // If not admin, verify authorization
+      if (!isAdmin) {
+        // Check if teacher is authorized for this class
+        const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+        if (!isAuthorizedForClass) {
+          throw new Error('You are not authorized to enter marks for this class');
+        }
+
+        // Check if teacher is authorized for this subject
+        const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+        if (!isAuthorizedForSubject) {
+          throw new Error('You are not authorized to enter marks for this subject');
+        }
+
+        // Check if teacher is authorized for this student
+        const isAuthorizedForStudent = await teacherAuthService.isAuthorizedForStudent(selectedClass, selectedStudent);
+        if (!isAuthorizedForStudent) {
+          throw new Error('You are not authorized to enter marks for this student');
+        }
+      }
+
       // Get the selected student to check education level
       const student = students.find(s => s._id === selectedStudent);
       if (!student) {

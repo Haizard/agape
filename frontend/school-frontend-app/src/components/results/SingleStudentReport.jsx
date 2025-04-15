@@ -208,9 +208,9 @@ const SingleStudentReport = () => {
 
       console.log(`Fetching real data for student ${studentId} and exam ${examId} with academicYear=${academicYear} and term=${term}`);
 
-      // Try multiple API endpoints to ensure compatibility
+      // Try the unified comprehensive endpoint first
       let apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}?academicYear=${academicYear}&term=${term}`;
-      console.log('Trying primary API endpoint:', apiUrl);
+      console.log('Trying unified comprehensive endpoint:', apiUrl);
 
       try {
         const response = await axios.get(apiUrl, {
@@ -220,7 +220,7 @@ const SingleStudentReport = () => {
           }
         });
 
-        console.log('Primary API endpoint successful');
+        console.log('Unified comprehensive endpoint successful');
         const reportData = response.data;
 
         // Cache the report data
@@ -229,12 +229,12 @@ const SingleStudentReport = () => {
         // Process the data and update state
         processReportData(reportData);
       } catch (primaryError) {
-        console.error('Error with primary endpoint:', primaryError);
-        console.log('Trying fallback API endpoint...');
+        console.error('Error with unified endpoint:', primaryError);
+        console.log('Trying A-Level fallback endpoint...');
 
-        // Try the fallback endpoint
-        apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
-        console.log('Trying fallback API endpoint:', apiUrl);
+        // Try the A-Level fallback endpoint
+        apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}?academicYear=${academicYear}&term=${term}`;
+        console.log('Trying A-Level fallback endpoint:', apiUrl);
 
         try {
           const response = await axios.get(apiUrl, {
@@ -244,7 +244,7 @@ const SingleStudentReport = () => {
             }
           });
 
-          console.log('Fallback API endpoint successful');
+          console.log('A-Level fallback endpoint successful');
           const reportData = response.data;
 
           // Cache the report data
@@ -252,9 +252,33 @@ const SingleStudentReport = () => {
 
           // Process the data and update state
           processReportData(reportData);
-        } catch (fallbackError) {
-          console.error('Error with fallback endpoint:', fallbackError);
-          throw new Error(`Failed to fetch report data: ${fallbackError.message}`);
+        } catch (aLevelError) {
+          console.error('Error with A-Level fallback endpoint:', aLevelError);
+
+          // Try the O-Level fallback endpoint
+          apiUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${studentId}/${examId}?academicYear=${academicYear}&term=${term}`;
+          console.log('Trying O-Level fallback endpoint:', apiUrl);
+
+          try {
+            const response = await axios.get(apiUrl, {
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+
+            console.log('O-Level fallback endpoint successful');
+            const reportData = response.data;
+
+            // Cache the report data
+            cacheReport(studentId, examId, reportData);
+
+            // Process the data and update state
+            processReportData(reportData);
+          } catch (oLevelError) {
+            console.error('Error with O-Level fallback endpoint:', oLevelError);
+            throw new Error(`Failed to fetch report data: ${oLevelError.message}`);
+          }
         }
       }
     } catch (err) {

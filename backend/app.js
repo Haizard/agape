@@ -19,6 +19,7 @@ const financeRoutes = require('./routes/financeRoutes');
 const feeScheduleRoutes = require('./routes/feeScheduleRoutes');
 const studentSubjectSelectionRoutes = require('./routes/studentSubjectSelectionRoutes');
 const comprehensiveReportRoutes = require('./routes/comprehensiveReportRoutes');
+const unifiedComprehensiveReportRoutes = require('./routes/unifiedComprehensiveReportRoutes');
 const marksHistoryRoutes = require('./routes/marksHistoryRoutes');
 const demoDataRoutes = require('./routes/demoDataRoutes');
 
@@ -100,7 +101,9 @@ app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
 // Marks history routes
 app.use('/api/marks-history', marksHistoryRoutes);
 // Legacy routes - will be deprecated in future versions
-app.use('/api/results/comprehensive', comprehensiveReportRoutes);
+app.use('/api/results/comprehensive', unifiedComprehensiveReportRoutes);
+// Keep old route for backward compatibility
+app.use('/api/results/comprehensive-old', comprehensiveReportRoutes);
 // Demo data routes for testing
 app.use('/api/demo', demoDataRoutes);
 

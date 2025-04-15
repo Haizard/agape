@@ -7,6 +7,7 @@ const Class = require('../models/Class');
 const User = require('../models/User');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const mongoose = require('mongoose');
+const teacherAuthController = require('../controllers/teacherAuthController');
 
 // Create a new teacher
 router.post('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -1339,8 +1340,20 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
   }
 });
 
-// Get subjects for the current teacher
-router.get('/my-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+// Get assigned classes for the current teacher (for authorization)
+router.get('/assigned-classes', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedClasses);
+
+// Get simple assigned classes for the current teacher (for authorization)
+router.get('/simple-classes', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getSimpleAssignedClasses);
+
+// Get assigned subjects for the current teacher (for authorization)
+router.get('/my-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedSubjects);
+
+// Get assigned students for the current teacher (for authorization)
+router.get('/classes/:classId/students', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedStudents);
+
+// Get subjects for the current teacher (original implementation)
+router.get('/my-subjects-old', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
   try {
     console.log('GET /api/teachers/my-subjects - Fetching subjects for current teacher');
     const userId = req.user.userId;

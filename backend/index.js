@@ -41,6 +41,7 @@ const oLevelResultRoutes = require('./routes/oLevelResultRoutes');
 const aLevelResultBatchRoutes = require('./routes/aLevelResultBatchRoutes');
 const oLevelResultBatchRoutes = require('./routes/oLevelResultBatchRoutes');
 const aLevelComprehensiveReportRoutes = require('./routes/aLevelComprehensiveReportRoutes');
+const unifiedComprehensiveReportRoutes = require('./routes/unifiedComprehensiveReportRoutes');
 const characterAssessmentRoutes = require('./routes/characterAssessmentRoutes');
 const studentEducationLevelRoutes = require('./routes/studentEducationLevelRoutes');
 const examRoutes = require('./routes/examRoutes');
@@ -210,6 +211,7 @@ app.use('/api/results/enter-marks/batch', fixedResultRoutes);
 // Use original result routes for other endpoints
 app.use('/api/results', resultRoutes);
 app.use('/api/results/report', resultReportRoutes);
+app.use('/api/results/comprehensive', unifiedComprehensiveReportRoutes);
 app.use('/api/a-level-results', aLevelResultRoutes);
 app.use('/api/o-level-results', oLevelResultRoutes);
 app.use('/api/a-level-results/batch', criticalRoutesCors, aLevelResultBatchRoutes);

@@ -40,7 +40,7 @@ const SingleRowReport = () => {
   // Generate demo data for testing
   const generateDemoData = useCallback((formLevel) => {
     const isForm5 = formLevel === 5 || studentId === 'demo-form5';
-    
+
     // Create all subjects (both principal and subsidiary/compulsory)
     const allSubjects = [
       // Principal subjects
@@ -109,7 +109,7 @@ const SingleRowReport = () => {
         remarks: isForm5 ? 'Very Good' : 'Very Good'
       }
     ];
-    
+
     // Calculate grade distribution
     const gradeDistribution = {
       A: allSubjects.filter(s => s.grade === 'A').length,
@@ -120,18 +120,18 @@ const SingleRowReport = () => {
       S: allSubjects.filter(s => s.grade === 'S').length,
       F: allSubjects.filter(s => s.grade === 'F').length
     };
-    
+
     // Calculate total marks and points
     const subjectsWithMarks = allSubjects.filter(s => s.marks !== null);
     const totalMarks = subjectsWithMarks.reduce((sum, s) => sum + s.marks, 0);
     const totalPoints = subjectsWithMarks.reduce((sum, s) => sum + s.points, 0);
     const averageMarks = subjectsWithMarks.length > 0 ? totalMarks / subjectsWithMarks.length : 0;
-    
+
     // Calculate best three principal points
     const principalSubjects = allSubjects.filter(s => s.isPrincipal);
     const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
     const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
-    
+
     // Determine division
     let division = 'N/A';
     if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
@@ -139,7 +139,7 @@ const SingleRowReport = () => {
     else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
     else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
     else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
-    
+
     // Create demo report
     return {
       reportTitle: 'Academic Report',
@@ -185,7 +185,7 @@ const SingleRowReport = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Check if this is a demo request
       if (studentId === 'demo-form5' || studentId === 'demo-form6') {
         const formLevel = studentId === 'demo-form5' ? 5 : 6;
@@ -197,16 +197,16 @@ const SingleRowReport = () => {
       }
 
       // Fetch the report data from the API
-      const reportUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
-      console.log('Fetching report data from:', reportUrl);
-      
+      const reportUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
+      console.log('Fetching report data from unified endpoint:', reportUrl);
+
       const response = await axios.get(reportUrl, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       console.log('Report response:', response.data);
       const data = response.data;
 
@@ -247,7 +247,7 @@ const SingleRowReport = () => {
   // Download report as PDF
   const handleDownload = () => {
     // Open the PDF version in a new tab (backend will generate PDF)
-    const pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
+    const pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${studentId}/${examId}`;
     window.open(pdfUrl, '_blank');
   };
 
@@ -325,12 +325,12 @@ const SingleRowReport = () => {
             {report.examName} - {report.academicYear}
           </Typography>
         </Box>
-        
+
         <Box className="header-center">
           {report.schoolLogo ? (
-            <img 
-              src={report.schoolLogo} 
-              alt="School Logo" 
+            <img
+              src={report.schoolLogo}
+              alt="School Logo"
               className="school-logo"
               onError={(e) => {
                 e.target.src = 'https://via.placeholder.com/80?text=Logo';
@@ -344,7 +344,7 @@ const SingleRowReport = () => {
             </Box>
           )}
         </Box>
-        
+
         <Box className="header-right">
           <Typography variant="body1" className="report-title">
             STUDENT ACADEMIC REPORT
@@ -372,7 +372,7 @@ const SingleRowReport = () => {
               <strong>Adm No:</strong> {report.studentDetails?.admissionNumber}
             </Typography>
           </Grid>
-          
+
           <Grid item xs={4} className="points-details">
             <Typography variant="body1" className="points-info">
               <strong>Total Points:</strong> {report.summary?.totalPoints}
@@ -384,7 +384,7 @@ const SingleRowReport = () => {
               <strong>Average:</strong> {report.summary?.averageMarks}
             </Typography>
           </Grid>
-          
+
           <Grid item xs={4} className="division-details">
             <Typography variant="body1" className="division-info">
               <strong>Division:</strong> {report.summary?.division}
@@ -406,9 +406,9 @@ const SingleRowReport = () => {
             <TableRow className="table-header-row">
               <TableCell className="subject-header">SUBJECT</TableCell>
               {report.allSubjects.map((subject) => (
-                <TableCell 
-                  key={subject.code} 
-                  align="center" 
+                <TableCell
+                  key={subject.code}
+                  align="center"
                   className={subject.isPrincipal ? "principal-subject" : "subsidiary-subject"}
                 >
                   {subject.code}
@@ -432,7 +432,7 @@ const SingleRowReport = () => {
               <TableCell align="center">{report.summary?.averageMarks}</TableCell>
               <TableCell align="center">-</TableCell>
             </TableRow>
-            
+
             {/* Grade Row */}
             <TableRow className="grade-row">
               <TableCell className="row-label">GRADE</TableCell>
@@ -445,7 +445,7 @@ const SingleRowReport = () => {
               <TableCell align="center">-</TableCell>
               <TableCell align="center">-</TableCell>
             </TableRow>
-            
+
             {/* Points Row */}
             <TableRow className="points-row">
               <TableCell className="row-label">POINTS</TableCell>
@@ -473,13 +473,13 @@ const SingleRowReport = () => {
               <Box className="comment-content">
                 <Typography variant="body2">
                   {report.studentDetails?.name} has performed {
-                    report.summary?.averageMarks > 70 ? 'excellently' : 
-                    report.summary?.averageMarks > 60 ? 'very well' : 
+                    report.summary?.averageMarks > 70 ? 'excellently' :
+                    report.summary?.averageMarks > 60 ? 'very well' :
                     report.summary?.averageMarks > 50 ? 'well' : 'satisfactorily'
                   } this term. {
-                    report.summary?.averageMarks > 70 ? 'Keep up the excellent work!' : 
-                    report.summary?.averageMarks > 60 ? 'Continue with the good effort.' : 
-                    report.summary?.averageMarks > 50 ? 'Work harder to improve further.' : 
+                    report.summary?.averageMarks > 70 ? 'Keep up the excellent work!' :
+                    report.summary?.averageMarks > 60 ? 'Continue with the good effort.' :
+                    report.summary?.averageMarks > 50 ? 'Work harder to improve further.' :
                     'More effort is needed to improve performance.'
                   }
                 </Typography>
@@ -489,7 +489,7 @@ const SingleRowReport = () => {
               </Box>
             </Box>
           </Grid>
-          
+
           <Grid item xs={12} md={6}>
             <Box className="comment-box principal-comment">
               <Typography variant="subtitle1" className="comment-header">
@@ -498,9 +498,9 @@ const SingleRowReport = () => {
               <Box className="comment-content">
                 <Typography variant="body2">
                   {
-                    report.summary?.division === 'I' ? 'Outstanding performance. Keep it up!' : 
-                    report.summary?.division === 'II' ? 'Very good performance. Aim higher next term.' : 
-                    report.summary?.division === 'III' ? 'Good performance. Work harder to improve.' : 
+                    report.summary?.division === 'I' ? 'Outstanding performance. Keep it up!' :
+                    report.summary?.division === 'II' ? 'Very good performance. Aim higher next term.' :
+                    report.summary?.division === 'III' ? 'Good performance. Work harder to improve.' :
                     'More effort is needed to improve your academic performance.'
                   }
                 </Typography>

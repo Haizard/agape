@@ -14,13 +14,15 @@ import {
   CircularProgress,
   Card,
   CardContent,
-  CardMedia,
   Divider
 } from '@mui/material';
 import {
   Assignment as AssignmentIcon,
   School as SchoolIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Filter5 as Filter5Icon,
+  Filter6 as Filter6Icon,
+  FilterList as FilterListIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -32,6 +34,7 @@ const ALevelComprehensiveReportSelector = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
   const [classes, setClasses] = useState([]);
   const [exams, setExams] = useState([]);
   const [students, setStudents] = useState([]);
@@ -40,19 +43,36 @@ const ALevelComprehensiveReportSelector = () => {
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedForm, setSelectedForm] = useState('');
 
+  // Check if user is logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+    if (!token) {
+      setError('You need to be logged in to access this page. Please log in and try again.');
+    }
+  }, []);
+
   // Fetch classes on component mount
   useEffect(() => {
     const fetchClasses = async () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         // Only fetch A-Level classes (Form 5 and Form 6)
-        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/classes?educationLevel=A_LEVEL`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/classes?educationLevel=A_LEVEL`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json'
+          }
+        });
         setClasses(response.data);
       } catch (err) {
         console.error('Error fetching classes:', err);
-        setError('Failed to load classes. Please try again.');
+        const errorMessage = err.response?.status === 403
+          ? 'You do not have permission to access classes. Please check your login status.'
+          : 'Failed to load classes. Please try again.';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -69,12 +89,20 @@ const ALevelComprehensiveReportSelector = () => {
       try {
         setLoading(true);
         setError(null);
-        
-        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/exams?class=${selectedClass}`);
+
+        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/exams?class=${selectedClass}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json'
+          }
+        });
         setExams(response.data);
       } catch (err) {
         console.error('Error fetching exams:', err);
-        setError('Failed to load exams. Please try again.');
+        const errorMessage = err.response?.status === 403
+          ? 'You do not have permission to access exams. Please check your login status.'
+          : 'Failed to load exams. Please try again.';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -91,24 +119,32 @@ const ALevelComprehensiveReportSelector = () => {
       try {
         setLoading(true);
         setError(null);
-        
-        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/students?class=${selectedClass}`);
-        
+
+        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/students?class=${selectedClass}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json'
+          }
+        });
+
         // Filter students by form if selected
         let filteredStudents = response.data;
         if (selectedForm) {
           const formNumber = selectedForm === 'Form 5' ? 5 : 6;
-          filteredStudents = response.data.filter(student => 
-            student.form === formNumber || 
+          filteredStudents = response.data.filter(student =>
+            student.form === formNumber ||
             student.form === formNumber.toString() ||
             student.form === selectedForm
           );
         }
-        
+
         setStudents(filteredStudents);
       } catch (err) {
         console.error('Error fetching students:', err);
-        setError('Failed to load students. Please try again.');
+        const errorMessage = err.response?.status === 403
+          ? 'You do not have permission to access students. Please check your login status.'
+          : 'Failed to load students. Please try again.';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -147,6 +183,7 @@ const ALevelComprehensiveReportSelector = () => {
       return;
     }
 
+    console.log(`Navigating to report for student ${selectedStudent} and exam ${selectedExam}`);
     // Navigate to the report page
     navigate(`/results/a-level-comprehensive/${selectedStudent}/${selectedExam}`);
   };
@@ -156,29 +193,29 @@ const ALevelComprehensiveReportSelector = () => {
       <Typography variant="h5" gutterBottom>
         A-Level Comprehensive Report
       </Typography>
-      
+
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} action={
+          !isLoggedIn && (
+            <Button color="inherit" size="small" onClick={() => navigate('/login')}>
+              Login
+            </Button>
+          )
+        }>
           {error}
         </Alert>
       )}
-      
-      <Grid container spacing={3}>
+
+      <Grid container spacing={3} sx={{ opacity: isLoggedIn ? 1 : 0.7 }}>
         <Grid item xs={12} md={4}>
-          <Card>
-            <CardMedia
-              component="img"
-              height="140"
-              image="/images/form5.jpg"
-              alt="Form 5"
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/400x140?text=Form+5';
-              }}
-            />
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5', borderTop: '4px solid #1976d2' }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Form 5 Report
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Filter5Icon sx={{ mr: 1, color: '#1976d2' }} />
+                <Typography variant="h6" gutterBottom>
+                  Form 5 Report
+                </Typography>
+              </Box>
               <Typography variant="body2" color="text.secondary" paragraph>
                 Comprehensive academic report for Form 5 students showing both Principal and Subsidiary subjects with all performance metrics.
               </Typography>
@@ -193,22 +230,16 @@ const ALevelComprehensiveReportSelector = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
-          <Card>
-            <CardMedia
-              component="img"
-              height="140"
-              image="/images/form6.jpg"
-              alt="Form 6"
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/400x140?text=Form+6';
-              }}
-            />
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5', borderTop: '4px solid #2e7d32' }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Form 6 Report
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Filter6Icon sx={{ mr: 1, color: '#2e7d32' }} />
+                <Typography variant="h6" gutterBottom>
+                  Form 6 Report
+                </Typography>
+              </Box>
               <Typography variant="body2" color="text.secondary" paragraph>
                 Comprehensive academic report for Form 6 students showing both Principal and Subsidiary subjects with all performance metrics.
               </Typography>
@@ -223,22 +254,16 @@ const ALevelComprehensiveReportSelector = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
-          <Card>
-            <CardMedia
-              component="img"
-              height="140"
-              image="/images/all-forms.jpg"
-              alt="All Forms"
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/400x140?text=All+Forms';
-              }}
-            />
+          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5', borderTop: '4px solid #9c27b0' }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                All A-Level Forms
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <FilterListIcon sx={{ mr: 1, color: '#9c27b0' }} />
+                <Typography variant="h6" gutterBottom>
+                  All A-Level Forms
+                </Typography>
+              </Box>
               <Typography variant="body2" color="text.secondary" paragraph>
                 View reports for any A-Level student (Form 5 or Form 6) by selecting from all available students.
               </Typography>
@@ -254,13 +279,13 @@ const ALevelComprehensiveReportSelector = () => {
           </Card>
         </Grid>
       </Grid>
-      
-      <Paper sx={{ p: 3, mt: 3 }}>
+
+      <Paper sx={{ p: 3, mt: 3, opacity: isLoggedIn ? 1 : 0.7 }}>
         <Typography variant="h6" gutterBottom>
           Select Report Parameters
         </Typography>
         <Divider sx={{ mb: 3 }} />
-        
+
         <Grid container spacing={3}>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth>
@@ -269,7 +294,7 @@ const ALevelComprehensiveReportSelector = () => {
                 value={selectedClass}
                 onChange={handleClassChange}
                 label="Class"
-                disabled={loading}
+                disabled={loading || !isLoggedIn}
               >
                 <MenuItem value="">Select a class</MenuItem>
                 {classes.map((cls) => (
@@ -280,7 +305,7 @@ const ALevelComprehensiveReportSelector = () => {
               </Select>
             </FormControl>
           </Grid>
-          
+
           <Grid item xs={12} md={3}>
             <FormControl fullWidth>
               <InputLabel>Exam</InputLabel>
@@ -288,7 +313,7 @@ const ALevelComprehensiveReportSelector = () => {
                 value={selectedExam}
                 onChange={handleExamChange}
                 label="Exam"
-                disabled={!selectedClass || loading}
+                disabled={!selectedClass || loading || !isLoggedIn}
               >
                 <MenuItem value="">Select an exam</MenuItem>
                 {exams.map((exam) => (
@@ -299,7 +324,7 @@ const ALevelComprehensiveReportSelector = () => {
               </Select>
             </FormControl>
           </Grid>
-          
+
           <Grid item xs={12} md={4}>
             <FormControl fullWidth>
               <InputLabel>Student</InputLabel>
@@ -307,7 +332,7 @@ const ALevelComprehensiveReportSelector = () => {
                 value={selectedStudent}
                 onChange={handleStudentChange}
                 label="Student"
-                disabled={!selectedClass || loading}
+                disabled={!selectedClass || loading || !isLoggedIn}
               >
                 <MenuItem value="">Select a student</MenuItem>
                 {students.map((student) => (
@@ -318,14 +343,14 @@ const ALevelComprehensiveReportSelector = () => {
               </Select>
             </FormControl>
           </Grid>
-          
+
           <Grid item xs={12} md={2}>
             <Button
               variant="contained"
               color="primary"
               fullWidth
               onClick={handleGenerateReport}
-              disabled={!selectedStudent || !selectedExam || loading}
+              disabled={!selectedStudent || !selectedExam || loading || !isLoggedIn}
               startIcon={loading ? <CircularProgress size={20} /> : <AssignmentIcon />}
               sx={{ height: '100%' }}
             >
@@ -334,18 +359,18 @@ const ALevelComprehensiveReportSelector = () => {
           </Grid>
         </Grid>
       </Paper>
-      
+
       {/* Demo Data Section */}
-      <Paper sx={{ p: 3, mt: 3 }}>
+      <Paper sx={{ p: 3, mt: 3, opacity: isLoggedIn ? 1 : 0.7 }}>
         <Typography variant="h6" gutterBottom>
           Demo Reports
         </Typography>
         <Divider sx={{ mb: 3 }} />
-        
+
         <Typography variant="body2" paragraph>
           If you don't have actual data, you can view sample reports for demonstration purposes:
         </Typography>
-        
+
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <Card>
@@ -359,7 +384,11 @@ const ALevelComprehensiveReportSelector = () => {
                 </Typography>
                 <Button
                   variant="contained"
-                  onClick={() => navigate('/results/a-level-comprehensive/demo-form5/demo-exam')}
+                  disabled={!isLoggedIn}
+                  onClick={() => {
+                    console.log('Navigating to Form 5 demo report');
+                    navigate('/results/a-level-comprehensive/demo-form5/demo-exam');
+                  }}
                   fullWidth
                 >
                   View Form 5 Demo
@@ -367,7 +396,7 @@ const ALevelComprehensiveReportSelector = () => {
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
@@ -380,7 +409,11 @@ const ALevelComprehensiveReportSelector = () => {
                 </Typography>
                 <Button
                   variant="contained"
-                  onClick={() => navigate('/results/a-level-comprehensive/demo-form6/demo-exam')}
+                  disabled={!isLoggedIn}
+                  onClick={() => {
+                    console.log('Navigating to Form 6 demo report');
+                    navigate('/results/a-level-comprehensive/demo-form6/demo-exam');
+                  }}
                   fullWidth
                 >
                   View Form 6 Demo

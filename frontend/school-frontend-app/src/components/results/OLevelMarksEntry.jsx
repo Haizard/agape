@@ -23,8 +23,8 @@ import {
   Switch,
   FormControlLabel
 } from '@mui/material';
-import axios from 'axios';
-import api from '../../services/api';
+import api from '../../utils/api';
+import teacherAuthService from '../../services/teacherAuthService';
 
 /**
  * O-Level Marks Entry Component
@@ -58,9 +58,25 @@ const OLevelMarksEntry = () => {
     const fetchClasses = async () => {
       try {
         setLoading(true);
-        // Only fetch O-Level classes
-        const response = await api.get('/api/classes?educationLevel=O_LEVEL');
-        setClasses(response.data);
+
+        // Check if user is admin
+        const isAdmin = teacherAuthService.isAdmin();
+
+        let classesData;
+        if (isAdmin) {
+          // Admin can see all classes
+          const response = await api.get('/classes?educationLevel=O_LEVEL');
+          classesData = response.data || [];
+        } else {
+          // Teachers can only see assigned classes
+          const assignedClasses = await teacherAuthService.getAssignedClasses();
+          // Filter for O-Level classes
+          classesData = assignedClasses.filter(cls =>
+            cls.educationLevel === 'O_LEVEL' || !cls.educationLevel
+          );
+        }
+
+        setClasses(classesData);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching classes:', err);
@@ -100,8 +116,26 @@ const OLevelMarksEntry = () => {
 
       try {
         setLoading(true);
-        const response = await api.get(`/api/classes/${selectedClass}/subjects`);
-        setSubjects(response.data);
+
+        // Check if user is admin
+        const isAdmin = teacherAuthService.isAdmin();
+
+        let subjectsData;
+        if (isAdmin) {
+          // Admin can see all subjects in the class
+          const response = await api.get(`/classes/${selectedClass}/subjects`);
+          subjectsData = response.data || [];
+        } else {
+          // Teachers can only see assigned subjects
+          subjectsData = await teacherAuthService.getAssignedSubjects(selectedClass);
+        }
+
+        // Filter for O-Level subjects
+        const oLevelSubjects = subjectsData.filter(subject =>
+          subject.educationLevel === 'O_LEVEL' || subject.educationLevel === 'BOTH' || !subject.educationLevel
+        );
+
+        setSubjects(oLevelSubjects);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching subjects:', err);
@@ -123,11 +157,25 @@ const OLevelMarksEntry = () => {
 
       try {
         setLoading(true);
-        const response = await api.get(`/api/students/class/${selectedClass}`);
+
+        // Check if user is admin
+        const isAdmin = teacherAuthService.isAdmin();
+
+        let studentsData;
+        if (isAdmin) {
+          // Admin can see all students in the class
+          const response = await api.get(`/students/class/${selectedClass}`);
+          studentsData = response.data || [];
+        } else {
+          // Teachers can only see assigned students
+          studentsData = await teacherAuthService.getAssignedStudents(selectedClass);
+        }
+
         // Filter for O-Level students only
-        const oLevelStudents = response.data.filter(student => 
+        const oLevelStudents = studentsData.filter(student =>
           student.educationLevel === 'O_LEVEL' || !student.educationLevel
         );
+
         setStudents(oLevelStudents);
         setLoading(false);
       } catch (err) {
@@ -150,8 +198,25 @@ const OLevelMarksEntry = () => {
 
       try {
         setLoading(true);
+
+        // Check if user is admin
+        const isAdmin = teacherAuthService.isAdmin();
+
+        // If not admin, verify authorization
+        if (!isAdmin) {
+          // Check if teacher is authorized for this class and subject
+          const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+          const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+
+          if (!isAuthorizedForClass || !isAuthorizedForSubject) {
+            setExistingResults([]);
+            setLoading(false);
+            return;
+          }
+        }
+
         // Get the exam details to get the academic year
-        const examResponse = await api.get(`/api/exams/${selectedExam}`);
+        const examResponse = await api.get(`/exams/${selectedExam}`);
         const exam = examResponse.data;
 
         if (!exam.academicYear) {
@@ -161,7 +226,7 @@ const OLevelMarksEntry = () => {
         }
 
         // Check for existing marks
-        const response = await api.get('/api/check-marks/check-existing', {
+        const response = await api.get('/check-marks/check-existing', {
           params: {
             classId: selectedClass,
             subjectId: selectedSubject,
@@ -170,7 +235,19 @@ const OLevelMarksEntry = () => {
           }
         });
 
-        setExistingResults(response.data.studentsWithMarks || []);
+        // If not admin, filter results to only show students assigned to the teacher
+        let resultsData = response.data.studentsWithMarks || [];
+
+        if (!isAdmin) {
+          const assignedStudents = await teacherAuthService.getAssignedStudents(selectedClass);
+          const assignedStudentIds = assignedStudents.map(student => student._id);
+
+          resultsData = resultsData.filter(result =>
+            assignedStudentIds.includes(result.studentId)
+          );
+        }
+
+        setExistingResults(resultsData);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching existing results:', err);
@@ -192,8 +269,26 @@ const OLevelMarksEntry = () => {
       }
 
       try {
+        // Check if user is admin
+        const isAdmin = teacherAuthService.isAdmin();
+
+        // If not admin, verify authorization
+        if (!isAdmin) {
+          // Check if teacher is authorized for this student, class, and subject
+          const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+          const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+          const isAuthorizedForStudent = await teacherAuthService.isAuthorizedForStudent(selectedClass, selectedStudent);
+
+          if (!isAuthorizedForClass || !isAuthorizedForSubject || !isAuthorizedForStudent) {
+            setHasExistingMarks(false);
+            setExistingMarkDetails(null);
+            setMarks('');
+            return;
+          }
+        }
+
         // Get the exam details to get the academic year
-        const examResponse = await api.get(`/api/exams/${selectedExam}`);
+        const examResponse = await api.get(`/exams/${selectedExam}`);
         const exam = examResponse.data;
 
         if (!exam.academicYear) {
@@ -202,7 +297,7 @@ const OLevelMarksEntry = () => {
         }
 
         // Check if student has existing marks
-        const response = await api.get('/api/check-marks/check-student-marks', {
+        const response = await api.get('/check-marks/check-student-marks', {
           params: {
             studentId: selectedStudent,
             subjectId: selectedSubject,
@@ -225,7 +320,7 @@ const OLevelMarksEntry = () => {
     };
 
     checkExistingMarks();
-  }, [selectedStudent, selectedSubject, selectedExam]);
+  }, [selectedStudent, selectedSubject, selectedExam, selectedClass]);
 
   // Calculate grade based on marks (O-Level grading system)
   const calculateGrade = (marks) => {
@@ -275,8 +370,32 @@ const OLevelMarksEntry = () => {
       setLoading(true);
       setError('');
 
+      // Check if user is admin
+      const isAdmin = teacherAuthService.isAdmin();
+
+      // If not admin, verify authorization
+      if (!isAdmin) {
+        // Check if teacher is authorized for this class
+        const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+        if (!isAuthorizedForClass) {
+          throw new Error('You are not authorized to enter marks for this class');
+        }
+
+        // Check if teacher is authorized for this subject
+        const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+        if (!isAuthorizedForSubject) {
+          throw new Error('You are not authorized to enter marks for this subject');
+        }
+
+        // Check if teacher is authorized for this student
+        const isAuthorizedForStudent = await teacherAuthService.isAuthorizedForStudent(selectedClass, selectedStudent);
+        if (!isAuthorizedForStudent) {
+          throw new Error('You are not authorized to enter marks for this student');
+        }
+      }
+
       // Get the exam details to get the academic year
-      const examResponse = await api.get(`/api/exams/${selectedExam}`);
+      const examResponse = await api.get(`/exams/${selectedExam}`);
       const exam = examResponse.data;
 
       if (!exam.academicYear) {
@@ -307,7 +426,7 @@ const OLevelMarksEntry = () => {
       console.log('Submitting O-Level result:', resultData);
 
       // Use the new API endpoint for entering marks
-      const response = await api.post('/api/v2/results/enter-marks', resultData);
+      const response = await api.post('/v2/results/enter-marks', resultData);
 
       // Show success message
       setSnackbar({
@@ -321,7 +440,7 @@ const OLevelMarksEntry = () => {
       setComment('');
 
       // Refresh existing results
-      const updatedResponse = await api.get('/api/check-marks/check-existing', {
+      const updatedResponse = await api.get('/check-marks/check-existing', {
         params: {
           classId: selectedClass,
           subjectId: selectedSubject,

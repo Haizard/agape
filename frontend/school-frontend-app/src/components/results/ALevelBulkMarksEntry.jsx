@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import api from '../../utils/api';
+import teacherAuthService from '../../services/teacherAuthService';
 import {
   Box,
   Typography,
@@ -39,7 +39,6 @@ import {
   Warning as WarningIcon,
   History as HistoryIcon
 } from '@mui/icons-material';
-import { API_URL } from '../../config/index';
 import { useAuth } from '../../contexts/AuthContext';
 
 /**
@@ -76,12 +75,29 @@ const ALevelBulkMarksEntry = () => {
     const fetchClasses = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/classes', {
-          params: {
-            educationLevel: 'A_LEVEL'
-          }
-        });
-        setClasses(response.data || []);
+
+        // Check if user is admin
+        const isAdmin = teacherAuthService.isAdmin();
+
+        let classesData;
+        if (isAdmin) {
+          // Admin can see all classes
+          const response = await api.get('/classes', {
+            params: {
+              educationLevel: 'A_LEVEL'
+            }
+          });
+          classesData = response.data || [];
+        } else {
+          // Teachers can only see assigned classes
+          const assignedClasses = await teacherAuthService.getAssignedClasses();
+          // Filter for A-Level classes
+          classesData = assignedClasses.filter(cls =>
+            cls.educationLevel === 'A_LEVEL'
+          );
+        }
+
+        setClasses(classesData);
       } catch (error) {
         console.error('Error fetching classes:', error);
         setError('Failed to fetch classes. Please try again.');
@@ -120,11 +136,23 @@ const ALevelBulkMarksEntry = () => {
 
       try {
         setLoading(true);
-        const response = await api.get(`/classes/${selectedClass}/subjects`);
+
+        // Check if user is admin
+        const isAdmin = teacherAuthService.isAdmin();
+
+        let subjectsData;
+        if (isAdmin) {
+          // Admin can see all subjects in the class
+          const response = await api.get(`/classes/${selectedClass}/subjects`);
+          subjectsData = response.data || [];
+        } else {
+          // Teachers can only see assigned subjects
+          subjectsData = await teacherAuthService.getAssignedSubjects(selectedClass);
+        }
 
         // Filter for A-Level subjects only
-        const aLevelSubjects = response.data.filter(subject =>
-          subject.educationLevel === 'A_LEVEL'
+        const aLevelSubjects = subjectsData.filter(subject =>
+          subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
         );
 
         setSubjects(aLevelSubjects);
@@ -147,8 +175,32 @@ const ALevelBulkMarksEntry = () => {
       try {
         setLoading(true);
 
+        // Check if user is admin
+        const isAdmin = teacherAuthService.isAdmin();
+
+        // If not admin, verify authorization
+        if (!isAdmin) {
+          // Check if teacher is authorized for this class and subject
+          const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+          const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+
+          if (!isAuthorizedForClass || !isAuthorizedForSubject) {
+            setError('You are not authorized to view marks for this class or subject');
+            setLoading(false);
+            return;
+          }
+        }
+
         // Get students in the class
-        const studentsResponse = await api.get(`/classes/${selectedClass}/students`);
+        let studentsData;
+        if (isAdmin) {
+          // Admin can see all students in the class
+          const studentsResponse = await api.get(`/classes/${selectedClass}/students`);
+          studentsData = studentsResponse.data || [];
+        } else {
+          // Teachers can only see assigned students
+          studentsData = await teacherAuthService.getAssignedStudents(selectedClass);
+        }
 
         // Get existing marks for the selected class, subject, and exam
         const marksResponse = await api.get(`/check-marks/check-existing`, {
@@ -166,7 +218,7 @@ const ALevelBulkMarksEntry = () => {
         const examTypeId = examResponse.data.examType;
 
         // Filter for A-Level students only
-        const aLevelStudents = studentsResponse.data.filter(student =>
+        const aLevelStudents = studentsData.filter(student =>
           student.educationLevel === 'A_LEVEL'
         );
 
@@ -309,6 +361,33 @@ const ALevelBulkMarksEntry = () => {
       setSaving(true);
       setError('');
       setSuccess('');
+
+      // Check if user is admin
+      const isAdmin = teacherAuthService.isAdmin();
+
+      // If not admin, verify authorization
+      if (!isAdmin) {
+        // Check if teacher is authorized for this class and subject
+        const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+        const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+
+        if (!isAuthorizedForClass || !isAuthorizedForSubject) {
+          throw new Error('You are not authorized to save marks for this class or subject');
+        }
+
+        // Check if teacher is authorized for all students
+        const assignedStudents = await teacherAuthService.getAssignedStudents(selectedClass);
+        const assignedStudentIds = assignedStudents.map(student => student._id);
+
+        // Check if any marks are for students not assigned to this teacher
+        const unauthorizedMarks = marks.filter(mark =>
+          mark.marksObtained !== '' && !assignedStudentIds.includes(mark.studentId)
+        );
+
+        if (unauthorizedMarks.length > 0) {
+          throw new Error('You are not authorized to enter marks for some of these students');
+        }
+      }
 
       // Calculate grades and points for marks
       const marksWithGrades = marks.map(mark => {

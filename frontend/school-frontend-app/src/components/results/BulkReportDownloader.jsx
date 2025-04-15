@@ -260,7 +260,8 @@ const BulkReportDownloader = () => {
         let response;
 
         try {
-          // Try the primary endpoint first
+          // Try the unified comprehensive endpoint first (should work for both A-Level and O-Level)
+          console.log(`Trying unified comprehensive endpoint for student ${studentId}:`, apiUrl);
           response = await axios.get(apiUrl, {
             headers: {
               'Accept': 'application/json',
@@ -268,7 +269,7 @@ const BulkReportDownloader = () => {
             }
           });
         } catch (primaryError) {
-          console.error(`Error with primary endpoint for student ${studentId}:`, primaryError);
+          console.error(`Error with unified endpoint for student ${studentId}:`, primaryError);
 
           try {
             // Try the A-Level fallback endpoint
