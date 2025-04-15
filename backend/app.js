@@ -23,24 +23,17 @@ const demoDataRoutes = require('./routes/demoDataRoutes');
 
 const app = express();
 
-// Middleware
-app.use(cors({
-  origin: [
-    'https://agape-school-system.onrender.com',
-    'http://localhost:3000',
-    'https://agape-render.onrender.com',
-    'https://st-john-vianey-frontend.onrender.com',
-    'https://agape-seminary-school-system.onrender.com',
-    'https://agape-seminary-school.onrender.com',
-    'https://agape-seminary-school-frontend.onrender.com',
-    'https://agape-seminary-school-system.netlify.app',
-    'https://agape-seminary-school-backend.koyeb.app',
-    'https://misty-roby-haizard-17a53e2a.koyeb.app'
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
-  credentials: true
-}));
+// Import custom CORS middleware
+const { standardCors, openCors, handlePreflight } = require('./middleware/cors');
+
+// Apply CORS middleware
+app.use(standardCors);
+
+// Handle preflight requests
+app.options('*', openCors);
+
+// Apply preflight handler to all routes
+app.use(handlePreflight);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -76,11 +69,21 @@ app.get('/api/health', (req, res) => {
   res.json(healthData);
 });
 
+// Special route for login to handle CORS issues
+app.options('/api/users/login', openCors, (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  console.log('OPTIONS request for /api/users/login received in app.js');
+  res.sendStatus(204);
+});
+
 // Routes
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/sms', smsRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', openCors, userRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/academic-years', academicYearRoutes);

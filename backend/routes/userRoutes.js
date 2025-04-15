@@ -13,7 +13,9 @@ const loginCors = cors({
   origin: '*', // Allow all origins for login
   methods: ['POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
-  credentials: true
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 });
 
 // Handle OPTIONS requests for login route
@@ -23,6 +25,18 @@ router.options('/login', loginCors, (req, res) => {
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
   res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  console.log('OPTIONS request for /login received');
+  res.sendStatus(204); // No content
+});
+
+// Handle OPTIONS requests for all routes
+router.options('*', loginCors, (req, res) => {
+  // Set CORS headers explicitly
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  console.log(`OPTIONS request for ${req.originalUrl} received`);
   res.sendStatus(204); // No content
 });
 
@@ -112,7 +126,9 @@ router.post('/login', loginCors, async (req, res) => {
     // Set CORS headers explicitly for the response
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+    res.header('Access-Control-Expose-Headers', 'Content-Length, X-JSON');
+    console.log('Setting CORS headers for login response');
 
     res.json(responseData);
   } catch (error) {

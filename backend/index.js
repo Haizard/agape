@@ -78,6 +78,7 @@ const allowedOrigins = [
   'https://misty-roby-haizard-17a53e2a.koyeb.app',
   'https://agape-school-system.onrender.com',
   'https://agape-render.onrender.com',
+  'https://agape-seminary-school.onrender.com',
   // Add any additional origins here
 ];
 
@@ -241,6 +242,17 @@ app.options('/api/login-direct', criticalRoutesCors, (req, res) => {
   res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
   res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  console.log('OPTIONS request for /api/login-direct received');
+  res.sendStatus(204);
+});
+
+// Direct login endpoint for all origins
+app.options('/api/users/login', criticalRoutesCors, (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  console.log('OPTIONS request for /api/users/login received');
   res.sendStatus(204);
 });
 
