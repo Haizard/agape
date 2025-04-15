@@ -1,105 +1,105 @@
 {
-    "name":  "school-frontend-app",
-    "version":  "0.1.0",
-    "private":  true,
-    "dependencies":  {
-                         "@emotion/react":  "^11.14.0",
-                         "@emotion/styled":  "^11.14.0",
-                         "@mui/icons-material":  "^5.17.1",
-                         "@mui/material":  "^5.17.1",
-                         "@mui/utils":  "^5.15.10",
-                         "@mui/x-date-pickers":  "^6.20.2",
-                         "@reduxjs/toolkit":  "^2.6.1",
-                         "@testing-library/dom":  "^9.3.3",
-                         "@testing-library/react":  "^14.1.2",
-                         "@testing-library/user-event":  "^13.5.0",
-                         "axios":  "^1.8.4",
-                         "compression":  "^1.8.0",
-                         "date-fns":  "^2.30.0",
-                         "exceljs":  "^4.4.0",
-                         "express":  "^4.21.2",
-                         "file-saver":  "^2.0.5",
-                         "framer-motion":  "^6.5.1",
-                         "helmet":  "^7.2.0",
-                         "html2canvas":  "^1.4.1",
-                         "jspdf":  "^2.5.2",
-                         "jspdf-autotable":  "^3.8.4",
-                         "jszip":  "^3.10.1",
-                         "prop-types":  "^15.8.1",
-                         "react":  "^18.2.0",
-                         "react-dom":  "^18.2.0",
-                         "react-material-ui-carousel":  "^3.4.2",
-                         "react-redux":  "^9.2.0",
-                         "react-router-dom":  "^6.20.0",
-                         "react-scripts":  "5.0.1",
-                         "recharts":  "^2.15.2",
-                         "web-vitals":  "^2.1.4",
-                         "xlsx":  "^0.18.5",
-                         "jsonwebtoken":  "^9.0.0",
-                         "bcryptjs":  "^2.4.3",
-                         "mongoose":  "^7.0.3",
-                         "ajv":  "^8.12.0"
-                     },
-    "scripts":  {
-                    "start":  "node server.js",
-                    "dev":  "set SET NODE_OPTIONS=--openssl-legacy-provider \u0026\u0026 react-scripts start",
-                    "build":  "DISABLE_ESLINT_PLUGIN=true CI=false react-scripts build",
-                    "build:windows":  "set SET NODE_OPTIONS=--openssl-legacy-provider \u0026\u0026 react-scripts build",
-                    "build:netlify":  "CI=true DISABLE_ESLINT_PLUGIN=true react-scripts build",
-                    "build:simple":  "react-scripts build --max-old-space-size=1536",
-                    "test":  "react-scripts test",
-                    "eject":  "react-scripts eject",
-                    "lint":  "eslint src --fix",
-                    "use-production-api":  "node scripts/use-production-api.js",
-                    "use-local-api":  "node scripts/use-local-api.js",
-                    "test-api":  "node scripts/test-api-connection.js",
-                    "test-classes-api":  "node scripts/test-classes-api.js",
-                    "dev:prod-api":  "npm run use-production-api \u0026\u0026 npm run dev",
-                    "dev:local-api":  "npm run use-local-api \u0026\u0026 npm run dev",
-                    "postinstall":  "npm install --save-dev eslint-plugin-react-hooks express compression helmet",
-                    "build:static":  "CI=true DISABLE_ESLINT_PLUGIN=true REACT_APP_USE_STATIC_MODE=true react-scripts build",
-                    "build:static:script":  "node scripts/static-build.js",
-                    "build:direct":  "node scripts/direct-deploy.js",
-                    "build:koyeb":  "CI=true DISABLE_ESLINT_PLUGIN=true REACT_APP_BACKEND_URL=https://misty-roby-haizard-17a53e2a.koyeb.app react-scripts build",
-                    "build:koyeb:script":  "node scripts/koyeb-build.js",
-                    "build:comprehensive":  "node scripts/comprehensive-build.js",
-                    "dev:koyeb":  "set REACT_APP_API_URL=/api \u0026\u0026 set REACT_APP_BACKEND_URL=https://misty-roby-haizard-17a53e2a.koyeb.app \u0026\u0026 npm run dev",
-                    "build:cloudflare":  "node scripts/cloudflare-build.js",
-                    "build:vercel":  "node scripts/vercel-build.js",
-                    "build:render":  "node scripts/render-build.js",
-                    "build:render-direct":  "node scripts/render-direct-build.js",
-                    "start:direct":  "node server-direct.js"
-                },
-    "engines":  {
-                    "node":  "18.x"
-                },
-    "eslintConfig":  {
-                         "extends":  [
-                                         "react-app",
-                                         "react-app/jest"
-                                     ]
-                     },
-    "build-cache":  {
-                        "enabled":  true,
-                        "strategy":  "content-hash"
-                    },
-    "browserslist":  {
-                         "production":  [
-                                            "\u003e0.2%",
-                                            "not dead",
-                                            "not op_mini all"
-                                        ],
-                         "development":  [
-                                             "last 1 chrome version",
-                                             "last 1 firefox version",
-                                             "last 1 safari version"
-                                         ]
-                     },
-    "devDependencies":  {
-                            "@testing-library/jest-dom":  "^6.6.3",
-                            "eslint-plugin-react":  "^7.37.5",
-                            "eslint-plugin-react-hooks":  "^5.2.0",
-                            "gh-pages":  "^6.3.0",
-                            "http-proxy-middleware":  "^2.0.6"
-                        }
+    "name": "school-frontend-app",
+    "version": "0.1.0",
+    "private": true,
+    "dependencies": {
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.0",
+        "@mui/icons-material": "^5.17.1",
+        "@mui/material": "^5.17.1",
+        "@mui/utils": "^5.15.10",
+        "@mui/x-date-pickers": "^6.20.2",
+        "@reduxjs/toolkit": "^2.6.1",
+        "@testing-library/dom": "^9.3.3",
+        "@testing-library/react": "^14.1.2",
+        "@testing-library/user-event": "^13.5.0",
+        "ajv": "^8.12.0",
+        "axios": "^1.8.4",
+        "bcryptjs": "^2.4.3",
+        "compression": "^1.8.0",
+        "date-fns": "^2.30.0",
+        "exceljs": "^4.4.0",
+        "express": "^4.21.2",
+        "file-saver": "^2.0.5",
+        "framer-motion": "^6.5.1",
+        "helmet": "^7.2.0",
+        "html2canvas": "^1.4.1",
+        "jsonwebtoken": "^9.0.0",
+        "jspdf": "^2.5.2",
+        "jspdf-autotable": "^3.8.4",
+        "jszip": "^3.10.1",
+        "mongoose": "^7.0.3",
+        "prop-types": "^15.8.1",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "react-material-ui-carousel": "^3.4.2",
+        "react-redux": "^9.2.0",
+        "react-router-dom": "^6.30.0",
+        "react-scripts": "5.0.1",
+        "recharts": "^2.15.2",
+        "web-vitals": "^2.1.4",
+        "xlsx": "^0.18.5"
+    },
+    "scripts": {
+        "start": "node server.js",
+        "dev": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts start",
+        "build": "DISABLE_ESLINT_PLUGIN=true CI=false react-scripts build",
+        "build:windows": "set SET NODE_OPTIONS=--openssl-legacy-provider && react-scripts build",
+        "build:netlify": "CI=true DISABLE_ESLINT_PLUGIN=true react-scripts build",
+        "build:simple": "react-scripts build --max-old-space-size=1536",
+        "test": "react-scripts test",
+        "eject": "react-scripts eject",
+        "lint": "eslint src --fix",
+        "use-production-api": "node scripts/use-production-api.js",
+        "use-local-api": "node scripts/use-local-api.js",
+        "test-api": "node scripts/test-api-connection.js",
+        "test-classes-api": "node scripts/test-classes-api.js",
+        "dev:prod-api": "npm run use-production-api && npm run dev",
+        "dev:local-api": "npm run use-local-api && npm run dev",
+        "postinstall": "npm install --save-dev eslint-plugin-react-hooks express compression helmet",
+        "build:static": "CI=true DISABLE_ESLINT_PLUGIN=true REACT_APP_USE_STATIC_MODE=true react-scripts build",
+        "build:static:script": "node scripts/static-build.js",
+        "build:direct": "node scripts/direct-deploy.js",
+        "build:koyeb": "CI=true DISABLE_ESLINT_PLUGIN=true REACT_APP_BACKEND_URL=https://misty-roby-haizard-17a53e2a.koyeb.app react-scripts build",
+        "build:koyeb:script": "node scripts/koyeb-build.js",
+        "build:comprehensive": "node scripts/comprehensive-build.js",
+        "dev:koyeb": "set REACT_APP_API_URL=/api && set REACT_APP_BACKEND_URL=https://misty-roby-haizard-17a53e2a.koyeb.app && npm run dev",
+        "build:cloudflare": "node scripts/cloudflare-build.js",
+        "build:vercel": "node scripts/vercel-build.js",
+        "build:render": "node scripts/render-build.js",
+        "build:render-direct": "node scripts/render-direct-build.js",
+        "start:direct": "node server-direct.js"
+    },
+    "engines": {
+        "node": "18.x"
+    },
+    "eslintConfig": {
+        "extends": [
+            "react-app",
+            "react-app/jest"
+        ]
+    },
+    "build-cache": {
+        "enabled": true,
+        "strategy": "content-hash"
+    },
+    "browserslist": {
+        "production": [
+            ">0.2%",
+            "not dead",
+            "not op_mini all"
+        ],
+        "development": [
+            "last 1 chrome version",
+            "last 1 firefox version",
+            "last 1 safari version"
+        ]
+    },
+    "devDependencies": {
+        "@testing-library/jest-dom": "^6.6.3",
+        "eslint-plugin-react": "^7.37.5",
+        "eslint-plugin-react-hooks": "^5.2.0",
+        "gh-pages": "^6.3.0",
+        "http-proxy-middleware": "^2.0.6"
+    }
 }

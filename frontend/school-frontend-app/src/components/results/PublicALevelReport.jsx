@@ -18,6 +18,13 @@ import {
 } from '@mui/material';
 import { PictureAsPdf, Print, GetApp } from '@mui/icons-material';
 import { getPublicALevelReport, getSampleALevelReport } from '../../services/publicReportApi';
+import {
+  generateALevelReportPDF,
+  generateALevelReportExcel,
+  downloadPDF,
+  downloadExcel,
+  printReport
+} from '../../utils/exportUtils';
 
 /**
  * Public A-Level Report Component
@@ -42,7 +49,7 @@ const PublicALevelReport = () => {
       } catch (err) {
         console.error('Error fetching public report:', err);
         setError('Error fetching report. Using sample data.');
-        
+
         // Use sample data if the API call fails
         const sampleData = getSampleALevelReport();
         setReport(sampleData);
@@ -64,17 +71,38 @@ const PublicALevelReport = () => {
     navigate('/public/reports');
   };
 
-  // Mock handlers for buttons
+  // Handlers for export buttons
   const handleDownloadPDF = () => {
-    alert('Download PDF functionality would be implemented here');
+    try {
+      const reportTitle = `${reportData.className} - ${reportData.examName} - ${reportData.year}`;
+      const doc = generateALevelReportPDF(reportData, reportTitle);
+      const filename = `A-Level_Report_${reportData.className}_${reportData.examName}_${reportData.year}.pdf`;
+      downloadPDF(doc, filename);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
   const handlePrint = () => {
-    alert('Print functionality would be implemented here');
+    try {
+      printReport('a-level-report-container');
+    } catch (error) {
+      console.error('Error printing report:', error);
+      alert('Failed to print report. Please try again.');
+    }
   };
 
   const handleDownloadExcel = () => {
-    alert('Download Excel functionality would be implemented here');
+    try {
+      const reportTitle = `${reportData.className} - ${reportData.examName} - ${reportData.year}`;
+      const blob = generateALevelReportExcel(reportData, reportTitle);
+      const filename = `A-Level_Report_${reportData.className}_${reportData.examName}_${reportData.year}.xlsx`;
+      downloadExcel(blob, filename);
+    } catch (error) {
+      console.error('Error generating Excel:', error);
+      alert('Failed to generate Excel file. Please try again.');
+    }
   };
 
   // If loading, show loading indicator
@@ -100,7 +128,7 @@ const PublicALevelReport = () => {
   const currentStudents = reportData.students?.slice(startIndex, endIndex) || [];
 
   return (
-    <Box className="public-a-level-report" sx={{ p: 2 }}>
+    <Box id="a-level-report-container" className="public-a-level-report" sx={{ p: 2 }}>
       {error && (
         <Alert severity="info" sx={{ mb: 3 }}>
           {error}

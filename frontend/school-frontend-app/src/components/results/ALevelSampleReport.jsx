@@ -15,6 +15,13 @@ import {
   Pagination
 } from '@mui/material';
 import { PictureAsPdf, Print, GetApp } from '@mui/icons-material';
+import {
+  generateALevelReportPDF,
+  generateALevelReportExcel,
+  downloadPDF,
+  downloadExcel,
+  printReport
+} from '../../utils/exportUtils';
 
 /**
  * A-Level Sample Report Component
@@ -214,21 +221,42 @@ const ALevelSampleReport = () => {
     setCurrentPage(value);
   };
 
-  // Mock handlers for buttons
+  // Handlers for export buttons
   const handleDownloadPDF = () => {
-    alert('Download PDF functionality would be implemented here');
+    try {
+      const reportTitle = `${sampleData.className} - ${sampleData.examName} - ${sampleData.year}`;
+      const doc = generateALevelReportPDF(sampleData, reportTitle);
+      const filename = `A-Level_Sample_Report_${sampleData.className}_${sampleData.examName}_${sampleData.year}.pdf`;
+      downloadPDF(doc, filename);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
   const handlePrint = () => {
-    alert('Print functionality would be implemented here');
+    try {
+      printReport('a-level-sample-report-container');
+    } catch (error) {
+      console.error('Error printing report:', error);
+      alert('Failed to print report. Please try again.');
+    }
   };
 
   const handleDownloadExcel = () => {
-    alert('Download Excel functionality would be implemented here');
+    try {
+      const reportTitle = `${sampleData.className} - ${sampleData.examName} - ${sampleData.year}`;
+      const blob = generateALevelReportExcel(sampleData, reportTitle);
+      const filename = `A-Level_Sample_Report_${sampleData.className}_${sampleData.examName}_${sampleData.year}.xlsx`;
+      downloadExcel(blob, filename);
+    } catch (error) {
+      console.error('Error generating Excel:', error);
+      alert('Failed to generate Excel file. Please try again.');
+    }
   };
 
   return (
-    <Box className="a-level-sample-report" sx={{ p: 2 }}>
+    <Box id="a-level-sample-report-container" className="a-level-sample-report" sx={{ p: 2 }}>
       <Alert severity="info" sx={{ mb: 3 }}>
         This is a sample A-Level report with demonstration data. No API calls are being made.
       </Alert>

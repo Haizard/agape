@@ -28,10 +28,18 @@ import {
 import {
   Print as PrintIcon,
   Download as DownloadIcon,
+  PictureAsPdf, GetApp,
   Share as ShareIcon,
   Sort as SortIcon
 } from '@mui/icons-material';
 import { generateEnhancedALevelReportPDF } from '../../utils/enhancedALevelReportGenerator';
+import {
+  generateALevelReportPDF,
+  generateALevelReportExcel,
+  downloadPDF,
+  downloadExcel,
+  printReport
+} from '../../utils/exportUtils';
 import { generateALevelExcelReport } from '../../utils/aLevelExcelGenerator';
 
 /**
@@ -249,9 +257,20 @@ const EnhancedALevelClassReport = ({
   // Handle download as PDF
   const handleDownloadPDF = () => {
     try {
-      const doc = generateEnhancedALevelReportPDF(reportData);
-      const fileName = `${reportData.className || 'Class'}_${reportData.examName || 'Exam'}_A_Level_Result.pdf`;
-      doc.save(fileName);
+      // Use both PDF generators for better compatibility
+      try {
+        // Try the enhanced PDF generator first
+        const doc = generateEnhancedALevelReportPDF(reportData);
+        const fileName = `${reportData.className || 'Class'}_${reportData.examName || 'Exam'}_A_Level_Result.pdf`;
+        doc.save(fileName);
+      } catch (enhancedError) {
+        console.warn('Enhanced PDF generator failed, using standard generator:', enhancedError);
+        // Fall back to the standard PDF generator
+        const reportTitle = `${reportData.className} - ${reportData.examName} - ${reportData.year}`;
+        const doc = generateALevelReportPDF(reportData, reportTitle);
+        const filename = `A-Level_Report_${reportData.className}_${reportData.examName}_${reportData.year}.pdf`;
+        downloadPDF(doc, filename);
+      }
 
       if (onDownload) onDownload('pdf');
     } catch (err) {
@@ -263,20 +282,31 @@ const EnhancedALevelClassReport = ({
   // Handle download as Excel
   const handleDownloadExcel = async () => {
     try {
-      const buffer = await generateALevelExcelReport(reportData, reportData.className);
+      // Try both Excel generators for better compatibility
+      try {
+        // Try the enhanced Excel generator first
+        const buffer = await generateALevelExcelReport(reportData, reportData.className);
 
-      // Create a Blob from the buffer
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        // Create a Blob from the buffer
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-      // Create a download link and trigger download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${reportData.className || 'Class'}_${reportData.examName || 'Exam'}_A_Level_Result.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+        // Create a download link and trigger download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${reportData.className || 'Class'}_${reportData.examName || 'Exam'}_A_Level_Result.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (enhancedError) {
+        console.warn('Enhanced Excel generator failed, using standard generator:', enhancedError);
+        // Fall back to the standard Excel generator
+        const reportTitle = `${reportData.className} - ${reportData.examName} - ${reportData.year}`;
+        const blob = generateALevelReportExcel(reportData, reportTitle);
+        const filename = `A-Level_Report_${reportData.className}_${reportData.examName}_${reportData.year}.xlsx`;
+        downloadExcel(blob, filename);
+      }
 
       if (onDownload) onDownload('excel');
     } catch (err) {
@@ -288,9 +318,17 @@ const EnhancedALevelClassReport = ({
   // Handle print
   const handlePrint = () => {
     try {
-      const doc = generateEnhancedALevelReportPDF(reportData);
-      doc.autoPrint();
-      doc.output('dataurlnewwindow');
+      // Try both print methods for better compatibility
+      try {
+        // Try the enhanced PDF generator first
+        const doc = generateEnhancedALevelReportPDF(reportData);
+        doc.autoPrint();
+        doc.output('dataurlnewwindow');
+      } catch (enhancedError) {
+        console.warn('Enhanced print method failed, using standard method:', enhancedError);
+        // Fall back to the standard print method
+        printReport('enhanced-a-level-report-container');
+      }
 
       if (onPrint) onPrint();
     } catch (err) {
@@ -387,7 +425,7 @@ const EnhancedALevelClassReport = ({
   const uniqueSubjects = Array.from(allSubjects).sort();
 
   return (
-    <Box className="enhanced-a-level-class-report" sx={{ p: 2 }}>
+    <Box id="enhanced-a-level-report-container" className="enhanced-a-level-class-report" sx={{ p: 2 }}>
       {errorAlert}
       {/* Report Header */}
       <Paper sx={{ p: 3, mb: 3 }} elevation={2}>
