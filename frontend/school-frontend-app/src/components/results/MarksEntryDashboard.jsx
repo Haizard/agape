@@ -62,8 +62,8 @@ const MarksEntryDashboard = () => {
                     </Typography>
                   </CardContent>
                   <CardActions>
-                    <Button 
-                      variant="contained" 
+                    <Button
+                      variant="contained"
                       endIcon={<ArrowForwardIcon />}
                       onClick={() => navigate('/results/a-level/bulk-marks-entry')}
                       fullWidth
@@ -84,8 +84,8 @@ const MarksEntryDashboard = () => {
                     </Typography>
                   </CardContent>
                   <CardActions>
-                    <Button 
-                      variant="outlined" 
+                    <Button
+                      variant="outlined"
                       endIcon={<ArrowForwardIcon />}
                       onClick={() => navigate('/results/a-level/marks-entry')}
                       fullWidth
@@ -119,8 +119,8 @@ const MarksEntryDashboard = () => {
                     </Typography>
                   </CardContent>
                   <CardActions>
-                    <Button 
-                      variant="contained" 
+                    <Button
+                      variant="contained"
                       color="secondary"
                       endIcon={<ArrowForwardIcon />}
                       onClick={() => navigate('/results/o-level/bulk-marks-entry')}
@@ -142,14 +142,50 @@ const MarksEntryDashboard = () => {
                     </Typography>
                   </CardContent>
                   <CardActions>
-                    <Button 
-                      variant="outlined" 
+                    <Button
+                      variant="outlined"
                       color="secondary"
                       endIcon={<ArrowForwardIcon />}
                       onClick={() => navigate('/results/o-level/marks-entry')}
                       fullWidth
                     >
                       Go to O-Level Individual Entry
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+
+        {/* Direct Marks Entry Section */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <AssignmentIcon sx={{ mr: 1, color: 'success.main' }} />
+              <Typography variant="h5">Direct Marks Entry</Typography>
+            </Box>
+            <Divider sx={{ mb: 2 }} />
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Card variant="outlined" sx={{ bgcolor: '#f9fff9' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Direct Marks Entry (Recommended)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Use this simplified marks entry form to directly enter marks for any class and subject. This is the most reliable way to ensure marks are correctly saved and displayed in reports.
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      endIcon={<ArrowForwardIcon />}
+                      onClick={() => navigate('/results/direct-marks-entry')}
+                      fullWidth
+                    >
+                      Go to Direct Marks Entry
                     </Button>
                   </CardActions>
                 </Card>
@@ -178,8 +214,8 @@ const MarksEntryDashboard = () => {
                     </Typography>
                   </CardContent>
                   <CardActions>
-                    <Button 
-                      variant="outlined" 
+                    <Button
+                      variant="outlined"
                       color="info"
                       endIcon={<HistoryIcon />}
                       onClick={() => navigate('/marks-history')}

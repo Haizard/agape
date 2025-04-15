@@ -111,6 +111,8 @@ import ALevelBulkMarksEntry from './components/results/ALevelBulkMarksEntry';
 import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
 import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
 import ALevelComprehensiveReport from './components/results/ALevelComprehensiveReport';
+import EnterSampleMarks from './components/results/EnterSampleMarks';
+import DirectMarksEntry from './components/results/DirectMarksEntry';
 import RoleFixButton from './components/common/RoleFixButton';
 import { checkAndFixUserRole } from './utils/roleFixUtil';
 // StudentPanel is already imported on line 25
@@ -346,6 +348,20 @@ function App() {
                     <Route path="/marks-history/:type/:id" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <MarksHistoryViewer />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Sample Marks Entry for Testing */}
+                    <Route path="/results/enter-sample-marks" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <EnterSampleMarks />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Direct Marks Entry */}
+                    <Route path="/results/direct-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <DirectMarksEntry />
                       </ProtectedRoute>
                     } />
 
