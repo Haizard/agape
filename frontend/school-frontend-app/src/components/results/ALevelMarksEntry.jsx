@@ -23,7 +23,7 @@ import {
   Checkbox
 } from '@mui/material';
 import axios from 'axios';
-import api from '../../services/api';
+import api from '../../utils/api';
 
 /**
  * A-Level Marks Entry Component
@@ -79,14 +79,14 @@ const ALevelMarksEntry = () => {
     setLoading(true);
     try {
       const [classesRes, examsRes] = await Promise.all([
-        api.get('/api/classes'),
-        api.get('/api/exams')
+        api.get('/classes'),
+        api.get('/exams')
       ]);
 
       // Filter for A-Level classes
-      const aLevelClasses = classesRes.data.filter(cls => cls.educationLevel === 'A_LEVEL');
+      const aLevelClasses = (classesRes.data || []).filter(cls => cls.educationLevel === 'A_LEVEL');
       setClasses(aLevelClasses);
-      setExams(examsRes.data);
+      setExams(examsRes.data || []);
     } catch (err) {
       console.error('Error fetching initial data:', err);
       setError('Failed to load initial data. Please try again.');
@@ -100,10 +100,10 @@ const ALevelMarksEntry = () => {
     setLoading(true);
     try {
       // Use the correct endpoint for fetching students by class
-      const response = await api.get(`/api/students/class/${classId}`);
+      const response = await api.get(`/students/class/${classId}`);
 
       // Filter for A-Level students
-      const aLevelStudents = response.data.filter(student => student.educationLevel === 'A_LEVEL');
+      const aLevelStudents = (response.data || []).filter(student => student.educationLevel === 'A_LEVEL');
       setStudents(aLevelStudents);
     } catch (err) {
       console.error('Error fetching students:', err);
@@ -117,7 +117,7 @@ const ALevelMarksEntry = () => {
   const fetchSubjectsByClass = async (classId) => {
     setLoading(true);
     try {
-      const response = await api.get(`/api/classes/${classId}`);
+      const response = await api.get(`/classes/${classId}`);
       const classData = response.data;
 
       if (classData.subjects && classData.subjects.length > 0) {
@@ -127,8 +127,8 @@ const ALevelMarksEntry = () => {
         );
 
         // Fetch subject details
-        const subjectsResponse = await api.get('/api/subjects');
-        const allSubjects = subjectsResponse.data;
+        const subjectsResponse = await api.get('/subjects');
+        const allSubjects = subjectsResponse.data || [];
 
         // Filter subjects that belong to this class
         const classSubjects = allSubjects.filter(subject =>
@@ -279,7 +279,7 @@ const ALevelMarksEntry = () => {
       console.log('Submitting A-Level result:', resultData);
 
       // Submit to the ALevelResult model
-      const response = await axios.post('/api/a-level-results/enter-marks', resultData);
+      const response = await api.post('/a-level-results/enter-marks', resultData);
 
       // Show success message
       setSnackbar({
@@ -344,7 +344,7 @@ const ALevelMarksEntry = () => {
                 <MenuItem value="">
                   <em>Select a class</em>
                 </MenuItem>
-                {classes.map(cls => (
+                {Array.isArray(classes) && classes.map(cls => (
                   <MenuItem key={cls._id} value={cls._id}>
                     {cls.name} {cls.section || ''} {cls.stream || ''}
                   </MenuItem>
@@ -365,7 +365,7 @@ const ALevelMarksEntry = () => {
                 <MenuItem value="">
                   <em>Select a student</em>
                 </MenuItem>
-                {students.map(student => (
+                {Array.isArray(students) && students.map(student => (
                   <MenuItem key={student._id} value={student._id}>
                     {student.firstName} {student.lastName} ({student.rollNumber || 'No Roll Number'})
                   </MenuItem>
@@ -386,7 +386,7 @@ const ALevelMarksEntry = () => {
                 <MenuItem value="">
                   <em>Select a subject</em>
                 </MenuItem>
-                {subjects.map(subject => (
+                {Array.isArray(subjects) && subjects.map(subject => (
                   <MenuItem
                     key={subject._id}
                     value={subject._id}
@@ -414,7 +414,7 @@ const ALevelMarksEntry = () => {
                 <MenuItem value="">
                   <em>Select an exam</em>
                 </MenuItem>
-                {exams.map(exam => (
+                {Array.isArray(exams) && exams.map(exam => (
                   <MenuItem key={exam._id} value={exam._id}>
                     {exam.name}
                   </MenuItem>

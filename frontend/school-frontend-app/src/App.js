@@ -104,6 +104,11 @@ import EnhancedALevelClassReportContainer from './components/results/EnhancedALe
 import SimpleALevelClassReportContainer from './components/results/SimpleALevelClassReportContainer';
 import ALevelSampleReportContainer from './components/results/ALevelSampleReportContainer';
 import PublicALevelReportContainer from './components/results/PublicALevelReportContainer';
+import MarksHistoryViewer from './components/marks/MarksHistoryViewer';
+import MarksHistoryDashboard from './components/marks/MarksHistoryDashboard';
+import MarksEntryDashboard from './components/results/MarksEntryDashboard';
+import ALevelBulkMarksEntry from './components/results/ALevelBulkMarksEntry';
+import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
 import RoleFixButton from './components/common/RoleFixButton';
 import { checkAndFixUserRole } from './utils/roleFixUtil';
 // StudentPanel is already imported on line 25
@@ -289,22 +294,46 @@ function App() {
                       </ProtectedRoute>
                     } />
 
-                    {/* Legacy Mark Entry Routes */}
-                    <Route path="/results/a-level/enter-marks" element={
+                    {/* Marks Entry Dashboard */}
+                    <Route path="/results/marks-entry-dashboard" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <MarksEntryDashboard />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* A-Level Marks Entry Routes */}
+                    <Route path="/results/a-level/marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <ALevelMarksEntry />
                       </ProtectedRoute>
                     } />
-                    <Route path="/results/o-level/enter-marks" element={
+                    <Route path="/results/a-level/bulk-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelBulkMarksEntry />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* O-Level Marks Entry Routes */}
+                    <Route path="/results/o-level/marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <OLevelMarksEntry />
                       </ProtectedRoute>
                     } />
-
-                    {/* Unified Mark Entry Route */}
-                    <Route path="/results/enter-marks" element={
+                    <Route path="/results/o-level/bulk-marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <UnifiedMarksEntry />
+                        <OLevelBulkMarksEntry />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Marks History Routes */}
+                    <Route path="/marks-history" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <MarksHistoryDashboard />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/marks-history/:type/:id" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <MarksHistoryViewer />
                       </ProtectedRoute>
                     } />
 

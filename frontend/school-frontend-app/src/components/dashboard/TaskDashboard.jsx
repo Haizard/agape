@@ -1,20 +1,20 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Box, 
-  Grid, 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  Typography, 
-  List, 
-  ListItem, 
-  ListItemIcon, 
+import {
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  CardHeader,
+  Typography,
+  List,
+  ListItem,
+  ListItemIcon,
   ListItemText,
   Button,
   Divider
 } from '@mui/material';
-import { 
+import {
   School as SchoolIcon,
   Class as ClassIcon,
   Subject as SubjectIcon,
@@ -28,7 +28,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * TaskDashboard Component
- * 
+ *
  * A dashboard that organizes system functionality into task-based cards
  * Each card represents a complete workflow with links to related components
  */
@@ -46,23 +46,23 @@ const TaskDashboard = () => {
       icon: <SchoolIcon fontSize="large" color="primary" />,
       description: 'Manage classes, subjects, and academic structure',
       tasks: [
-        { 
-          name: 'Class Management', 
+        {
+          name: 'Class Management',
           path: '/admin/classes',
           description: 'Create and manage school classes'
         },
-        { 
-          name: 'Subject Management', 
+        {
+          name: 'Subject Management',
           path: '/admin/subjects',
           description: 'Manage subjects and assign to classes'
         },
-        { 
-          name: 'Subject-Teacher Assignment', 
+        {
+          name: 'Subject-Teacher Assignment',
           path: '/admin/subject-teacher-assignment',
           description: 'Assign teachers to specific subjects'
         },
-        { 
-          name: 'Education Levels', 
+        {
+          name: 'Education Levels',
           path: '/admin/education-levels',
           description: 'Manage O-Level and A-Level education'
         }
@@ -75,23 +75,23 @@ const TaskDashboard = () => {
       icon: <AssessmentIcon fontSize="large" color="secondary" />,
       description: 'Manage exams, results, and reports',
       tasks: [
-        { 
-          name: 'Exam Management', 
+        {
+          name: 'Exam Management',
           path: '/admin/exams',
           description: 'Create and manage exams'
         },
-        { 
-          name: 'Enter Marks', 
-          path: isTeacher ? '/teacher/enter-marks' : '/admin/enter-marks',
+        {
+          name: 'Enter Marks',
+          path: '/results/marks-entry-dashboard',
           description: 'Enter student marks for exams'
         },
-        { 
-          name: 'Generate Reports', 
+        {
+          name: 'Generate Reports',
           path: '/admin/result-reports',
           description: 'Generate student result reports'
         },
-        { 
-          name: 'Character Assessment', 
+        {
+          name: 'Character Assessment',
           path: '/admin/character-assessment',
           description: 'Enter character assessments for students'
         }
@@ -104,18 +104,18 @@ const TaskDashboard = () => {
       icon: <PersonIcon fontSize="large" color="success" />,
       description: 'Manage students and their information',
       tasks: [
-        { 
-          name: 'Student Registration', 
+        {
+          name: 'Student Registration',
           path: '/admin/student-registration',
           description: 'Register new students'
         },
-        { 
-          name: 'Student Subject Selection', 
+        {
+          name: 'Student Subject Selection',
           path: '/admin/student-subject-selection',
           description: 'Manage student subject selections'
         },
-        { 
-          name: 'View Student Results', 
+        {
+          name: 'View Student Results',
           path: '/admin/student-results',
           description: 'View results for individual students'
         }
@@ -128,18 +128,18 @@ const TaskDashboard = () => {
       icon: <MessageIcon fontSize="large" color="info" />,
       description: 'Manage communication with parents and students',
       tasks: [
-        { 
-          name: 'SMS Settings', 
+        {
+          name: 'SMS Settings',
           path: '/admin/sms-settings',
           description: 'Configure SMS notification settings'
         },
-        { 
-          name: 'Send Result Notifications', 
+        {
+          name: 'Send Result Notifications',
           path: '/admin/result-notifications',
           description: 'Send result notifications to parents'
         },
-        { 
-          name: 'Parent Contacts', 
+        {
+          name: 'Parent Contacts',
           path: '/admin/parent-contacts',
           description: 'Manage parent contact information'
         }
@@ -152,18 +152,18 @@ const TaskDashboard = () => {
       icon: <FinanceIcon fontSize="large" color="warning" />,
       description: 'Manage school finances and fee structures',
       tasks: [
-        { 
-          name: 'Fee Structures', 
+        {
+          name: 'Fee Structures',
           path: '/admin/fee-structures',
           description: 'Manage fee structures for students'
         },
-        { 
-          name: 'QuickBooks Integration', 
+        {
+          name: 'QuickBooks Integration',
           path: '/admin/quickbooks',
           description: 'Configure QuickBooks integration'
         },
-        { 
-          name: 'Payment Processing', 
+        {
+          name: 'Payment Processing',
           path: '/admin/payments',
           description: 'Process and track student payments'
         }
@@ -187,8 +187,8 @@ const TaskDashboard = () => {
       <Grid container spacing={3}>
         {visibleTaskGroups.map((group) => (
           <Grid item xs={12} md={6} key={group.id}>
-            <Card 
-              sx={{ 
+            <Card
+              sx={{
                 height: '100%',
                 borderLeft: '5px solid',
                 borderColor: group.id === 'academic' ? 'primary.main' :
@@ -210,11 +210,11 @@ const TaskDashboard = () => {
                 </Typography>
                 <List>
                   {group.tasks.map((task, index) => (
-                    <ListItem 
+                    <ListItem
                       key={index}
                       button
                       onClick={() => navigate(task.path)}
-                      sx={{ 
+                      sx={{
                         borderRadius: 1,
                         mb: 1,
                         '&:hover': {
@@ -222,15 +222,15 @@ const TaskDashboard = () => {
                         }
                       }}
                     >
-                      <ListItemText 
-                        primary={task.name} 
+                      <ListItemText
+                        primary={task.name}
                         secondary={task.description}
                       />
                     </ListItem>
                   ))}
                 </List>
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   fullWidth
                   onClick={() => navigate(`/admin/${group.id}`)}
                   sx={{ mt: 2 }}

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const aLevelGradeCalculator = require('../utils/aLevelGradeCalculator');
 const logger = require('../utils/logger');
+const MarksHistory = require('./MarksHistory');
 
 const ALevelResultSchema = new mongoose.Schema({
   // Core fields
@@ -53,6 +54,9 @@ ALevelResultSchema.pre('save', function(next) {
     logger.debug(`[A-LEVEL] Result for student ${this.studentId}, subject ${this.subjectId}, exam ${this.examId}`);
   }
 
+  // Set updatedAt timestamp
+  this.updatedAt = Date.now();
+
   next();
 });
 
@@ -104,6 +108,108 @@ ALevelResultSchema.pre('save', async function(next) {
   } catch (error) {
     next(error);
   }
+});
+
+// Post-save middleware to track history
+ALevelResultSchema.post('save', async function(doc, next) {
+  try {
+    // Skip history tracking for new documents (CREATE is handled separately)
+    if (this.isNew) {
+      // Create a history entry for new document
+      const historyEntry = new MarksHistory({
+        resultId: doc._id,
+        resultModel: 'ALevelResult',
+        studentId: doc.studentId,
+        subjectId: doc.subjectId,
+        examId: doc.examId,
+        academicYearId: doc.academicYearId,
+        classId: doc.classId,
+        userId: doc.__userId || doc.lastModifiedBy || mongoose.Types.ObjectId(), // Use the user ID if available
+        changeType: 'CREATE',
+        previousValues: {}, // No previous values for new documents
+        newValues: {
+          marksObtained: doc.marksObtained,
+          grade: doc.grade,
+          points: doc.points,
+          comment: doc.comment,
+          isPrincipal: doc.isPrincipal
+        },
+        educationLevel: 'A_LEVEL',
+        ipAddress: doc.__ipAddress,
+        userAgent: doc.__userAgent
+      });
+
+      await historyEntry.save();
+      logger.info(`Created history entry for new A-Level result: ${doc._id}`);
+    } else if (doc.__previousValues) {
+      // Create a history entry for updated document
+      const historyEntry = new MarksHistory({
+        resultId: doc._id,
+        resultModel: 'ALevelResult',
+        studentId: doc.studentId,
+        subjectId: doc.subjectId,
+        examId: doc.examId,
+        academicYearId: doc.academicYearId,
+        classId: doc.classId,
+        userId: doc.__userId || doc.lastModifiedBy || mongoose.Types.ObjectId(), // Use the user ID if available
+        changeType: 'UPDATE',
+        previousValues: doc.__previousValues,
+        newValues: {
+          marksObtained: doc.marksObtained,
+          grade: doc.grade,
+          points: doc.points,
+          comment: doc.comment,
+          isPrincipal: doc.isPrincipal
+        },
+        educationLevel: 'A_LEVEL',
+        ipAddress: doc.__ipAddress,
+        userAgent: doc.__userAgent
+      });
+
+      await historyEntry.save();
+      logger.info(`Created history entry for updated A-Level result: ${doc._id}`);
+    }
+  } catch (error) {
+    logger.error(`Error creating history entry for A-Level result: ${error.message}`);
+    // Don't throw the error, just log it
+  }
+  next();
+});
+
+// Post-remove middleware to track history
+ALevelResultSchema.post('remove', async function(doc, next) {
+  try {
+    // Create a history entry for deleted document
+    const historyEntry = new MarksHistory({
+      resultId: doc._id,
+      resultModel: 'ALevelResult',
+      studentId: doc.studentId,
+      subjectId: doc.subjectId,
+      examId: doc.examId,
+      academicYearId: doc.academicYearId,
+      classId: doc.classId,
+      userId: doc.__userId || doc.lastModifiedBy || mongoose.Types.ObjectId(), // Use the user ID if available
+      changeType: 'DELETE',
+      previousValues: {
+        marksObtained: doc.marksObtained,
+        grade: doc.grade,
+        points: doc.points,
+        comment: doc.comment,
+        isPrincipal: doc.isPrincipal
+      },
+      newValues: {}, // No new values for deleted documents
+      educationLevel: 'A_LEVEL',
+      ipAddress: doc.__ipAddress,
+      userAgent: doc.__userAgent
+    });
+
+    await historyEntry.save();
+    logger.info(`Created history entry for deleted A-Level result: ${doc._id}`);
+  } catch (error) {
+    logger.error(`Error creating history entry for deleted A-Level result: ${error.message}`);
+    // Don't throw the error, just log it
+  }
+  next();
 });
 
 module.exports = mongoose.model('ALevelResult', ALevelResultSchema);

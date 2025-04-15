@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import api from '../../utils/api';
 import {
   Box,
   Typography,
@@ -18,15 +19,16 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
-  Alert,
-  Snackbar,
   Chip,
-  Divider,
-  Tabs,
-  Tab,
+  Snackbar,
+  Alert,
+  CircularProgress,
+  Checkbox,
+  FormControlLabel,
+  Tooltip,
   IconButton,
-  Tooltip
+  Tabs,
+  Tab
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -37,36 +39,31 @@ import {
   Warning as WarningIcon,
   History as HistoryIcon
 } from '@mui/icons-material';
-import unifiedApi from '../../services/unifiedApi';
-import TeacherSubjectSelector from '../common/TeacherSubjectSelector';
+import { API_URL } from '../../config/index';
+import { useAuth } from '../../contexts/AuthContext';
 
 /**
- * UnifiedMarksEntry Component
- *
- * A unified component for entering marks for both O-Level and A-Level students,
- * with proper role-based access control and consistent UI/UX.
+ * A-Level Bulk Marks Entry Component
+ * Allows teachers to enter marks for multiple A-Level students at once
  */
-const UnifiedMarksEntry = () => {
-  const location = useLocation();
+const ALevelBulkMarksEntry = () => {
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.user);
-  const queryParams = new URLSearchParams(location.search);
+  const { user } = useAuth();
+  const isAdmin = user && user.role === 'admin';
 
   // State variables
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [academicYears, setAcademicYears] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [exams, setExams] = useState([]);
   const [students, setStudents] = useState([]);
-  const [marks, setMarks] = useState([]);
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
-  const [selectedClass, setSelectedClass] = useState(queryParams.get('class') || '');
-  const [selectedExam, setSelectedExam] = useState(queryParams.get('exam') || '');
+  const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
-  const [educationLevel, setEducationLevel] = useState('O_LEVEL');
+  const [selectedExam, setSelectedExam] = useState('');
+  const [marks, setMarks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -74,160 +71,160 @@ const UnifiedMarksEntry = () => {
     severity: 'info'
   });
 
-  // Determine if user is admin
-  const isAdmin = user?.role === 'admin' || user?.role === 'ADMIN';
-
-  // Fetch initial data
+  // Fetch classes on component mount
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchClasses = async () => {
       try {
         setLoading(true);
-        setError(null);
-
-        // Fetch academic years
-        const academicYearResponse = await unifiedApi.getAcademicYears();
-        setAcademicYears(academicYearResponse);
-
-        // Set default academic year (current)
-        const currentYear = academicYearResponse.find(year => year.isCurrent);
-        if (currentYear) {
-          setSelectedAcademicYear(currentYear._id);
-
-          // Fetch classes for this academic year
-          const classResponse = await unifiedApi.getClassesByAcademicYear(currentYear._id);
-          setClasses(classResponse);
-
-          // If class is provided in URL, set it and fetch exams
-          if (selectedClass) {
-            // Find the selected class to determine education level
-            const classObj = classResponse.find(c => c._id === selectedClass);
-            if (classObj) {
-              setEducationLevel(classObj.educationLevel || 'O_LEVEL');
-
-              // Fetch exams for this class
-              const examResponse = await unifiedApi.getExamsByClass(selectedClass, currentYear._id);
-              setExams(examResponse);
-            }
+        const response = await api.get('/classes', {
+          params: {
+            educationLevel: 'A_LEVEL'
           }
-        }
-      } catch (err) {
-        console.error('Error fetching initial data:', err);
-        setError('Failed to load initial data. Please try again later.');
+        });
+        setClasses(response.data || []);
+      } catch (error) {
+        console.error('Error fetching classes:', error);
+        setError('Failed to fetch classes. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchInitialData();
-  }, [selectedClass]);
+    fetchClasses();
+  }, []);
 
-  // Fetch students and existing marks when class, exam, and subject are selected
+  // Fetch exams when class is selected
   useEffect(() => {
-    const fetchStudentsAndMarks = async () => {
-      if (!selectedClass || !selectedExam || !selectedSubject) return;
+    const fetchExams = async () => {
+      if (!selectedClass) return;
 
       try {
         setLoading(true);
-        setError(null);
+        const response = await api.get('/exams');
+        setExams(response.data || []);
+      } catch (error) {
+        console.error('Error fetching exams:', error);
+        setError('Failed to fetch exams. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        // Fetch students for this class
-        const studentsResponse = await unifiedApi.getStudentsByClass(selectedClass);
-        setStudents(studentsResponse);
+    fetchExams();
+  }, [selectedClass]);
 
-        // Fetch existing marks for this exam, class, and subject
-        const endpoint = educationLevel === 'A_LEVEL'
-          ? `/a-level-results?examId=${selectedExam}&subjectId=${selectedSubject}`
-          : `/o-level-results?examId=${selectedExam}&subjectId=${selectedSubject}`;
+  // Fetch subjects when class is selected
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      if (!selectedClass) return;
 
-        const marksResponse = await unifiedApi.get(endpoint);
+      try {
+        setLoading(true);
+        const response = await api.get(`/classes/${selectedClass}/subjects`);
 
-        // Create a map of student IDs to marks
-        const marksMap = {};
-        marksResponse.forEach(mark => {
-          marksMap[mark.studentId] = mark;
+        // Filter for A-Level subjects only
+        const aLevelSubjects = response.data.filter(subject =>
+          subject.educationLevel === 'A_LEVEL'
+        );
+
+        setSubjects(aLevelSubjects);
+      } catch (error) {
+        console.error('Error fetching subjects:', error);
+        setError('Failed to fetch subjects. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubjects();
+  }, [selectedClass]);
+
+  // Fetch students when class, subject, and exam are selected
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (!selectedClass || !selectedSubject || !selectedExam) return;
+
+      try {
+        setLoading(true);
+
+        // Get students in the class
+        const studentsResponse = await api.get(`/classes/${selectedClass}/students`);
+
+        // Get existing marks for the selected class, subject, and exam
+        const marksResponse = await api.get(`/check-marks/check-existing`, {
+          params: {
+            classId: selectedClass,
+            subjectId: selectedSubject,
+            examId: selectedExam
+          }
         });
 
-        // Create marks array with all students
-        const marksArray = studentsResponse.map(student => {
-          const existingMark = marksMap[student._id];
+        // Get exam details to get academic year
+        const examResponse = await api.get(`/exams/${selectedExam}`);
+
+        const academicYearId = examResponse.data.academicYear;
+        const examTypeId = examResponse.data.examType;
+
+        // Filter for A-Level students only
+        const aLevelStudents = studentsResponse.data.filter(student =>
+          student.educationLevel === 'A_LEVEL'
+        );
+
+        setStudents(aLevelStudents);
+
+        // Initialize marks array with existing marks
+        const initialMarks = aLevelStudents.map(student => {
+          const existingMark = marksResponse.data.find(mark =>
+            mark.studentId === student._id
+          );
+
           return {
             studentId: student._id,
             studentName: `${student.firstName} ${student.lastName}`,
             examId: selectedExam,
+            academicYearId,
+            examTypeId,
             subjectId: selectedSubject,
+            classId: selectedClass,
             marksObtained: existingMark ? existingMark.marksObtained : '',
             grade: existingMark ? existingMark.grade : '',
             points: existingMark ? existingMark.points : '',
+            comment: existingMark ? existingMark.comment : '',
+            isPrincipal: existingMark ? existingMark.isPrincipal : false,
             _id: existingMark ? existingMark._id : null
           };
         });
 
-        setMarks(marksArray);
-      } catch (err) {
-        console.error('Error fetching students and marks:', err);
-        setError('Failed to load students and marks. Please try again.');
+        setMarks(initialMarks);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError('Failed to fetch data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStudentsAndMarks();
-  }, [selectedClass, selectedExam, selectedSubject, educationLevel]);
-
-  // Handle academic year change
-  const handleAcademicYearChange = async (event) => {
-    const yearId = event.target.value;
-    setSelectedAcademicYear(yearId);
-
-    try {
-      setLoading(true);
-      const response = await unifiedApi.getClassesByAcademicYear(yearId);
-      setClasses(response);
-      setSelectedClass('');
-      setSelectedExam('');
-      setSelectedSubject('');
-    } catch (err) {
-      console.error('Error fetching classes:', err);
-      setError('Failed to load classes. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchStudents();
+  }, [selectedClass, selectedSubject, selectedExam]);
 
   // Handle class change
-  const handleClassChange = async (event) => {
-    const classId = event.target.value;
-    setSelectedClass(classId);
+  const handleClassChange = (event) => {
+    setSelectedClass(event.target.value);
+    setSelectedSubject('');
+    setSelectedExam('');
+    setMarks([]);
+  };
 
-    // Find the selected class to determine education level
-    const selectedClassObj = classes.find(c => c._id === classId);
-    if (selectedClassObj) {
-      setEducationLevel(selectedClassObj.educationLevel || 'O_LEVEL');
-    }
-
-    try {
-      setLoading(true);
-      const response = await unifiedApi.getExamsByClass(classId, selectedAcademicYear);
-      setExams(response);
-      setSelectedExam('');
-      setSelectedSubject('');
-    } catch (err) {
-      console.error('Error fetching exams:', err);
-      setError('Failed to load exams. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  // Handle subject change
+  const handleSubjectChange = (event) => {
+    setSelectedSubject(event.target.value);
+    setMarks([]);
   };
 
   // Handle exam change
   const handleExamChange = (event) => {
     setSelectedExam(event.target.value);
-    setSelectedSubject('');
-  };
-
-  // Handle subject change
-  const handleSubjectChange = (subjectId) => {
-    setSelectedSubject(subjectId);
+    setMarks([]);
   };
 
   // Handle tab change
@@ -237,43 +234,72 @@ const UnifiedMarksEntry = () => {
 
   // Handle mark change
   const handleMarkChange = (studentId, value) => {
-    // Validate input (only numbers and decimal point)
-    if (value !== '' && !/^\d*\.?\d*$/.test(value)) {
+    // Validate input (0-100)
+    if (value !== '' && (isNaN(value) || value < 0 || value > 100)) {
       return;
     }
 
-    // Update marks
     setMarks(prevMarks =>
       prevMarks.map(mark =>
         mark.studentId === studentId
-          ? { ...mark, marksObtained: value }
+          ? {
+              ...mark,
+              marksObtained: value,
+              // Clear grade and points when marks are changed
+              grade: '',
+              points: ''
+            }
           : mark
       )
     );
   };
 
-  // Calculate grade and points based on marks
-  const calculateGradeAndPoints = (marks) => {
-    if (marks === '' || isNaN(marks)) return { grade: '', points: '' };
+  // Handle comment change
+  const handleCommentChange = (studentId, value) => {
+    setMarks(prevMarks =>
+      prevMarks.map(mark =>
+        mark.studentId === studentId
+          ? { ...mark, comment: value }
+          : mark
+      )
+    );
+  };
 
-    const numericMarks = parseFloat(marks);
+  // Handle principal subject change
+  const handlePrincipalChange = (studentId, checked) => {
+    setMarks(prevMarks =>
+      prevMarks.map(mark =>
+        mark.studentId === studentId
+          ? { ...mark, isPrincipal: checked }
+          : mark
+      )
+    );
+  };
 
-    if (educationLevel === 'A_LEVEL') {
-      // A-Level grading
-      if (numericMarks >= 80) return { grade: 'A', points: 1 };
-      if (numericMarks >= 70) return { grade: 'B', points: 2 };
-      if (numericMarks >= 60) return { grade: 'C', points: 3 };
-      if (numericMarks >= 50) return { grade: 'D', points: 4 };
-      if (numericMarks >= 40) return { grade: 'E', points: 5 };
-      if (numericMarks >= 35) return { grade: 'S', points: 6 };
-      return { grade: 'F', points: 7 };
-    } else {
-      // O-Level grading
-      if (numericMarks >= 81) return { grade: 'A', points: 1 };
-      if (numericMarks >= 61) return { grade: 'B', points: 2 };
-      if (numericMarks >= 41) return { grade: 'C', points: 3 };
-      if (numericMarks >= 21) return { grade: 'D', points: 4 };
-      return { grade: 'F', points: 5 };
+  // Calculate grade based on marks (A-Level grading system)
+  const calculateGrade = (marks) => {
+    if (marks === '' || marks === undefined) return '';
+    if (marks >= 80) return 'A';
+    if (marks >= 70) return 'B';
+    if (marks >= 60) return 'C';
+    if (marks >= 50) return 'D';
+    if (marks >= 40) return 'E';
+    if (marks >= 35) return 'S';
+    return 'F';
+  };
+
+  // Calculate points based on grade (A-Level points system)
+  const calculatePoints = (grade) => {
+    if (!grade) return '';
+    switch (grade) {
+      case 'A': return 5;
+      case 'B': return 4;
+      case 'C': return 3;
+      case 'D': return 2;
+      case 'E': return 1;
+      case 'S': return 0.5;
+      case 'F': return 0;
+      default: return '';
     }
   };
 
@@ -281,29 +307,18 @@ const UnifiedMarksEntry = () => {
   const handleSaveMarks = async () => {
     try {
       setSaving(true);
-      setError(null);
+      setError('');
+      setSuccess('');
 
-      // Validate marks
-      const invalidMarks = marks.filter(mark =>
-        mark.marksObtained !== '' &&
-        (isNaN(mark.marksObtained) ||
-         parseFloat(mark.marksObtained) < 0 ||
-         parseFloat(mark.marksObtained) > 100)
-      );
-
-      if (invalidMarks.length > 0) {
-        setError('Some marks are invalid. Please enter values between 0 and 100.');
-        setSaving(false);
-        return;
-      }
-
-      // Calculate grades and points for all marks
+      // Calculate grades and points for marks
       const marksWithGrades = marks.map(mark => {
         if (mark.marksObtained === '') {
           return mark;
         }
 
-        const { grade, points } = calculateGradeAndPoints(mark.marksObtained);
+        const grade = calculateGrade(Number(mark.marksObtained));
+        const points = calculatePoints(grade);
+
         return {
           ...mark,
           grade,
@@ -321,11 +336,7 @@ const UnifiedMarksEntry = () => {
       }
 
       // Save marks
-      const endpoint = educationLevel === 'A_LEVEL'
-        ? '/a-level-results/batch'
-        : '/o-level-results/batch';
-
-      await unifiedApi.post(endpoint, marksToSave);
+      await api.post(`/a-level-results/batch`, marksToSave);
 
       // Update marks state with calculated grades and points
       setMarks(marksWithGrades);
@@ -337,42 +348,12 @@ const UnifiedMarksEntry = () => {
         message: 'Marks saved successfully',
         severity: 'success'
       });
-
-      // Refresh marks
-      const refreshedMarksResponse = await unifiedApi.get(
-        educationLevel === 'A_LEVEL'
-          ? `/a-level-results?examId=${selectedExam}&subjectId=${selectedSubject}`
-          : `/o-level-results?examId=${selectedExam}&subjectId=${selectedSubject}`
-      );
-
-      // Create a map of student IDs to marks
-      const refreshedMarksMap = {};
-      refreshedMarksResponse.forEach(mark => {
-        refreshedMarksMap[mark.studentId] = mark;
-      });
-
-      // Update marks array with refreshed data
-      setMarks(prevMarks =>
-        prevMarks.map(mark => {
-          const refreshedMark = refreshedMarksMap[mark.studentId];
-          if (refreshedMark) {
-            return {
-              ...mark,
-              marksObtained: refreshedMark.marksObtained,
-              grade: refreshedMark.grade,
-              points: refreshedMark.points,
-              _id: refreshedMark._id
-            };
-          }
-          return mark;
-        })
-      );
-    } catch (err) {
-      console.error('Error saving marks:', err);
-      setError(`Failed to save marks: ${err.message}`);
+    } catch (error) {
+      console.error('Error saving marks:', error);
+      setError(`Failed to save marks: ${error.response?.data?.message || error.message}`);
       setSnackbar({
         open: true,
-        message: `Failed to save marks: ${err.message}`,
+        message: `Failed to save marks: ${error.response?.data?.message || error.message}`,
         severity: 'error'
       });
     } finally {
@@ -380,10 +361,28 @@ const UnifiedMarksEntry = () => {
     }
   };
 
-  // Handle refresh
+  // Refresh data
   const handleRefresh = () => {
-    // Reload the current page
-    window.location.reload();
+    if (selectedClass && selectedSubject && selectedExam) {
+      // Reset marks and fetch data again
+      setMarks([]);
+      setActiveTab(0);
+
+      // Trigger useEffect to fetch data
+      const tempClass = selectedClass;
+      const tempSubject = selectedSubject;
+      const tempExam = selectedExam;
+
+      setSelectedClass('');
+      setSelectedSubject('');
+      setSelectedExam('');
+
+      setTimeout(() => {
+        setSelectedClass(tempClass);
+        setSelectedSubject(tempSubject);
+        setSelectedExam(tempExam);
+      }, 100);
+    }
   };
 
   // Handle go back
@@ -392,21 +391,9 @@ const UnifiedMarksEntry = () => {
   };
 
   // Handle snackbar close
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
+  const handleSnackbarClose = () => {
     setSnackbar({ ...snackbar, open: false });
   };
-
-  // Render loading state
-  if (loading && !selectedSubject) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -416,7 +403,7 @@ const UnifiedMarksEntry = () => {
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h4">
-            {educationLevel === 'A_LEVEL' ? 'A-Level' : 'O-Level'} Marks Entry
+            A-Level Bulk Marks Entry
           </Typography>
         </Box>
 
@@ -425,7 +412,7 @@ const UnifiedMarksEntry = () => {
             variant="outlined"
             color="primary"
             startIcon={<HistoryIcon />}
-            onClick={() => navigate(`/marks-history/subject/${selectedSubject}?model=${educationLevel === 'A_LEVEL' ? 'ALevelResult' : 'OLevelResult'}`)}
+            onClick={() => navigate(`/marks-history/subject/${selectedSubject}?model=ALevelResult`)}
           >
             View Marks History
           </Button>
@@ -437,72 +424,35 @@ const UnifiedMarksEntry = () => {
           Select Class, Exam, and Subject
         </Typography>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {success}
-          </Alert>
-        )}
-
         <Grid container spacing={2}>
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Academic Year</InputLabel>
-              <Select
-                value={selectedAcademicYear}
-                onChange={handleAcademicYearChange}
-                label="Academic Year"
-              >
-                {academicYears.map((year) => (
-                  <MenuItem key={year._id} value={year._id}>
-                    {year.name} {year.isCurrent && '(Current)'}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={4}>
             <FormControl fullWidth>
               <InputLabel>Class</InputLabel>
               <Select
                 value={selectedClass}
                 onChange={handleClassChange}
                 label="Class"
-                disabled={!selectedAcademicYear}
+                disabled={loading}
               >
-                {classes.map((cls) => (
-                  <MenuItem key={cls._id} value={cls._id}>
-                    {cls.name} {cls.section ? `- ${cls.section}` : ''}
-                    {cls.educationLevel === 'A_LEVEL' && (
-                      <Chip
-                        label="A-Level"
-                        size="small"
-                        color="primary"
-                        sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
-                      />
-                    )}
+                {Array.isArray(classes) && classes.map((classItem) => (
+                  <MenuItem key={classItem._id} value={classItem._id}>
+                    {classItem.name}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={4}>
             <FormControl fullWidth>
               <InputLabel>Exam</InputLabel>
               <Select
                 value={selectedExam}
                 onChange={handleExamChange}
                 label="Exam"
-                disabled={!selectedClass}
+                disabled={!selectedClass || loading}
               >
-                {exams.map((exam) => (
+                {Array.isArray(exams) && exams.map((exam) => (
                   <MenuItem key={exam._id} value={exam._id}>
                     {exam.name}
                   </MenuItem>
@@ -511,14 +461,22 @@ const UnifiedMarksEntry = () => {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} md={3}>
-            <TeacherSubjectSelector
-              classId={selectedClass}
-              value={selectedSubject}
-              onChange={handleSubjectChange}
-              showAll={isAdmin}
-              label="Subject"
-            />
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth>
+              <InputLabel>Subject</InputLabel>
+              <Select
+                value={selectedSubject}
+                onChange={handleSubjectChange}
+                label="Subject"
+                disabled={!selectedClass || loading}
+              >
+                {Array.isArray(subjects) && subjects.map((subject) => (
+                  <MenuItem key={subject._id} value={subject._id}>
+                    {subject.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
         </Grid>
       </Paper>
@@ -570,14 +528,16 @@ const UnifiedMarksEntry = () => {
                       <TableHead>
                         <TableRow>
                           <TableCell width="5%">#</TableCell>
-                          <TableCell width="35%">Student Name</TableCell>
-                          <TableCell width="25%">Marks (0-100)</TableCell>
-                          <TableCell width="15%">Status</TableCell>
-                          <TableCell width="10%">History</TableCell>
+                          <TableCell width="25%">Student Name</TableCell>
+                          <TableCell width="20%">Marks (0-100)</TableCell>
+                          <TableCell width="20%">Comment</TableCell>
+                          <TableCell width="15%">Principal Subject</TableCell>
+                          <TableCell width="10%">Status</TableCell>
+                          <TableCell width="5%">History</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {marks.map((mark, index) => (
+                        {Array.isArray(marks) && marks.map((mark, index) => (
                           <TableRow key={mark.studentId}>
                             <TableCell>{index + 1}</TableCell>
                             <TableCell>{mark.studentName}</TableCell>
@@ -595,6 +555,29 @@ const UnifiedMarksEntry = () => {
                                   step: 0.5
                                 }}
                                 disabled={saving}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <TextField
+                                type="text"
+                                value={mark.comment}
+                                onChange={(e) => handleCommentChange(mark.studentId, e.target.value)}
+                                variant="outlined"
+                                size="small"
+                                fullWidth
+                                disabled={saving}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={mark.isPrincipal}
+                                    onChange={(e) => handlePrincipalChange(mark.studentId, e.target.checked)}
+                                    disabled={saving}
+                                  />
+                                }
+                                label="Principal"
                               />
                             </TableCell>
                             <TableCell>
@@ -619,7 +602,7 @@ const UnifiedMarksEntry = () => {
                                 <Tooltip title="View mark history">
                                   <IconButton
                                     size="small"
-                                    onClick={() => navigate(`/marks-history/result/${mark._id}?model=${educationLevel === 'A_LEVEL' ? 'ALevelResult' : 'OLevelResult'}`)}
+                                    onClick={() => navigate(`/marks-history/result/${mark._id}?model=ALevelResult`)}
                                   >
                                     <HistoryIcon fontSize="small" />
                                   </IconButton>
@@ -640,11 +623,7 @@ const UnifiedMarksEntry = () => {
                     <Typography variant="h6">
                       Grades and Points
                     </Typography>
-                    <Tooltip title={
-                      educationLevel === 'A_LEVEL'
-                        ? 'A-Level Grading: A (80-100%), B (70-79%), C (60-69%), D (50-59%), E (40-49%), S (35-39%), F (0-34%)'
-                        : 'O-Level Grading: A (81-100%), B (61-80%), C (41-60%), D (21-40%), F (0-20%)'
-                    }>
+                    <Tooltip title="A-Level Grading: A (80-100%), B (70-79%), C (60-69%), D (50-59%), E (40-49%), S (35-39%), F (0-34%)">
                       <IconButton>
                         <HelpIcon />
                       </IconButton>
@@ -656,20 +635,22 @@ const UnifiedMarksEntry = () => {
                       <TableHead>
                         <TableRow>
                           <TableCell width="5%">#</TableCell>
-                          <TableCell width="40%">Student Name</TableCell>
+                          <TableCell width="30%">Student Name</TableCell>
                           <TableCell width="15%" align="center">Marks</TableCell>
                           <TableCell width="15%" align="center">Grade</TableCell>
                           <TableCell width="15%" align="center">Points</TableCell>
+                          <TableCell width="20%" align="center">Principal Subject</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {marks.map((mark, index) => {
+                        {Array.isArray(marks) && marks.map((mark, index) => {
                           // Calculate grade and points for display
-                          const { grade, points } = mark.marksObtained
-                            ? (mark.grade && mark.points
-                              ? { grade: mark.grade, points: mark.points }
-                              : calculateGradeAndPoints(mark.marksObtained))
-                            : { grade: '', points: '' };
+                          const grade = mark.marksObtained
+                            ? (mark.grade || calculateGrade(Number(mark.marksObtained)))
+                            : '';
+                          const points = grade
+                            ? (mark.points || calculatePoints(grade))
+                            : '';
 
                           return (
                             <TableRow key={mark.studentId}>
@@ -693,6 +674,22 @@ const UnifiedMarksEntry = () => {
                                 ) : '-'}
                               </TableCell>
                               <TableCell align="center">{points || '-'}</TableCell>
+                              <TableCell align="center">
+                                {mark.isPrincipal ? (
+                                  <Chip
+                                    label="Principal"
+                                    color="primary"
+                                    size="small"
+                                  />
+                                ) : (
+                                  <Chip
+                                    label="Subsidiary"
+                                    color="default"
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                )}
+                              </TableCell>
                             </TableRow>
                           );
                         })}
@@ -712,7 +709,7 @@ const UnifiedMarksEntry = () => {
               onClick={handleSaveMarks}
               disabled={saving}
             >
-              {saving ? 'Saving...' : 'Save All Marks'}
+              {saving ? <CircularProgress size={24} /> : 'Save All Marks'}
             </Button>
           </Box>
         </>
@@ -736,4 +733,4 @@ const UnifiedMarksEntry = () => {
   );
 };
 
-export default UnifiedMarksEntry;
+export default ALevelBulkMarksEntry;

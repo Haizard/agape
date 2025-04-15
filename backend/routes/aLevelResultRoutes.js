@@ -898,6 +898,10 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
 
 // Enter marks for A-Level student
 router.post('/enter-marks', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+  // Add user information for history tracking
+  const userId = req.user.id;
+  const ipAddress = req.ip;
+  const userAgent = req.headers['user-agent'];
   try {
     const {
       studentId,
@@ -974,6 +978,20 @@ router.post('/enter-marks', authenticateToken, authorizeRole(['admin', 'teacher'
       // Update existing result
       logToFile(`Updating existing result for student ${studentId}, subject ${subjectId}, exam ${examId}`);
 
+      // Store previous values for history tracking
+      existingResult.__previousValues = {
+        marksObtained: existingResult.marksObtained,
+        grade: existingResult.grade,
+        points: existingResult.points,
+        comment: existingResult.comment,
+        isPrincipal: existingResult.isPrincipal
+      };
+
+      // Store user information for history tracking
+      existingResult.__userId = userId;
+      existingResult.__ipAddress = ipAddress;
+      existingResult.__userAgent = userAgent;
+
       existingResult.marksObtained = marksObtained;
       existingResult.grade = grade || aLevelGradeCalculator.calculateGrade(marksObtained);
       existingResult.points = points || aLevelGradeCalculator.calculatePoints(existingResult.grade);
@@ -1004,7 +1022,11 @@ router.post('/enter-marks', authenticateToken, authorizeRole(['admin', 'teacher'
         grade: grade || aLevelGradeCalculator.calculateGrade(marksObtained),
         points: points || aLevelGradeCalculator.calculatePoints(grade || aLevelGradeCalculator.calculateGrade(marksObtained)),
         comment,
-        isPrincipal
+        isPrincipal,
+        // Store user information for history tracking
+        __userId: userId,
+        __ipAddress: ipAddress,
+        __userAgent: userAgent
       });
 
       // Log the new result

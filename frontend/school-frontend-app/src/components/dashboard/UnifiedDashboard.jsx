@@ -159,9 +159,9 @@ const UnifiedDashboard = () => {
           icon: <AssessmentIcon color="warning" />
         },
         {
-          name: 'Unified Marks Entry',
-          description: 'Enter marks for all students (O-Level and A-Level)',
-          path: '/results/enter-marks',
+          name: 'Marks Entry Dashboard',
+          description: 'Access all marks entry options (O-Level and A-Level)',
+          path: '/results/marks-entry-dashboard',
           icon: <AssessmentIcon color="success" />,
           highlight: true
         },
