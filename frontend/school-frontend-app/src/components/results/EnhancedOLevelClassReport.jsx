@@ -200,30 +200,102 @@ const EnhancedOLevelClassReport = ({
 
   // If no data, create empty structure with placeholders
   const reportData = processedData || {
-    className: 'Not Available',
-    examName: 'Not Available',
+    className: 'Sample Class',
+    examName: 'Sample Examination',
     year: new Date().getFullYear(),
     educationLevel: 'O_LEVEL',
-    students: [],
+    students: [
+      // Add placeholder students to show structure
+      {
+        id: 'placeholder-1',
+        studentName: 'John Doe',
+        sex: 'M',
+        totalMarks: 450,
+        averageMarks: '75.00',
+        division: 'I',
+        points: 12,
+        rank: 1,
+        subjects: {}
+      },
+      {
+        id: 'placeholder-2',
+        studentName: 'Jane Smith',
+        sex: 'F',
+        totalMarks: 420,
+        averageMarks: '70.00',
+        division: 'II',
+        points: 15,
+        rank: 2,
+        subjects: {}
+      },
+      {
+        id: 'placeholder-3',
+        studentName: 'Sample Student',
+        sex: 'M',
+        totalMarks: 360,
+        averageMarks: '60.00',
+        division: 'III',
+        points: 22,
+        rank: 3,
+        subjects: {}
+      }
+    ],
     subjects: [],
-    divisionSummary: { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 },
+    divisionSummary: { 'I': 1, 'II': 1, 'III': 1, 'IV': 0, '0': 0 },
     subjectPerformance: {},
-    overallPerformance: { totalPassed: 0, examGpa: 'N/A' }
+    overallPerformance: { totalPassed: 3, examGpa: '2.50' }
   };
 
   // If no subjects found, add placeholder subjects for O-Level
   if (!reportData.subjects || reportData.subjects.length === 0) {
     reportData.subjects = [
-      { id: 'math', name: 'Mathematics' },
-      { id: 'eng', name: 'English' },
-      { id: 'kis', name: 'Kiswahili' },
-      { id: 'bio', name: 'Biology' },
-      { id: 'chem', name: 'Chemistry' },
-      { id: 'phy', name: 'Physics' },
-      { id: 'geo', name: 'Geography' },
-      { id: 'hist', name: 'History' },
-      { id: 'civics', name: 'Civics' }
+      { id: 'math', name: 'Mathematics', code: 'MATH' },
+      { id: 'eng', name: 'English', code: 'ENG' },
+      { id: 'kis', name: 'Kiswahili', code: 'KIS' },
+      { id: 'bio', name: 'Biology', code: 'BIO' },
+      { id: 'chem', name: 'Chemistry', code: 'CHEM' },
+      { id: 'phy', name: 'Physics', code: 'PHY' },
+      { id: 'geo', name: 'Geography', code: 'GEO' },
+      { id: 'hist', name: 'History', code: 'HIST' },
+      { id: 'civics', name: 'Civics', code: 'CIV' }
     ];
+
+    // Add sample subject data for placeholder students
+    if (reportData.students && reportData.students.length > 0) {
+      // For each student
+      for (let i = 0; i < reportData.students.length; i++) {
+        const student = reportData.students[i];
+        student.subjects = {};
+
+        // For each subject
+        for (const subject of reportData.subjects) {
+          // Generate sample marks based on student rank
+          let baseMarks = 0;
+          if (i === 0) baseMarks = 75; // First student (high performer)
+          else if (i === 1) baseMarks = 65; // Second student (medium performer)
+          else baseMarks = 55; // Other students (average performer)
+
+          // Add some variation per subject
+          const variation = Math.floor(Math.random() * 15) - 5; // -5 to +10 variation
+          const marks = Math.min(100, Math.max(30, baseMarks + variation));
+
+          // Calculate grade
+          let grade = 'F';
+          let points = 5;
+          if (marks >= 75) { grade = 'A'; points = 1; }
+          else if (marks >= 65) { grade = 'B'; points = 2; }
+          else if (marks >= 45) { grade = 'C'; points = 3; }
+          else if (marks >= 30) { grade = 'D'; points = 4; }
+
+          // Add to student's subjects
+          student.subjects[subject.id] = {
+            marks: marks,
+            grade: grade,
+            points: points
+          };
+        }
+      }
+    }
   }
 
   // Calculate pagination
@@ -242,14 +314,19 @@ const EnhancedOLevelClassReport = ({
       {/* Report Header */}
       <Paper sx={{ p: 3, mb: 3 }} elevation={2}>
         <Typography variant="h4" align="center" gutterBottom>
-          OPEN TEST RESULT - {reportData.year}
+          {processedData ? 'OPEN TEST RESULT' : 'SAMPLE REPORT'} - {reportData.year}
         </Typography>
         <Typography variant="h6" gutterBottom>
           Class Name: {reportData.className}
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          O-Level Results
+          O-Level Results {!processedData && '(Sample Data)'}
         </Typography>
+        {!processedData && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            This is a sample report with placeholder data. Connect to a real data source to see actual results.
+          </Alert>
+        )}
       </Paper>
 
       {/* Action Buttons */}
@@ -419,7 +496,9 @@ const EnhancedOLevelClassReport = ({
             ) : (
               <TableRow>
                 <TableCell colSpan={5 + subjects.length + 3} align="center">
-                  No students available for this class and exam
+                  <Typography variant="subtitle1" sx={{ fontStyle: 'italic', my: 2 }}>
+                    No real data available. Showing sample structure with placeholder data.
+                  </Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -480,6 +559,24 @@ const EnhancedOLevelClassReport = ({
                       studentCount++;
                     }
                   }
+                }
+
+                // If no data and this is a placeholder report, generate sample data
+                if (studentCount === 0 && !processedData) {
+                  // Generate sample grade distribution
+                  studentCount = 3; // Match our placeholder students
+                  gradeDistribution.A = 1;
+                  gradeDistribution.B = 1;
+                  gradeDistribution.C = 1;
+                  gradeDistribution.D = 0;
+                  gradeDistribution.F = 0;
+
+                  // Calculate total points
+                  totalPoints = gradeDistribution.A * 1 +
+                               gradeDistribution.B * 2 +
+                               gradeDistribution.C * 3 +
+                               gradeDistribution.D * 4 +
+                               gradeDistribution.F * 5;
                 }
 
                 // Calculate GPA (1-5 scale, A=1, F=5)

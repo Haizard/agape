@@ -1,6 +1,6 @@
 /**
  * Response Formatter Utility
- * 
+ *
  * This utility provides standardized formatting for API responses
  * to ensure consistency across the application.
  */
@@ -40,7 +40,7 @@ const formatALevelStudentResponse = (student, results, exam, classObj) => {
     const bestThreePrincipal = [...principalSubjects]
       .sort((a, b) => a.points - b.points)
       .slice(0, Math.min(3, principalSubjects.length));
-    
+
     const bestThreePoints = bestThreePrincipal.reduce((sum, subject) => sum + subject.points, 0);
 
     // Calculate grade distribution
@@ -55,7 +55,7 @@ const formatALevelStudentResponse = (student, results, exam, classObj) => {
     return {
       reportTitle: `${exam.name} Result Report`,
       schoolName: 'St. John Vianney School Management System',
-      academicYear: exam.academicYear ? exam.academicYear.name : 'Unknown',
+      academicYear: exam.academicYear ? (typeof exam.academicYear === 'object' ? exam.academicYear.name : exam.academicYear) : 'Unknown',
       examName: exam.name,
       examDate: exam.startDate ? `${new Date(exam.startDate).toLocaleDateString()} - ${new Date(exam.endDate).toLocaleDateString()}` : 'N/A',
       studentDetails: {
@@ -96,7 +96,7 @@ const formatALevelClassResponse = (classObj, exam, studentResults) => {
   try {
     // Calculate division distribution
     const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, 'V': 0, '0': 0 };
-    
+
     // Count students in each division
     for (const student of studentResults) {
       if (student.division) {
@@ -119,7 +119,7 @@ const formatALevelClassResponse = (classObj, exam, studentResults) => {
     return {
       reportTitle: `${exam.name} Class Result Report`,
       schoolName: 'St. John Vianney School Management System',
-      academicYear: classObj.academicYear ? classObj.academicYear.name : 'Unknown',
+      academicYear: classObj.academicYear ? (typeof classObj.academicYear === 'object' ? classObj.academicYear.name : classObj.academicYear) : 'Unknown',
       examName: exam.name,
       examDate: exam.startDate ? `${new Date(exam.startDate).toLocaleDateString()} - ${new Date(exam.endDate).toLocaleDateString()}` : 'N/A',
       className: classObj.name,
@@ -166,7 +166,7 @@ const formatOLevelStudentResponse = (student, results, exam, classObj) => {
     const bestSevenSubjects = [...subjectResults]
       .sort((a, b) => a.points - b.points)
       .slice(0, Math.min(7, subjectResults.length));
-    
+
     const bestSevenPoints = bestSevenSubjects.reduce((sum, subject) => sum + subject.points, 0);
 
     // Calculate grade distribution
@@ -181,7 +181,7 @@ const formatOLevelStudentResponse = (student, results, exam, classObj) => {
     return {
       reportTitle: `${exam.name} Result Report`,
       schoolName: 'St. John Vianney School Management System',
-      academicYear: exam.academicYear ? exam.academicYear.name : 'Unknown',
+      academicYear: exam.academicYear ? (typeof exam.academicYear === 'object' ? exam.academicYear.name : exam.academicYear) : 'Unknown',
       examName: exam.name,
       examDate: exam.startDate ? `${new Date(exam.startDate).toLocaleDateString()} - ${new Date(exam.endDate).toLocaleDateString()}` : 'N/A',
       studentDetails: {
@@ -220,7 +220,7 @@ const formatOLevelClassResponse = (classObj, exam, studentResults) => {
   try {
     // Calculate division distribution
     const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 };
-    
+
     // Count students in each division
     for (const student of studentResults) {
       if (student.division) {
@@ -243,7 +243,7 @@ const formatOLevelClassResponse = (classObj, exam, studentResults) => {
     return {
       reportTitle: `${exam.name} Class Result Report`,
       schoolName: 'St. John Vianney School Management System',
-      academicYear: classObj.academicYear ? classObj.academicYear.name : 'Unknown',
+      academicYear: classObj.academicYear ? (typeof classObj.academicYear === 'object' ? classObj.academicYear.name : classObj.academicYear) : 'Unknown',
       examName: exam.name,
       examDate: exam.startDate ? `${new Date(exam.startDate).toLocaleDateString()} - ${new Date(exam.endDate).toLocaleDateString()}` : 'N/A',
       className: classObj.name,
@@ -269,7 +269,7 @@ const formatOLevelClassResponse = (classObj, exam, studentResults) => {
  */
 const formatErrorResponse = (error, source) => {
   logger.error(`Error in ${source}: ${error.message}`);
-  
+
   return {
     success: false,
     message: error.message || 'An error occurred',
@@ -343,12 +343,11 @@ function calculateDivision(points) {
   // Convert to number
   const numPoints = Number(points);
 
-  // Calculate division based on Tanzania's ACSEE system
+  // Calculate division based on Tanzania's NECTA ACSEE system
   if (numPoints >= 3 && numPoints <= 9) return 'Division I';
   if (numPoints >= 10 && numPoints <= 12) return 'Division II';
   if (numPoints >= 13 && numPoints <= 17) return 'Division III';
   if (numPoints >= 18 && numPoints <= 19) return 'Division IV';
-  if (numPoints >= 20 && numPoints <= 21) return 'Division V';
   return 'Division 0';
 }
 
@@ -367,11 +366,11 @@ function calculateOLevelDivision(points) {
   // Convert to number
   const numPoints = Number(points);
 
-  // Calculate division based on Tanzania's CSEE system
-  if (numPoints >= 7 && numPoints <= 14) return 'Division I';
-  if (numPoints >= 15 && numPoints <= 21) return 'Division II';
+  // Calculate division based on Tanzania's NECTA CSEE system
+  if (numPoints >= 7 && numPoints <= 17) return 'Division I';
+  if (numPoints >= 18 && numPoints <= 21) return 'Division II';
   if (numPoints >= 22 && numPoints <= 25) return 'Division III';
-  if (numPoints >= 26 && numPoints <= 32) return 'Division IV';
+  if (numPoints >= 26 && numPoints <= 33) return 'Division IV';
   return 'Division 0';
 }
 

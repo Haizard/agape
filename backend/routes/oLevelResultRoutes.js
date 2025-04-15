@@ -230,13 +230,13 @@ router.get('/api/class/:classId/:examId', async (req, res) => {
     let classTotal = 0;
     let classCount = 0;
 
-    // Division summary
+    // Division summary based on NECTA standards
     const divisionSummary = {
-      'I': 0,
-      'II': 0,
-      'III': 0,
-      'IV': 0,
-      '0': 0
+      'I': 0,   // 7-17 points
+      'II': 0,  // 18-21 points
+      'III': 0, // 22-25 points
+      'IV': 0,  // 26-33 points
+      '0': 0    // 34+ points
     };
 
     // Subject analysis
