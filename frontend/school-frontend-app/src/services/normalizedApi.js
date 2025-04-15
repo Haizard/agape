@@ -76,6 +76,64 @@ export const getStudentResultReport = async (studentId, examId, educationLevel =
  * @param {string} educationLevel - The education level (O_LEVEL or A_LEVEL)
  * @returns {Promise<Object>} - The normalized class result report
  */
+// Debug function to log API response structure
+const logApiResponseStructure = (data, source = 'API') => {
+  console.log(`%c${source} Response Structure Analysis`, 'background: #4CAF50; color: white; padding: 2px 5px; border-radius: 3px;');
+  console.log('Top-level keys:', Object.keys(data));
+
+  if (data.students && data.students.length > 0) {
+    const sampleStudent = data.students[0];
+    console.log('Sample student keys:', Object.keys(sampleStudent));
+
+    // Check for subject results in different properties
+    if (sampleStudent.results) {
+      console.log('Sample student results structure:',
+        Array.isArray(sampleStudent.results)
+          ? `Array with ${sampleStudent.results.length} items`
+          : typeof sampleStudent.results);
+
+      if (Array.isArray(sampleStudent.results) && sampleStudent.results.length > 0) {
+        console.log('Sample result item keys:', Object.keys(sampleStudent.results[0]));
+      } else if (typeof sampleStudent.results === 'object') {
+        console.log('Results object keys:', Object.keys(sampleStudent.results));
+      }
+    }
+
+    if (sampleStudent.subjectResults) {
+      console.log('Sample student subjectResults structure:',
+        Array.isArray(sampleStudent.subjectResults)
+          ? `Array with ${sampleStudent.subjectResults.length} items`
+          : typeof sampleStudent.subjectResults);
+
+      if (Array.isArray(sampleStudent.subjectResults) && sampleStudent.subjectResults.length > 0) {
+        console.log('Sample subjectResult item keys:', Object.keys(sampleStudent.subjectResults[0]));
+      }
+    }
+
+    if (sampleStudent.subjects) {
+      console.log('Sample student subjects structure:',
+        Array.isArray(sampleStudent.subjects)
+          ? `Array with ${sampleStudent.subjects.length} items`
+          : typeof sampleStudent.subjects);
+
+      if (Array.isArray(sampleStudent.subjects) && sampleStudent.subjects.length > 0) {
+        console.log('Sample subject item keys:', Object.keys(sampleStudent.subjects[0]));
+      }
+    }
+  }
+
+  if (data.subjects) {
+    console.log('Subjects array structure:',
+      Array.isArray(data.subjects)
+        ? `Array with ${data.subjects.length} items`
+        : typeof data.subjects);
+
+    if (Array.isArray(data.subjects) && data.subjects.length > 0) {
+      console.log('Sample subject item keys:', Object.keys(data.subjects[0]));
+    }
+  }
+};
+
 export const getClassResultReport = async (classId, examId, educationLevel = 'O_LEVEL') => {
   try {
     let endpoint = '';
@@ -91,6 +149,9 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
     // Normalize the response data to ensure it has the expected structure
     const data = response.data;
     console.log('Raw API response:', data);
+
+    // Log detailed structure of the API response
+    logApiResponseStructure(data, 'Primary API');
 
     // Ensure students array exists
     if (!data.students) {
@@ -116,26 +177,138 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
       // Ensure subjectResults exists and is properly formatted
       let subjectResults = [];
 
+      // STEP 1: Extract subject results from all possible sources
+
       // Handle different formats of subject results
       if (Array.isArray(student.subjectResults)) {
         console.log('Student has subjectResults array:', student.subjectResults);
-        subjectResults = [...subjectResults, ...student.subjectResults];
+        // Process each subject result to ensure consistent format
+        const processedResults = student.subjectResults.map(result => {
+          // If result is already in the expected format, return it
+          if (result.subject && result.subject.name && result.marks !== undefined) {
+            return result;
+          }
+
+          // If result has a subject property that's a string, convert to expected format
+          if (typeof result.subject === 'string') {
+            return {
+              subject: { name: result.subject },
+              marks: result.marks || result.marksObtained || null
+            };
+          }
+
+          // If result has a name property, use that as the subject name
+          if (result.name) {
+            return {
+              subject: { name: result.name },
+              marks: result.marks || result.marksObtained || null
+            };
+          }
+
+          // If result is a string, assume it's the subject name
+          if (typeof result === 'string') {
+            return {
+              subject: { name: result },
+              marks: null
+            };
+          }
+
+          // Default case: return the result as is
+          return result;
+        });
+
+        subjectResults = [...subjectResults, ...processedResults];
       }
 
+      // Handle subjects array (similar to subjectResults)
       if (Array.isArray(student.subjects)) {
         console.log('Student has subjects array:', student.subjects);
-        subjectResults = [...subjectResults, ...student.subjects];
+        const processedSubjects = student.subjects.map(subject => {
+          // If subject is a string, convert to expected format
+          if (typeof subject === 'string') {
+            return {
+              subject: { name: subject },
+              marks: null
+            };
+          }
+
+          // If subject has a name property, use that as the subject name
+          if (subject.name) {
+            return {
+              subject: { name: subject.name },
+              marks: subject.marks || subject.marksObtained || null
+            };
+          }
+
+          // If subject has a subject property that's a string, convert to expected format
+          if (typeof subject.subject === 'string') {
+            return {
+              subject: { name: subject.subject },
+              marks: subject.marks || subject.marksObtained || null
+            };
+          }
+
+          // Default case: return the subject as is
+          return subject;
+        });
+
+        subjectResults = [...subjectResults, ...processedSubjects];
       }
 
+      // Handle results array (this is the most common format from the backend)
       if (Array.isArray(student.results)) {
         console.log('Student has results array:', student.results);
-        subjectResults = [...subjectResults, ...student.results];
+        const processedResults = student.results.map(result => {
+          // If result already has subject.name, return it
+          if (result.subject && result.subject.name) {
+            return {
+              subject: result.subject,
+              marks: result.marks || result.marksObtained || null
+            };
+          }
+
+          // If result has a subject property that's a string, convert to expected format
+          if (typeof result.subject === 'string') {
+            return {
+              subject: { name: result.subject },
+              marks: result.marks || result.marksObtained || null
+            };
+          }
+
+          // If result has a subjectName property, use that
+          if (result.subjectName) {
+            return {
+              subject: { name: result.subjectName },
+              marks: result.marks || result.marksObtained || null
+            };
+          }
+
+          // If result has a name property, use that as the subject name
+          if (result.name) {
+            return {
+              subject: { name: result.name },
+              marks: result.marks || result.marksObtained || null
+            };
+          }
+
+          // Default case: return the result as is
+          return result;
+        });
+
+        subjectResults = [...subjectResults, ...processedResults];
       }
+
+      // STEP 2: Handle special cases
 
       // Handle case where results is an object with subject names as keys
       if (student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
         console.log('Student has results object:', student.results);
         for (const [key, value] of Object.entries(student.results)) {
+          // Skip if not a subject (e.g., metadata fields)
+          if (['id', '_id', 'studentId', 'examId', 'classId'].includes(key)) {
+            continue;
+          }
+
           subjectResults.push({
             subject: { name: key },
             marks: value
@@ -160,9 +333,14 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
         }
       }
 
+      // STEP 3: Extract subjects from combination code
+
       // Check for subjects in the combination property
-      if (student.combination && typeof student.combination === 'string') {
-        console.log('Student has combination:', student.combination);
+      const extractSubjectsFromCombination = (combinationCode) => {
+        if (!combinationCode || typeof combinationCode !== 'string') return [];
+
+        console.log('Extracting subjects from combination:', combinationCode);
+
         // Extract subjects from combination code (e.g., PCM -> Physics, Chemistry, Mathematics)
         const combinationMap = {
           'P': 'Physics',
@@ -176,50 +354,200 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
           'E': 'Economics'
         };
 
-        for (const char of student.combination) {
-          if (combinationMap[char]) {
-            const subjectName = combinationMap[char];
-            // Check if this subject is already in the subjectResults array
-            const exists = subjectResults.some(s =>
-              (s.subject?.name === subjectName) ||
-              (s.name === subjectName) ||
-              (s === subjectName)
-            );
+        const extractedSubjects = [];
 
-            if (!exists) {
-              console.log(`Adding subject ${subjectName} from combination ${student.combination}`);
-              subjectResults.push({
+        // Handle common combination formats
+        // 1. Standard format: PCM, HKL, etc.
+        // 2. Expanded format: PCM-Physics,Chemistry,Mathematics
+        // 3. Object format: { code: 'PCM', name: 'Physics, Chemistry, Mathematics' }
+
+        // If it's an expanded format with subject names after the code
+        if (combinationCode.includes('-')) {
+          const [code, subjectsStr] = combinationCode.split('-');
+          const subjects = subjectsStr.split(',').map(s => s.trim());
+
+          for (const subject of subjects) {
+            extractedSubjects.push({
+              subject: { name: subject },
+              marks: null,
+              fromCombination: true
+            });
+          }
+        } else {
+          // Standard format: extract from each character
+          for (const char of combinationCode) {
+            if (combinationMap[char]) {
+              const subjectName = combinationMap[char];
+              extractedSubjects.push({
                 subject: { name: subjectName },
-                marks: null // No marks available from combination code
+                marks: null,
+                fromCombination: true
               });
             }
           }
         }
+
+        return extractedSubjects;
+      };
+
+      // Process combination from different possible formats
+      let combinationSubjects = [];
+
+      // Direct combination property
+      if (student.combination) {
+        if (typeof student.combination === 'string') {
+          combinationSubjects = extractSubjectsFromCombination(student.combination);
+        } else if (typeof student.combination === 'object' && student.combination !== null) {
+          // Handle object format: { code: 'PCM', name: 'Physics, Chemistry, Mathematics' }
+          if (student.combination.code) {
+            combinationSubjects = extractSubjectsFromCombination(student.combination.code);
+          } else if (student.combination.name) {
+            combinationSubjects = extractSubjectsFromCombination(student.combination.name);
+          }
+        }
       }
+
+      // Alternative combination properties
+      if (combinationSubjects.length === 0) {
+        if (student.subjectCombination) {
+          if (typeof student.subjectCombination === 'string') {
+            combinationSubjects = extractSubjectsFromCombination(student.subjectCombination);
+          } else if (typeof student.subjectCombination === 'object' && student.subjectCombination !== null) {
+            if (student.subjectCombination.code) {
+              combinationSubjects = extractSubjectsFromCombination(student.subjectCombination.code);
+            } else if (student.subjectCombination.name) {
+              combinationSubjects = extractSubjectsFromCombination(student.subjectCombination.name);
+            }
+          }
+        } else if (student.combinationCode) {
+          combinationSubjects = extractSubjectsFromCombination(student.combinationCode);
+        }
+      }
+
+      // Add combination subjects to subjectResults if they don't already exist
+      for (const combinationSubject of combinationSubjects) {
+        const subjectName = combinationSubject.subject.name;
+        // Check if this subject is already in the subjectResults array
+        const exists = subjectResults.some(s =>
+          (s.subject?.name === subjectName) ||
+          (s.name === subjectName) ||
+          (s === subjectName)
+        );
+
+        if (!exists) {
+          console.log(`Adding subject ${subjectName} from combination`);
+          subjectResults.push(combinationSubject);
+        }
+      }
+
+      // STEP 4: Final normalization to ensure consistent structure
 
       // Ensure each subject has the proper structure
       subjectResults = subjectResults.map(subject => {
+        // Handle string subjects
         if (typeof subject === 'string') {
           return { subject: { name: subject }, marks: null };
         }
+
+        // Handle subjects with name but no subject property
         if (!subject.subject && subject.name) {
-          return { subject: { name: subject.name }, marks: subject.marks || subject.marksObtained || null };
+          return {
+            subject: { name: subject.name },
+            marks: subject.marks || subject.marksObtained || null,
+            grade: subject.grade || null,
+            points: subject.points || null
+          };
         }
-        return subject;
+
+        // Handle subjects with subject as string
+        if (typeof subject.subject === 'string') {
+          return {
+            subject: { name: subject.subject },
+            marks: subject.marks || subject.marksObtained || null,
+            grade: subject.grade || null,
+            points: subject.points || null
+          };
+        }
+
+        // Ensure subject has all required properties
+        return {
+          subject: subject.subject || { name: 'Unknown Subject' },
+          marks: subject.marks || subject.marksObtained || null,
+          grade: subject.grade || null,
+          points: subject.points || null,
+          ...subject  // Keep any other properties
+        };
       });
 
-      console.log('Normalized subjectResults:', subjectResults);
+      // Remove duplicate subjects (prefer ones with marks)
+      const uniqueSubjects = [];
+      const subjectMap = new Map();
+
+      // First pass: collect all subjects by name
+      for (const subject of subjectResults) {
+        const subjectName = subject.subject?.name;
+        if (!subjectName) continue;
+
+        if (!subjectMap.has(subjectName)) {
+          subjectMap.set(subjectName, []);
+        }
+        subjectMap.get(subjectName).push(subject);
+      }
+
+      // Second pass: for each subject name, pick the best entry
+      for (const [subjectName, subjects] of subjectMap.entries()) {
+        // Sort by priority: has marks > has grade > from combination
+        subjects.sort((a, b) => {
+          // Prefer subjects with marks
+          if (a.marks !== null && b.marks === null) return -1;
+          if (a.marks === null && b.marks !== null) return 1;
+
+          // Then prefer subjects with grades
+          if (a.grade && !b.grade) return -1;
+          if (!a.grade && b.grade) return 1;
+
+          // Then prefer subjects not from combination
+          if (!a.fromCombination && b.fromCombination) return -1;
+          if (a.fromCombination && !b.fromCombination) return 1;
+
+          return 0;
+        });
+
+        // Add the best entry to the unique subjects list
+        uniqueSubjects.push(subjects[0]);
+      }
+
+      console.log('Normalized and deduplicated subjectResults:', uniqueSubjects);
+
+      // STEP 5: Ensure student has all expected properties
+
+      // Extract first and last name if available
+      let firstName = student.firstName || '';
+      let lastName = student.lastName || '';
+
+      // If we have a full name but not first/last, try to split it
+      if ((!firstName || !lastName) && student.name && typeof student.name === 'string') {
+        const nameParts = student.name.split(' ');
+        if (nameParts.length >= 2) {
+          firstName = firstName || nameParts[0];
+          lastName = lastName || nameParts.slice(1).join(' ');
+        }
+      }
 
       // Ensure student has the expected properties
       return {
         ...student,
         id: student.id || student._id || student.studentId,
-        studentName: student.studentName || `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.name,
+        studentName: student.studentName || `${firstName} ${lastName}`.trim() || student.name,
+        firstName: firstName,
+        lastName: lastName,
         sex: student.sex || student.gender || '-',
         points: student.points || student.totalPoints || '-',
         division: student.division || '-',
-        // Ensure subjectResults exists
-        subjectResults: subjectResults
+        combination: student.combination || student.subjectCombination || student.combinationCode || '',
+        form: student.form || (student.className?.includes('5') ? '5' : student.className?.includes('6') ? '6' : ''),
+        // Use the deduplicated subject results
+        subjectResults: uniqueSubjects
       };
     });
 
@@ -245,6 +573,9 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
         const data = response.data;
         console.log('Raw API response (fallback):', data);
 
+        // Log detailed structure of the fallback API response
+        logApiResponseStructure(data, 'Fallback API');
+
         // Ensure students array exists
         if (!data.students) {
           data.students = [];
@@ -269,26 +600,139 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
           // Ensure subjectResults exists and is properly formatted
           let subjectResults = [];
 
+          // Use the same normalization logic as the primary endpoint
+          // STEP 1: Extract subject results from all possible sources
+
           // Handle different formats of subject results
           if (Array.isArray(student.subjectResults)) {
             console.log('Student has subjectResults array (fallback):', student.subjectResults);
-            subjectResults = [...subjectResults, ...student.subjectResults];
+            // Process each subject result to ensure consistent format
+            const processedResults = student.subjectResults.map(result => {
+              // If result is already in the expected format, return it
+              if (result.subject?.name && result.marks !== undefined) {
+                return result;
+              }
+
+              // If result has a subject property that's a string, convert to expected format
+              if (typeof result.subject === 'string') {
+                return {
+                  subject: { name: result.subject },
+                  marks: result.marks || result.marksObtained || null
+                };
+              }
+
+              // If result has a name property, use that as the subject name
+              if (result.name) {
+                return {
+                  subject: { name: result.name },
+                  marks: result.marks || result.marksObtained || null
+                };
+              }
+
+              // If result is a string, assume it's the subject name
+              if (typeof result === 'string') {
+                return {
+                  subject: { name: result },
+                  marks: null
+                };
+              }
+
+              // Default case: return the result as is
+              return result;
+            });
+
+            subjectResults = [...subjectResults, ...processedResults];
           }
 
+          // Handle subjects array (similar to subjectResults)
           if (Array.isArray(student.subjects)) {
             console.log('Student has subjects array (fallback):', student.subjects);
-            subjectResults = [...subjectResults, ...student.subjects];
+            const processedSubjects = student.subjects.map(subject => {
+              // If subject is a string, convert to expected format
+              if (typeof subject === 'string') {
+                return {
+                  subject: { name: subject },
+                  marks: null
+                };
+              }
+
+              // If subject has a name property, use that as the subject name
+              if (subject.name) {
+                return {
+                  subject: { name: subject.name },
+                  marks: subject.marks || subject.marksObtained || null
+                };
+              }
+
+              // If subject has a subject property that's a string, convert to expected format
+              if (typeof subject.subject === 'string') {
+                return {
+                  subject: { name: subject.subject },
+                  marks: subject.marks || subject.marksObtained || null
+                };
+              }
+
+              // Default case: return the subject as is
+              return subject;
+            });
+
+            subjectResults = [...subjectResults, ...processedSubjects];
           }
 
+          // Handle results array (this is the most common format from the backend)
           if (Array.isArray(student.results)) {
             console.log('Student has results array (fallback):', student.results);
-            subjectResults = [...subjectResults, ...student.results];
+            const processedResults = student.results.map(result => {
+              // If result already has subject.name, return it
+              if (result.subject?.name) {
+                return {
+                  subject: result.subject,
+                  marks: result.marks || result.marksObtained || null
+                };
+              }
+
+              // If result has a subject property that's a string, convert to expected format
+              if (typeof result.subject === 'string') {
+                return {
+                  subject: { name: result.subject },
+                  marks: result.marks || result.marksObtained || null
+                };
+              }
+
+              // If result has a subjectName property, use that
+              if (result.subjectName) {
+                return {
+                  subject: { name: result.subjectName },
+                  marks: result.marks || result.marksObtained || null
+                };
+              }
+
+              // If result has a name property, use that as the subject name
+              if (result.name) {
+                return {
+                  subject: { name: result.name },
+                  marks: result.marks || result.marksObtained || null
+                };
+              }
+
+              // Default case: return the result as is
+              return result;
+            });
+
+            subjectResults = [...subjectResults, ...processedResults];
           }
+
+          // STEP 2: Handle special cases
 
           // Handle case where results is an object with subject names as keys
           if (student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
             console.log('Student has results object (fallback):', student.results);
             for (const [key, value] of Object.entries(student.results)) {
+              // Skip if not a subject (e.g., metadata fields)
+              if (['id', '_id', 'studentId', 'examId', 'classId'].includes(key)) {
+                continue;
+              }
+
               subjectResults.push({
                 subject: { name: key },
                 marks: value
@@ -313,9 +757,14 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
             }
           }
 
+          // STEP 3: Extract subjects from combination code
+
           // Check for subjects in the combination property
-          if (student.combination && typeof student.combination === 'string') {
-            console.log('Student has combination (fallback):', student.combination);
+          const extractSubjectsFromCombination = (combinationCode) => {
+            if (!combinationCode || typeof combinationCode !== 'string') return [];
+
+            console.log('Extracting subjects from combination (fallback):', combinationCode);
+
             // Extract subjects from combination code (e.g., PCM -> Physics, Chemistry, Mathematics)
             const combinationMap = {
               'P': 'Physics',
@@ -329,50 +778,200 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
               'E': 'Economics'
             };
 
-            for (const char of student.combination) {
-              if (combinationMap[char]) {
-                const subjectName = combinationMap[char];
-                // Check if this subject is already in the subjectResults array
-                const exists = subjectResults.some(s =>
-                  (s.subject?.name === subjectName) ||
-                  (s.name === subjectName) ||
-                  (s === subjectName)
-                );
+            const extractedSubjects = [];
 
-                if (!exists) {
-                  console.log(`Adding subject ${subjectName} from combination ${student.combination} (fallback)`);
-                  subjectResults.push({
+            // Handle common combination formats
+            // 1. Standard format: PCM, HKL, etc.
+            // 2. Expanded format: PCM-Physics,Chemistry,Mathematics
+            // 3. Object format: { code: 'PCM', name: 'Physics, Chemistry, Mathematics' }
+
+            // If it's an expanded format with subject names after the code
+            if (combinationCode.includes('-')) {
+              const [code, subjectsStr] = combinationCode.split('-');
+              const subjects = subjectsStr.split(',').map(s => s.trim());
+
+              for (const subject of subjects) {
+                extractedSubjects.push({
+                  subject: { name: subject },
+                  marks: null,
+                  fromCombination: true
+                });
+              }
+            } else {
+              // Standard format: extract from each character
+              for (const char of combinationCode) {
+                if (combinationMap[char]) {
+                  const subjectName = combinationMap[char];
+                  extractedSubjects.push({
                     subject: { name: subjectName },
-                    marks: null // No marks available from combination code
+                    marks: null,
+                    fromCombination: true
                   });
                 }
               }
             }
+
+            return extractedSubjects;
+          };
+
+          // Process combination from different possible formats
+          let combinationSubjects = [];
+
+          // Direct combination property
+          if (student.combination) {
+            if (typeof student.combination === 'string') {
+              combinationSubjects = extractSubjectsFromCombination(student.combination);
+            } else if (typeof student.combination === 'object' && student.combination !== null) {
+              // Handle object format: { code: 'PCM', name: 'Physics, Chemistry, Mathematics' }
+              if (student.combination.code) {
+                combinationSubjects = extractSubjectsFromCombination(student.combination.code);
+              } else if (student.combination.name) {
+                combinationSubjects = extractSubjectsFromCombination(student.combination.name);
+              }
+            }
           }
+
+          // Alternative combination properties
+          if (combinationSubjects.length === 0) {
+            if (student.subjectCombination) {
+              if (typeof student.subjectCombination === 'string') {
+                combinationSubjects = extractSubjectsFromCombination(student.subjectCombination);
+              } else if (typeof student.subjectCombination === 'object' && student.subjectCombination !== null) {
+                if (student.subjectCombination.code) {
+                  combinationSubjects = extractSubjectsFromCombination(student.subjectCombination.code);
+                } else if (student.subjectCombination.name) {
+                  combinationSubjects = extractSubjectsFromCombination(student.subjectCombination.name);
+                }
+              }
+            } else if (student.combinationCode) {
+              combinationSubjects = extractSubjectsFromCombination(student.combinationCode);
+            }
+          }
+
+          // Add combination subjects to subjectResults if they don't already exist
+          for (const combinationSubject of combinationSubjects) {
+            const subjectName = combinationSubject.subject.name;
+            // Check if this subject is already in the subjectResults array
+            const exists = subjectResults.some(s =>
+              (s.subject?.name === subjectName) ||
+              (s.name === subjectName) ||
+              (s === subjectName)
+            );
+
+            if (!exists) {
+              console.log(`Adding subject ${subjectName} from combination (fallback)`);
+              subjectResults.push(combinationSubject);
+            }
+          }
+
+          // STEP 4: Final normalization to ensure consistent structure
 
           // Ensure each subject has the proper structure
           subjectResults = subjectResults.map(subject => {
+            // Handle string subjects
             if (typeof subject === 'string') {
               return { subject: { name: subject }, marks: null };
             }
+
+            // Handle subjects with name but no subject property
             if (!subject.subject && subject.name) {
-              return { subject: { name: subject.name }, marks: subject.marks || subject.marksObtained || null };
+              return {
+                subject: { name: subject.name },
+                marks: subject.marks || subject.marksObtained || null,
+                grade: subject.grade || null,
+                points: subject.points || null
+              };
             }
-            return subject;
+
+            // Handle subjects with subject as string
+            if (typeof subject.subject === 'string') {
+              return {
+                subject: { name: subject.subject },
+                marks: subject.marks || subject.marksObtained || null,
+                grade: subject.grade || null,
+                points: subject.points || null
+              };
+            }
+
+            // Ensure subject has all required properties
+            return {
+              subject: subject.subject || { name: 'Unknown Subject' },
+              marks: subject.marks || subject.marksObtained || null,
+              grade: subject.grade || null,
+              points: subject.points || null,
+              ...subject  // Keep any other properties
+            };
           });
 
-          console.log('Normalized subjectResults (fallback):', subjectResults);
+          // Remove duplicate subjects (prefer ones with marks)
+          const uniqueSubjects = [];
+          const subjectMap = new Map();
+
+          // First pass: collect all subjects by name
+          for (const subject of subjectResults) {
+            const subjectName = subject.subject?.name;
+            if (!subjectName) continue;
+
+            if (!subjectMap.has(subjectName)) {
+              subjectMap.set(subjectName, []);
+            }
+            subjectMap.get(subjectName).push(subject);
+          }
+
+          // Second pass: for each subject name, pick the best entry
+          for (const [subjectName, subjects] of subjectMap.entries()) {
+            // Sort by priority: has marks > has grade > from combination
+            subjects.sort((a, b) => {
+              // Prefer subjects with marks
+              if (a.marks !== null && b.marks === null) return -1;
+              if (a.marks === null && b.marks !== null) return 1;
+
+              // Then prefer subjects with grades
+              if (a.grade && !b.grade) return -1;
+              if (!a.grade && b.grade) return 1;
+
+              // Then prefer subjects not from combination
+              if (!a.fromCombination && b.fromCombination) return -1;
+              if (a.fromCombination && !b.fromCombination) return 1;
+
+              return 0;
+            });
+
+            // Add the best entry to the unique subjects list
+            uniqueSubjects.push(subjects[0]);
+          }
+
+          console.log('Normalized and deduplicated subjectResults (fallback):', uniqueSubjects);
+
+          // STEP 5: Ensure student has all expected properties
+
+          // Extract first and last name if available
+          let firstName = student.firstName || '';
+          let lastName = student.lastName || '';
+
+          // If we have a full name but not first/last, try to split it
+          if ((!firstName || !lastName) && student.name && typeof student.name === 'string') {
+            const nameParts = student.name.split(' ');
+            if (nameParts.length >= 2) {
+              firstName = firstName || nameParts[0];
+              lastName = lastName || nameParts.slice(1).join(' ');
+            }
+          }
 
           // Ensure student has the expected properties
           return {
             ...student,
             id: student.id || student._id || student.studentId,
-            studentName: student.studentName || `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.name,
+            studentName: student.studentName || `${firstName} ${lastName}`.trim() || student.name,
+            firstName: firstName,
+            lastName: lastName,
             sex: student.sex || student.gender || '-',
             points: student.points || student.totalPoints || '-',
             division: student.division || '-',
-            // Ensure subjectResults exists
-            subjectResults: subjectResults
+            combination: student.combination || student.subjectCombination || student.combinationCode || '',
+            form: student.form || (student.className?.includes('5') ? '5' : student.className?.includes('6') ? '6' : ''),
+            // Use the deduplicated subject results
+            subjectResults: uniqueSubjects
           };
         });
 

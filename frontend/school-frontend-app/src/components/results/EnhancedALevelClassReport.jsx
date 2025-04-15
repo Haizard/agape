@@ -390,10 +390,37 @@ const EnhancedALevelClassReport = ({
         sex: '-',
         points: '-',
         division: '-',
-        subjectResults: [],
+        subjectResults: [
+          // Add placeholder subject results to show structure
+          { subject: { name: 'General Studies' }, marks: null },
+          { subject: { name: 'Physics' }, marks: null },
+          { subject: { name: 'Chemistry' }, marks: null },
+          { subject: { name: 'Mathematics' }, marks: null }
+        ],
         totalMarks: '-',
         averageMarks: '-',
-        rank: '-'
+        rank: '-',
+        combination: 'PCM',
+        form: '5'
+      },
+      {
+        id: 'placeholder-2',
+        studentName: 'Sample Student',
+        sex: 'F',
+        points: '-',
+        division: '-',
+        subjectResults: [
+          // Add placeholder subject results to show structure
+          { subject: { name: 'General Studies' }, marks: null },
+          { subject: { name: 'History' }, marks: null },
+          { subject: { name: 'Kiswahili' }, marks: null },
+          { subject: { name: 'Literature' }, marks: null }
+        ],
+        totalMarks: '-',
+        averageMarks: '-',
+        rank: '-',
+        combination: 'HKL',
+        form: '6'
       }
     ],
     subjects: [
@@ -407,12 +434,24 @@ const EnhancedALevelClassReport = ({
       { id: 'geo', name: 'Geography' },
       { id: 'eng', name: 'English' },
       { id: 'bam', name: 'BAM' },
-      { id: 'econ', name: 'Economics' }
+      { id: 'econ', name: 'Economics' },
+      { id: 'lit', name: 'Literature' }
     ],
     divisionSummary: { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 },
     subjectPerformance: {},
     overallPerformance: { totalPassed: 0, examGpa: 'N/A' }
   };
+
+  // If no data, update the error message to be more informative
+  if (!processedData && !reportError) {
+    setReportError(
+      'No data available for this report. This could be because:\n' +
+      '1. No marks have been entered for this class and exam\n' +
+      '2. The class or exam may not exist\n' +
+      '3. There may be an issue with the API connection\n\n' +
+      'Showing placeholder structure for reference.'
+    );
+  }
 
   // Filter students based on selected form and combination
   const filteredStudents = reportData.students?.filter(student => {
@@ -504,8 +543,26 @@ const EnhancedALevelClassReport = ({
   const allSubjects = new Set();
 
   // Debug the report data structure
+  console.log('%cReport Data Structure Analysis', 'background: #4CAF50; color: white; padding: 2px 5px; border-radius: 3px;');
   console.log('Report Data:', reportData);
   console.log('Students:', reportData.students);
+
+  // Log detailed structure of the first student if available
+  if (reportData.students && reportData.students.length > 0) {
+    const sampleStudent = reportData.students[0];
+    console.log('Sample student keys:', Object.keys(sampleStudent));
+
+    if (sampleStudent.subjectResults) {
+      console.log('Sample student subjectResults:',
+        Array.isArray(sampleStudent.subjectResults)
+          ? `Array with ${sampleStudent.subjectResults.length} items`
+          : typeof sampleStudent.subjectResults);
+
+      if (Array.isArray(sampleStudent.subjectResults) && sampleStudent.subjectResults.length > 0) {
+        console.log('Sample subjectResult item:', sampleStudent.subjectResults[0]);
+      }
+    }
+  }
 
   // First, check if the API returned a list of subjects directly
   if (reportData.subjects && reportData.subjects.length > 0) {
@@ -642,17 +699,52 @@ const EnhancedALevelClassReport = ({
 
   // If no subjects found, add placeholder subjects for A-Level
   if (allSubjects.size === 0) {
+    console.warn('No subjects found in the data, adding placeholder subjects');
+
     // Add common A-Level subjects as placeholders
-    const commonSubjects = ['General Studies', 'History', 'Physics', 'Chemistry', 'Kiswahili', 'Advanced Mathematics',
-     'Biology', 'Geography', 'English', 'BAM', 'Economics'];
+    const commonSubjects = [
+      'General Studies',
+      'History',
+      'Physics',
+      'Chemistry',
+      'Kiswahili',
+      'Advanced Mathematics',
+      'Biology',
+      'Geography',
+      'English',
+      'BAM',
+      'Economics',
+      'Literature'
+    ];
 
     for (const subj of commonSubjects) {
       allSubjects.add(subj);
     }
   }
 
+  // Add combination-specific subjects based on the selected combination filter
+  if (selectedCombination !== 'all') {
+    const combinationSubjects = {
+      'PCM': ['Physics', 'Chemistry', 'Mathematics', 'Advanced Mathematics'],
+      'PCB': ['Physics', 'Chemistry', 'Biology'],
+      'HKL': ['History', 'Kiswahili', 'Literature', 'English Literature'],
+      'HGE': ['History', 'Geography', 'Economics'],
+      'EGM': ['Economics', 'Geography', 'Mathematics', 'Advanced Mathematics']
+    };
+
+    // Add the subjects for the selected combination if they don't already exist
+    if (combinationSubjects[selectedCombination]) {
+      for (const subj of combinationSubjects[selectedCombination]) {
+        allSubjects.add(subj);
+      }
+    }
+  }
+
   // Convert to array and sort alphabetically
   const uniqueSubjects = Array.from(allSubjects).sort();
+
+  // Log the final list of subjects
+  console.log('Final list of subjects to display:', uniqueSubjects);
 
   return (
     <Box id="enhanced-a-level-report-container" className="enhanced-a-level-class-report" sx={{ p: 2 }}>
@@ -918,60 +1010,92 @@ const EnhancedALevelClassReport = ({
                       {/* Subject Marks - All possible subjects */}
                       {uniqueSubjects.map((subjectName) => {
                         // Find the subject result for this student
-                        // Handle different API response formats
-                        let subjectResult;
+                        // This function is optimized to find subject results in any format
+                        const findSubjectResult = (student, subjectName) => {
+                          // Debug the subject search
+                          console.log(`Looking for subject ${subjectName} for student ${student.studentName || student.id}`);
 
-                        // Debug the subject search
-                        console.log(`Looking for subject ${subjectName} for student ${student.studentName || student.id}`);
+                          // STEP 1: Check in subjectResults array (normalized format)
+                          if (Array.isArray(student.subjectResults)) {
+                            const result = student.subjectResults.find(r => {
+                              // Check for exact match in subject.name
+                              if (r.subject?.name === subjectName) return true;
 
-                        // Try different formats
-                        if (Array.isArray(student.subjectResults)) {
-                          subjectResult = student.subjectResults.find(r =>
-                            r.subject?.name === subjectName ||
-                            r.subject === subjectName ||
-                            r.name === subjectName
-                          );
-                          console.log('From subjectResults array:', subjectResult);
-                        }
+                              // Check for match in subject as string
+                              if (r.subject === subjectName) return true;
 
-                        if (!subjectResult && Array.isArray(student.subjects)) {
-                          subjectResult = student.subjects.find(r =>
-                            r.name === subjectName ||
-                            r.subject?.name === subjectName ||
-                            r.subject === subjectName
-                          );
-                          console.log('From subjects array:', subjectResult);
-                        }
+                              // Check for match in name property
+                              if (r.name === subjectName) return true;
 
-                        if (!subjectResult && Array.isArray(student.results)) {
-                          subjectResult = student.results.find(r =>
-                            r.subject?.name === subjectName ||
-                            r.subject === subjectName ||
-                            r.name === subjectName
-                          );
-                          console.log('From results array:', subjectResult);
-                        }
+                              // Check for partial match (case insensitive)
+                              if (r.subject?.name && typeof r.subject.name === 'string' &&
+                                  r.subject.name.toLowerCase().includes(subjectName.toLowerCase())) {
+                                return true;
+                              }
 
-                        // Check if student has a 'results' property that's an object with subject names as keys
-                        if (!subjectResult && student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
-                          if (student.results[subjectName] !== undefined) {
-                            subjectResult = {
-                              subject: { name: subjectName },
-                              marks: student.results[subjectName]
-                            };
-                            console.log('From results object:', subjectResult);
+                              return false;
+                            });
+
+                            if (result) {
+                              console.log('Found in subjectResults array:', result);
+                              return result;
+                            }
                           }
-                        }
 
-                        // Check if the subject is directly in the student object
-                        if (!subjectResult && student[subjectName] !== undefined) {
-                          subjectResult = { marks: student[subjectName] };
-                          console.log('From student direct property:', subjectResult);
-                        }
+                          // STEP 2: Check in subjects array
+                          if (Array.isArray(student.subjects)) {
+                            const result = student.subjects.find(r => {
+                              if (r.name === subjectName) return true;
+                              if (r.subject?.name === subjectName) return true;
+                              if (r.subject === subjectName) return true;
+                              return false;
+                            });
 
-                        // Check for subject with different casing or formatting
-                        if (!subjectResult) {
-                          // Try different variations of the subject name
+                            if (result) {
+                              console.log('Found in subjects array:', result);
+                              return result;
+                            }
+                          }
+
+                          // STEP 3: Check in results array
+                          if (Array.isArray(student.results)) {
+                            const result = student.results.find(r => {
+                              if (r.subject?.name === subjectName) return true;
+                              if (r.subject === subjectName) return true;
+                              if (r.name === subjectName) return true;
+                              return false;
+                            });
+
+                            if (result) {
+                              console.log('Found in results array:', result);
+                              return result;
+                            }
+                          }
+
+                          // STEP 4: Check if results is an object with subject names as keys
+                          if (student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
+                            if (student.results[subjectName] !== undefined) {
+                              const result = {
+                                subject: { name: subjectName },
+                                marks: student.results[subjectName]
+                              };
+                              console.log('Found in results object:', result);
+                              return result;
+                            }
+                          }
+
+                          // STEP 5: Check if subject is directly in student object
+                          if (student[subjectName] !== undefined) {
+                            const result = {
+                              subject: { name: subjectName },
+                              marks: student[subjectName]
+                            };
+                            console.log('Found as direct property:', result);
+                            return result;
+                          }
+
+                          // STEP 6: Try variations and abbreviations
+                          // Define common variations and abbreviations
                           const variations = [
                             subjectName.toLowerCase(),
                             subjectName.toUpperCase(),
@@ -992,59 +1116,89 @@ const EnhancedALevelClassReport = ({
                             'Geography': ['GEO', 'GEOG'],
                             'English': ['ENG', 'ENGL'],
                             'BAM': ['B.A.M', 'BookKeeping', 'Accounting'],
-                            'Economics': ['ECON', 'ECO']
+                            'Economics': ['ECON', 'ECO'],
+                            'Literature': ['LIT', 'LITE']
                           };
 
                           if (abbreviationMap[subjectName]) {
                             variations.push(...abbreviationMap[subjectName]);
                           }
 
+                          // Check all variations
                           for (const variation of variations) {
-                            // Check direct property
+                            // Check as direct property
                             if (student[variation] !== undefined) {
-                              subjectResult = { marks: student[variation] };
-                              console.log(`Found subject using variation ${variation} as direct property:`, subjectResult);
-                              break;
+                              const result = {
+                                subject: { name: subjectName },
+                                marks: student[variation]
+                              };
+                              console.log(`Found using variation ${variation} as direct property:`, result);
+                              return result;
                             }
 
                             // Check in results object
                             if (student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
                               if (student.results[variation] !== undefined) {
-                                subjectResult = {
+                                const result = {
                                   subject: { name: subjectName },
                                   marks: student.results[variation]
                                 };
-                                console.log(`Found subject using variation ${variation} in results object:`, subjectResult);
-                                break;
+                                console.log(`Found using variation ${variation} in results object:`, result);
+                                return result;
+                              }
+                            }
+
+                            // Check in subjectResults array with variation
+                            if (Array.isArray(student.subjectResults)) {
+                              const result = student.subjectResults.find(r => {
+                                if (r.subject?.name === variation) return true;
+                                if (r.subject === variation) return true;
+                                if (r.name === variation) return true;
+                                return false;
+                              });
+
+                              if (result) {
+                                console.log(`Found in subjectResults using variation ${variation}:`, result);
+                                return result;
                               }
                             }
                           }
-                        }
 
-                        // Try to extract from combination code if still not found
-                        if (!subjectResult && student.combination && typeof student.combination === 'string') {
-                          const combinationMap = {
-                            'P': 'Physics',
-                            'C': 'Chemistry',
-                            'M': 'Mathematics',
-                            'B': 'Biology',
-                            'G': 'Geography',
-                            'H': 'History',
-                            'K': 'Kiswahili',
-                            'L': 'Literature',
-                            'E': 'Economics'
-                          };
+                          // STEP 7: Check if subject is part of combination
+                          if (student.combination && typeof student.combination === 'string') {
+                            const combinationMap = {
+                              'P': 'Physics',
+                              'C': 'Chemistry',
+                              'M': 'Mathematics',
+                              'B': 'Biology',
+                              'G': 'Geography',
+                              'H': 'History',
+                              'K': 'Kiswahili',
+                              'L': 'Literature',
+                              'E': 'Economics'
+                            };
 
-                          // Check if this subject is part of the combination
-                          for (const [code, name] of Object.entries(combinationMap)) {
-                            if (name === subjectName && student.combination.includes(code)) {
-                              // Subject is part of combination but no marks available
-                              subjectResult = { marks: null };
-                              console.log(`Subject ${subjectName} found in combination ${student.combination}:`, subjectResult);
-                              break;
+                            // Check if this subject is part of the combination
+                            for (const [code, name] of Object.entries(combinationMap)) {
+                              if (name === subjectName && student.combination.includes(code)) {
+                                const result = {
+                                  subject: { name: subjectName },
+                                  marks: null,
+                                  fromCombination: true
+                                };
+                                console.log(`Subject ${subjectName} found in combination ${student.combination}:`, result);
+                                return result;
+                              }
                             }
                           }
-                        }
+
+                          // Subject not found
+                          console.log(`Subject ${subjectName} not found for student ${student.studentName || student.id}`);
+                          return null;
+                        };
+
+                        // Find the subject result
+                        const subjectResult = findSubjectResult(student, subjectName);
 
                         // Get the marks, handling missing values and different formats
                         const marks = subjectResult?.marks ||
