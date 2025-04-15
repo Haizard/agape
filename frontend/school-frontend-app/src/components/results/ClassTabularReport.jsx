@@ -31,6 +31,7 @@ import {
   Print as PrintIcon,
   Download as DownloadIcon
 } from '@mui/icons-material';
+import ReliablePdfDownload from '../common/ReliablePdfDownload';
 
 import './ClassTabularReport.css';
 
@@ -1362,43 +1363,6 @@ const ClassTabularReport = () => {
     window.print();
   };
 
-  // Download report as PDF
-  const handleDownload = () => {
-    // Use the PDF generation endpoint
-    let pdfUrl;
-    // Determine education level from class data
-    const classEducationLevel = classData?.educationLevel || 'O_LEVEL';
-
-    // Try multiple endpoints with fallbacks
-    try {
-      if (classEducationLevel === 'A_LEVEL') {
-        // For A-Level, use the A-Level specific endpoint
-        pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-results/class/${classId}/${examId}`;
-      } else {
-        // For O-Level, use the O-Level specific endpoint
-        pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/class/${classId}/${examId}`;
-      }
-      console.log(`Downloading PDF from: ${pdfUrl}`);
-      window.open(pdfUrl, '_blank');
-
-      // Set up a fallback in case the primary endpoint fails
-      setTimeout(() => {
-        // Check if the user confirmed they want to try a fallback
-        const tryFallback = window.confirm('If the PDF did not download correctly, would you like to try an alternative download method?');
-
-        if (tryFallback) {
-          // Use the simple download endpoint as a fallback
-          const fallbackUrl = `${process.env.REACT_APP_API_URL || ''}/api/download/class/${classId}/${examId}`;
-          console.log(`Trying fallback download from: ${fallbackUrl}`);
-          window.open(fallbackUrl, '_blank');
-        }
-      }, 3000); // Wait 3 seconds before offering the fallback
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-      alert('There was an error downloading the PDF. Please try again later.');
-    }
-  };
-
   // If loading, show loading indicator
   if (loading) {
     return (
@@ -1546,13 +1510,23 @@ const ClassTabularReport = () => {
           >
             Print Report
           </Button>
+          <ReliablePdfDownload
+            type={classData?.educationLevel === 'A_LEVEL' ? 'a-level' : 'o-level'}
+            classId={classId}
+            examId={examId}
+            label="Download PDF"
+          />
           <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<DownloadIcon />}
-            onClick={handleDownload}
+            variant="outlined"
+            color="primary"
+            onClick={() => {
+              // Ensure we're using the correct URL format
+              const printableUrl = `/public/printable-report/${classId}/${examId}`;
+              console.log(`Opening printable report: ${printableUrl}`);
+              window.open(printableUrl, '_blank');
+            }}
           >
-            Download PDF
+            Printable HTML Version
           </Button>
         </Box>
 

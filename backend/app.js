@@ -22,6 +22,7 @@ const comprehensiveReportRoutes = require('./routes/comprehensiveReportRoutes');
 const unifiedComprehensiveReportRoutes = require('./routes/unifiedComprehensiveReportRoutes');
 const marksHistoryRoutes = require('./routes/marksHistoryRoutes');
 const demoDataRoutes = require('./routes/demoDataRoutes');
+const publicReportRoutes = require('./routes/publicReportRoutes');
 
 const app = express();
 
@@ -98,6 +99,8 @@ app.use('/api/marks', checkMarksRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/finance/fee-schedules', feeScheduleRoutes);
 app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
+// Public routes - no authentication required
+app.use('/api/public', openCors, publicReportRoutes);
 // Marks history routes
 app.use('/api/marks-history', marksHistoryRoutes);
 // Legacy routes - will be deprecated in future versions

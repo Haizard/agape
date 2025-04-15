@@ -89,6 +89,7 @@ import UnifiedUserCreation from './components/admin/UnifiedUserCreation';
 import ClassTabularReport from './components/results/ClassTabularReport';
 import SingleStudentReport from './components/results/SingleStudentReport';
 import BulkReportDownloader from './components/results/BulkReportDownloader';
+import PrintableClassReport from './components/results/PrintableClassReport';
 import ALevelMarksEntry from './components/results/ALevelMarksEntry';
 import OLevelMarksEntry from './components/results/OLevelMarksEntry';
 import ALevelFormSpecificReport from './components/results/ALevelFormSpecificReport';
@@ -146,6 +147,7 @@ function App() {
               <Route path="/public">
                 <Route path="a-level-report/:classId/:examId" element={<PublicALevelReportContainer />} />
                 <Route path="reports" element={<ResultReportSelector />} />
+                <Route path="printable-report/:classId/:examId" element={<PrintableClassReport />} />
               </Route>
             </Routes>
 
@@ -253,6 +255,11 @@ function App() {
                     <Route path="/results/class-report/:classId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <ClassTabularReport />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/printable-report/:classId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'guest']}>
+                        <PrintableClassReport />
                       </ProtectedRoute>
                     } />
                     <Route path="/results/student-report/:studentId/:examId" element={
@@ -448,6 +455,7 @@ function App() {
                   <Route path="/register" element={<RegisterForm />} />
                   <Route path="/admin-registration" element={<AdminRegistration />} />
                   <Route path="/test-connection" element={<TestConnection />} />
+                  <Route path="/public/printable-report/:classId/:examId" element={<PrintableClassReport />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
                 <Footer />
