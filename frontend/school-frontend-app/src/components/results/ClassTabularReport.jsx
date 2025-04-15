@@ -742,6 +742,98 @@ const ClassTabularReport = () => {
                     }
                   } catch (levelSpecificError) {
                     console.error(`Error fetching marks from education level specific API for student ${student._id}:`, levelSpecificError);
+
+                    // As a last resort, try to fetch marks for individual subjects
+                    try {
+                      console.log(`Attempting to fetch individual subject marks for student ${student._id}`);
+
+                      // Get the student's combination code
+                      const combinationCode = student.combination || student.subjectCombination || student.combinationCode;
+
+                      if (combinationCode && typeof combinationCode === 'string' && combinationCode.length <= 5) {
+                        console.log(`Using combination code ${combinationCode} to fetch individual subject marks`);
+
+                        // Define the subject mapping
+                        const combinationMap = {
+                          'P': { code: 'PHY', name: 'Physics', isPrincipal: true },
+                          'C': { code: 'CHE', name: 'Chemistry', isPrincipal: true },
+                          'M': { code: 'MAT', name: 'Mathematics', isPrincipal: true },
+                          'B': { code: 'BIO', name: 'Biology', isPrincipal: true },
+                          'G': { code: 'GEO', name: 'Geography', isPrincipal: true },
+                          'H': { code: 'HIS', name: 'History', isPrincipal: true },
+                          'K': { code: 'KIS', name: 'Kiswahili', isPrincipal: true },
+                          'L': { code: 'LIT', name: 'Literature', isPrincipal: true },
+                          'E': { code: 'ECO', name: 'Economics', isPrincipal: true },
+                          'A': { code: 'BAM', name: 'Basic Applied Mathematics', isPrincipal: false },
+                          'S': { code: 'GS', name: 'General Studies', isPrincipal: false }
+                        };
+
+                        // Generate subjects from combination code
+                        const generatedSubjects = [];
+                        for (const char of combinationCode) {
+                          if (combinationMap[char]) {
+                            generatedSubjects.push({
+                              ...combinationMap[char],
+                              marks: null,
+                              grade: '-',
+                              points: 0
+                            });
+                          }
+                        }
+
+                        // Add General Studies (GS) if not already included
+                        if (!generatedSubjects.some(s => s.code === 'GS')) {
+                          generatedSubjects.push({
+                            code: 'GS',
+                            name: 'General Studies',
+                            isPrincipal: false,
+                            marks: null,
+                            grade: '-',
+                            points: 0
+                          });
+                        }
+
+                        // Try to fetch marks for each subject individually
+                        const subjectsWithMarks = await Promise.all(
+                          generatedSubjects.map(async (subject) => {
+                            try {
+                              // Try to fetch marks for this specific subject
+                              const subjectMarksUrl = `${process.env.REACT_APP_API_URL || ''}/api/marks?studentId=${student._id}&examId=${examId}&subjectCode=${subject.code}`;
+
+                              const subjectMarksResponse = await axios.get(subjectMarksUrl, {
+                                headers: {
+                                  'Accept': 'application/json',
+                                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                }
+                              });
+
+                              if (subjectMarksResponse.data && Array.isArray(subjectMarksResponse.data) && subjectMarksResponse.data.length > 0) {
+                                const subjectMark = subjectMarksResponse.data[0];
+                                console.log(`Found marks for subject ${subject.code}: ${subjectMark.marksObtained || subjectMark.marks}`);
+
+                                return {
+                                  ...subject,
+                                  marks: subjectMark.marksObtained || subjectMark.marks,
+                                  grade: subjectMark.grade || '-',
+                                  points: subjectMark.points || 0
+                                };
+                              }
+
+                              return subject;
+                            } catch (error) {
+                              console.error(`Error fetching marks for subject ${subject.code}:`, error);
+                              return subject;
+                            }
+                          })
+                        );
+
+                        // Update allSubjects with any marks we found
+                        allSubjects = subjectsWithMarks;
+                        console.log(`Generated ${allSubjects.length} subjects with individual marks lookups for student ${student._id}`);
+                      }
+                    } catch (individualSubjectError) {
+                      console.error(`Error fetching individual subject marks for student ${student._id}:`, individualSubjectError);
+                    }
                   }
                 }
               }
@@ -1630,79 +1722,77 @@ const ClassTabularReport = () => {
                 </TableCell>
                 {subjects.map((subject) => {
                   // Enhanced subject matching logic with debugging
-                  let studentSubject = (student.subjects || []).find(s => {
-                    // Try to match by code first (most reliable)
-                    if (s.code === subject.code) {
-                      console.log(`Found subject match by code: ${s.code}, marks: ${s.marks}`);
-                      return true;
-                    }
+                  let studentSubject = null;
 
-                    // Try to match by name property (case insensitive)
-                    const subjectName = s.name ||
-                                       (typeof s.subject === 'string' ? s.subject : '') ||
-                                       s.subject?.name ||
-                                       s.subjectName ||
-                                       '';
-
-                    if (subjectName && subject.name &&
-                        subjectName.toLowerCase() === subject.name.toLowerCase()) {
-                      console.log(`Found subject match by name: ${subjectName}, marks: ${s.marks}`);
-                      return true;
-                    }
-
-                    // Try to match Chemistry with CHE, Physics with PHY, etc.
-                    if (subject.code && subjectName) {
-                      // Check if the subject name starts with the code
-                      if (subjectName.toLowerCase().startsWith(subject.code.toLowerCase())) {
-                        console.log(`Found subject match by name starting with code: ${subjectName}, marks: ${s.marks}`);
+                  // First try to match in the subjects array
+                  if (student.subjects && Array.isArray(student.subjects)) {
+                    studentSubject = student.subjects.find(s => {
+                      // Try to match by code first (most reliable)
+                      if (s.code === subject.code) {
+                        console.log(`Found subject match by code in subjects array: ${s.code}, marks: ${s.marks || s.marksObtained}`);
                         return true;
                       }
 
-                      // Check if the code is an abbreviation of the name
-                      if (subject.code.length === 3) {
-                        const nameWords = subjectName.split(' ');
-                        if (nameWords.length === 1 &&
-                            subjectName.substring(0, 3).toLowerCase() === subject.code.toLowerCase()) {
-                          console.log(`Found subject match by abbreviation: ${subjectName}, marks: ${s.marks}`);
+                      // Try to match by name property (case insensitive)
+                      const subjectName = s.name ||
+                                         (typeof s.subject === 'string' ? s.subject : '') ||
+                                         s.subject?.name ||
+                                         s.subjectName ||
+                                         '';
+
+                      if (subjectName && subject.name &&
+                          subjectName.toLowerCase() === subject.name.toLowerCase()) {
+                        console.log(`Found subject match by name in subjects array: ${subjectName}, marks: ${s.marks || s.marksObtained}`);
+                        return true;
+                      }
+
+                      // Special case matching for common subjects
+                      const specialCases = {
+                        'PHY': ['Physics'],
+                        'CHE': ['Chemistry'],
+                        'MAT': ['Mathematics', 'Math'],
+                        'BIO': ['Biology'],
+                        'GEO': ['Geography'],
+                        'HIS': ['History'],
+                        'KIS': ['Kiswahili'],
+                        'LIT': ['Literature'],
+                        'ECO': ['Economics'],
+                        'GS': ['General Studies'],
+                        'BAM': ['Basic Applied Mathematics'],
+                        'ENG': ['English', 'English Language']
+                      };
+
+                      // Check if this is a special case match
+                      if (subject.code && specialCases[subject.code]) {
+                        if (specialCases[subject.code].some(name =>
+                            subjectName.toLowerCase() === name.toLowerCase())) {
+                          console.log(`Found subject match by special case in subjects array: ${subjectName} matches ${subject.code}, marks: ${s.marks || s.marksObtained}`);
                           return true;
                         }
                       }
-                    }
 
-                    // Special case matching for common subjects
-                    const specialCases = {
-                      'PHY': ['Physics'],
-                      'CHE': ['Chemistry'],
-                      'MAT': ['Mathematics', 'Math'],
-                      'BIO': ['Biology'],
-                      'GEO': ['Geography'],
-                      'HIS': ['History'],
-                      'KIS': ['Kiswahili'],
-                      'LIT': ['Literature'],
-                      'ECO': ['Economics'],
-                      'GS': ['General Studies'],
-                      'BAM': ['Basic Applied Mathematics'],
-                      'ENG': ['English', 'English Language']
-                    };
+                      return false;
+                    });
+                  }
 
-                    // Check if this is a special case match
-                    if (subject.code && specialCases[subject.code]) {
-                      if (specialCases[subject.code].some(name =>
-                          subjectName.toLowerCase() === name.toLowerCase())) {
-                        console.log(`Found subject match by special case: ${subjectName} matches ${subject.code}, marks: ${s.marks}`);
+                  // If no match found in subjects array, try looking in allSubjects
+                  if (!studentSubject && student.allSubjects && Array.isArray(student.allSubjects)) {
+                    console.log(`No match found in subjects array, trying allSubjects for ${subject.name}`);
+                    studentSubject = student.allSubjects.find(s => {
+                      if (s.code === subject.code || s.subjectCode === subject.code) {
+                        console.log(`Found subject in allSubjects by code: ${s.code || s.subjectCode}, marks: ${s.marks || s.marksObtained}`);
                         return true;
                       }
-                    }
 
-                    // Try partial matching (case insensitive)
-                    if (subjectName && subject.name &&
-                        subjectName.toLowerCase().includes(subject.name.toLowerCase())) {
-                      console.log(`Found subject match by partial name: ${subjectName}, marks: ${s.marks}`);
-                      return true;
-                    }
+                      const subjectName = s.name || s.subjectName || (typeof s.subject === 'string' ? s.subject : '') || s.subject?.name || '';
+                      if (subjectName && subject.name && subjectName.toLowerCase() === subject.name.toLowerCase()) {
+                        console.log(`Found subject in allSubjects by name: ${subjectName}, marks: ${s.marks || s.marksObtained}`);
+                        return true;
+                      }
 
-                    return false;
-                  });
+                      return false;
+                    });
+                  }
 
                   // If no match found in subjects, try looking in subjectResults as a fallback
                   if (!studentSubject && student.subjectResults && Array.isArray(student.subjectResults)) {
@@ -1756,6 +1846,47 @@ const ClassTabularReport = () => {
                     });
                   }
 
+                  // If still no match, try looking in principalSubjects and subsidiarySubjects
+                  if (!studentSubject) {
+                    // Check principalSubjects
+                    if (student.principalSubjects && Array.isArray(student.principalSubjects)) {
+                      console.log(`Checking principalSubjects for ${subject.name}`);
+                      studentSubject = student.principalSubjects.find(s => {
+                        if (s.code === subject.code || s.subjectCode === subject.code) {
+                          console.log(`Found subject in principalSubjects by code: ${s.code || s.subjectCode}, marks: ${s.marks || s.marksObtained || s.mark}`);
+                          return true;
+                        }
+
+                        const subjectName = s.name || s.subjectName || (typeof s.subject === 'string' ? s.subject : '') || s.subject?.name || '';
+                        if (subjectName && subject.name && subjectName.toLowerCase() === subject.name.toLowerCase()) {
+                          console.log(`Found subject in principalSubjects by name: ${subjectName}, marks: ${s.marks || s.marksObtained || s.mark}`);
+                          return true;
+                        }
+
+                        return false;
+                      });
+                    }
+
+                    // Check subsidiarySubjects
+                    if (!studentSubject && student.subsidiarySubjects && Array.isArray(student.subsidiarySubjects)) {
+                      console.log(`Checking subsidiarySubjects for ${subject.name}`);
+                      studentSubject = student.subsidiarySubjects.find(s => {
+                        if (s.code === subject.code || s.subjectCode === subject.code) {
+                          console.log(`Found subject in subsidiarySubjects by code: ${s.code || s.subjectCode}, marks: ${s.marks || s.marksObtained || s.mark}`);
+                          return true;
+                        }
+
+                        const subjectName = s.name || s.subjectName || (typeof s.subject === 'string' ? s.subject : '') || s.subject?.name || '';
+                        if (subjectName && subject.name && subjectName.toLowerCase() === subject.name.toLowerCase()) {
+                          console.log(`Found subject in subsidiarySubjects by name: ${subjectName}, marks: ${s.marks || s.marksObtained || s.mark}`);
+                          return true;
+                        }
+
+                        return false;
+                      });
+                    }
+                  }
+
                   // If still no match, try looking in results array as a last resort
                   if (!studentSubject && student.results && Array.isArray(student.results)) {
                     console.log(`No match found in subjects or subjectResults, trying results array for ${subject.name}`);
@@ -1793,16 +1924,46 @@ const ClassTabularReport = () => {
                           <div className="subject-marks">
                             {(() => {
                               // Try all possible marks properties
+                              let marks = null;
+
+                              // Log all available properties for debugging
+                              console.log('Subject data:', JSON.stringify(studentSubject));
+
+                              // First try numeric values
                               if (typeof studentSubject.marks === 'number') {
-                                return studentSubject.marks;
+                                marks = studentSubject.marks;
+                                console.log(`Using marks: ${marks}`);
+                              } else if (typeof studentSubject.marksObtained === 'number') {
+                                marks = studentSubject.marksObtained;
+                                console.log(`Using marksObtained: ${marks}`);
+                              } else if (typeof studentSubject.mark === 'number') {
+                                marks = studentSubject.mark;
+                                console.log(`Using mark: ${marks}`);
                               }
-                              if (typeof studentSubject.marksObtained === 'number') {
-                                return studentSubject.marksObtained;
+                              // Then try string values that can be converted to numbers
+                              else if (studentSubject.marks && !Number.isNaN(Number.parseFloat(studentSubject.marks))) {
+                                marks = Number.parseFloat(studentSubject.marks);
+                                console.log(`Using parsed marks: ${marks}`);
+                              } else if (studentSubject.marksObtained && !Number.isNaN(Number.parseFloat(studentSubject.marksObtained))) {
+                                marks = Number.parseFloat(studentSubject.marksObtained);
+                                console.log(`Using parsed marksObtained: ${marks}`);
+                              } else if (studentSubject.mark && !Number.isNaN(Number.parseFloat(studentSubject.mark))) {
+                                marks = Number.parseFloat(studentSubject.mark);
+                                console.log(`Using parsed mark: ${marks}`);
                               }
-                              if (typeof studentSubject.mark === 'number') {
-                                return studentSubject.mark;
+                              // Finally, try any non-null value
+                              else if (studentSubject.marks !== null && studentSubject.marks !== undefined) {
+                                marks = studentSubject.marks;
+                                console.log(`Using non-null marks: ${marks}`);
+                              } else if (studentSubject.marksObtained !== null && studentSubject.marksObtained !== undefined) {
+                                marks = studentSubject.marksObtained;
+                                console.log(`Using non-null marksObtained: ${marks}`);
+                              } else if (studentSubject.mark !== null && studentSubject.mark !== undefined) {
+                                marks = studentSubject.mark;
+                                console.log(`Using non-null mark: ${marks}`);
                               }
-                              return '-';
+
+                              return marks !== null ? marks : '-';
                             })()}
                           </div>
                           <div className="subject-grade">
