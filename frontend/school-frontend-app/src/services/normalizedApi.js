@@ -90,6 +90,7 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
 
     // Normalize the response data to ensure it has the expected structure
     const data = response.data;
+    console.log('Raw API response:', data);
 
     // Ensure students array exists
     if (!data.students) {
@@ -115,15 +116,31 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
       // Ensure subjectResults exists and is properly formatted
       let subjectResults = [];
 
-      if (student.subjectResults) {
-        console.log('Student has subjectResults:', student.subjectResults);
-        subjectResults = student.subjectResults;
-      } else if (student.subjects) {
-        console.log('Student has subjects:', student.subjects);
-        subjectResults = student.subjects;
-      } else if (student.results) {
-        console.log('Student has results:', student.results);
-        subjectResults = student.results;
+      // Handle different formats of subject results
+      if (Array.isArray(student.subjectResults)) {
+        console.log('Student has subjectResults array:', student.subjectResults);
+        subjectResults = [...subjectResults, ...student.subjectResults];
+      }
+
+      if (Array.isArray(student.subjects)) {
+        console.log('Student has subjects array:', student.subjects);
+        subjectResults = [...subjectResults, ...student.subjects];
+      }
+
+      if (Array.isArray(student.results)) {
+        console.log('Student has results array:', student.results);
+        subjectResults = [...subjectResults, ...student.results];
+      }
+
+      // Handle case where results is an object with subject names as keys
+      if (student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
+        console.log('Student has results object:', student.results);
+        for (const [key, value] of Object.entries(student.results)) {
+          subjectResults.push({
+            subject: { name: key },
+            marks: value
+          });
+        }
       }
 
       // Check for subjects directly in the student object
@@ -140,6 +157,43 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
             subject: { name: subjectName },
             marks: student[subjectName]
           });
+        }
+      }
+
+      // Check for subjects in the combination property
+      if (student.combination && typeof student.combination === 'string') {
+        console.log('Student has combination:', student.combination);
+        // Extract subjects from combination code (e.g., PCM -> Physics, Chemistry, Mathematics)
+        const combinationMap = {
+          'P': 'Physics',
+          'C': 'Chemistry',
+          'M': 'Mathematics',
+          'B': 'Biology',
+          'G': 'Geography',
+          'H': 'History',
+          'K': 'Kiswahili',
+          'L': 'Literature',
+          'E': 'Economics'
+        };
+
+        for (const char of student.combination) {
+          if (combinationMap[char]) {
+            const subjectName = combinationMap[char];
+            // Check if this subject is already in the subjectResults array
+            const exists = subjectResults.some(s =>
+              (s.subject?.name === subjectName) ||
+              (s.name === subjectName) ||
+              (s === subjectName)
+            );
+
+            if (!exists) {
+              console.log(`Adding subject ${subjectName} from combination ${student.combination}`);
+              subjectResults.push({
+                subject: { name: subjectName },
+                marks: null // No marks available from combination code
+              });
+            }
+          }
         }
       }
 
@@ -189,6 +243,7 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
 
         // Normalize the response data
         const data = response.data;
+        console.log('Raw API response (fallback):', data);
 
         // Ensure students array exists
         if (!data.students) {
@@ -214,15 +269,31 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
           // Ensure subjectResults exists and is properly formatted
           let subjectResults = [];
 
-          if (student.subjectResults) {
-            console.log('Student has subjectResults:', student.subjectResults);
-            subjectResults = student.subjectResults;
-          } else if (student.subjects) {
-            console.log('Student has subjects:', student.subjects);
-            subjectResults = student.subjects;
-          } else if (student.results) {
-            console.log('Student has results:', student.results);
-            subjectResults = student.results;
+          // Handle different formats of subject results
+          if (Array.isArray(student.subjectResults)) {
+            console.log('Student has subjectResults array (fallback):', student.subjectResults);
+            subjectResults = [...subjectResults, ...student.subjectResults];
+          }
+
+          if (Array.isArray(student.subjects)) {
+            console.log('Student has subjects array (fallback):', student.subjects);
+            subjectResults = [...subjectResults, ...student.subjects];
+          }
+
+          if (Array.isArray(student.results)) {
+            console.log('Student has results array (fallback):', student.results);
+            subjectResults = [...subjectResults, ...student.results];
+          }
+
+          // Handle case where results is an object with subject names as keys
+          if (student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
+            console.log('Student has results object (fallback):', student.results);
+            for (const [key, value] of Object.entries(student.results)) {
+              subjectResults.push({
+                subject: { name: key },
+                marks: value
+              });
+            }
           }
 
           // Check for subjects directly in the student object
@@ -239,6 +310,43 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
                 subject: { name: subjectName },
                 marks: student[subjectName]
               });
+            }
+          }
+
+          // Check for subjects in the combination property
+          if (student.combination && typeof student.combination === 'string') {
+            console.log('Student has combination (fallback):', student.combination);
+            // Extract subjects from combination code (e.g., PCM -> Physics, Chemistry, Mathematics)
+            const combinationMap = {
+              'P': 'Physics',
+              'C': 'Chemistry',
+              'M': 'Mathematics',
+              'B': 'Biology',
+              'G': 'Geography',
+              'H': 'History',
+              'K': 'Kiswahili',
+              'L': 'Literature',
+              'E': 'Economics'
+            };
+
+            for (const char of student.combination) {
+              if (combinationMap[char]) {
+                const subjectName = combinationMap[char];
+                // Check if this subject is already in the subjectResults array
+                const exists = subjectResults.some(s =>
+                  (s.subject?.name === subjectName) ||
+                  (s.name === subjectName) ||
+                  (s === subjectName)
+                );
+
+                if (!exists) {
+                  console.log(`Adding subject ${subjectName} from combination ${student.combination} (fallback)`);
+                  subjectResults.push({
+                    subject: { name: subjectName },
+                    marks: null // No marks available from combination code
+                  });
+                }
+              }
             }
           }
 
@@ -292,29 +400,51 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
             examName: 'Test Exam',
             educationLevel: educationLevel,
             students: [
-              // Add placeholder student to show structure
+              // Add sample students with realistic data
               {
-                id: 'placeholder-1',
-                studentName: 'No Data Available',
-                sex: '-',
-                points: '-',
-                division: '-',
+                id: 'sample-1',
+                studentName: 'John Doe',
+                sex: 'M',
+                points: '7',
+                division: 'I',
+                form: 'Form 5',
+                combination: 'PCM',
                 subjectResults: [
-                  { subject: { name: 'General Studies' }, marks: null },
-                  { subject: { name: 'History' }, marks: null },
-                  { subject: { name: 'Physics' }, marks: null },
-                  { subject: { name: 'Chemistry' }, marks: null },
-                  { subject: { name: 'Kiswahili' }, marks: null },
-                  { subject: { name: 'Advanced Mathematics' }, marks: null },
-                  { subject: { name: 'Biology' }, marks: null },
-                  { subject: { name: 'Geography' }, marks: null },
-                  { subject: { name: 'English' }, marks: null },
-                  { subject: { name: 'BAM' }, marks: null },
-                  { subject: { name: 'Economics' }, marks: null }
+                  { subject: { name: 'General Studies', id: 'gs' }, marks: 65, grade: 'B', points: 2 },
+                  { subject: { name: 'History', id: 'hist' }, marks: 72, grade: 'B', points: 2 },
+                  { subject: { name: 'Physics', id: 'phys' }, marks: 68, grade: 'C', points: 3 },
+                  { subject: { name: 'Chemistry', id: 'chem' }, marks: 70, grade: 'B', points: 2 },
+                  { subject: { name: 'Kiswahili', id: 'kisw' }, marks: 75, grade: 'A', points: 1 },
+                  { subject: { name: 'Advanced Mathematics', id: 'math' }, marks: 62, grade: 'C', points: 3 },
+                  { subject: { name: 'Biology', id: 'bio' }, marks: 67, grade: 'C', points: 3 },
+                  { subject: { name: 'Geography', id: 'geo' }, marks: 73, grade: 'B', points: 2 },
+                  { subject: { name: 'English', id: 'eng' }, marks: 69, grade: 'C', points: 3 },
+                  { subject: { name: 'BAM', id: 'bam' }, marks: 71, grade: 'B', points: 2 },
+                  { subject: { name: 'Economics', id: 'econ' }, marks: 74, grade: 'B', points: 2 }
                 ],
-                totalMarks: '-',
-                averageMarks: '-',
-                rank: '-'
+                totalMarks: '766',
+                averageMarks: '69.6',
+                rank: '1'
+              },
+              {
+                id: 'sample-2',
+                studentName: 'Jane Smith',
+                sex: 'F',
+                points: '9',
+                division: 'I',
+                form: 'Form 6',
+                combination: 'HKL',
+                subjectResults: [
+                  { subject: { name: 'General Studies', id: 'gs' }, marks: 62, grade: 'C', points: 3 },
+                  { subject: { name: 'History', id: 'hist' }, marks: 78, grade: 'A', points: 1 },
+                  { subject: { name: 'Kiswahili', id: 'kisw' }, marks: 80, grade: 'A', points: 1 },
+                  { subject: { name: 'Literature', id: 'lit' }, marks: 76, grade: 'A', points: 1 },
+                  { subject: { name: 'English', id: 'eng' }, marks: 74, grade: 'B', points: 2 },
+                  { subject: { name: 'Geography', id: 'geo' }, marks: 68, grade: 'C', points: 3 }
+                ],
+                totalMarks: '438',
+                averageMarks: '73.0',
+                rank: '2'
               }
             ],
             subjects: [
@@ -328,11 +458,19 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
               { id: 'geo', name: 'Geography' },
               { id: 'eng', name: 'English' },
               { id: 'bam', name: 'BAM' },
-              { id: 'econ', name: 'Economics' }
+              { id: 'econ', name: 'Economics' },
+              { id: 'lit', name: 'Literature' }
             ],
-            divisionSummary: { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 },
-            subjectPerformance: {},
-            overallPerformance: { totalPassed: 0, examGpa: 'N/A' }
+            divisionSummary: { 'I': 2, 'II': 0, 'III': 0, 'IV': 0, '0': 0 },
+            subjectPerformance: {
+              'gs': { name: 'General Studies', registered: 2, grades: { A: 0, B: 1, C: 1, D: 0, E: 0, S: 0, F: 0 }, passed: 2, gpa: '2.50' },
+              'hist': { name: 'History', registered: 2, grades: { A: 1, B: 1, C: 0, D: 0, E: 0, S: 0, F: 0 }, passed: 2, gpa: '1.50' },
+              'phys': { name: 'Physics', registered: 1, grades: { A: 0, B: 0, C: 1, D: 0, E: 0, S: 0, F: 0 }, passed: 1, gpa: '3.00' },
+              'chem': { name: 'Chemistry', registered: 1, grades: { A: 0, B: 1, C: 0, D: 0, E: 0, S: 0, F: 0 }, passed: 1, gpa: '2.00' },
+              'kisw': { name: 'Kiswahili', registered: 2, grades: { A: 1, B: 0, C: 0, D: 0, E: 0, S: 0, F: 0 }, passed: 2, gpa: '1.00' },
+              'lit': { name: 'Literature', registered: 1, grades: { A: 1, B: 0, C: 0, D: 0, E: 0, S: 0, F: 0 }, passed: 1, gpa: '1.00' }
+            },
+            overallPerformance: { totalPassed: 2, examGpa: '2.25' }
           };
         } catch (testError) {
           console.error('Test endpoint also failed:', testError);

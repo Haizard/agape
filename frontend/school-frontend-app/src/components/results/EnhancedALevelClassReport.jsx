@@ -507,6 +507,17 @@ const EnhancedALevelClassReport = ({
   console.log('Report Data:', reportData);
   console.log('Students:', reportData.students);
 
+  // First, check if the API returned a list of subjects directly
+  if (reportData.subjects && reportData.subjects.length > 0) {
+    console.log('Found subjects directly in report data:', reportData.subjects);
+    for (const subject of reportData.subjects) {
+      if (subject.name) {
+        allSubjects.add(subject.name);
+      }
+    }
+  }
+
+  // Then check for subjects in student results
   if (reportData.students && reportData.students.length > 0) {
     for (const student of reportData.students) {
       // Debug each student's subject data
@@ -517,7 +528,31 @@ const EnhancedALevelClassReport = ({
       });
 
       // Handle different API response formats
-      const studentSubjects = student.subjectResults || student.subjects || student.results || [];
+      let studentSubjects = [];
+
+      // Try to get subjects from different properties
+      if (Array.isArray(student.subjectResults)) {
+        studentSubjects = [...studentSubjects, ...student.subjectResults];
+      }
+
+      if (Array.isArray(student.subjects)) {
+        studentSubjects = [...studentSubjects, ...student.subjects];
+      }
+
+      if (Array.isArray(student.results)) {
+        studentSubjects = [...studentSubjects, ...student.results];
+      }
+
+      // Check if student has a 'results' property that's an object with subject names as keys
+      if (student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
+        for (const [key, value] of Object.entries(student.results)) {
+          studentSubjects.push({
+            subject: { name: key },
+            marks: value
+          });
+        }
+      }
+
       console.log('Student Subjects:', studentSubjects);
 
       // Check for subjects directly in the student object
@@ -529,7 +564,10 @@ const EnhancedALevelClassReport = ({
           console.log(`Found subject ${subjectName} directly in student object:`, student[subjectName]);
           // Check if this subject is already in the studentSubjects array
           const exists = studentSubjects.some(s =>
-            (s.subject?.name === subjectName) || (s.name === subjectName) || (s === subjectName)
+            (s.subject?.name === subjectName) ||
+            (s.name === subjectName) ||
+            (s === subjectName) ||
+            (s.subject === subjectName)
           );
 
           if (!exists) {
@@ -541,8 +579,44 @@ const EnhancedALevelClassReport = ({
         }
       }
 
+      // Check for subjects in the combination property
+      if (student.combination && typeof student.combination === 'string') {
+        // Extract subjects from combination code (e.g., PCM -> Physics, Chemistry, Mathematics)
+        const combinationMap = {
+          'P': 'Physics',
+          'C': 'Chemistry',
+          'M': 'Mathematics',
+          'B': 'Biology',
+          'G': 'Geography',
+          'H': 'History',
+          'K': 'Kiswahili',
+          'L': 'Literature',
+          'E': 'Economics'
+        };
+
+        for (const char of student.combination) {
+          if (combinationMap[char]) {
+            const subjectName = combinationMap[char];
+            // Check if this subject is already in the studentSubjects array
+            const exists = studentSubjects.some(s =>
+              (s.subject?.name === subjectName) ||
+              (s.name === subjectName) ||
+              (s === subjectName) ||
+              (s.subject === subjectName)
+            );
+
+            if (!exists) {
+              studentSubjects.push({
+                subject: { name: subjectName },
+                marks: null // No marks available from combination code
+              });
+            }
+          }
+        }
+      }
+
       for (const subject of studentSubjects) {
-        console.log('Subject:', subject);
+        console.log('Processing subject:', subject);
 
         // Different API formats use different structures
         if (subject.subject?.name) {
@@ -851,31 +925,42 @@ const EnhancedALevelClassReport = ({
                         console.log(`Looking for subject ${subjectName} for student ${student.studentName || student.id}`);
 
                         // Try different formats
-                        if (student.subjectResults) {
+                        if (Array.isArray(student.subjectResults)) {
                           subjectResult = student.subjectResults.find(r =>
                             r.subject?.name === subjectName ||
                             r.subject === subjectName ||
                             r.name === subjectName
                           );
-                          console.log('From subjectResults:', subjectResult);
+                          console.log('From subjectResults array:', subjectResult);
                         }
 
-                        if (!subjectResult && student.subjects) {
+                        if (!subjectResult && Array.isArray(student.subjects)) {
                           subjectResult = student.subjects.find(r =>
                             r.name === subjectName ||
                             r.subject?.name === subjectName ||
                             r.subject === subjectName
                           );
-                          console.log('From subjects:', subjectResult);
+                          console.log('From subjects array:', subjectResult);
                         }
 
-                        if (!subjectResult && student.results) {
+                        if (!subjectResult && Array.isArray(student.results)) {
                           subjectResult = student.results.find(r =>
                             r.subject?.name === subjectName ||
                             r.subject === subjectName ||
                             r.name === subjectName
                           );
-                          console.log('From results:', subjectResult);
+                          console.log('From results array:', subjectResult);
+                        }
+
+                        // Check if student has a 'results' property that's an object with subject names as keys
+                        if (!subjectResult && student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
+                          if (student.results[subjectName] !== undefined) {
+                            subjectResult = {
+                              subject: { name: subjectName },
+                              marks: student.results[subjectName]
+                            };
+                            console.log('From results object:', subjectResult);
+                          }
                         }
 
                         // Check if the subject is directly in the student object
@@ -915,9 +1000,47 @@ const EnhancedALevelClassReport = ({
                           }
 
                           for (const variation of variations) {
+                            // Check direct property
                             if (student[variation] !== undefined) {
                               subjectResult = { marks: student[variation] };
-                              console.log(`Found subject using variation ${variation}:`, subjectResult);
+                              console.log(`Found subject using variation ${variation} as direct property:`, subjectResult);
+                              break;
+                            }
+
+                            // Check in results object
+                            if (student.results && typeof student.results === 'object' && !Array.isArray(student.results)) {
+                              if (student.results[variation] !== undefined) {
+                                subjectResult = {
+                                  subject: { name: subjectName },
+                                  marks: student.results[variation]
+                                };
+                                console.log(`Found subject using variation ${variation} in results object:`, subjectResult);
+                                break;
+                              }
+                            }
+                          }
+                        }
+
+                        // Try to extract from combination code if still not found
+                        if (!subjectResult && student.combination && typeof student.combination === 'string') {
+                          const combinationMap = {
+                            'P': 'Physics',
+                            'C': 'Chemistry',
+                            'M': 'Mathematics',
+                            'B': 'Biology',
+                            'G': 'Geography',
+                            'H': 'History',
+                            'K': 'Kiswahili',
+                            'L': 'Literature',
+                            'E': 'Economics'
+                          };
+
+                          // Check if this subject is part of the combination
+                          for (const [code, name] of Object.entries(combinationMap)) {
+                            if (name === subjectName && student.combination.includes(code)) {
+                              // Subject is part of combination but no marks available
+                              subjectResult = { marks: null };
+                              console.log(`Subject ${subjectName} found in combination ${student.combination}:`, subjectResult);
                               break;
                             }
                           }
