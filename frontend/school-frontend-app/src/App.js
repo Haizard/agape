@@ -100,6 +100,10 @@ import ResultManagementWorkflow from './components/workflows/ResultManagementWor
 import UnifiedAcademicManagement from './components/academic/UnifiedAcademicManagement';
 import ResultReportSelector from './components/results/ResultReportSelector';
 import EnhancedOLevelClassReportContainer from './components/results/EnhancedOLevelClassReportContainer';
+import EnhancedALevelClassReportContainer from './components/results/EnhancedALevelClassReportContainer';
+import SimpleALevelClassReportContainer from './components/results/SimpleALevelClassReportContainer';
+import ALevelSampleReportContainer from './components/results/ALevelSampleReportContainer';
+import PublicALevelReportContainer from './components/results/PublicALevelReportContainer';
 import RoleFixButton from './components/common/RoleFixButton';
 import { checkAndFixUserRole } from './utils/roleFixUtil';
 // StudentPanel is already imported on line 25
@@ -128,6 +132,14 @@ function App() {
       <AuthProvider>
         <ResultProvider>
           <div className="App">
+            <Routes>
+              {/* Public Routes - No Authentication Required */}
+              <Route path="/public">
+                <Route path="a-level-report/:classId/:examId" element={<PublicALevelReportContainer />} />
+                <Route path="reports" element={<ResultReportSelector />} />
+              </Route>
+            </Routes>
+
             {isAuthenticated ? (
               <>
                 <Box sx={{ display: 'flex' }}>
@@ -156,6 +168,9 @@ function App() {
                           <Route path="results" element={<DirectResultsPage />} />
                           <Route path="result-reports" element={<ResultReportSelector />} />
                           <Route path="enhanced-o-level-report/:classId/:examId" element={<EnhancedOLevelClassReportContainer />} />
+                          <Route path="enhanced-a-level-report/:classId/:examId" element={<EnhancedALevelClassReportContainer />} />
+                          <Route path="simple-a-level-report/:classId/:examId" element={<SimpleALevelClassReportContainer />} />
+                          <Route path="a-level-sample-report" element={<ALevelSampleReportContainer />} />
 
                           {/* Keep individual routes for direct access */}
                           <Route path="education-levels" element={<EducationLevelManagement />} />
