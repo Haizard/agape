@@ -71,6 +71,8 @@ const EnhancedALevelClassReport = ({
   const [showApprovals, setShowApprovals] = useState(true);
   const [reportError, setReportError] = useState(error);
   const [viewMode, setViewMode] = useState('individual'); // 'individual' or 'summary'
+  const [selectedForm, setSelectedForm] = useState('all');
+  const [selectedCombination, setSelectedCombination] = useState('all');
 
   // Process and prepare data for display
   useEffect(() => {
@@ -412,15 +414,91 @@ const EnhancedALevelClassReport = ({
     overallPerformance: { totalPassed: 0, examGpa: 'N/A' }
   };
 
+  // Filter students based on selected form and combination
+  const filteredStudents = reportData.students?.filter(student => {
+    // Filter by form
+    if (selectedForm !== 'all') {
+      // Try different form fields
+      const studentForm = student.form || student.className || student.class || '';
+      const studentFormStr = typeof studentForm === 'string' ? studentForm :
+                           (studentForm?.name || studentForm?.form || '');
+
+      // Check for form match in different formats
+      const formMatch =
+        studentFormStr.includes(`Form ${selectedForm}`) ||
+        studentFormStr.includes(`F${selectedForm}`) ||
+        studentFormStr === selectedForm ||
+        studentFormStr === `${selectedForm}` ||
+        studentFormStr.toLowerCase().includes(`form ${selectedForm}`) ||
+        studentFormStr.toLowerCase().includes(`f${selectedForm}`);
+
+      if (!formMatch) return false;
+    }
+
+    // Filter by combination
+    if (selectedCombination !== 'all') {
+      // Try different combination fields
+      const studentCombination =
+        student.combination ||
+        student.subjectCombination ||
+        student.combination_code ||
+        student.combinationCode ||
+        '';
+
+      const studentCombinationStr = typeof studentCombination === 'string' ? studentCombination :
+                                  (studentCombination?.name || studentCombination?.code || '');
+
+      // Check for combination match in different formats
+      const combinationMatch =
+        studentCombinationStr.includes(selectedCombination) ||
+        studentCombinationStr.toLowerCase().includes(selectedCombination.toLowerCase());
+
+      if (!combinationMatch) {
+        // If no direct match, check if the student has subjects that match the combination
+        const hasMatchingSubjects = checkStudentSubjectsForCombination(student, selectedCombination);
+        if (!hasMatchingSubjects) return false;
+      }
+    }
+
+    return true;
+  }) || [];
+
+  // Helper function to check if a student's subjects match a combination
+  function checkStudentSubjectsForCombination(student, combination) {
+    // Define subject patterns for common combinations
+    const combinationPatterns = {
+      'PCM': ['Physics', 'Chemistry', 'Mathematics', 'Advanced Mathematics'],
+      'PCB': ['Physics', 'Chemistry', 'Biology'],
+      'HKL': ['History', 'Kiswahili', 'Literature', 'English Literature'],
+      'HGE': ['History', 'Geography', 'Economics'],
+      'EGM': ['Economics', 'Geography', 'Mathematics', 'Advanced Mathematics']
+    };
+
+    // Get the pattern for the selected combination
+    const pattern = combinationPatterns[combination];
+    if (!pattern) return false;
+
+    // Check if the student has subjects that match the pattern
+    const studentSubjects = student.subjectResults || student.subjects || student.results || [];
+    let matchCount = 0;
+
+    for (const subject of studentSubjects) {
+      const subjectName = subject.subject?.name || subject.subject || subject.name || '';
+      if (pattern.some(patternSubject => subjectName.includes(patternSubject))) {
+        matchCount++;
+      }
+    }
+
+    // Student should have at least 2 subjects from the combination
+    return matchCount >= 2;
+  }
+
   // Calculate pagination
-  const totalStudents = reportData.students?.length || 0;
+  const totalStudents = filteredStudents.length || 0;
   const totalPages = Math.max(1, Math.ceil(totalStudents / studentsPerPage)); // At least 1 page
   const startIndex = (currentPage - 1) * studentsPerPage;
   const endIndex = Math.min(startIndex + studentsPerPage, totalStudents);
-  const currentStudents = reportData.students?.slice(startIndex, endIndex) || [];
-
-  // Get all subjects
-  const subjects = reportData.subjects || [];
+  const currentStudents = filteredStudents.slice(startIndex, endIndex) || [];
 
   // Get all unique subjects from student combinations
   const allSubjects = new Set();
@@ -522,6 +600,18 @@ const EnhancedALevelClassReport = ({
         <Typography variant="h5" align="center" sx={{ mt: 2, fontWeight: 'bold' }}>
           {typeof reportData.year === 'object' ? reportData.year.year || new Date().getFullYear() : reportData.year || new Date().getFullYear()} FORM FIVE EXAMINATION RESULTS
         </Typography>
+        <Typography variant="body1" align="center" sx={{ mt: 1 }}>
+          Total Students: {totalStudents}
+        </Typography>
+        <Typography variant="body1" align="center">
+          Form: {selectedForm === 'all' ? 'All Forms' : `Form ${selectedForm}`}
+        </Typography>
+        <Typography variant="body1" align="center">
+          Combination: {selectedCombination === 'all' ? 'All Combinations' : selectedCombination}
+        </Typography>
+        <Typography variant="body1" align="center">
+          Date: {new Date().toLocaleDateString()}
+        </Typography>
       </Paper>
 
       {/* Division Summary */}
@@ -533,6 +623,43 @@ const EnhancedALevelClassReport = ({
           DIV-IV: {reportData.divisionSummary?.IV || 0} |
           DIV-0: {reportData.divisionSummary?.['0'] || 0}
         </Typography>
+      </Paper>
+
+      {/* Filtering Controls */}
+      <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth variant="outlined" size="small">
+              <InputLabel>Filter by Form</InputLabel>
+              <Select
+                value={selectedForm}
+                onChange={(e) => setSelectedForm(e.target.value)}
+                label="Filter by Form"
+              >
+                <MenuItem value="all">All Forms</MenuItem>
+                <MenuItem value="5">Form 5</MenuItem>
+                <MenuItem value="6">Form 6</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth variant="outlined" size="small">
+              <InputLabel>Filter by Combination</InputLabel>
+              <Select
+                value={selectedCombination}
+                onChange={(e) => setSelectedCombination(e.target.value)}
+                label="Filter by Combination"
+              >
+                <MenuItem value="all">All Combinations</MenuItem>
+                <MenuItem value="PCM">PCM</MenuItem>
+                <MenuItem value="PCB">PCB</MenuItem>
+                <MenuItem value="HKL">HKL</MenuItem>
+                <MenuItem value="HGE">HGE</MenuItem>
+                <MenuItem value="EGM">EGM</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* Action Buttons */}
@@ -828,10 +955,32 @@ const EnhancedALevelClassReport = ({
                     );
                   })
                 ) : (
+                  // Show a placeholder row with all subject columns
                   <TableRow>
-                    <TableCell colSpan={5 + uniqueSubjects.length + 3} align="center">
-                      No students available for this class and exam
-                    </TableCell>
+                    <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: '#f5f5f5', zIndex: 1 }}>1</TableCell>
+                    <TableCell sx={{ position: 'sticky', left: '40px', backgroundColor: '#f5f5f5', zIndex: 1 }}>No Data Available</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell align="center">-</TableCell>
+                    <TableCell align="center">-</TableCell>
+
+                    {/* Show all subject columns with placeholders */}
+                    {uniqueSubjects.map((subjectName) => (
+                      <TableCell
+                        key={`placeholder-${subjectName}`}
+                        align="center"
+                        sx={{
+                          backgroundColor: '#f5f5f5',
+                          border: '1px solid #c8e6c9',
+                          color: '#757575'
+                        }}
+                      >
+                        -
+                      </TableCell>
+                    ))}
+
+                    <TableCell align="center">-</TableCell>
+                    <TableCell align="center">-</TableCell>
+                    <TableCell align="center">-</TableCell>
                   </TableRow>
                 )}
               </TableBody>
