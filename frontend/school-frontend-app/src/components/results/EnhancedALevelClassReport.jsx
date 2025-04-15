@@ -166,9 +166,21 @@ const EnhancedALevelClassReport = ({
             subjectPerformance[subjectId].registered++;
             subjectPerformance[subjectId].grades[subjectResult.grade]++;
 
-            // Calculate passed (anything not F)
-            if (subjectResult.grade !== 'F') {
-              subjectPerformance[subjectId].passed++;
+            // Calculate passed based on NECTA standards
+            // For principal subjects: A-E are passing grades
+            // For subsidiary subjects: A-S are passing grades
+            const isPrincipal = student.subjectResults?.find(r => r.subject?.name === subjectName)?.subject?.isPrincipal || false;
+
+            if (isPrincipal) {
+              // Principal subjects: A, B, C, D, E are passing grades
+              if (['A', 'B', 'C', 'D', 'E'].includes(subjectResult.grade)) {
+                subjectPerformance[subjectId].passed++;
+              }
+            } else {
+              // Subsidiary subjects: A, B, C, D, E, S are passing grades
+              if (['A', 'B', 'C', 'D', 'E', 'S'].includes(subjectResult.grade)) {
+                subjectPerformance[subjectId].passed++;
+              }
             }
 
             // Calculate GPA points

@@ -1,6 +1,6 @@
 /**
  * O-Level Grade Calculator
- * 
+ *
  * This utility provides grade calculation functions specifically for O-Level (Form 1-4)
  * following Tanzania's CSEE grading system.
  */
@@ -19,31 +19,31 @@ const calculateGradeAndPoints = (marks) => {
 
   // Convert to number if string
   const numMarks = Number(marks);
-  
+
   // Check for NaN
   if (Number.isNaN(numMarks)) {
     logger.warn(`Invalid marks value for O-Level: ${marks}`);
     return { grade: '-', points: 0 };
   }
 
-  // O-LEVEL grading based on Tanzania's CSEE system
+  // O-LEVEL grading based on Tanzania's NECTA CSEE system
   let grade, points;
-  
-  if (numMarks >= 75) { 
-    grade = 'A'; 
-    points = 1; 
-  } else if (numMarks >= 65) { 
-    grade = 'B'; 
-    points = 2; 
-  } else if (numMarks >= 50) { 
-    grade = 'C'; 
-    points = 3; 
-  } else if (numMarks >= 30) { 
-    grade = 'D'; 
-    points = 4; 
-  } else { 
-    grade = 'F'; 
-    points = 5; 
+
+  if (numMarks >= 75) {
+    grade = 'A';
+    points = 1;
+  } else if (numMarks >= 65) {
+    grade = 'B';
+    points = 2;
+  } else if (numMarks >= 45) {
+    grade = 'C';
+    points = 3;
+  } else if (numMarks >= 30) {
+    grade = 'D';
+    points = 4;
+  } else {
+    grade = 'F';
+    points = 5;
   }
 
   return { grade, points };
@@ -64,11 +64,11 @@ const calculateDivision = (points) => {
   // Convert to number
   const numPoints = Number(points);
 
-  // Calculate division based on Tanzania's CSEE system
-  if (numPoints >= 7 && numPoints <= 14) return 'I';
-  if (numPoints >= 15 && numPoints <= 21) return 'II';
+  // Calculate division based on Tanzania's NECTA CSEE system
+  if (numPoints >= 7 && numPoints <= 17) return 'I';
+  if (numPoints >= 18 && numPoints <= 21) return 'II';
   if (numPoints >= 22 && numPoints <= 25) return 'III';
-  if (numPoints >= 26 && numPoints <= 32) return 'IV';
+  if (numPoints >= 26 && numPoints <= 33) return 'IV';
   return '0';
 };
 
@@ -113,7 +113,7 @@ const calculateBestSevenAndDivision = (results) => {
   const validResults = resultsWithPoints.filter(result => {
     // Check if the result has valid marks or grade
     return (
-      (result.marksObtained > 0 || result.marks > 0) && 
+      (result.marksObtained > 0 || result.marks > 0) &&
       result.grade !== '-'
     );
   });
@@ -131,11 +131,11 @@ const calculateBestSevenAndDivision = (results) => {
   logger.debug('O-Level division calculation:', {
     totalResults: resultsWithPoints.length,
     validResults: validResults.length,
-    bestSevenResults: bestSevenResults.map(r => ({ 
-      name: r.name || r.subject?.name || r.subjectId?.name || 'Unknown', 
-      marks: r.marksObtained || r.marks, 
-      grade: r.grade, 
-      points: r.points 
+    bestSevenResults: bestSevenResults.map(r => ({
+      name: r.name || r.subject?.name || r.subjectId?.name || 'Unknown',
+      marks: r.marksObtained || r.marks,
+      grade: r.grade,
+      points: r.points
     })),
     bestSevenPoints
   });
@@ -174,7 +174,7 @@ const calculateStudentRankings = (students, rankBy = 'averageMarks') => {
 
   return sortedStudents.map((student, index) => {
     const currentValue = student[rankBy] || 0;
-    
+
     // If this is the first student or the value is different from the previous one
     if (index === 0 || currentValue !== previousValue) {
       currentRank = index + 1;
@@ -183,9 +183,9 @@ const calculateStudentRankings = (students, rankBy = 'averageMarks') => {
       // This is a tie, so keep the same rank but increment skipped ranks
       skippedRanks++;
     }
-    
+
     previousValue = currentValue;
-    
+
     return {
       ...student,
       rank: currentRank
@@ -213,7 +213,7 @@ const calculateSubjectPositions = (results) => {
 
   return sortedResults.map((result, index) => {
     const currentMarks = Number(result.marksObtained || result.marks || 0);
-    
+
     // If this is the first result or the marks are different from the previous one
     if (index === 0 || currentMarks !== previousMarks) {
       currentPosition = index + 1;
@@ -222,9 +222,9 @@ const calculateSubjectPositions = (results) => {
       // This is a tie, so keep the same position but increment skipped positions
       skippedPositions++;
     }
-    
+
     previousMarks = currentMarks;
-    
+
     return {
       ...result,
       subjectPosition: currentPosition
@@ -239,7 +239,7 @@ const calculateSubjectPositions = (results) => {
  */
 const calculateClassStatistics = (results) => {
   // Extract marks from results
-  const marks = results.map(result => 
+  const marks = results.map(result =>
     Number(result.marksObtained || result.marks || 0)
   ).filter(mark => !Number.isNaN(mark));
 
@@ -269,10 +269,10 @@ const calculateClassStatistics = (results) => {
   for (const mark of marks) {
     frequency[mark] = (frequency[mark] || 0) + 1;
   }
-  
+
   let mode = 0;
   let maxFrequency = 0;
-  
+
   for (const [mark, freq] of Object.entries(frequency)) {
     if (freq > maxFrequency) {
       maxFrequency = freq;

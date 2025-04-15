@@ -44,7 +44,7 @@ function getRemarks(grade) {
 /**
  * Calculate A-LEVEL division based on points
  * @param {Number} points - The total points from best 3 principal subjects
- * @returns {String} - The division (I, II, III, IV, V)
+ * @returns {String} - The division (I, II, III, IV, 0)
  */
 function calculateALevelDivision(points) {
   // Log the points for debugging
@@ -1436,7 +1436,8 @@ router.get('/form5/class/:classId/:examId', authenticateToken, authorizeRole(['a
 
     // Prepare student results
     const studentResults = [];
-    const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, 'V': 0, '0': 0 };
+    // Updated division distribution as per NECTA standards (removed Division V)
+    const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 };
 
     for (const student of students) {
       // Get student's combination
@@ -1614,7 +1615,8 @@ router.get('/form6/class/:classId/:examId', authenticateToken, authorizeRole(['a
 
     // Prepare student results
     const studentResults = [];
-    const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, 'V': 0, '0': 0 };
+    // Updated division distribution as per NECTA standards (removed Division V)
+    const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 };
 
     for (const student of students) {
       // Get student's combination

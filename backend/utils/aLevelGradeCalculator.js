@@ -1,6 +1,6 @@
 /**
  * A-Level Grade Calculator
- * 
+ *
  * This utility provides grade calculation functions specifically for A-Level (Form 5-6)
  * following Tanzania's ACSEE grading system.
  */
@@ -19,7 +19,7 @@ const calculateGradeAndPoints = (marks) => {
 
   // Convert to number if string
   const numMarks = Number(marks);
-  
+
   // Check for NaN
   if (Number.isNaN(numMarks)) {
     logger.warn(`Invalid marks value for A-Level: ${marks}`);
@@ -28,28 +28,28 @@ const calculateGradeAndPoints = (marks) => {
 
   // A-LEVEL grading based on Tanzania's ACSEE system
   let grade, points;
-  
-  if (numMarks >= 80) { 
-    grade = 'A'; 
-    points = 1; 
-  } else if (numMarks >= 70) { 
-    grade = 'B'; 
-    points = 2; 
-  } else if (numMarks >= 60) { 
-    grade = 'C'; 
-    points = 3; 
-  } else if (numMarks >= 50) { 
-    grade = 'D'; 
-    points = 4; 
-  } else if (numMarks >= 40) { 
-    grade = 'E'; 
-    points = 5; 
-  } else if (numMarks >= 35) { 
-    grade = 'S'; 
-    points = 6; 
-  } else { 
-    grade = 'F'; 
-    points = 7; 
+
+  if (numMarks >= 80) {
+    grade = 'A';
+    points = 1;
+  } else if (numMarks >= 70) {
+    grade = 'B';
+    points = 2;
+  } else if (numMarks >= 60) {
+    grade = 'C';
+    points = 3;
+  } else if (numMarks >= 50) {
+    grade = 'D';
+    points = 4;
+  } else if (numMarks >= 40) {
+    grade = 'E';
+    points = 5;
+  } else if (numMarks >= 35) {
+    grade = 'S';
+    points = 6;
+  } else {
+    grade = 'F';
+    points = 7;
   }
 
   return { grade, points };
@@ -70,12 +70,11 @@ const calculateDivision = (points) => {
   // Convert to number
   const numPoints = Number(points);
 
-  // Calculate division based on Tanzania's ACSEE system
+  // Calculate division based on Tanzania's NECTA ACSEE system
   if (numPoints >= 3 && numPoints <= 9) return 'I';
   if (numPoints >= 10 && numPoints <= 12) return 'II';
   if (numPoints >= 13 && numPoints <= 17) return 'III';
   if (numPoints >= 18 && numPoints <= 19) return 'IV';
-  if (numPoints >= 20 && numPoints <= 21) return 'V';
   return '0';
 };
 
@@ -124,17 +123,23 @@ const calculateBestThreeAndDivision = (results, principalSubjectIds = []) => {
   if (principalSubjectIds && principalSubjectIds.length > 0) {
     principalResults = resultsWithPoints.filter(result => {
       const subjectId = result.subjectId?._id || result.subjectId || result.subject?._id || result.subject;
-      return principalSubjectIds.some(id => 
+      return principalSubjectIds.some(id =>
         id.toString() === (subjectId?.toString ? subjectId.toString() : subjectId)
       );
     });
   }
 
+  // Exclude General Studies from division calculation as per NECTA standards
+  principalResults = principalResults.filter(result => {
+    const subjectName = result.subject?.name || result.subjectId?.name || '';
+    return !subjectName.toLowerCase().includes('general studies');
+  });
+
   // Filter out results with no marks or grades
   const validResults = principalResults.filter(result => {
     // Check if the result has valid marks or grade
     return (
-      (result.marksObtained > 0 || result.marks > 0) && 
+      (result.marksObtained > 0 || result.marks > 0) &&
       result.grade !== '-'
     );
   });
@@ -153,11 +158,11 @@ const calculateBestThreeAndDivision = (results, principalSubjectIds = []) => {
     totalResults: resultsWithPoints.length,
     principalResults: principalResults.length,
     validResults: validResults.length,
-    bestThreeResults: bestThreeResults.map(r => ({ 
-      name: r.name || r.subject?.name || r.subjectId?.name || 'Unknown', 
-      marks: r.marksObtained || r.marks, 
-      grade: r.grade, 
-      points: r.points 
+    bestThreeResults: bestThreeResults.map(r => ({
+      name: r.name || r.subject?.name || r.subjectId?.name || 'Unknown',
+      marks: r.marksObtained || r.marks,
+      grade: r.grade,
+      points: r.points
     })),
     bestThreePoints
   });
@@ -196,7 +201,7 @@ const calculateStudentRankings = (students, rankBy = 'averageMarks') => {
 
   return sortedStudents.map((student, index) => {
     const currentValue = student[rankBy] || 0;
-    
+
     // If this is the first student or the value is different from the previous one
     if (index === 0 || currentValue !== previousValue) {
       currentRank = index + 1;
@@ -205,9 +210,9 @@ const calculateStudentRankings = (students, rankBy = 'averageMarks') => {
       // This is a tie, so keep the same rank but increment skipped ranks
       skippedRanks++;
     }
-    
+
     previousValue = currentValue;
-    
+
     return {
       ...student,
       rank: currentRank
@@ -235,7 +240,7 @@ const calculateSubjectPositions = (results) => {
 
   return sortedResults.map((result, index) => {
     const currentMarks = Number(result.marksObtained || result.marks || 0);
-    
+
     // If this is the first result or the marks are different from the previous one
     if (index === 0 || currentMarks !== previousMarks) {
       currentPosition = index + 1;
@@ -244,9 +249,9 @@ const calculateSubjectPositions = (results) => {
       // This is a tie, so keep the same position but increment skipped positions
       skippedPositions++;
     }
-    
+
     previousMarks = currentMarks;
-    
+
     return {
       ...result,
       subjectPosition: currentPosition
@@ -261,7 +266,7 @@ const calculateSubjectPositions = (results) => {
  */
 const calculateClassStatistics = (results) => {
   // Extract marks from results
-  const marks = results.map(result => 
+  const marks = results.map(result =>
     Number(result.marksObtained || result.marks || 0)
   ).filter(mark => !Number.isNaN(mark));
 
@@ -291,10 +296,10 @@ const calculateClassStatistics = (results) => {
   for (const mark of marks) {
     frequency[mark] = (frequency[mark] || 0) + 1;
   }
-  
+
   let mode = 0;
   let maxFrequency = 0;
-  
+
   for (const [mark, freq] of Object.entries(frequency)) {
     if (freq > maxFrequency) {
       maxFrequency = freq;
@@ -315,6 +320,22 @@ const calculateClassStatistics = (results) => {
   };
 };
 
+/**
+ * Determine if a student has passed a subject based on NECTA standards
+ * @param {String} grade - The grade (A, B, C, D, E, S, F)
+ * @param {Boolean} isPrincipal - Whether the subject is a principal subject
+ * @returns {Boolean} - Whether the student has passed
+ */
+const isPassed = (grade, isPrincipal) => {
+  if (isPrincipal) {
+    // For principal subjects, A-E are passing grades
+    return ['A', 'B', 'C', 'D', 'E'].includes(grade);
+  } else {
+    // For subsidiary subjects, A-S are passing grades
+    return ['A', 'B', 'C', 'D', 'E', 'S'].includes(grade);
+  }
+};
+
 module.exports = {
   calculateGradeAndPoints,
   calculateDivision,
@@ -322,5 +343,6 @@ module.exports = {
   calculateBestThreeAndDivision,
   calculateStudentRankings,
   calculateSubjectPositions,
-  calculateClassStatistics
+  calculateClassStatistics,
+  isPassed
 };

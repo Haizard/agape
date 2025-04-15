@@ -27,8 +27,8 @@ const educationLevelSchema = new Schema({
       'O_LEVEL': {
         'A': { min: 75, max: 100, points: 1 },
         'B': { min: 65, max: 74, points: 2 },
-        'C': { min: 50, max: 64, points: 3 },
-        'D': { min: 30, max: 49, points: 4 },
+        'C': { min: 45, max: 64, points: 3 },
+        'D': { min: 30, max: 44, points: 4 },
         'F': { min: 0, max: 29, points: 5 }
       },
       'A_LEVEL': {
@@ -53,18 +53,18 @@ const educationLevelSchema = new Schema({
     ],
     default: {
       'O_LEVEL': [
-        { division: 'I', min: 7, max: 14 },
-        { division: 'II', min: 15, max: 21 },
+        { division: 'I', min: 7, max: 17 },
+        { division: 'II', min: 18, max: 21 },
         { division: 'III', min: 22, max: 25 },
-        { division: 'IV', min: 26, max: 32 },
-        { division: '0', min: 33, max: 36 }
+        { division: 'IV', min: 26, max: 33 },
+        { division: '0', min: 34, max: 36 }
       ],
       'A_LEVEL': [
         { division: 'I', min: 3, max: 9 },
         { division: 'II', min: 10, max: 12 },
         { division: 'III', min: 13, max: 17 },
         { division: 'IV', min: 18, max: 19 },
-        { division: 'V', min: 20, max: 21 }
+        { division: '0', min: 20, max: 21 }
       ]
     }
   },
