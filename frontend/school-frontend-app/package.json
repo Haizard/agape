@@ -38,7 +38,8 @@
         "react-scripts": "5.0.1",
         "recharts": "^2.15.2",
         "web-vitals": "^2.1.4",
-        "xlsx": "^0.18.5"
+        "xlsx": "^0.18.5",
+        "http-proxy-middleware": "^2.0.6"
     },
     "scripts": {
         "start": "node server.js",
@@ -54,6 +55,7 @@
         "use-local-api": "node scripts/use-local-api.js",
         "test-api": "node scripts/test-api-connection.js",
         "test-classes-api": "node scripts/test-classes-api.js",
+        "test-api-proxy": "node scripts/test-api-proxy.js",
         "dev:prod-api": "npm run use-production-api && npm run dev",
         "dev:local-api": "npm run use-local-api && npm run dev",
         "postinstall": "npm install --save-dev eslint-plugin-react-hooks express compression helmet",
@@ -99,7 +101,6 @@
         "@testing-library/jest-dom": "^6.6.3",
         "eslint-plugin-react": "^7.37.5",
         "eslint-plugin-react-hooks": "^5.2.0",
-        "gh-pages": "^6.3.0",
-        "http-proxy-middleware": "^2.0.6"
+        "gh-pages": "^6.3.0"
     }
 }

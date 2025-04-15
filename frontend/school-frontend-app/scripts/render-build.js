@@ -1,6 +1,6 @@
 /**
  * Render Build Script
- * 
+ *
  * This script prepares the React application for deployment on Render.
  * It disables ESLint during the build process to prevent build failures.
  */
@@ -15,14 +15,14 @@ console.log('Starting Render build process...');
 process.env.DISABLE_ESLINT_PLUGIN = 'true';
 process.env.ESLINT_NO_DEV_ERRORS = 'true';
 process.env.CI = 'false';
-process.env.REACT_APP_API_URL = 'https://misty-roby-haizard-17a53e2a.koyeb.app';
+process.env.REACT_APP_API_URL = 'https://agape-render.onrender.com';
 
 // Create a temporary .env file to ensure these settings are used
 const envPath = path.join(__dirname, '..', '.env.production');
 fs.writeFileSync(envPath, `
 DISABLE_ESLINT_PLUGIN=true
 ESLINT_NO_DEV_ERRORS=true
-REACT_APP_API_URL=https://misty-roby-haizard-17a53e2a.koyeb.app
+REACT_APP_API_URL=https://agape-render.onrender.com
 `);
 
 // Create a simple .eslintrc.js file to override any existing ESLint config
@@ -45,7 +45,7 @@ try {
     stdio: 'inherit',
     cwd: path.join(__dirname, '..')
   });
-  
+
   // Run the build command with ESLint disabled
   console.log('Running build command...');
   execSync('react-scripts build', {
@@ -58,7 +58,7 @@ try {
     },
     cwd: path.join(__dirname, '..')
   });
-  
+
   console.log('Build completed successfully!');
 } catch (error) {
   console.error('Build failed:', error.message);

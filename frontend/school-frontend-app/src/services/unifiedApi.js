@@ -14,8 +14,16 @@ class UnifiedApiService {
     console.log(`UnifiedApiService: Using API URL: ${process.env.REACT_APP_API_URL || '/api'}`);
     console.log(`UnifiedApiService: Using timeout: ${timeout}ms`);
 
+    // In production, force the API URL to the backend domain
+    const isProduction = process.env.NODE_ENV === 'production';
+    const apiUrl = isProduction
+      ? 'https://agape-render.onrender.com'
+      : (process.env.REACT_APP_API_URL || '/api');
+
+    console.log(`${isProduction ? 'Production environment detected, forcing API URL to:' : 'Using API URL:'} ${apiUrl}`);
+
     this.api = axios.create({
-      baseURL: process.env.REACT_APP_API_URL || '/api',
+      baseURL: apiUrl,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
@@ -123,21 +131,44 @@ class UnifiedApiService {
       // Process the URL to ensure it's correctly formatted
       let processedUrl = url;
 
-      // Always ensure the URL starts with '/api/' if it doesn't already
-      if (!processedUrl.startsWith('/api/') && !processedUrl.startsWith('api/')) {
-        // If the URL starts with a slash but not '/api/', add 'api'
-        if (processedUrl.startsWith('/')) {
-          processedUrl = `/api${processedUrl}`;
-        } else {
-          // If the URL doesn't start with a slash, add '/api/'
-          processedUrl = `/api/${processedUrl}`;
-        }
-      }
+      // Check if we're in production
+      const isProduction = process.env.NODE_ENV === 'production';
 
-      // If we have a full API URL and the processed URL starts with a slash,
-      // we need to remove the leading slash to avoid double slashes
-      if (processedUrl.startsWith('/') && process.env.REACT_APP_API_URL) {
-        processedUrl = processedUrl.substring(1);
+      // In production, we need to ensure the URL is properly formatted for the backend
+      if (isProduction) {
+        // If the URL doesn't include '/api/', add it
+        if (!processedUrl.includes('/api/')) {
+          // If the URL starts with a slash, add 'api'
+          if (processedUrl.startsWith('/')) {
+            processedUrl = `/api${processedUrl}`;
+          } else {
+            // If the URL doesn't start with a slash, add '/api/'
+            processedUrl = `/api/${processedUrl}`;
+          }
+        }
+
+        // If the URL starts with a slash and we have a full API URL, remove the leading slash
+        if (processedUrl.startsWith('/')) {
+          processedUrl = processedUrl.substring(1);
+        }
+      } else {
+        // In development, use the standard URL processing
+        // Always ensure the URL starts with '/api/' if it doesn't already
+        if (!processedUrl.startsWith('/api/') && !processedUrl.startsWith('api/')) {
+          // If the URL starts with a slash but not '/api/', add 'api'
+          if (processedUrl.startsWith('/')) {
+            processedUrl = `/api${processedUrl}`;
+          } else {
+            // If the URL doesn't start with a slash, add '/api/'
+            processedUrl = `/api/${processedUrl}`;
+          }
+        }
+
+        // If we have a full API URL and the processed URL starts with a slash,
+        // we need to remove the leading slash to avoid double slashes
+        if (processedUrl.startsWith('/') && process.env.REACT_APP_API_URL) {
+          processedUrl = processedUrl.substring(1);
+        }
       }
 
       // Ensure the baseURL ends with a slash
@@ -341,8 +372,15 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with current academic year data
    */
   async getCurrentAcademicYear() {
-    // Always use the new-academic-years endpoint for better compatibility
-    return this.get('/new-academic-years/active');
+    try {
+      // Try the new endpoint first
+      console.log('Trying new academic year endpoint');
+      return await this.get('/new-academic-years/active');
+    } catch (error) {
+      console.log('Falling back to original academic year endpoint');
+      // Fall back to the original endpoint
+      return this.get('/academic-years/active');
+    }
   }
 
   /**
@@ -350,8 +388,15 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with all academic years
    */
   async getAcademicYears() {
-    // Always use the new-academic-years endpoint for better compatibility
-    return this.get('/new-academic-years');
+    try {
+      // Try the new endpoint first
+      console.log('Trying new academic years endpoint');
+      return await this.get('/new-academic-years');
+    } catch (error) {
+      console.log('Falling back to original API endpoint');
+      // Fall back to the original endpoint
+      return this.get('/academic-years');
+    }
   }
 
   /**
@@ -360,8 +405,15 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with academic year terms
    */
   async getAcademicYearTerms(academicYearId) {
-    // Always use the new-academic-years endpoint for better compatibility
-    return this.get(`/new-academic-years/${academicYearId}/terms`);
+    try {
+      // Try the new endpoint first
+      console.log('Trying new academic year terms endpoint');
+      return await this.get(`/new-academic-years/${academicYearId}/terms`);
+    } catch (error) {
+      console.log('Falling back to original academic year terms endpoint');
+      // Fall back to the original endpoint
+      return this.get(`/academic-years/${academicYearId}/terms`);
+    }
   }
 
   /**
@@ -371,8 +423,15 @@ class UnifiedApiService {
    * @returns {Promise} - Promise with updated academic year
    */
   async updateAcademicYearTerms(academicYearId, terms) {
-    // Always use the new-academic-years endpoint for better compatibility
-    return this.put(`/new-academic-years/${academicYearId}/terms`, { terms });
+    try {
+      // Try the new endpoint first
+      console.log('Trying new academic year terms update endpoint');
+      return await this.put(`/new-academic-years/${academicYearId}/terms`, { terms });
+    } catch (error) {
+      console.log('Falling back to original academic year terms update endpoint');
+      // Fall back to the original endpoint
+      return this.put(`/academic-years/${academicYearId}/terms`, { terms });
+    }
   }
 
   /**

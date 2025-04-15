@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const compression = require('compression');
 const helmet = require('helmet');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +24,28 @@ app.use(helmet({
 
 // Compression middleware
 app.use(compression());
+
+// API proxy middleware
+const apiProxy = createProxyMiddleware('/api', {
+  target: 'https://agape-render.onrender.com',
+  changeOrigin: true,
+  pathRewrite: { '^/api': '/api' },
+  logLevel: 'debug',
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err);
+    res.writeHead(500, {
+      'Content-Type': 'application/json',
+    });
+    res.end(JSON.stringify({
+      error: 'Proxy error',
+      message: 'Could not connect to the backend server',
+      details: err.message
+    }));
+  }
+});
+
+// Use the API proxy middleware
+app.use('/api', apiProxy);
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
