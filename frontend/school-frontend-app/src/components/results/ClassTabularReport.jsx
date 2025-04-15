@@ -620,9 +620,39 @@ const ClassTabularReport = () => {
 
   // Download report as PDF
   const handleDownload = () => {
-    // Open the PDF version in a new tab (backend will generate PDF)
-    const pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/reports/class/${classId}/${examId}`;
-    window.open(pdfUrl, '_blank');
+    // Use the PDF generation endpoint
+    let pdfUrl;
+    // Determine education level from class data
+    const classEducationLevel = classData?.educationLevel || 'O_LEVEL';
+
+    // Try multiple endpoints with fallbacks
+    try {
+      if (classEducationLevel === 'A_LEVEL') {
+        // For A-Level, use the A-Level specific endpoint
+        pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-results/class/${classId}/${examId}`;
+      } else {
+        // For O-Level, use the O-Level specific endpoint
+        pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/class/${classId}/${examId}`;
+      }
+      console.log(`Downloading PDF from: ${pdfUrl}`);
+      window.open(pdfUrl, '_blank');
+
+      // Set up a fallback in case the primary endpoint fails
+      setTimeout(() => {
+        // Check if the user confirmed they want to try a fallback
+        const tryFallback = window.confirm('If the PDF did not download correctly, would you like to try an alternative download method?');
+
+        if (tryFallback) {
+          // Use the simple download endpoint as a fallback
+          const fallbackUrl = `${process.env.REACT_APP_API_URL || ''}/api/download/class/${classId}/${examId}`;
+          console.log(`Trying fallback download from: ${fallbackUrl}`);
+          window.open(fallbackUrl, '_blank');
+        }
+      }, 3000); // Wait 3 seconds before offering the fallback
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('There was an error downloading the PDF. Please try again later.');
+    }
   };
 
   // If loading, show loading indicator
@@ -792,8 +822,8 @@ const ClassTabularReport = () => {
               label="Filter by Combination"
             >
               <MenuItem value="">All Combinations</MenuItem>
-              {combinations.map((combination) => (
-                <MenuItem key={combination.code} value={combination.code}>
+              {combinations.map((combination, index) => (
+                <MenuItem key={combination.code || `combo-${index}`} value={combination.code}>
                   {combination.code} - {combination.name}
                 </MenuItem>
               ))}
@@ -820,10 +850,10 @@ const ClassTabularReport = () => {
       <Box className="report-header">
         <Box className="header-left">
           <Typography variant="h6" className="school-name">
-            ST. JOHN VIANNEY SCHOOL MANAGEMENT SYSTEM
+            ST. JOHN VIANNEY SECONDARY SCHOOL
           </Typography>
           <Typography variant="body2" className="school-address">
-            P.O. BOX 8882, MOSHI, KILIMANJARO
+            P.O. BOX 123, DAR ES SALAAM, TANZANIA
           </Typography>
           <Typography variant="body1" className="exam-info">
             {(() => {
@@ -836,7 +866,8 @@ const ClassTabularReport = () => {
             })()} - {
               (() => {
                 try {
-                  return safeExamData.academicYear || safeClassData.academicYear || '2023-2024';
+                  const year = safeExamData.academicYear || safeClassData.academicYear || '2023-2024';
+                  return typeof year === 'object' && year._id ? year.name || year.year || '2023-2024' : year;
                 } catch (err) {
                   console.error('Error accessing academicYear:', err);
                   return '2023-2024';
@@ -852,7 +883,8 @@ const ClassTabularReport = () => {
             alt="School Logo"
             className="school-logo"
             onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/80?text=Logo';
+              // Use a local fallback image or remove the image entirely
+              e.target.style.display = 'none';
             }}
           />
         </Box>
@@ -865,7 +897,15 @@ const ClassTabularReport = () => {
             {safeClassData.name}
           </Typography>
           <Typography variant="body2" className="term-info">
-            {safeExamData.term || safeClassData.term || 'Term'}
+            {(() => {
+              try {
+                const term = safeExamData.term || safeClassData.term || 'Term';
+                return typeof term === 'object' && term._id ? term.name || 'Term' : term;
+              } catch (err) {
+                console.error('Error accessing term:', err);
+                return 'Term';
+              }
+            })()}
           </Typography>
         </Box>
       </Box>

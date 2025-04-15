@@ -6,14 +6,26 @@ const PDFDocument = require('pdfkit');
  * @param {Object} res - Express response object
  */
 const generateALevelStudentReportPDF = (report, res) => {
+  // Check if response is already sent
+  if (res.headersSent) {
+    console.error('Headers already sent, cannot generate PDF');
+    return;
+  }
   // Create a new PDF document
   const doc = new PDFDocument({
     margin: 30,
     size: 'A4'
   });
 
-  // Pipe the PDF to the response
-  doc.pipe(res);
+  // Pipe the PDF to the response with error handling
+  try {
+    doc.pipe(res);
+  } catch (error) {
+    console.error('Error piping PDF to response:', error);
+    // If there's an error, end the document to prevent further issues
+    doc.end();
+    return;
+  }
 
   // Set font
   doc.font('Helvetica');
@@ -163,7 +175,7 @@ const generateALevelStudentReportPDF = (report, res) => {
   yPos += 20;
 
   doc.font('Helvetica');
-  let principalText = principalSubjects.length > 0
+  const principalText = principalSubjects.length > 0
     ? principalSubjects.map(s => `${s.subject}: ${s.grade} (${s.points})`).join(', ')
     : 'None';
   doc.text(principalText, doc.page.margins.left, yPos);
@@ -173,7 +185,7 @@ const generateALevelStudentReportPDF = (report, res) => {
   yPos += 20;
 
   doc.font('Helvetica');
-  let subsidiaryText = subsidiarySubjects.length > 0
+  const subsidiaryText = subsidiarySubjects.length > 0
     ? subsidiarySubjects.map(s => `${s.subject}: ${s.grade} (${s.points})`).join(', ')
     : 'None';
   doc.text(subsidiaryText, doc.page.margins.left, yPos);
@@ -257,8 +269,12 @@ const generateALevelStudentReportPDF = (report, res) => {
     }
   }
 
-  // Finalize the PDF
-  doc.end();
+  // Finalize the PDF with error handling
+  try {
+    doc.end();
+  } catch (error) {
+    console.error('Error finalizing PDF:', error);
+  }
 };
 
 /**
@@ -267,6 +283,11 @@ const generateALevelStudentReportPDF = (report, res) => {
  * @param {Object} res - Express response object
  */
 const generateALevelClassReportPDF = (report, res) => {
+  // Check if response is already sent
+  if (res.headersSent) {
+    console.error('Headers already sent, cannot generate PDF');
+    return;
+  }
   // Create a new PDF document
   const doc = new PDFDocument({
     margin: 30,
@@ -274,8 +295,15 @@ const generateALevelClassReportPDF = (report, res) => {
     layout: 'landscape'
   });
 
-  // Pipe the PDF to the response
-  doc.pipe(res);
+  // Pipe the PDF to the response with error handling
+  try {
+    doc.pipe(res);
+  } catch (error) {
+    console.error('Error piping PDF to response:', error);
+    // If there's an error, end the document to prevent further issues
+    doc.end();
+    return;
+  }
 
   // Set font
   doc.font('Helvetica');
@@ -321,7 +349,7 @@ const generateALevelClassReportPDF = (report, res) => {
   if (report.students && report.students.length > 0 && report.students[0].results) {
     for (const result of report.students[0].results) {
       let subjectName = '';
-      if (result.subject && result.subject.name) {
+      if (result.subject?.name) {
         subjectName = result.subject.name;
       } else if (typeof result.subject === 'string') {
         subjectName = result.subject;
@@ -465,7 +493,7 @@ const generateALevelClassReportPDF = (report, res) => {
       // Create a map of subject name to marks
       for (const result of studentResults) {
         let subjectName = '';
-        if (result.subject && result.subject.name) {
+        if (result.subject?.name) {
           subjectName = result.subject.name;
         } else if (typeof result.subject === 'string') {
           subjectName = result.subject;
@@ -589,8 +617,12 @@ const generateALevelClassReportPDF = (report, res) => {
     );
   }
 
-  // Finalize the PDF
-  doc.end();
+  // Finalize the PDF with error handling
+  try {
+    doc.end();
+  } catch (error) {
+    console.error('Error finalizing PDF:', error);
+  }
 };
 
 module.exports = {

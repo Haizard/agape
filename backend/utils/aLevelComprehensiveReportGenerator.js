@@ -6,19 +6,31 @@ const fs = require('fs');
  * Generate a comprehensive A-LEVEL student result report PDF
  * This report shows both Principal and Subsidiary subjects with all performance metrics
  * and provides empty templates when no results exist
- * 
+ *
  * @param {Object} report - The report data
  * @param {Object} res - Express response object
  */
 const generateALevelComprehensiveReportPDF = (report, res) => {
+  // Check if response is already sent
+  if (res.headersSent) {
+    console.error('Headers already sent, cannot generate PDF');
+    return;
+  }
   // Create a new PDF document
   const doc = new PDFDocument({
     margin: 30,
     size: 'A4'
   });
 
-  // Pipe the PDF to the response
-  doc.pipe(res);
+  // Pipe the PDF to the response with error handling
+  try {
+    doc.pipe(res);
+  } catch (error) {
+    console.error('Error piping PDF to response:', error);
+    // If there's an error, end the document to prevent further issues
+    doc.end();
+    return;
+  }
 
   // Set font
   doc.font('Helvetica');
@@ -34,19 +46,19 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
   doc.text('Tel: +255 27 2755088\nEmail: agapelutheran@elct.org', 400, 60, { align: 'right' });
 
   // Add report title
-  doc.fontSize(14).text(`${report.formLevel === 5 ? 'Form 5' : 'Form 6'} A-Level Academic Report`, { align: 'center' });
-  doc.fontSize(12).text(`${report.examName}`, { align: 'center' });
-  doc.fontSize(10).text(`Academic Year: ${report.academicYear}`, { align: 'center' });
+  doc.fontSize(14).text(`${report.formLevel === 5 ? 'Form 5' : report.formLevel === 6 ? 'Form 6' : 'A-Level'} Academic Report`, { align: 'center' });
+  doc.fontSize(12).text(`${report.examName || 'Examination'}`, { align: 'center' });
+  doc.fontSize(10).text(`Academic Year: ${report.academicYear || new Date().getFullYear()}`, { align: 'center' });
   doc.moveDown();
 
   // Add student information
   doc.fontSize(12).text('Student Information', { underline: true });
   doc.fontSize(10);
-  doc.text(`Name: ${report.studentDetails.name}`);
-  doc.text(`Roll Number: ${report.studentDetails.rollNumber}`);
-  doc.text(`Class: ${report.studentDetails.class}`);
-  doc.text(`Gender: ${report.studentDetails.gender}`);
-  doc.text(`Subject Combination: ${report.studentDetails.subjectCombination}`);
+  doc.text(`Name: ${report.studentDetails?.name || 'N/A'}`);
+  doc.text(`Roll Number: ${report.studentDetails?.rollNumber || 'N/A'}`);
+  doc.text(`Class: ${report.studentDetails?.class || 'N/A'}`);
+  doc.text(`Gender: ${report.studentDetails?.gender || 'N/A'}`);
+  doc.text(`Subject Combination: ${report.studentDetails?.subjectCombination || 'N/A'}`);
   doc.moveDown();
 
   // Add principal subjects table
@@ -79,13 +91,13 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
 
   if (report.principalSubjects && report.principalSubjects.length > 0) {
     for (const subject of report.principalSubjects) {
-      doc.text(subject.code, principalTableLeft, principalRowTop);
-      doc.text(subject.subject, principalTableLeft + principalColWidths[0], principalRowTop);
-      doc.text(subject.marks !== null ? subject.marks.toString() : '-', principalTableLeft + principalColWidths[0] + principalColWidths[1], principalRowTop);
-      doc.text(subject.grade, principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2], principalRowTop);
-      doc.text(subject.points !== null ? subject.points.toString() : '-', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2] + principalColWidths[3], principalRowTop);
-      doc.text(subject.remarks, principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2] + principalColWidths[3] + principalColWidths[4], principalRowTop);
-      
+      doc.text(subject.code || '-', principalTableLeft, principalRowTop);
+      doc.text(subject.subject || '-', principalTableLeft + principalColWidths[0], principalRowTop);
+      doc.text(subject.marks !== undefined && subject.marks !== null ? subject.marks.toString() : '-', principalTableLeft + principalColWidths[0] + principalColWidths[1], principalRowTop);
+      doc.text(subject.grade || '-', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2], principalRowTop);
+      doc.text(subject.points !== undefined && subject.points !== null ? subject.points.toString() : '-', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2] + principalColWidths[3], principalRowTop);
+      doc.text(subject.remarks || '-', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2] + principalColWidths[3] + principalColWidths[4], principalRowTop);
+
       principalRowTop += principalRowHeight;
     }
   } else {
@@ -125,13 +137,13 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
 
   if (report.subsidiarySubjects && report.subsidiarySubjects.length > 0) {
     for (const subject of report.subsidiarySubjects) {
-      doc.text(subject.code, subsidiaryTableLeft, subsidiaryRowTop);
-      doc.text(subject.subject, subsidiaryTableLeft + subsidiaryColWidths[0], subsidiaryRowTop);
-      doc.text(subject.marks !== null ? subject.marks.toString() : '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1], subsidiaryRowTop);
-      doc.text(subject.grade, subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2], subsidiaryRowTop);
-      doc.text(subject.points !== null ? subject.points.toString() : '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2] + subsidiaryColWidths[3], subsidiaryRowTop);
-      doc.text(subject.remarks, subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2] + subsidiaryColWidths[3] + subsidiaryColWidths[4], subsidiaryRowTop);
-      
+      doc.text(subject.code || '-', subsidiaryTableLeft, subsidiaryRowTop);
+      doc.text(subject.subject || '-', subsidiaryTableLeft + subsidiaryColWidths[0], subsidiaryRowTop);
+      doc.text(subject.marks !== undefined && subject.marks !== null ? subject.marks.toString() : '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1], subsidiaryRowTop);
+      doc.text(subject.grade || '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2], subsidiaryRowTop);
+      doc.text(subject.points !== undefined && subject.points !== null ? subject.points.toString() : '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2] + subsidiaryColWidths[3], subsidiaryRowTop);
+      doc.text(subject.remarks || '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2] + subsidiaryColWidths[3] + subsidiaryColWidths[4], subsidiaryRowTop);
+
       subsidiaryRowTop += subsidiaryRowHeight;
     }
   } else {
@@ -150,65 +162,65 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
   doc.fontSize(12).text('Performance Summary', { underline: true });
   doc.moveDown(0.5);
   doc.fontSize(10);
-  
+
   // Create a two-column layout for summary
   const summaryLeft = 50;
   const summaryMiddle = 300;
   const summaryTop = doc.y;
-  
+
   doc.text('Total Marks:', summaryLeft, summaryTop);
-  doc.text(report.summary.totalMarks.toString(), summaryLeft + 150, summaryTop);
-  
+  doc.text(report.summary?.totalMarks !== undefined && report.summary.totalMarks !== null ? report.summary.totalMarks.toString() : 'N/A', summaryLeft + 150, summaryTop);
+
   doc.text('Average Marks:', summaryLeft, summaryTop + 20);
-  doc.text(report.summary.averageMarks, summaryLeft + 150, summaryTop + 20);
-  
+  doc.text(report.summary?.averageMarks || 'N/A', summaryLeft + 150, summaryTop + 20);
+
   doc.text('Total Points:', summaryLeft, summaryTop + 40);
-  doc.text(report.summary.totalPoints !== null ? report.summary.totalPoints.toString() : 'N/A', summaryLeft + 150, summaryTop + 40);
-  
+  doc.text(report.summary?.totalPoints !== undefined && report.summary.totalPoints !== null ? report.summary.totalPoints.toString() : 'N/A', summaryLeft + 150, summaryTop + 40);
+
   doc.text('Best 3 Principal Points:', summaryLeft, summaryTop + 60);
-  doc.text(report.summary.bestThreePoints !== null ? report.summary.bestThreePoints.toString() : 'N/A', summaryLeft + 150, summaryTop + 60);
-  
+  doc.text(report.summary?.bestThreePoints !== undefined && report.summary.bestThreePoints !== null ? report.summary.bestThreePoints.toString() : 'N/A', summaryLeft + 150, summaryTop + 60);
+
   doc.text('Division:', summaryMiddle, summaryTop);
-  doc.font('Helvetica-Bold').text(report.summary.division, summaryMiddle + 150, summaryTop);
+  doc.font('Helvetica-Bold').text(report.summary?.division || 'N/A', summaryMiddle + 150, summaryTop);
   doc.font('Helvetica');
-  
+
   doc.text('Rank in Class:', summaryMiddle, summaryTop + 20);
-  doc.text(`${report.summary.rank} of ${report.summary.totalStudents}`, summaryMiddle + 150, summaryTop + 20);
-  
+  doc.text(`${report.summary?.rank || 'N/A'} of ${report.summary?.totalStudents || 'N/A'}`, summaryMiddle + 150, summaryTop + 20);
+
   doc.moveDown(4);
 
   // Add character assessment
   doc.fontSize(12).text('Character Assessment', { underline: true });
   doc.moveDown(0.5);
   doc.fontSize(10);
-  
+
   const assessmentTop = doc.y;
-  
+
   doc.text('Discipline:', summaryLeft, assessmentTop);
-  doc.text(report.characterAssessment.discipline, summaryLeft + 150, assessmentTop);
-  
+  doc.text(report.characterAssessment?.discipline || 'Not assessed', summaryLeft + 150, assessmentTop);
+
   doc.text('Attendance:', summaryLeft, assessmentTop + 20);
-  doc.text(report.characterAssessment.attendance, summaryLeft + 150, assessmentTop + 20);
-  
+  doc.text(report.characterAssessment?.attendance || 'Not assessed', summaryLeft + 150, assessmentTop + 20);
+
   doc.text('Attitude:', summaryLeft, assessmentTop + 40);
-  doc.text(report.characterAssessment.attitude, summaryLeft + 150, assessmentTop + 40);
-  
+  doc.text(report.characterAssessment?.attitude || 'Not assessed', summaryLeft + 150, assessmentTop + 40);
+
   doc.moveDown();
   doc.text('Comments:', summaryLeft);
   doc.moveDown(0.5);
-  doc.text(report.characterAssessment.comments, { width: 500 });
-  
+  doc.text(report.characterAssessment?.comments || 'No comments provided.', { width: 500 });
+
   doc.moveDown(2);
 
   // Add signature section
   const signatureTop = doc.y;
-  
+
   doc.text('_______________________', 50, signatureTop);
   doc.text('_______________________', 300, signatureTop);
   doc.text('Class Teacher', 50, signatureTop + 20);
   doc.text('Principal', 300, signatureTop + 20);
   doc.text(`Date: ${new Date().toLocaleDateString()}`, 50, signatureTop + 40);
-  
+
   // Add footer with A-LEVEL specific note
   doc.fontSize(8);
   doc.text(
@@ -218,8 +230,12 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
     { align: 'center' }
   );
 
-  // Finalize the PDF
-  doc.end();
+  // Finalize the PDF with error handling
+  try {
+    doc.end();
+  } catch (error) {
+    console.error('Error finalizing PDF:', error);
+  }
 };
 
 module.exports = {

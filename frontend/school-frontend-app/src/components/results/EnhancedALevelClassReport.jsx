@@ -442,16 +442,16 @@ const EnhancedALevelClassReport = ({
       {/* Report Header */}
       <Paper sx={{ p: 3, mb: 3 }} elevation={2}>
         <Typography variant="h5" align="center" gutterBottom>
-          Evangelical Lutheran Church in Tanzania - Northern Diocese
+          St. John Vianney Secondary School
         </Typography>
         <Typography variant="h4" align="center" gutterBottom>
-          Agape Lutheran Junior Seminary
+          St. John Vianney School Management System
         </Typography>
         <Typography variant="body1" align="center" gutterBottom>
-          PO Box 8882, Moshi, Tanzania
+          PO Box 123, Dar es Salaam, Tanzania
         </Typography>
         <Typography variant="body1" align="center" gutterBottom>
-          Mobile: 0759767735 | Email: infoagapeseminary@gmail.com
+          Tel: +255 123 456 789 | Email: info@stjohnvianney.edu.tz
         </Typography>
         <Typography variant="h5" align="center" sx={{ mt: 2, fontWeight: 'bold' }}>
           {reportData.year} FORM FIVE EXAMINATION RESULTS

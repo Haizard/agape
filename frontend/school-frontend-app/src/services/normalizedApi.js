@@ -11,6 +11,24 @@ const api = axios.create({
   },
 });
 
+// Add request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+
+    // If token exists, add it to the request headers
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Add a response interceptor to normalize data
 api.interceptors.response.use(
   (response) => {
@@ -63,9 +81,9 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
     let endpoint = '';
     if (educationLevel === 'A_LEVEL') {
       // Try the API endpoint first
-      endpoint = `a-level-results/class/${classId}/${examId}`;
+      endpoint = `/api/a-level-results/class/${classId}/${examId}`;
     } else {
-      endpoint = `o-level-results/class/${classId}/${examId}`;
+      endpoint = `/api/o-level-results/class/${classId}/${examId}`;
     }
     console.log(`Fetching class result report from endpoint: ${endpoint}`);
     const response = await api.get(endpoint);
@@ -80,9 +98,9 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
         // Try the API endpoint as a fallback
         let apiEndpoint;
         if (educationLevel === 'A_LEVEL') {
-          apiEndpoint = `a-level-results/api/class/${classId}/${examId}`;
+          apiEndpoint = `/api/a-level-results/api/class/${classId}/${examId}`;
         } else {
-          apiEndpoint = `o-level-results/api/class/${classId}/${examId}`;
+          apiEndpoint = `/api/o-level-results/api/class/${classId}/${examId}`;
         }
         console.log(`Trying fallback endpoint: ${apiEndpoint}`);
         const response = await api.get(apiEndpoint);
@@ -95,9 +113,9 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
           console.log('Trying test endpoint as last resort');
           let testEndpoint;
           if (educationLevel === 'A_LEVEL') {
-            testEndpoint = `a-level-results/test-no-auth/${classId}/${examId}`;
+            testEndpoint = `/api/a-level-results/test-no-auth/${classId}/${examId}`;
           } else {
-            testEndpoint = `o-level-results/test-no-auth/${classId}/${examId}`;
+            testEndpoint = `/api/o-level-results/test-no-auth/${classId}/${examId}`;
           }
           console.log(`Trying test endpoint: ${testEndpoint}`);
           const testResponse = await api.get(testEndpoint);

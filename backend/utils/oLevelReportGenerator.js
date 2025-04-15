@@ -9,14 +9,26 @@ const { getLogoPath } = require('./logoHelper');
  * @param {Object} res - Express response object
  */
 const generateOLevelStudentReportPDF = (report, res) => {
+  // Check if response is already sent
+  if (res.headersSent) {
+    console.error('Headers already sent, cannot generate PDF');
+    return;
+  }
   // Create a new PDF document
   const doc = new PDFDocument({
     margin: 30,
     size: 'A4'
   });
 
-  // Pipe the PDF to the response
-  doc.pipe(res);
+  // Pipe the PDF to the response with error handling
+  try {
+    doc.pipe(res);
+  } catch (error) {
+    console.error('Error piping PDF to response:', error);
+    // If there's an error, end the document to prevent further issues
+    doc.end();
+    return;
+  }
 
   // Set font
   doc.font('Helvetica');
@@ -165,8 +177,12 @@ const generateOLevelStudentReportPDF = (report, res) => {
     { align: 'center' }
   );
 
-  // Finalize the PDF
-  doc.end();
+  // Finalize the PDF with error handling
+  try {
+    doc.end();
+  } catch (error) {
+    console.error('Error finalizing PDF:', error);
+  }
 };
 
 /**
@@ -175,6 +191,11 @@ const generateOLevelStudentReportPDF = (report, res) => {
  * @param {Object} res - Express response object
  */
 const generateOLevelClassReportPDF = (report, res) => {
+  // Check if response is already sent
+  if (res.headersSent) {
+    console.error('Headers already sent, cannot generate PDF');
+    return;
+  }
   // Create a new PDF document
   const doc = new PDFDocument({
     margin: 30,
@@ -182,8 +203,15 @@ const generateOLevelClassReportPDF = (report, res) => {
     layout: 'landscape'
   });
 
-  // Pipe the PDF to the response
-  doc.pipe(res);
+  // Pipe the PDF to the response with error handling
+  try {
+    doc.pipe(res);
+  } catch (error) {
+    console.error('Error piping PDF to response:', error);
+    // If there's an error, end the document to prevent further issues
+    doc.end();
+    return;
+  }
 
   // Set font
   doc.font('Helvetica');
@@ -388,8 +416,12 @@ const generateOLevelClassReportPDF = (report, res) => {
     );
   }
 
-  // Finalize the PDF
-  doc.end();
+  // Finalize the PDF with error handling
+  try {
+    doc.end();
+  } catch (error) {
+    console.error('Error finalizing PDF:', error);
+  }
 };
 
 module.exports = {
