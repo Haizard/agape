@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Redirect</title>
+    <script>
+        // This script redirects API requests to the correct backend URL
+        window.onload = function() {
+            // Get the path from the URL
+            const path = window.location.pathname;
+            
+            // Check if this is an API request
+            if (path.startsWith('/api/')) {
+                // Redirect to the backend URL
+                const backendUrl = 'https://agape-render.onrender.com' + path;
+                console.log('Redirecting API request to:', backendUrl);
+                window.location.href = backendUrl;
+            } else {
+                // Not an API request, show error message
+                document.getElementById('message').innerHTML = 'This page is only for API redirects.';
+            }
+        };
+    </script>
+</head>
+<body>
+    <div id="message">Redirecting to API...</div>
+</body>
+</html>
