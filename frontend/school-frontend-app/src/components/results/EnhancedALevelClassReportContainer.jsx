@@ -114,7 +114,17 @@ const EnhancedALevelClassReportContainer = () => {
       }
 
       // Set the current year for the report title
-      finalReport.year = new Date().getFullYear();
+      if (!finalReport.year) {
+        finalReport.year = new Date().getFullYear();
+      } else if (typeof finalReport.year === 'object' && finalReport.year !== null) {
+        // If year is an object, extract the year value
+        finalReport.year = finalReport.year.year || finalReport.year.name || new Date().getFullYear();
+      }
+
+      // Handle academicYear if it's an object
+      if (typeof finalReport.academicYear === 'object' && finalReport.academicYear !== null) {
+        finalReport.academicYear = finalReport.academicYear.name || finalReport.academicYear.year || new Date().getFullYear();
+      }
 
       setReport(finalReport);
     } catch (err) {

@@ -23,7 +23,8 @@ import {
   InputLabel,
   FormControl,
   Card,
-  CardContent
+  CardContent,
+  Tooltip
 } from '@mui/material';
 import {
   Print as PrintIcon,
@@ -87,6 +88,14 @@ const EnhancedALevelClassReport = ({
     // Get current year for the title if not provided
     if (!processedData.year) {
       processedData.year = new Date().getFullYear();
+    } else if (typeof processedData.year === 'object' && processedData.year !== null) {
+      // If year is an object, extract the year value
+      processedData.year = processedData.year.year || processedData.year.name || new Date().getFullYear();
+    }
+
+    // Handle academicYear if it's an object
+    if (typeof processedData.academicYear === 'object' && processedData.academicYear !== null) {
+      processedData.academicYear = processedData.academicYear.name || processedData.academicYear.year || new Date().getFullYear();
     }
 
     // Sort students based on current sort settings
@@ -127,11 +136,11 @@ const EnhancedALevelClassReport = ({
     if (processedData.students) {
       for (const student of processedData.students) {
         const division = student.division || 'IV';
-        if (division === 'Division I' || division === 'I') divisionSummary['I']++;
-        else if (division === 'Division II' || division === 'II') divisionSummary['II']++;
-        else if (division === 'Division III' || division === 'III') divisionSummary['III']++;
-        else if (division === 'Division IV' || division === 'IV') divisionSummary['IV']++;
-        else divisionSummary['0']++;
+        if (division === 'Division I' || division === 'I') divisionSummary.I++;
+        else if (division === 'Division II' || division === 'II') divisionSummary.II++;
+        else if (division === 'Division III' || division === 'III') divisionSummary.III++;
+        else if (division === 'Division IV' || division === 'IV') divisionSummary.IV++;
+        else divisionSummary[0]++;
       }
     }
 
@@ -214,7 +223,7 @@ const EnhancedALevelClassReport = ({
     // Calculate overall performance
     let totalPassed = 0;
     let totalGpaPoints = 0;
-    let totalStudents = processedData.students?.length || 0;
+    const totalStudents = processedData.students?.length || 0;
 
     if (processedData.students) {
       for (const student of processedData.students) {
@@ -415,22 +424,79 @@ const EnhancedALevelClassReport = ({
 
   // Get all unique subjects from student combinations
   const allSubjects = new Set();
+
+  // Debug the report data structure
+  console.log('Report Data:', reportData);
+  console.log('Students:', reportData.students);
+
   if (reportData.students && reportData.students.length > 0) {
     for (const student of reportData.students) {
-      const studentSubjects = student.subjectResults || [];
+      // Debug each student's subject data
+      console.log(`Student ${student.studentName || student.id}:`, {
+        subjectResults: student.subjectResults,
+        subjects: student.subjects,
+        results: student.results
+      });
+
+      // Handle different API response formats
+      const studentSubjects = student.subjectResults || student.subjects || student.results || [];
+      console.log('Student Subjects:', studentSubjects);
+
+      // Check for subjects directly in the student object
+      const commonSubjects = ['General Studies', 'History', 'Physics', 'Chemistry', 'Kiswahili', 'Advanced Mathematics',
+       'Biology', 'Geography', 'English', 'BAM', 'Economics'];
+
+      for (const subjectName of commonSubjects) {
+        if (student[subjectName] !== undefined) {
+          console.log(`Found subject ${subjectName} directly in student object:`, student[subjectName]);
+          // Check if this subject is already in the studentSubjects array
+          const exists = studentSubjects.some(s =>
+            (s.subject?.name === subjectName) || (s.name === subjectName) || (s === subjectName)
+          );
+
+          if (!exists) {
+            studentSubjects.push({
+              subject: { name: subjectName },
+              marks: student[subjectName]
+            });
+          }
+        }
+      }
+
       for (const subject of studentSubjects) {
+        console.log('Subject:', subject);
+
+        // Different API formats use different structures
         if (subject.subject?.name) {
+          console.log('Adding subject by subject.subject.name:', subject.subject.name);
           allSubjects.add(subject.subject.name);
+        } else if (subject.subject) {
+          console.log('Adding subject by subject.subject:', subject.subject);
+          allSubjects.add(subject.subject);
+        } else if (subject.name) {
+          console.log('Adding subject by subject.name:', subject.name);
+          allSubjects.add(subject.name);
+        } else if (typeof subject === 'string') {
+          console.log('Adding subject as string:', subject);
+          allSubjects.add(subject);
+        } else {
+          console.log('Could not determine subject name from:', subject);
         }
       }
     }
   }
 
+  console.log('All Subjects Found:', allSubjects);
+
   // If no subjects found, add placeholder subjects for A-Level
   if (allSubjects.size === 0) {
     // Add common A-Level subjects as placeholders
-    ['General Studies', 'History', 'Physics', 'Chemistry', 'Kiswahili', 'Advanced Mathematics',
-     'Biology', 'Geography', 'English', 'BAM', 'Economics'].forEach(subj => allSubjects.add(subj));
+    const commonSubjects = ['General Studies', 'History', 'Physics', 'Chemistry', 'Kiswahili', 'Advanced Mathematics',
+     'Biology', 'Geography', 'English', 'BAM', 'Economics'];
+
+    for (const subj of commonSubjects) {
+      allSubjects.add(subj);
+    }
   }
 
   // Convert to array and sort alphabetically
@@ -454,7 +520,7 @@ const EnhancedALevelClassReport = ({
           Tel: +255 123 456 789 | Email: info@stjohnvianney.edu.tz
         </Typography>
         <Typography variant="h5" align="center" sx={{ mt: 2, fontWeight: 'bold' }}>
-          {reportData.year} FORM FIVE EXAMINATION RESULTS
+          {typeof reportData.year === 'object' ? reportData.year.year || new Date().getFullYear() : reportData.year || new Date().getFullYear()} FORM FIVE EXAMINATION RESULTS
         </Typography>
       </Paper>
 
@@ -534,18 +600,33 @@ const EnhancedALevelClassReport = ({
       {viewMode === 'individual' ? (
         <>
           {/* Student Results Table */}
-          <TableContainer component={Paper} sx={{ mb: 3, maxHeight: 600, overflow: 'auto' }}>
+          <TableContainer component={Paper} sx={{ mb: 3, maxHeight: 600, overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: 2, boxShadow: 3 }}>
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
                   <TableCell
-                    sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                    sx={{
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      backgroundColor: '#f5f5f5',
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 2
+                    }}
                   >
                     #
                   </TableCell>
                   <TableCell
                     onClick={() => handleSortChange('studentName')}
-                    sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                    sx={{
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      backgroundColor: '#f5f5f5',
+                      position: 'sticky',
+                      left: '40px',
+                      zIndex: 2,
+                      minWidth: '200px'
+                    }}
                   >
                     STUDENT NAME {sortField === 'studentName' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </TableCell>
@@ -566,15 +647,34 @@ const EnhancedALevelClassReport = ({
                   </TableCell>
 
                   {/* Subject Columns - All possible subjects */}
-                  {uniqueSubjects.map((subjectName) => (
-                    <TableCell
-                      key={subjectName}
-                      align="center"
-                      sx={{ fontWeight: 'bold' }}
-                    >
-                      {subjectName}
-                    </TableCell>
-                  ))}
+                  {uniqueSubjects.map((subjectName) => {
+                    // Create a shorter display name for the column header
+                    const displayName = subjectName.length > 10 ?
+                      subjectName.split(' ').map(word => word.charAt(0)).join('') :
+                      subjectName;
+
+                    return (
+                      <TableCell
+                        key={subjectName}
+                        align="center"
+                        sx={{
+                          fontWeight: 'bold',
+                          backgroundColor: '#e3f2fd',
+                          minWidth: '80px',
+                          border: '1px solid #bbdefb',
+                          '&:hover': {
+                            backgroundColor: '#bbdefb',
+                          }
+                        }}
+                        title={subjectName} // Show full name on hover
+                      >
+                        {displayName}
+                        <Tooltip title={subjectName} placement="top">
+                          <Box component="span" sx={{ display: 'inline-block', ml: 0.5, cursor: 'help', fontSize: '0.8rem' }}>ⓘ</Box>
+                        </Tooltip>
+                      </TableCell>
+                    );
+                  })}
 
                   {/* Summary Columns */}
                   <TableCell
@@ -608,8 +708,8 @@ const EnhancedALevelClassReport = ({
 
                     return (
                     <TableRow key={student.id || student.studentId || index} sx={isPlaceholder ? { opacity: 0.7, fontStyle: 'italic' } : {}}>
-                      <TableCell>{startIndex + index + 1}</TableCell>
-                      <TableCell>{student.studentName || `${student.firstName} ${student.lastName}`}</TableCell>
+                      <TableCell sx={{ position: 'sticky', left: 0, backgroundColor: '#f5f5f5', zIndex: 1 }}>{startIndex + index + 1}</TableCell>
+                      <TableCell sx={{ position: 'sticky', left: '40px', backgroundColor: '#f5f5f5', zIndex: 1 }}>{student.studentName || `${student.firstName} ${student.lastName}`}</TableCell>
                       <TableCell>{student.sex || student.gender || '-'}</TableCell>
                       <TableCell align="center">{student.points || student.totalPoints || '-'}</TableCell>
                       <TableCell align="center">{student.division || '-'}</TableCell>
@@ -617,17 +717,103 @@ const EnhancedALevelClassReport = ({
                       {/* Subject Marks - All possible subjects */}
                       {uniqueSubjects.map((subjectName) => {
                         // Find the subject result for this student
-                        const subjectResult = student.subjectResults?.find(r => r.subject?.name === subjectName);
+                        // Handle different API response formats
+                        let subjectResult;
 
-                        // Get the marks, handling missing values
+                        // Debug the subject search
+                        console.log(`Looking for subject ${subjectName} for student ${student.studentName || student.id}`);
+
+                        // Try different formats
+                        if (student.subjectResults) {
+                          subjectResult = student.subjectResults.find(r =>
+                            r.subject?.name === subjectName ||
+                            r.subject === subjectName ||
+                            r.name === subjectName
+                          );
+                          console.log('From subjectResults:', subjectResult);
+                        }
+
+                        if (!subjectResult && student.subjects) {
+                          subjectResult = student.subjects.find(r =>
+                            r.name === subjectName ||
+                            r.subject?.name === subjectName ||
+                            r.subject === subjectName
+                          );
+                          console.log('From subjects:', subjectResult);
+                        }
+
+                        if (!subjectResult && student.results) {
+                          subjectResult = student.results.find(r =>
+                            r.subject?.name === subjectName ||
+                            r.subject === subjectName ||
+                            r.name === subjectName
+                          );
+                          console.log('From results:', subjectResult);
+                        }
+
+                        // Check if the subject is directly in the student object
+                        if (!subjectResult && student[subjectName] !== undefined) {
+                          subjectResult = { marks: student[subjectName] };
+                          console.log('From student direct property:', subjectResult);
+                        }
+
+                        // Check for subject with different casing or formatting
+                        if (!subjectResult) {
+                          // Try different variations of the subject name
+                          const variations = [
+                            subjectName.toLowerCase(),
+                            subjectName.toUpperCase(),
+                            subjectName.replace(/\s+/g, ''),  // Remove spaces
+                            subjectName.replace(/\s+/g, '_'),  // Replace spaces with underscores
+                            subjectName.split(' ')[0]  // First word only
+                          ];
+
+                          // Add common abbreviations
+                          const abbreviationMap = {
+                            'General Studies': ['GS', 'GenStudies', 'G_Studies'],
+                            'History': ['HIST', 'HST'],
+                            'Physics': ['PHY', 'PHYS'],
+                            'Chemistry': ['CHEM', 'CHM'],
+                            'Kiswahili': ['KIS', 'KISW', 'SWA'],
+                            'Advanced Mathematics': ['MATH', 'AMATH', 'ADV_MATH', 'AdvMath'],
+                            'Biology': ['BIO', 'BIOL'],
+                            'Geography': ['GEO', 'GEOG'],
+                            'English': ['ENG', 'ENGL'],
+                            'BAM': ['B.A.M', 'BookKeeping', 'Accounting'],
+                            'Economics': ['ECON', 'ECO']
+                          };
+
+                          if (abbreviationMap[subjectName]) {
+                            variations.push(...abbreviationMap[subjectName]);
+                          }
+
+                          for (const variation of variations) {
+                            if (student[variation] !== undefined) {
+                              subjectResult = { marks: student[variation] };
+                              console.log(`Found subject using variation ${variation}:`, subjectResult);
+                              break;
+                            }
+                          }
+                        }
+
+                        // Get the marks, handling missing values and different formats
                         const marks = subjectResult?.marks ||
                                     subjectResult?.marksObtained ||
+                                    subjectResult?.grade ||
                                     (subjectResult?.present ? subjectResult.marks : '-');
+
+                        console.log(`Final marks for ${subjectName}:`, marks);
 
                         return (
                           <TableCell
-                            key={`${student.id}-${subjectName}`}
+                            key={`${student.id || student._id || index}-${subjectName}`}
                             align="center"
+                            sx={{
+                              backgroundColor: marks ? '#e8f5e9' : '#f5f5f5',
+                              border: '1px solid #c8e6c9',
+                              fontWeight: marks ? 'bold' : 'normal',
+                              color: marks ? (marks >= 50 ? '#2e7d32' : '#d32f2f') : '#757575'
+                            }}
                           >
                             {marks === null || marks === undefined ? '-' : marks}
                           </TableCell>
@@ -672,6 +858,45 @@ const EnhancedALevelClassReport = ({
               Page {currentPage} of {totalPages}
             </Typography>
           </Box>
+
+          {/* Legend */}
+          <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
+            <Typography variant="subtitle2" gutterBottom>
+              Legend:
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: 20, height: 20, backgroundColor: '#e3f2fd', border: '1px solid #bbdefb', mr: 1 }} />
+                  <Typography variant="body2">Subject Column</Typography>
+                </Box>
+              </Grid>
+              <Grid item>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: 20, height: 20, backgroundColor: '#e8f5e9', border: '1px solid #c8e6c9', mr: 1 }} />
+                  <Typography variant="body2">Subject with Marks</Typography>
+                </Box>
+              </Grid>
+              <Grid item>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: 20, height: 20, backgroundColor: '#f5f5f5', border: '1px solid #e0e0e0', mr: 1 }} />
+                  <Typography variant="body2">No Marks Available</Typography>
+                </Box>
+              </Grid>
+              <Grid item>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 'bold', mr: 1 }}>50+</Typography>
+                  <Typography variant="body2">Passing Mark</Typography>
+                </Box>
+              </Grid>
+              <Grid item>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ color: '#d32f2f', fontWeight: 'bold', mr: 1 }}>Below 50</Typography>
+                  <Typography variant="body2">Failing Mark</Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
         </>
       ) : (
         <>
