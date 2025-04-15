@@ -486,8 +486,20 @@ const ClassTabularReport = () => {
             const resultData = resultsResponse.data;
 
             // Check if this is an O-Level report and adapt the data structure
-            const isOLevel = resultData.educationLevel === 'O_LEVEL' ||
-                            (resultData.subjectResults && !resultData.principalSubjects);
+            // First check the class education level from classData
+            const classEducationLevel = classData.educationLevel || 'A_LEVEL';
+
+            // Then check the result data education level
+            const resultEducationLevel = resultData.educationLevel || classEducationLevel;
+
+            // Determine if this is O-Level or A-Level
+            const isOLevel = resultEducationLevel === 'O_LEVEL' ||
+                           (classEducationLevel === 'O_LEVEL' &&
+                            resultData.subjectResults &&
+                            !resultData.principalSubjects);
+
+            console.log(`Processing ${isOLevel ? 'O-Level' : 'A-Level'} data for student ${student._id}`);
+            console.log('Result data structure:', Object.keys(resultData));
 
             let allSubjects = [];
 
@@ -503,11 +515,103 @@ const ClassTabularReport = () => {
                 isPrincipal: true
               }));
             } else {
-              // Use A-Level data structure
-              allSubjects = [
-                ...(resultData.principalSubjects || []).map(s => ({ ...s, isPrincipal: true })),
-                ...(resultData.subsidiarySubjects || []).map(s => ({ ...s, isPrincipal: false }))
-              ];
+              console.log('Processing A-Level data structure for student');
+
+              // Log the actual data structure for debugging
+              if (resultData.principalSubjects) {
+                console.log('Principal subjects:', resultData.principalSubjects);
+              }
+              if (resultData.subsidiarySubjects) {
+                console.log('Subsidiary subjects:', resultData.subsidiarySubjects);
+              }
+              if (resultData.allSubjects) {
+                console.log('All subjects:', resultData.allSubjects);
+              }
+
+              // Handle different A-Level data structures
+              if (resultData.allSubjects && Array.isArray(resultData.allSubjects) && resultData.allSubjects.length > 0) {
+                // Use the allSubjects array if available (this is the most reliable source)
+                console.log('Using allSubjects array for processing');
+                allSubjects = resultData.allSubjects.map(s => ({
+                  ...s,
+                  isPrincipal: s.isPrincipal !== undefined ? s.isPrincipal : true,
+                  // Ensure consistent structure
+                  subject: s.subject?.name || s.subject || s.name,
+                  code: s.code || s.subject?.code || (s.subject?.name ? s.subject.name.substring(0, 3).toUpperCase() : ''),
+                  marks: s.marks || s.marksObtained || 0,
+                  grade: s.grade || '-',
+                  points: s.points || 0
+                }));
+              } else if (resultData.principalSubjects || resultData.subsidiarySubjects) {
+                // Standard A-Level structure with principal and subsidiary subjects
+                console.log('Using principalSubjects and subsidiarySubjects arrays for processing');
+                allSubjects = [
+                  ...(resultData.principalSubjects || []).map(s => ({
+                    ...s,
+                    isPrincipal: true,
+                    // Ensure consistent structure
+                    subject: s.subject?.name || s.subject || s.name,
+                    code: s.code || s.subject?.code || (s.subject?.name ? s.subject.name.substring(0, 3).toUpperCase() : ''),
+                    marks: s.marks || s.marksObtained || 0,
+                    grade: s.grade || '-',
+                    points: s.points || 0
+                  })),
+                  ...(resultData.subsidiarySubjects || []).map(s => ({
+                    ...s,
+                    isPrincipal: false,
+                    // Ensure consistent structure
+                    subject: s.subject?.name || s.subject || s.name,
+                    code: s.code || s.subject?.code || (s.subject?.name ? s.subject.name.substring(0, 3).toUpperCase() : ''),
+                    marks: s.marks || s.marksObtained || 0,
+                    grade: s.grade || '-',
+                    points: s.points || 0
+                  }))
+                ];
+              } else if (resultData.subjectResults) {
+                // Alternative structure with subjectResults array
+                allSubjects = (resultData.subjectResults || []).map(s => ({
+                  ...s,
+                  isPrincipal: s.isPrincipal || true,  // Default to principal if not specified
+                  // Ensure consistent structure
+                  subject: s.subject?.name || s.subject || s.name,
+                  code: s.code || s.subject?.code || '',
+                  marks: s.marks || s.marksObtained || 0,
+                  grade: s.grade || '-',
+                  points: s.points || 0
+                }));
+              } else if (resultData.subjects) {
+                // Another alternative with subjects array
+                allSubjects = (resultData.subjects || []).map(s => ({
+                  ...s,
+                  isPrincipal: s.isPrincipal || true,  // Default to principal if not specified
+                  // Ensure consistent structure
+                  subject: s.subject?.name || s.subject || s.name,
+                  code: s.code || s.subject?.code || '',
+                  marks: s.marks || s.marksObtained || 0,
+                  grade: s.grade || '-',
+                  points: s.points || 0
+                }));
+              } else if (resultData.results && Array.isArray(resultData.results)) {
+                // Yet another alternative with results array
+                allSubjects = (resultData.results || []).map(s => ({
+                  ...s,
+                  isPrincipal: s.isPrincipal || true,  // Default to principal if not specified
+                  // Ensure consistent structure
+                  subject: s.subject?.name || s.subject || s.name,
+                  code: s.code || s.subject?.code || '',
+                  marks: s.marks || s.marksObtained || 0,
+                  grade: s.grade || '-',
+                  points: s.points || 0
+                }));
+              } else {
+                // If no recognized structure, log an error and return empty array
+                console.error('Unrecognized A-Level data structure:', resultData);
+                allSubjects = [];
+              }
+
+              // Log the processed subjects
+              console.log(`Processed ${allSubjects.length} subjects for A-Level student:`,
+                allSubjects.map(s => `${s.subject} (${s.code}): ${s.marks}`))
             }
 
             return {
@@ -539,17 +643,46 @@ const ClassTabularReport = () => {
 
       // Get all unique subjects across all students
       const uniqueSubjects = [];
+      console.log('Extracting unique subjects from students');
+
       for (const student of studentsWithResults) {
+        console.log(`Processing subjects for student ${student._id || student.id}:`,
+          student.subjects?.length || 0, 'subjects');
+
         for (const subject of (student.subjects || [])) {
-          if (!uniqueSubjects.some(s => s.code === subject.code)) {
+          // Generate a reliable code if one doesn't exist
+          const subjectCode = subject.code ||
+                             (typeof subject.subject === 'string' ? subject.subject.substring(0, 3).toUpperCase() : '') ||
+                             (subject.subject?.name ? subject.subject.name.substring(0, 3).toUpperCase() : '') ||
+                             (subject.name ? subject.name.substring(0, 3).toUpperCase() : 'UNK');
+
+          // Get a reliable name
+          const subjectName = subject.subject?.name ||
+                             (typeof subject.subject === 'string' ? subject.subject : '') ||
+                             subject.name ||
+                             'Unknown Subject';
+
+          // Check if this subject is already in the uniqueSubjects array
+          const existingSubject = uniqueSubjects.find(s =>
+            // Match by code (most reliable)
+            s.code === subjectCode ||
+            // Or by name (case insensitive)
+            (s.name && subjectName && s.name.toLowerCase() === subjectName.toLowerCase())
+          );
+
+          if (!existingSubject) {
+            console.log(`Adding unique subject: ${subjectName} (${subjectCode})`);
             uniqueSubjects.push({
-              code: subject.code,
-              name: subject.subject || subject.name,
-              isPrincipal: subject.isPrincipal
+              code: subjectCode,
+              name: subjectName,
+              isPrincipal: subject.isPrincipal === undefined ? true : subject.isPrincipal
             });
           }
         }
       }
+
+      console.log(`Found ${uniqueSubjects.length} unique subjects:`,
+        uniqueSubjects.map(s => `${s.name} (${s.code})`))
 
       // Sort subjects: principal subjects first, then subsidiary subjects
       uniqueSubjects.sort((a, b) => {
@@ -941,22 +1074,22 @@ const ClassTabularReport = () => {
         <Table className="report-table" size="small">
           <TableHead>
             <TableRow className="table-header-row">
-              <TableCell className="student-header">STUDENT</TableCell>
-              <TableCell className="info-header">SEX</TableCell>
-              <TableCell className="info-header">POINTS</TableCell>
-              <TableCell className="info-header">DIV</TableCell>
+              <TableCell key="header-student" className="student-header">STUDENT</TableCell>
+              <TableCell key="header-sex" className="info-header">SEX</TableCell>
+              <TableCell key="header-points" className="info-header">POINTS</TableCell>
+              <TableCell key="header-div" className="info-header">DIV</TableCell>
               {subjects.map((subject) => (
                 <TableCell
-                  key={subject.code}
+                  key={`header-${subject.code || subject.name || 'unknown'}`}
                   align="center"
                   className={subject.isPrincipal ? "principal-subject" : "subsidiary-subject"}
                 >
-                  {subject.code}
+                  {subject.code || (subject.name ? subject.name.substring(0, 3).toUpperCase() : 'UNK')}
                 </TableCell>
               ))}
-              <TableCell align="center" className="total-header">TOTAL</TableCell>
-              <TableCell align="center" className="average-header">AVG</TableCell>
-              <TableCell align="center" className="rank-header">RANK</TableCell>
+              <TableCell key="header-total" align="center" className="total-header">TOTAL</TableCell>
+              <TableCell key="header-avg" align="center" className="average-header">AVG</TableCell>
+              <TableCell key="header-rank" align="center" className="rank-header">RANK</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -977,11 +1110,38 @@ const ClassTabularReport = () => {
                   {student.summary?.division || '-'}
                 </TableCell>
                 {subjects.map((subject) => {
-                  const studentSubject = (student.subjects || []).find(s =>
-                    (s.code === subject.code) || (s.subject?.includes(subject.name))
-                  );
+                  // Enhanced subject matching logic
+                  const studentSubject = (student.subjects || []).find(s => {
+                    // Try to match by code first (most reliable)
+                    if (s.code === subject.code) return true;
+
+                    // Try to match by subject name
+                    if (typeof s.subject === 'string' && s.subject === subject.name) return true;
+
+                    // Try to match by subject object name
+                    if (s.subject?.name === subject.name) return true;
+
+                    // Try to match by name property
+                    if (s.name === subject.name) return true;
+
+                    // Try partial matching (case insensitive)
+                    if (typeof s.subject === 'string' &&
+                        subject.name &&
+                        s.subject.toLowerCase().includes(subject.name.toLowerCase())) return true;
+
+                    // Try partial matching with subject.name
+                    if (s.subject?.name &&
+                        subject.name &&
+                        s.subject.name.toLowerCase().includes(subject.name.toLowerCase())) return true;
+
+                    return false;
+                  });
+
+                  // Generate a unique key for this cell
+                  const cellKey = `${student.id || student._id || 'unknown'}-${subject.code || subject.name || 'unknown'}`;
+
                   return (
-                    <TableCell key={`${student.id || student._id}-${subject.code}`} align="center" className="subject-cell">
+                    <TableCell key={cellKey} align="center" className="subject-cell">
                       {studentSubject ? (
                         <div className="subject-data">
                           <div className="subject-marks">{studentSubject.marks}</div>
@@ -1019,25 +1179,25 @@ const ClassTabularReport = () => {
         <TableContainer component={Paper} className="summary-table-container">
           <Table className="summary-table" size="small">
             <TableHead>
-              <TableRow>
-                <TableCell className="summary-header">SUBJECT</TableCell>
-                <TableCell align="center" className="summary-header">REG</TableCell>
-                <TableCell align="center" className="summary-header" colSpan={7}>GRADE</TableCell>
-                <TableCell align="center" className="summary-header">PASS</TableCell>
-                <TableCell align="center" className="summary-header">GPA</TableCell>
+              <TableRow key="summary-header-row-1">
+                <TableCell key="summary-subject" className="summary-header">SUBJECT</TableCell>
+                <TableCell key="summary-reg" align="center" className="summary-header">REG</TableCell>
+                <TableCell key="summary-grade" align="center" className="summary-header" colSpan={7}>GRADE</TableCell>
+                <TableCell key="summary-pass" align="center" className="summary-header">PASS</TableCell>
+                <TableCell key="summary-gpa" align="center" className="summary-header">GPA</TableCell>
               </TableRow>
-              <TableRow>
-                <TableCell className="summary-header" />
-                <TableCell align="center" className="summary-header" />
-                <TableCell align="center" className="grade-header">A</TableCell>
-                <TableCell align="center" className="grade-header">B</TableCell>
-                <TableCell align="center" className="grade-header">C</TableCell>
-                <TableCell align="center" className="grade-header">D</TableCell>
-                <TableCell align="center" className="grade-header">E</TableCell>
-                <TableCell align="center" className="grade-header">S</TableCell>
-                <TableCell align="center" className="grade-header">F</TableCell>
-                <TableCell align="center" className="summary-header" />
-                <TableCell align="center" className="summary-header" />
+              <TableRow key="summary-header-row-2">
+                <TableCell key="summary-empty-1" className="summary-header" />
+                <TableCell key="summary-empty-2" align="center" className="summary-header" />
+                <TableCell key="summary-grade-a" align="center" className="grade-header">A</TableCell>
+                <TableCell key="summary-grade-b" align="center" className="grade-header">B</TableCell>
+                <TableCell key="summary-grade-c" align="center" className="grade-header">C</TableCell>
+                <TableCell key="summary-grade-d" align="center" className="grade-header">D</TableCell>
+                <TableCell key="summary-grade-e" align="center" className="grade-header">E</TableCell>
+                <TableCell key="summary-grade-s" align="center" className="grade-header">S</TableCell>
+                <TableCell key="summary-grade-f" align="center" className="grade-header">F</TableCell>
+                <TableCell key="summary-empty-3" align="center" className="summary-header" />
+                <TableCell key="summary-empty-4" align="center" className="summary-header" />
               </TableRow>
             </TableHead>
             <TableBody>
