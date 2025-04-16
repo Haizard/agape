@@ -29,10 +29,12 @@ import {
 
 import './SingleStudentReport.css';
 
+// Import the O-Level report component
+import OLevelStudentReport from './OLevelStudentReport';
+
 /**
- * SingleStudentReport Component (v2.0)
- * Displays a comprehensive academic report for a single student
- * with all subjects (both principal and subsidiary)
+ * SingleStudentReport Component (v3.0)
+ * Acts as a router to display the appropriate report template based on education level
  *
  * @param {string} educationLevel - Optional education level override ('O_LEVEL' or 'A_LEVEL')
  */
@@ -146,6 +148,10 @@ const SingleStudentReport = ({ educationLevel: educationLevelProp }) => {
           })) || [],
           subsidiarySubjects: []
         };
+
+        // For O-Level, we'll also set a subjects array that contains all subjects
+        formattedReportData.subjects = formattedReportData.principalSubjects;
+
         return processFormattedData(formattedReportData);
       }
 
@@ -186,6 +192,11 @@ const SingleStudentReport = ({ educationLevel: educationLevelProp }) => {
       setExamData(formattedExamData);
       setPrincipalSubjects(data.principalSubjects || []);
       setSubsidiarySubjects(data.subsidiarySubjects || []);
+
+      // If this is an O-Level report, ensure we have a subjects array
+      if (detectedEducationLevel === 'O_LEVEL' && !data.subjects) {
+        data.subjects = data.principalSubjects || [];
+      }
 
       // Format summary data
       const formattedSummary = {
@@ -312,7 +323,7 @@ const SingleStudentReport = ({ educationLevel: educationLevelProp }) => {
     } finally {
       setLoading(false);
     }
-  }, [studentId, examId, academicYear, term, educationLevelProp]);
+  }, [studentId, examId, academicYear, term, educationLevelProp, detectedEducationLevel]);
 
   // Generate demo data for testing
   const generateDemoData = (formLevel) => {
@@ -672,6 +683,22 @@ const SingleStudentReport = ({ educationLevel: educationLevelProp }) => {
     );
   }
 
+  // Prepare the report data for child components
+  const reportData = {
+    studentData,
+    examData,
+    principalSubjects,
+    subsidiarySubjects,
+    subjects: principalSubjects, // For O-Level, we'll use principalSubjects as the main subjects array
+    summary
+  };
+
+  // Render the appropriate template based on education level
+  if (detectedEducationLevel === 'O_LEVEL') {
+    return <OLevelStudentReport reportData={reportData} />;
+  }
+
+  // Default to A-Level template
   return (
     <Box className="single-student-report-container" ref={reportRef}>
       {/* Action Buttons - Hidden when printing */}

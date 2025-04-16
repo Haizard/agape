@@ -1435,84 +1435,98 @@ const ClassTabularReport = () => {
   // Add form information to students if missing
   useEffect(() => {
     if (students.length > 0) {
-      // Check if any students are missing form information or have form information in the wrong format
-      const studentsWithoutForm = students.filter(s => !s.form || typeof s.form === 'string' && !['5', '6'].includes(s.form));
-
-      if (studentsWithoutForm.length > 0) {
-        console.log(`Found ${studentsWithoutForm.length} students without proper form information. Attempting to assign...`);
-
+      // For A-Level classes, we need to ensure all students have form 5 or 6
+      if (classData?.educationLevel === 'A_LEVEL') {
         // Create a copy of the students array
         const updatedStudents = [...students];
+        let updatedCount = 0;
 
         // Try to determine form for each student
         for (let i = 0; i < updatedStudents.length; i++) {
           const student = updatedStudents[i];
+          let formAssigned = false;
 
-          // Normalize existing form value if it's in the wrong format
-          if (student.form) {
-            if (typeof student.form === 'string') {
-              // Convert string form to number if possible
-              if (student.form.includes('5') || student.form.toLowerCase().includes('form 5') || student.form === '5') {
-                student.form = 5;
-                console.log(`Normalized Form 5 for student ${student._id || student.id} from string value`);
-              } else if (student.form.includes('6') || student.form.toLowerCase().includes('form 6') || student.form === '6') {
-                student.form = 6;
-                console.log(`Normalized Form 6 for student ${student._id || student.id} from string value`);
-              }
-            }
+          // Check if the student already has a valid A-Level form
+          if (student.form === 5 || student.form === 6 || student.form === '5' || student.form === '6') {
+            // Normalize to number
+            student.form = student.form === '5' ? 5 : student.form === '6' ? 6 : student.form;
+            formAssigned = true;
           } else {
             // Try to determine form from class name
             if (classData?.name) {
               if (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5')) {
                 student.form = 5;
                 console.log(`Assigned Form 5 to student ${student._id || student.id} based on class name`);
+                formAssigned = true;
               } else if (classData.name.includes('6') || classData.name.toLowerCase().includes('form 6')) {
                 student.form = 6;
                 console.log(`Assigned Form 6 to student ${student._id || student.id} based on class name`);
+                formAssigned = true;
               }
             }
 
             // Try to determine from admission number
-            if (!student.form && student.admissionNumber) {
+            if (!formAssigned && student.admissionNumber) {
               if (typeof student.admissionNumber === 'string') {
                 if (student.admissionNumber.includes('F5-') || student.admissionNumber.startsWith('5')) {
                   student.form = 5;
                   console.log(`Assigned Form 5 to student ${student._id || student.id} based on admission number`);
+                  formAssigned = true;
                 } else if (student.admissionNumber.includes('F6-') || student.admissionNumber.startsWith('6')) {
                   student.form = 6;
                   console.log(`Assigned Form 6 to student ${student._id || student.id} based on admission number`);
+                  formAssigned = true;
                 }
               }
             }
 
             // Try to determine from combination code
-            if (!student.form && (student.combination || student.subjectCombination)) {
+            if (!formAssigned && (student.combination || student.subjectCombination)) {
               const combinationCode = student.combination || student.subjectCombination;
               // This is just a heuristic - adjust based on your school's actual patterns
               if (['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
                 // These are typically Form 5 combinations
                 student.form = 5;
                 console.log(`Assigned Form 5 to student ${student._id || student.id} based on combination ${combinationCode}`);
+                formAssigned = true;
               } else if (['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
                 // These might be more common in Form 6
                 student.form = 6;
                 console.log(`Assigned Form 6 to student ${student._id || student.id} based on combination ${combinationCode}`);
+                formAssigned = true;
               }
             }
 
             // If still not set, default to Form 5 for A-Level classes
-            if (!student.form && classData?.educationLevel === 'A_LEVEL') {
+            if (!formAssigned) {
               student.form = 5; // Default to Form 5 for A-Level
               console.log(`Assigned default Form 5 to A-Level student ${student._id || student.id}`);
+              formAssigned = true;
+            }
+
+            if (formAssigned) {
+              updatedCount++;
             }
           }
         }
 
         // Update the students array with the updated form information
-        setStudents(updatedStudents);
-        console.log('Updated students with form information:', updatedStudents.map(s => ({ id: s._id || s.id, form: s.form })));
+        if (updatedCount > 0) {
+          console.log(`Updated form information for ${updatedCount} students`);
+          setStudents(updatedStudents);
+        }
+        console.log('Student forms after processing:', updatedStudents.map(s => ({
+          id: s._id || s.id,
+          name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+          form: s.form
+        })));
       } else {
-        console.log('All students have form information:', students.map(s => ({ id: s._id || s.id, form: s.form })));
+        // For O-Level classes, just log the current form information
+        console.log('O-Level class - student forms:', students.map(s => ({
+          id: s._id || s.id,
+          name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+          form: s.form
+        })));
       }
     }
   }, [students, classData]);
