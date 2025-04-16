@@ -44,6 +44,7 @@ import {
   Save as SaveIcon
 } from '@mui/icons-material';
 import api from '../../services/api';
+import { processClassData } from '../../utils/dataProcessing';
 
 const SubjectClassAssignment = () => {
   const [loading, setLoading] = useState(false);
@@ -95,13 +96,25 @@ const SubjectClassAssignment = () => {
         // If there are academic years, select the first one by default
         if (academicYearsRes.data && academicYearsRes.data.length > 0) {
           console.log('Setting default academic year:', academicYearsRes.data[0]);
-          setSelectedAcademicYear(academicYearsRes.data[0]._id);
+          const defaultYearId = academicYearsRes.data[0]._id;
+          setSelectedAcademicYear(defaultYearId);
 
           // Filter classes by the selected academic year
-          const filtered = classesRes.data.filter(
-            cls => cls.academicYear === academicYearsRes.data[0]._id
-          );
-          console.log('Filtered classes for academic year:', filtered);
+          const filtered = classesRes.data.filter(cls => {
+            // Handle different academicYear formats
+            if (typeof cls.academicYear === 'string') {
+              return cls.academicYear === defaultYearId;
+            }
+
+            if (typeof cls.academicYear === 'object' && cls.academicYear !== null) {
+              // If academicYear is an object, compare the _id
+              return cls.academicYear._id === defaultYearId;
+            }
+
+            return false;
+          });
+
+          console.log(`Filtered ${filtered.length} classes for academic year ${defaultYearId}`);
           setFilteredClasses(filtered);
         } else {
           console.warn('No academic years found or academic years array is empty');
@@ -139,9 +152,21 @@ const SubjectClassAssignment = () => {
   // Filter classes when academic year changes
   useEffect(() => {
     if (selectedAcademicYear) {
-      const filtered = classes.filter(
-        cls => cls.academicYear === selectedAcademicYear
-      );
+      const filtered = classes.filter(cls => {
+        // Handle different academicYear formats
+        if (typeof cls.academicYear === 'string') {
+          return cls.academicYear === selectedAcademicYear;
+        }
+
+        if (typeof cls.academicYear === 'object' && cls.academicYear !== null) {
+          // If academicYear is an object, compare the _id
+          return cls.academicYear._id === selectedAcademicYear;
+        }
+
+        return false;
+      });
+
+      console.log(`Filtered ${filtered.length} classes for academic year ${selectedAcademicYear}`);
       setFilteredClasses(filtered);
 
       // Reset selected class if it's not in the filtered list
@@ -161,10 +186,14 @@ const SubjectClassAssignment = () => {
         setLoading(true);
         try {
           const response = await api.get(`/api/classes/${selectedClass}`);
-          const classData = response.data;
+          console.log('Fetched class details:', response.data);
+
+          // Process the class data to handle academicYear and other nested objects safely
+          const processedClassData = processClassData(response.data);
+          console.log('Processed class data:', processedClassData);
 
           // Initialize selected subjects from class data
-          const classSubjects = classData.subjects || [];
+          const classSubjects = processedClassData.subjects || [];
           setSelectedSubjects(classSubjects.map(s => s.subject));
 
           // Initialize subject-teacher mapping

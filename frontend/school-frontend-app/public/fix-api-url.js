@@ -1,50 +1,125 @@
 /**
  * This script fixes the API URL issue by intercepting all fetch and XMLHttpRequest calls
- * and redirecting them to the correct backend URL.
+ * and redirecting them to the correct backend URL while preserving authentication.
  */
 (function() {
     console.log('API URL Fixer: Initializing...');
-    
-    // The correct backend URL
-    const BACKEND_URL = 'https://agape-render.onrender.com';
-    
+
+    // Check if the fixer should be disabled (for local development)
+    if (window.REACT_APP_DISABLE_API_URL_FIXER === 'true') {
+        console.log('API URL Fixer: Disabled by environment variable');
+        return;
+    }
+
+    // Check if we're in local development mode
+    const isLocalDevelopment = window.location.hostname === 'localhost' ||
+                              window.location.hostname === '127.0.0.1';
+
+    // The correct backend URL - use localhost:5000 for local development
+    const BACKEND_URL = isLocalDevelopment ? 'http://localhost:5000' : 'https://agape-render.onrender.com';
+
+    console.log(`API URL Fixer: Using backend URL: ${BACKEND_URL}`);
+    console.log(`API URL Fixer: Local development mode: ${isLocalDevelopment ? 'Yes' : 'No'}`);
+
+    // Function to get the authentication token
+    const getAuthToken = () => {
+        try {
+            return localStorage.getItem('token');
+        } catch (error) {
+            console.error('Error retrieving auth token:', error);
+            return null;
+        }
+    };
+
     // Store the original fetch function
     const originalFetch = window.fetch;
-    
+
     // Override the fetch function
-    window.fetch = function(url, options) {
+    window.fetch = function(url, options = {}) {
+        // Initialize options if not provided
+        options = options || {};
+
+        // Initialize headers if not provided
+        options.headers = options.headers || {};
+
+        // Add authentication token if available
+        const token = getAuthToken();
+        if (token && !options.headers.Authorization && !options.headers.authorization) {
+            options.headers.Authorization = `Bearer ${token}`;
+        }
+
         // Check if this is an API request
         if (typeof url === 'string' && url.includes('/api/')) {
             // Convert relative URL to absolute URL with the correct backend
             if (url.startsWith('/api/') || url.startsWith('api/')) {
-                const newUrl = BACKEND_URL + (url.startsWith('/') ? url : '/' + url);
+                const newUrl = `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
                 console.log(`API URL Fixer: Redirecting fetch from ${url} to ${newUrl}`);
                 url = newUrl;
             }
         }
-        
-        // Call the original fetch with the modified URL
+
+        // Call the original fetch with the modified URL and options
         return originalFetch.apply(this, [url, options]);
     };
-    
+
     // Store the original XMLHttpRequest open method
     const originalOpen = XMLHttpRequest.prototype.open;
-    
+    const originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+
     // Override the XMLHttpRequest open method
     XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+        // Store the original URL for later use
+        this._originalUrl = url;
+
         // Check if this is an API request
         if (typeof url === 'string' && url.includes('/api/')) {
             // Convert relative URL to absolute URL with the correct backend
             if (url.startsWith('/api/') || url.startsWith('api/')) {
-                const newUrl = BACKEND_URL + (url.startsWith('/') ? url : '/' + url);
+                const newUrl = `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
                 console.log(`API URL Fixer: Redirecting XHR from ${url} to ${newUrl}`);
                 url = newUrl;
+
+                // Flag this request as an API request
+                this._isApiRequest = true;
             }
         }
-        
+
         // Call the original open method with the modified URL
         return originalOpen.apply(this, [method, url, async, user, password]);
     };
-    
+
+    // Override the XMLHttpRequest setRequestHeader method to add authentication
+    XMLHttpRequest.prototype.setRequestHeader = function(header, value) {
+        // If this is an API request and no Authorization header has been set yet
+        if (this._isApiRequest && header.toLowerCase() !== 'authorization') {
+            // Track that we're setting headers
+            this._hasSetHeaders = true;
+        }
+
+        // Call the original setRequestHeader method
+        return originalSetRequestHeader.apply(this, [header, value]);
+    };
+
+    // Override the XMLHttpRequest send method to add authentication if needed
+    const originalSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function(body) {
+        // If this is an API request and no Authorization header has been set
+        if (this._isApiRequest) {
+            const token = getAuthToken();
+            if (token) {
+                // Add the Authorization header if not already set
+                try {
+                    this.setRequestHeader('Authorization', `Bearer ${token}`);
+                    console.log(`API URL Fixer: Added auth token to request for ${this._originalUrl}`);
+                } catch (error) {
+                    console.warn(`API URL Fixer: Could not add auth token to request: ${error.message}`);
+                }
+            }
+        }
+
+        // Call the original send method
+        return originalSend.apply(this, [body]);
+    };
+
     console.log('API URL Fixer: Initialized successfully');
 })();

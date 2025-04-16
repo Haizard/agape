@@ -96,7 +96,12 @@ const FixedSubjectClassAssignment = () => {
     try {
       const response = await api.get(`/api/classes/${classId}`);
       console.log('Fetched class details:', response.data);
-      setSelectedClass(response.data);
+
+      // Process the class data to handle academicYear and other nested objects safely
+      const processedClassData = processClassData(response.data);
+      console.log('Processed class data:', processedClassData);
+
+      setSelectedClass(processedClassData);
     } catch (err) {
       console.error('Error fetching class details:', err);
       setError('Failed to fetch class details');
@@ -223,7 +228,7 @@ const FixedSubjectClassAssignment = () => {
       }
     } catch (err) {
       console.error('Error assigning subject:', err);
-      setError('Failed to assign subject to class: ' + (err.response?.data?.message || err.message));
+      setError(`Failed to assign subject to class: ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
     }
@@ -340,7 +345,7 @@ const FixedSubjectClassAssignment = () => {
                     const teacher = teachers.find(t => t._id === teacherId);
 
                     return (
-                      <TableRow key={`${subjectId}-${index}`}>
+                      <TableRow key={subjectId ? subjectId : `subject-${index}`}>
                         <TableCell>{renderSubjectName(subject)}</TableCell>
                         <TableCell>{renderTeacherName(teacher)}</TableCell>
                         <TableCell>

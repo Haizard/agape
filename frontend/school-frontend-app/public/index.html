@@ -25,6 +25,17 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>St. John Vianney School Management System</title>
+    <!-- Pass environment variables to the browser -->
+    <script>
+      // Pass the REACT_APP_DISABLE_API_URL_FIXER environment variable to the browser
+      window.REACT_APP_DISABLE_API_URL_FIXER = '%REACT_APP_DISABLE_API_URL_FIXER%';
+
+      // Log environment variables for debugging
+      console.log('Environment variables:', {
+        REACT_APP_DISABLE_API_URL_FIXER: window.REACT_APP_DISABLE_API_URL_FIXER,
+        NODE_ENV: '%NODE_ENV%'
+      });
+    </script>
     <!-- API URL Fixer Script -->
     <script src="%PUBLIC_URL%/fix-api-url.js"></script>
   </head>

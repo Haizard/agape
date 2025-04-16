@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import NewAcademicYearForm from './NewAcademicYearForm';
 import axios from 'axios';
+import { getAuthToken } from '../../utils/authUtils';
 
 const NewAcademicYearManagement = () => {
   const { user } = useSelector((state) => state.user);
@@ -42,15 +43,32 @@ const NewAcademicYearManagement = () => {
   const fetchAcademicYears = React.useCallback(async () => {
     setLoading(true);
     try {
+      // Get the authentication token
+      const token = getAuthToken();
+
+      // Create headers with authentication token
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+        console.log('Using authentication token for request');
+      } else {
+        console.warn('No authentication token found');
+      }
+
       // Try the new endpoint first
       try {
-        const response = await axios.get('/api/new-academic-years');
+        const response = await axios.get('/api/new-academic-years', { headers });
+        console.log('Successfully fetched academic years from new endpoint');
         setAcademicYears(response.data);
         setError('');
       } catch (newApiErr) {
         // Fall back to the original endpoint if the new one fails
         console.log('Falling back to original API endpoint');
-        const response = await axios.get('/api/academic-years');
+        const response = await axios.get('/api/academic-years', { headers });
+        console.log('Successfully fetched academic years from original endpoint');
         setAcademicYears(response.data);
         setError('');
       }
@@ -79,22 +97,45 @@ const NewAcademicYearManagement = () => {
 
   const handleSubmit = async (formData) => {
     try {
+      // Get the authentication token
+      const token = getAuthToken();
+
+      // Create headers with authentication token
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+        console.log('Using authentication token for submit request');
+      } else {
+        console.warn('No authentication token found for submit request');
+      }
+
       if (selectedYear) {
         // Update existing academic year
         try {
-          await axios.put(`/api/new-academic-years/${selectedYear._id}`, formData);
+          console.log(`Updating academic year ${selectedYear._id}`);
+          await axios.put(`/api/new-academic-years/${selectedYear._id}`, formData, { headers });
+          console.log('Successfully updated academic year using new endpoint');
         } catch (newApiErr) {
           // Fall back to original endpoint
-          await axios.put(`/api/academic-years/${selectedYear._id}`, formData);
+          console.log('Falling back to original endpoint for update');
+          await axios.put(`/api/academic-years/${selectedYear._id}`, formData, { headers });
+          console.log('Successfully updated academic year using original endpoint');
         }
         setSuccessMessage('Academic year updated successfully');
       } else {
         // Create new academic year
         try {
-          await axios.post('/api/new-academic-years', formData);
+          console.log('Creating new academic year');
+          await axios.post('/api/new-academic-years', formData, { headers });
+          console.log('Successfully created academic year using new endpoint');
         } catch (newApiErr) {
           // Fall back to original endpoint
-          await axios.post('/api/academic-years', formData);
+          console.log('Falling back to original endpoint for create');
+          await axios.post('/api/academic-years', formData, { headers });
+          console.log('Successfully created academic year using original endpoint');
         }
         setSuccessMessage('Academic year created successfully');
       }
@@ -110,11 +151,30 @@ const NewAcademicYearManagement = () => {
 
   const handleDelete = async (id) => {
     try {
+      // Get the authentication token
+      const token = getAuthToken();
+
+      // Create headers with authentication token
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+        console.log('Using authentication token for delete request');
+      } else {
+        console.warn('No authentication token found for delete request');
+      }
+
       try {
-        await axios.delete(`/api/new-academic-years/${id}`);
+        console.log(`Deleting academic year ${id}`);
+        await axios.delete(`/api/new-academic-years/${id}`, { headers });
+        console.log('Successfully deleted academic year using new endpoint');
       } catch (newApiErr) {
         // Fall back to original endpoint
-        await axios.delete(`/api/academic-years/${id}`);
+        console.log('Falling back to original endpoint for delete');
+        await axios.delete(`/api/academic-years/${id}`, { headers });
+        console.log('Successfully deleted academic year using original endpoint');
       }
       setSuccessMessage('Academic year deleted successfully');
       setDeleteConfirmOpen(false);
@@ -133,17 +193,36 @@ const NewAcademicYearManagement = () => {
         return;
       }
 
+      // Get the authentication token
+      const token = getAuthToken();
+
+      // Create headers with authentication token
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+        console.log('Using authentication token for set active request');
+      } else {
+        console.warn('No authentication token found for set active request');
+      }
+
       try {
+        console.log(`Setting academic year ${id} as active`);
         await axios.put(`/api/new-academic-years/${id}`, {
           ...yearToActivate,
           isActive: true
-        });
+        }, { headers });
+        console.log('Successfully set academic year as active using new endpoint');
       } catch (newApiErr) {
         // Fall back to original endpoint
+        console.log('Falling back to original endpoint for set active');
         await axios.put(`/api/academic-years/${id}`, {
           ...yearToActivate,
           isActive: true
-        });
+        }, { headers });
+        console.log('Successfully set academic year as active using original endpoint');
       }
 
       setSuccessMessage('Academic year set as active successfully');
