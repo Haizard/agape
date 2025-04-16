@@ -527,11 +527,22 @@ exports.getAssignedSubjectsForStudent = async (req, res) => {
     // Get subjects for this student that the teacher is assigned to teach
     const subjects = await teacherSubjectService.getTeacherSubjectsForStudent(teacher._id, studentId, classId);
 
-    // If no subjects found, return empty array with error message
+    // If no subjects found, try to get all subjects the teacher teaches in this class
     if (subjects.length === 0) {
       console.log(`No subjects found for student ${studentId} taught by teacher ${teacher._id} in class ${classId}`);
+      console.log(`Falling back to all subjects the teacher teaches in class ${classId}`);
+
+      // Get all subjects the teacher teaches in this class
+      const classSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, false, false);
+
+      if (classSubjects.length > 0) {
+        console.log(`Found ${classSubjects.length} subjects taught by teacher ${teacher._id} in class ${classId}`);
+        return res.json(classSubjects);
+      }
+
+      console.log(`No subjects found for teacher ${teacher._id} in class ${classId}`);
       return res.status(403).json({
-        message: 'You are not assigned to teach any subjects for this student.',
+        message: 'You are not assigned to teach any subjects in this class.',
         subjects: []
       });
     }

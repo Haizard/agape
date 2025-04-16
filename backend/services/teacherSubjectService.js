@@ -918,12 +918,12 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
       // CASE 2: A-Level class with O-Level student
       else if ((isALevelClass || forceALevel) && !isALevelStudent) {
         console.log(`[TeacherSubjectService] O-Level student ${studentId} in A-Level class ${classId}, cannot access A-Level subjects`);
-        throw new Error('You are not assigned to teach any subjects for this student.');
+        return [];
       }
       // CASE 3: O-Level class with A-Level student
       else if (!isALevelClass && !forceALevel && isALevelStudent) {
         console.log(`[TeacherSubjectService] A-Level student ${studentId} in O-Level class ${classId}, cannot access subjects without combination`);
-        throw new Error('You are not assigned to teach any subjects for this student.');
+        return [];
       }
       // CASE 4: O-Level class with O-Level student
       else {
