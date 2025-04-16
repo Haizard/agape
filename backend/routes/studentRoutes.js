@@ -447,10 +447,8 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
       return res.json([]);
     }
 
-    // Get subjects from class
-    const subjects = classDetails.subjects
-      .filter(subjectAssignment => subjectAssignment.subject) // Filter out null subjects
-      .map(subjectAssignment => subjectAssignment.subject);
+    // Initialize subjects array
+    const subjects = [];
 
     // Helper function to process a subject combination
     const processSubjectCombination = async (combinationId) => {
@@ -472,20 +470,38 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
           return;
         }
 
-        // Add subjects from combination if they're not already in the list
+        console.log(`Processing subject combination: ${combination.name} (${combination.code})`);
+
+        // Add principal subjects from combination
         if (combination.subjects && Array.isArray(combination.subjects)) {
+          console.log(`Adding ${combination.subjects.length} principal subjects from combination`);
           for (const subject of combination.subjects) {
+            // Add isPrincipal flag to the subject
+            const principalSubject = {
+              ...subject.toObject(),
+              isPrincipal: true
+            };
+
+            // Check if subject is already in the list
             if (!subjects.some(s => s._id.toString() === subject._id.toString())) {
-              subjects.push(subject);
+              subjects.push(principalSubject);
             }
           }
         }
 
-        // Add compulsory subjects if they're not already in the list
+        // Add subsidiary/compulsory subjects
         if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+          console.log(`Adding ${combination.compulsorySubjects.length} subsidiary subjects from combination`);
           for (const subject of combination.compulsorySubjects) {
+            // Add isPrincipal flag to the subject
+            const subsidiarySubject = {
+              ...subject.toObject(),
+              isPrincipal: false
+            };
+
+            // Check if subject is already in the list
             if (!subjects.some(s => s._id.toString() === subject._id.toString())) {
-              subjects.push(subject);
+              subjects.push(subsidiarySubject);
             }
           }
         }
@@ -495,15 +511,39 @@ router.get('/:id/subjects', authenticateToken, async (req, res) => {
       }
     };
 
-    // If student is A-Level, get subjects from student's subject combination
-    if (student.educationLevel === 'A_LEVEL') {
-      // First try the student's own subject combination
-      if (student.subjectCombination) {
-        console.log(`Student ${studentId} is A-Level with subject combination: ${student.subjectCombination}`);
-        await processSubjectCombination(student.subjectCombination);
-      }
+    // For A-Level students, prioritize subject combinations
+    if (student.educationLevel === 'A_LEVEL' || student.form === 5 || student.form === 6) {
+      console.log(`Student ${studentId} is A-Level, prioritizing subject combination`);
 
-      // Then try the class's subject combinations
+      // If student has a subject combination, process it
+      if (student.subjectCombination) {
+        console.log(`Student ${studentId} has subject combination: ${typeof student.subjectCombination === 'object' ?
+          (student.subjectCombination.name || student.subjectCombination._id) : student.subjectCombination}`);
+
+        // Get the combination ID
+        const combinationId = typeof student.subjectCombination === 'object' ?
+          student.subjectCombination._id : student.subjectCombination;
+
+        // Process the subject combination
+        await processSubjectCombination(combinationId);
+      } else {
+        console.log(`Student ${studentId} has no subject combination assigned`);
+      }
+    } else {
+      // For O-Level students, get subjects from class
+      console.log(`Student ${studentId} is O-Level, getting subjects from class`);
+
+      // Add class subjects to the subjects array
+      const classSubjects = classDetails.subjects
+        .filter(subjectAssignment => subjectAssignment.subject) // Filter out null subjects
+        .map(subjectAssignment => subjectAssignment.subject);
+
+      subjects.push(...classSubjects);
+    }
+
+    // If no subjects found, try to get subjects from the class's subject combinations
+    if (subjects.length === 0) {
+      // Try the class's subject combinations
       if (classDetails.subjectCombination) {
         console.log(`Class ${classId} has a subject combination: ${classDetails.subjectCombination}`);
         // If it's already populated, use the _id, otherwise use it directly

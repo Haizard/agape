@@ -19,6 +19,51 @@ const getStudentSubjects = async (studentId) => {
     }
 
     console.log(`Fetching subjects for student: ${studentId}`);
+
+    // First, get the student details to check for subject combination
+    const studentResponse = await api.get(`/api/students/${studentId}`);
+    const student = studentResponse.data;
+
+    if (student && student.subjectCombination) {
+      console.log(`Student has subject combination: ${typeof student.subjectCombination === 'object' ?
+        (student.subjectCombination.name || student.subjectCombination._id) : student.subjectCombination}`);
+
+      // Check if the combination is fully populated
+      const isPopulated = typeof student.subjectCombination === 'object' &&
+                        student.subjectCombination.subjects &&
+                        Array.isArray(student.subjectCombination.subjects);
+
+      if (!isPopulated) {
+        console.log('Subject combination is not fully populated, fetching details...');
+
+        try {
+          // Get the combination ID
+          const combinationId = typeof student.subjectCombination === 'object' ?
+            student.subjectCombination._id : student.subjectCombination;
+
+          // Fetch the full combination details
+          const combinationResponse = await api.get(`/api/subject-combinations/${combinationId}`);
+          const fullCombination = combinationResponse.data;
+
+          // Update the student's subject combination
+          student.subjectCombination = fullCombination;
+          console.log('Fetched full subject combination:', fullCombination);
+        } catch (error) {
+          console.error('Error fetching subject combination details:', error);
+        }
+      }
+
+      // Get subjects from the student's combination
+      const combinationSubjects = getSubjectsFromCombination(student);
+
+      if (combinationSubjects.length > 0) {
+        console.log(`Found ${combinationSubjects.length} subjects from student's combination`);
+        return combinationSubjects;
+      }
+    }
+
+    // If no combination or no subjects in combination, fetch from API
+    console.log(`Fetching subjects directly from API for student: ${studentId}`);
     const response = await api.get(`/api/students/${studentId}/subjects`);
 
     // Log the subjects for debugging

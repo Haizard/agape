@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import PreviewDialog from '../common/PreviewDialog';
 import {
   Box,
   Typography,
@@ -61,6 +63,19 @@ const ALevelMarksEntry = () => {
   // Preview dialog state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState(null);
+
+  // Monitor previewOpen state
+  useEffect(() => {
+    console.log('previewOpen state changed:', previewOpen);
+  }, [previewOpen]);
+
+  // Test dialog state
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+
+  // Monitor test dialog state
+  useEffect(() => {
+    console.log('testDialogOpen state changed:', testDialogOpen);
+  }, [testDialogOpen]);
 
   // Fetch initial data
   useEffect(() => {
@@ -156,32 +171,64 @@ const ALevelMarksEntry = () => {
         }
       }
 
-      // Check if any A-Level students have unpopulated subject combinations
+      // Process all A-Level students to ensure they have properly populated subject combinations
       const aLevelStudentsWithCombinations = studentsData.filter(student =>
         (student.educationLevel === 'A_LEVEL' || student.form === 5 || student.form === 6) &&
-        student.subjectCombination &&
-        typeof student.subjectCombination === 'object' &&
-        !student.subjectCombination.subjects
+        student.subjectCombination
       );
 
-      if (aLevelStudentsWithCombinations.length > 0) {
-        console.log(`Found ${aLevelStudentsWithCombinations.length} A-Level students with unpopulated subject combinations`);
+      console.log(`Found ${aLevelStudentsWithCombinations.length} A-Level students with combinations in class ${classId}`);
 
-        // Fetch subject combination details for these students
-        for (const student of aLevelStudentsWithCombinations) {
-          try {
-            const combinationId = student.subjectCombination._id;
-            console.log(`Fetching subject combination ${combinationId} for student ${student._id}`);
+      // Process each A-Level student with a combination
+      for (const student of aLevelStudentsWithCombinations) {
+        // Check if student has a subject combination
+        if (student.subjectCombination) {
+          // Check if the combination is fully populated
+          const isPopulated = typeof student.subjectCombination === 'object' &&
+                            student.subjectCombination.subjects &&
+                            Array.isArray(student.subjectCombination.subjects);
 
-            const response = await api.get(`/api/subject-combinations/${combinationId}`);
-            const fullCombination = response.data;
+          if (!isPopulated) {
+            try {
+              // Get the combination ID
+              const combinationId = typeof student.subjectCombination === 'object' ?
+                student.subjectCombination._id : student.subjectCombination;
 
-            // Update the student's subject combination
-            student.subjectCombination = fullCombination;
-            console.log(`Updated subject combination for student ${student._id}`);
-          } catch (error) {
-            console.error(`Error fetching subject combination for student ${student._id}:`, error);
+              console.log(`Fetching subject combination ${combinationId} for student ${student._id}`);
+
+              // Fetch the full combination details
+              const response = await api.get(`/api/subject-combinations/${combinationId}`);
+              const fullCombination = response.data;
+
+              // Update the student's subject combination
+              student.subjectCombination = fullCombination;
+              console.log(`Updated subject combination for student ${student._id}`);
+
+              // Log the combination details
+              if (fullCombination.subjects && fullCombination.subjects.length > 0) {
+                console.log(`Principal subjects: ${fullCombination.subjects.map(s => s.name || s.code).join(', ')}`);
+              }
+
+              if (fullCombination.compulsorySubjects && fullCombination.compulsorySubjects.length > 0) {
+                console.log(`Subsidiary subjects: ${fullCombination.compulsorySubjects.map(s => s.name || s.code).join(', ')}`);
+              }
+            } catch (error) {
+              console.error(`Error fetching subject combination for student ${student._id}:`, error);
+            }
+          } else {
+            // Log the combination details for debugging
+            console.log(`Student ${student._id} already has populated combination: ${student.subjectCombination.name || student.subjectCombination._id}`);
+
+            if (student.subjectCombination.subjects && student.subjectCombination.subjects.length > 0) {
+              console.log(`Principal subjects: ${student.subjectCombination.subjects.map(s => s.name || s.code).join(', ')}`);
+            }
+
+            if (student.subjectCombination.compulsorySubjects && student.subjectCombination.compulsorySubjects.length > 0) {
+              console.log(`Subsidiary subjects: ${student.subjectCombination.compulsorySubjects.map(s => s.name || s.code).join(', ')}`);
+            }
           }
+        } else {
+          console.log(`Student ${student._id} has no subject combination assigned`);
         }
       }
 
@@ -351,14 +398,15 @@ const ALevelMarksEntry = () => {
               setSubjects(combinationSubjects);
             } else {
               // If no subjects found in combination, fetch them from the API
+              console.log('No subjects found in combination, fetching from API');
               const studentSubjects = await studentSubjectsApi.getStudentSubjects(studentId);
               if (studentSubjects.length > 0) {
                 console.log(`Found ${studentSubjects.length} subjects for student from API`);
                 setSubjects(studentSubjects);
               } else {
-                // If still no subjects, fall back to class subjects
-                console.log('No subjects found for student, falling back to class subjects');
-                await fetchSubjectsByClass(selectedClass);
+                console.log('No subjects found for student from API');
+                setSubjects([]);
+                setError('No subjects found for this student. Please ensure the student has a subject combination assigned.');
               }
             }
           } else {
@@ -369,21 +417,20 @@ const ALevelMarksEntry = () => {
               console.log(`Found ${studentSubjects.length} subjects for student from API`);
               setSubjects(studentSubjects);
             } else {
-              // If no subjects found, fall back to class subjects
-              console.log('No subjects found for student, falling back to class subjects');
-              await fetchSubjectsByClass(selectedClass);
+              console.log('No subjects found for student from API');
+              setSubjects([]);
+              setError('No subjects found for this student. Please ensure the student has a subject combination assigned.');
             }
           }
         } else {
           console.log('Selected student is not A-Level or not found');
-          // Fall back to class subjects
-          await fetchSubjectsByClass(selectedClass);
+          setSubjects([]);
+          setError('This component is only for A-Level students. Please select an A-Level student.');
         }
       } catch (error) {
         console.error('Error fetching student subjects:', error);
         setError('Failed to load subjects for this student. Please try again.');
-        // Fall back to class subjects
-        await fetchSubjectsByClass(selectedClass);
+        setSubjects([]);
       } finally {
         setLoading(false);
       }
@@ -558,8 +605,11 @@ const ALevelMarksEntry = () => {
       console.log('Preview A-Level result:', resultData);
 
       // Set preview data and open the preview dialog
+      console.log('Setting preview data:', resultData);
       setPreviewData(resultData);
+      console.log('Opening preview dialog');
       setPreviewOpen(true);
+      console.log('Preview dialog state after setting:', previewOpen);
 
     } catch (err) {
       console.error('Error preparing marks preview:', err);
@@ -609,7 +659,9 @@ const ALevelMarksEntry = () => {
 
   // Handle preview dialog close
   const handlePreviewClose = () => {
+    console.log('Closing preview dialog');
     setPreviewOpen(false);
+    console.log('Preview dialog state after closing:', previewOpen);
   };
 
   // Handle snackbar close
@@ -795,15 +847,41 @@ const ALevelMarksEntry = () => {
           </Grid>
 
           <Grid item xs={12}>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              disabled={loading || !selectedStudent || !selectedSubject || !selectedExam || !marks}
-              sx={{ mt: 2 }}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Save Marks'}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={loading || !selectedStudent || !selectedSubject || !selectedExam || !marks}
+                sx={{ mt: 2 }}
+              >
+                {loading ? <CircularProgress size={24} /> : 'Save Marks'}
+              </Button>
+
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => {
+                  console.log('Test button clicked, setting previewOpen to true');
+                  setPreviewOpen(true);
+                }}
+                sx={{ mt: 2 }}
+              >
+                Test Preview Dialog
+              </Button>
+
+              <Button
+                variant="outlined"
+                color="info"
+                onClick={() => {
+                  console.log('Test dialog button clicked, setting testDialogOpen to true');
+                  setTestDialogOpen(true);
+                }}
+                sx={{ mt: 2 }}
+              >
+                Test Simple Dialog
+              </Button>
+            </Box>
           </Grid>
         </Grid>
       </form>
@@ -819,120 +897,33 @@ const ALevelMarksEntry = () => {
       </Snackbar>
 
       {/* Preview Dialog */}
-      <Dialog
+      <PreviewDialog
         open={previewOpen}
         onClose={handlePreviewClose}
-        maxWidth="md"
-        fullWidth
+        onSubmit={handleFinalSubmit}
+        data={previewData}
+        loading={loading}
+        type="individual"
+      />
+
+      {/* Test Simple Dialog */}
+      <Dialog
+        open={testDialogOpen}
+        onClose={() => setTestDialogOpen(false)}
+        aria-labelledby="test-dialog-title"
+        aria-describedby="test-dialog-description"
+        disablePortal={false}
+        container={document.body}
       >
-        <DialogTitle>Preview Marks Entry</DialogTitle>
+        <DialogTitle id="test-dialog-title">Test Dialog</DialogTitle>
         <DialogContent>
-          {previewData && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>Please review the information below before submitting:</Typography>
-
-              <TableContainer component={Paper} sx={{ mb: 3 }}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
-                      <TableCell colSpan={2}>
-                        <Typography variant="subtitle1" fontWeight="bold">Student Information</Typography>
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell width="30%"><strong>Student Name:</strong></TableCell>
-                      <TableCell>{previewData.studentName}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Class:</strong></TableCell>
-                      <TableCell>{previewData.className}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <TableContainer component={Paper} sx={{ mb: 3 }}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
-                      <TableCell colSpan={2}>
-                        <Typography variant="subtitle1" fontWeight="bold">Exam Information</Typography>
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell width="30%"><strong>Exam:</strong></TableCell>
-                      <TableCell>{previewData.examName}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Subject:</strong></TableCell>
-                      <TableCell>
-                        {previewData.subjectName}
-                        {previewData.isInCombination && (
-                          <Chip
-                            size="small"
-                            label="In Combination"
-                            color="success"
-                            variant="outlined"
-                            sx={{ ml: 1 }}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Principal Subject:</strong></TableCell>
-                      <TableCell>{previewData.isPrincipal ? 'Yes' : 'No'}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <TableContainer component={Paper} sx={{ mb: 3 }}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
-                      <TableCell colSpan={2}>
-                        <Typography variant="subtitle1" fontWeight="bold">Marks Information</Typography>
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell width="30%"><strong>Marks:</strong></TableCell>
-                      <TableCell>{previewData.marksObtained}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Grade:</strong></TableCell>
-                      <TableCell>{previewData.grade}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Points:</strong></TableCell>
-                      <TableCell>{previewData.points}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Comment:</strong></TableCell>
-                      <TableCell>{previewData.comment || 'No comment'}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
+          <Typography id="test-dialog-description">
+            This is a simple test dialog to check if dialogs are working correctly.
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handlePreviewClose} color="secondary">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleFinalSubmit}
-            color="primary"
-            variant="contained"
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Confirm & Submit'}
+          <Button onClick={() => setTestDialogOpen(false)} color="primary">
+            Close
           </Button>
         </DialogActions>
       </Dialog>

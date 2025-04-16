@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
+import PreviewDialog from '../common/PreviewDialog';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import teacherAuthService from '../../services/teacherAuthService';
@@ -79,6 +81,11 @@ const ALevelBulkMarksEntry = () => {
   // Preview dialog state
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState([]);
+
+  // Monitor previewOpen state
+  useEffect(() => {
+    console.log('previewOpen state changed:', previewOpen);
+  }, [previewOpen]);
 
   // Fetch classes on component mount
   useEffect(() => {
@@ -230,31 +237,58 @@ const ALevelBulkMarksEntry = () => {
           }
         }
 
-        // Check if any A-Level students have unpopulated subject combinations
+        // Process all A-Level students to ensure they have properly populated subject combinations
         const aLevelStudentsWithCombinations = studentsData.filter(student =>
           (student.educationLevel === 'A_LEVEL' || student.form === 5 || student.form === 6) &&
-          student.subjectCombination &&
-          typeof student.subjectCombination === 'object' &&
-          !student.subjectCombination.subjects
+          student.subjectCombination
         );
 
-        if (aLevelStudentsWithCombinations.length > 0) {
-          console.log(`Found ${aLevelStudentsWithCombinations.length} A-Level students with unpopulated subject combinations`);
+        console.log(`Found ${aLevelStudentsWithCombinations.length} A-Level students with combinations in class ${selectedClass}`);
 
-          // Fetch subject combination details for these students
-          for (const student of aLevelStudentsWithCombinations) {
+        // Process each A-Level student with a combination
+        for (const student of aLevelStudentsWithCombinations) {
+          // Check if the combination is fully populated
+          const isPopulated = typeof student.subjectCombination === 'object' &&
+                            student.subjectCombination.subjects &&
+                            Array.isArray(student.subjectCombination.subjects);
+
+          if (!isPopulated) {
             try {
-              const combinationId = student.subjectCombination._id;
+              // Get the combination ID
+              const combinationId = typeof student.subjectCombination === 'object' ?
+                student.subjectCombination._id : student.subjectCombination;
+
               console.log(`Fetching subject combination ${combinationId} for student ${student._id}`);
 
+              // Fetch the full combination details
               const response = await api.get(`/api/subject-combinations/${combinationId}`);
               const fullCombination = response.data;
 
               // Update the student's subject combination
               student.subjectCombination = fullCombination;
               console.log(`Updated subject combination for student ${student._id}`);
+
+              // Log the combination details
+              if (fullCombination.subjects && fullCombination.subjects.length > 0) {
+                console.log(`Principal subjects: ${fullCombination.subjects.map(s => s.name || s.code).join(', ')}`);
+              }
+
+              if (fullCombination.compulsorySubjects && fullCombination.compulsorySubjects.length > 0) {
+                console.log(`Subsidiary subjects: ${fullCombination.compulsorySubjects.map(s => s.name || s.code).join(', ')}`);
+              }
             } catch (error) {
               console.error(`Error fetching subject combination for student ${student._id}:`, error);
+            }
+          } else {
+            // Log the combination details for debugging
+            console.log(`Student ${student._id} already has populated combination: ${student.subjectCombination.name || student.subjectCombination._id}`);
+
+            if (student.subjectCombination.subjects && student.subjectCombination.subjects.length > 0) {
+              console.log(`Principal subjects: ${student.subjectCombination.subjects.map(s => s.name || s.code).join(', ')}`);
+            }
+
+            if (student.subjectCombination.compulsorySubjects && student.subjectCombination.compulsorySubjects.length > 0) {
+              console.log(`Subsidiary subjects: ${student.subjectCombination.compulsorySubjects.map(s => s.name || s.code).join(', ')}`);
             }
           }
         }
@@ -333,25 +367,41 @@ const ALevelBulkMarksEntry = () => {
           );
 
           // Check if this subject is in the student's combination
-          const isInCombination = student.subjectCombination ?
-            studentSubjectsApi.isSubjectInStudentCombination(selectedSubject, student) :
-            false;
-
-          // Determine if this is a principal subject for this student
+          let isInCombination = false;
           let isPrincipal = existingMark ? existingMark.isPrincipal : false;
 
-          // If we have a subject combination, try to determine principal status from it
-          if (student.subjectCombination && isInCombination) {
-            // Get subjects from combination
-            const combinationSubjects = studentSubjectsApi.getSubjectsFromCombination(student);
+          if (student.subjectCombination) {
+            // Check if the combination is fully populated
+            const isPopulated = typeof student.subjectCombination === 'object' &&
+                              student.subjectCombination.subjects &&
+                              Array.isArray(student.subjectCombination.subjects);
 
-            // Find this subject in the combination
-            const subjectInCombination = combinationSubjects.find(s => s._id === selectedSubject);
+            if (!isPopulated) {
+              console.log(`Subject combination for student ${student._id} is not fully populated`);
+              // We'll handle this case by assuming the subject is not in the combination
+              isInCombination = false;
+            } else {
+              // Check if the subject is in the student's combination
+              isInCombination = studentSubjectsApi.isSubjectInStudentCombination(selectedSubject, student);
 
-            // If found, use its isPrincipal flag
-            if (subjectInCombination) {
-              isPrincipal = subjectInCombination.isPrincipal;
+              if (isInCombination) {
+                // Get subjects from combination
+                const combinationSubjects = studentSubjectsApi.getSubjectsFromCombination(student);
+
+                // Find this subject in the combination
+                const subjectInCombination = combinationSubjects.find(s => s._id === selectedSubject);
+
+                // If found, use its isPrincipal flag
+                if (subjectInCombination) {
+                  isPrincipal = subjectInCombination.isPrincipal;
+                  console.log(`Subject ${selectedSubject} is ${isPrincipal ? 'a principal' : 'a subsidiary'} subject for student ${student._id}`);
+                }
+              } else {
+                console.log(`Subject ${selectedSubject} is not in the combination for student ${student._id}`);
+              }
             }
+          } else {
+            console.log(`Student ${student._id} has no subject combination`);
           }
 
           return {
@@ -578,7 +628,9 @@ const ALevelBulkMarksEntry = () => {
       });
 
       // Open preview dialog
+      console.log('Setting preview open to true');
       setPreviewOpen(true);
+      console.log('Preview dialog state after setting:', previewOpen);
 
       // Update marks state with calculated grades and points
       setMarks(marksWithGrades);
@@ -639,7 +691,9 @@ const ALevelBulkMarksEntry = () => {
 
   // Handle preview dialog close
   const handlePreviewClose = () => {
+    console.log('Closing preview dialog');
     setPreviewOpen(false);
+    console.log('Preview dialog state after closing:', previewOpen);
   };
 
   // Refresh data
@@ -792,6 +846,17 @@ const ALevelBulkMarksEntry = () => {
                         sx={{ mr: 1 }}
                       >
                         {saving ? 'Saving...' : 'Save Marks'}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => {
+                          console.log('Test button clicked, setting previewOpen to true');
+                          setPreviewOpen(true);
+                        }}
+                        sx={{ mr: 1 }}
+                      >
+                        Test Preview Dialog
                       </Button>
                       <Button
                         variant="outlined"
@@ -1052,163 +1117,14 @@ const ALevelBulkMarksEntry = () => {
       </Snackbar>
 
       {/* Preview Dialog */}
-      <Dialog
+      <PreviewDialog
         open={previewOpen}
         onClose={handlePreviewClose}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Preview Marks Entry</DialogTitle>
-        <DialogContent>
-          {previewData && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="h6" gutterBottom>Please review the information below before submitting:</Typography>
-
-              <TableContainer component={Paper} sx={{ mb: 3 }}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
-                      <TableCell colSpan={2}>
-                        <Typography variant="subtitle1" fontWeight="bold">Class Information</Typography>
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell width="30%"><strong>Class:</strong></TableCell>
-                      <TableCell>{previewData.className}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Subject:</strong></TableCell>
-                      <TableCell>{previewData.subjectName}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Exam:</strong></TableCell>
-                      <TableCell>{previewData.examName}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <TableContainer component={Paper} sx={{ mb: 3 }}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
-                      <TableCell colSpan={2}>
-                        <Typography variant="subtitle1" fontWeight="bold">Marks Summary</Typography>
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell width="30%"><strong>Total Students:</strong></TableCell>
-                      <TableCell>{previewData.totalStudents}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Students with Marks:</strong></TableCell>
-                      <TableCell>{previewData.markedStudents}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Average Mark:</strong></TableCell>
-                      <TableCell>{previewData.summary?.averageMark || 0}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Highest Mark:</strong></TableCell>
-                      <TableCell>{previewData.summary?.highestMark || 0}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Lowest Mark:</strong></TableCell>
-                      <TableCell>{previewData.summary?.lowestMark || 0}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <TableContainer component={Paper} sx={{ mb: 3 }}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
-                      <TableCell colSpan={7}>
-                        <Typography variant="subtitle1" fontWeight="bold">Grade Distribution</Typography>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>A</strong></TableCell>
-                      <TableCell><strong>B</strong></TableCell>
-                      <TableCell><strong>C</strong></TableCell>
-                      <TableCell><strong>D</strong></TableCell>
-                      <TableCell><strong>E</strong></TableCell>
-                      <TableCell><strong>S</strong></TableCell>
-                      <TableCell><strong>F</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>{previewData.summary?.gradeDistribution?.A || 0}</TableCell>
-                      <TableCell>{previewData.summary?.gradeDistribution?.B || 0}</TableCell>
-                      <TableCell>{previewData.summary?.gradeDistribution?.C || 0}</TableCell>
-                      <TableCell>{previewData.summary?.gradeDistribution?.D || 0}</TableCell>
-                      <TableCell>{previewData.summary?.gradeDistribution?.E || 0}</TableCell>
-                      <TableCell>{previewData.summary?.gradeDistribution?.S || 0}</TableCell>
-                      <TableCell>{previewData.summary?.gradeDistribution?.F || 0}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
-                      <TableCell colSpan={4}>
-                        <Typography variant="subtitle1" fontWeight="bold">Student Marks Preview (First 10)</Typography>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell><strong>Student</strong></TableCell>
-                      <TableCell><strong>Marks</strong></TableCell>
-                      <TableCell><strong>Grade</strong></TableCell>
-                      <TableCell><strong>Points</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {previewData.marks?.slice(0, 10).map((mark, index) => (
-                      <TableRow key={`mark-preview-${mark.studentId || index}`}>
-                        <TableCell>{mark.studentName}</TableCell>
-                        <TableCell>{mark.marksObtained}</TableCell>
-                        <TableCell>{mark.grade}</TableCell>
-                        <TableCell>{mark.points}</TableCell>
-                      </TableRow>
-                    ))}
-                    {previewData.marks?.length > 10 && (
-                      <TableRow>
-                        <TableCell colSpan={4} align="center">
-                          <Typography variant="body2" color="textSecondary">
-                            ... and {previewData.marks?.length - 10} more students
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handlePreviewClose} color="secondary">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleFinalSubmit}
-            color="primary"
-            variant="contained"
-            disabled={saving}
-          >
-            {saving ? <CircularProgress size={24} /> : 'Confirm & Submit'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onSubmit={handleFinalSubmit}
+        data={previewData}
+        loading={saving}
+        type="bulk"
+      />
     </Box>
   );
 };
