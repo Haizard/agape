@@ -28,10 +28,41 @@ const teacherApi = {
       if (!classId) {
         return [];
       }
-      const response = await api.get('/api/teacher-classes/my-subjects', {
-        params: { classId }
-      });
-      return response.data || [];
+      try {
+        // Use the strict endpoint for marks entry
+        console.log(`Fetching subjects for class ${classId} that the teacher is assigned to teach`);
+        const response = await api.get('/api/teachers/marks-entry-subjects', {
+          params: { classId }
+        });
+
+        // Check if the response has a subjects array (new format)
+        if (response.data && Array.isArray(response.data.subjects)) {
+          return response.data.subjects || [];
+        }
+
+        // Otherwise, assume the response is the array itself (old format)
+        return response.data || [];
+      } catch (error) {
+        console.error('Error fetching from teacher-specific endpoint:', error);
+
+        if (error.response && error.response.status === 403) {
+          // If the teacher is not authorized for this class, return empty array
+          console.log('Teacher is not authorized to teach subjects in this class');
+          return [];
+        }
+
+        // If that fails, try the general endpoint but only for admins
+        // For teachers, we should respect the authorization check
+        if (localStorage.getItem('role') === 'admin') {
+          console.log('User is admin, falling back to general subjects endpoint');
+          const fallbackResponse = await api.get(`/api/classes/${classId}/subjects`);
+          return fallbackResponse.data || [];
+        }
+
+        // For teachers, return empty array
+        console.log('Teacher is not authorized, returning empty array');
+        return [];
+      }
     } catch (error) {
       console.error('Error fetching assigned subjects:', error);
       throw error;
@@ -51,10 +82,23 @@ const teacherApi = {
 
       try {
         // First try the teacher-specific endpoint
-        const response = await api.get(`/api/teacher-classes/my-classes/${classId}/students`);
+        const response = await api.get(`/api/teachers/classes/${classId}/students`);
+
+        // Check if the response has a students array (new format)
+        if (response.data && Array.isArray(response.data.students)) {
+          return response.data.students || [];
+        }
+
+        // Otherwise, assume the response is the array itself (old format)
         return response.data || [];
       } catch (error) {
         console.error('Error fetching from teacher-specific endpoint:', error);
+
+        if (error.response && error.response.status === 403) {
+          // If the teacher is not authorized for this class, return empty array
+          console.log('Teacher is not authorized for this class');
+          return [];
+        }
 
         // If that fails, try the general endpoint
         console.log('Falling back to general students endpoint');

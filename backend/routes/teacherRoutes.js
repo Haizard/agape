@@ -1347,7 +1347,10 @@ router.get('/assigned-classes', authenticateToken, authorizeRole(['teacher', 'ad
 router.get('/simple-classes', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getSimpleAssignedClasses);
 
 // Get assigned subjects for the current teacher (for authorization)
-router.get('/my-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedSubjects);
+router.get('/my-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedSubjectsForMarksEntry);
+
+// Get assigned subjects for the current teacher (for marks entry - strict version)
+router.get('/marks-entry-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedSubjects);
 
 // Get assigned students for the current teacher (for authorization)
 router.get('/classes/:classId/students', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedStudents);

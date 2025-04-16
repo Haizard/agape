@@ -166,14 +166,29 @@ const ALevelBulkMarksEntry = () => {
         // Check if user is admin
         const isAdmin = teacherAuthService.isAdmin();
 
-        let subjectsData;
+        let subjectsData = [];
         if (isAdmin) {
           // Admin can see all subjects in the class
           const response = await api.get(`/api/classes/${selectedClass}/subjects`);
           subjectsData = response.data || [];
         } else {
           // Teachers can only see assigned subjects
-          subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
+          try {
+            // Get the teacher's assigned subjects for this class
+            console.log(`Fetching subjects that the teacher is assigned to teach in class ${selectedClass}`);
+            subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
+            console.log(`Teacher has ${subjectsData.length} assigned subjects in class ${selectedClass}:`,
+              subjectsData.map(s => `${s.name} (${s._id})`));
+
+            if (subjectsData.length === 0) {
+              console.log('No assigned subjects found for this teacher in this class');
+              setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+            }
+          } catch (error) {
+            console.error('Error fetching teacher subjects:', error);
+            setError('Failed to load subjects. You may not be authorized to teach in this class.');
+            subjectsData = [];
+          }
         }
 
         // Filter for A-Level subjects only
@@ -181,10 +196,24 @@ const ALevelBulkMarksEntry = () => {
           subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
         );
 
+        console.log(`Found ${aLevelSubjects.length} A-Level subjects out of ${subjectsData.length} total subjects`);
+
+        if (aLevelSubjects.length === 0) {
+          console.log('No A-Level subjects found');
+          if (subjectsData.length > 0) {
+            setError('No A-Level subjects found for this class. Please contact an administrator.');
+          } else if (!isAdmin) {
+            setError('You are not assigned to teach any A-Level subjects in this class.');
+          } else {
+            setError('No subjects found for this class. Please add subjects to the class first.');
+          }
+        }
+
         setSubjects(aLevelSubjects);
       } catch (error) {
         console.error('Error fetching subjects:', error);
         setError('Failed to fetch subjects. Please try again.');
+        setSubjects([]);
       } finally {
         setLoading(false);
       }
@@ -319,17 +348,55 @@ const ALevelBulkMarksEntry = () => {
 
         console.log(`Found ${aLevelStudents.length} A-Level students out of ${studentsData.length} total students`);
 
+        // For bulk marks entry, we still need to filter students who have the selected subject in their combination
+        // The backend has already filtered students by teacher, but we need to filter by selected subject
+        const filteredStudents = selectedSubject ? aLevelStudents.filter(student => {
+          // If student has a subject combination
+          if (student.subjectCombination &&
+              typeof student.subjectCombination === 'object') {
+
+            // Check if the combination is fully populated
+            const isPopulated = student.subjectCombination.subjects &&
+                              Array.isArray(student.subjectCombination.subjects);
+
+            if (isPopulated) {
+              // Check if the selected subject is in the student's principal subjects
+              const principalSubjectIds = student.subjectCombination.subjects.map(s =>
+                typeof s === 'object' ? s._id : s
+              );
+
+              // Check if the selected subject is in the student's subsidiary subjects
+              const subsidiarySubjectIds = student.subjectCombination.compulsorySubjects ?
+                student.subjectCombination.compulsorySubjects.map(s =>
+                  typeof s === 'object' ? s._id : s
+                ) : [];
+
+              // Combine all subject IDs
+              const allSubjectIds = [...principalSubjectIds, ...subsidiarySubjectIds];
+
+              // Check if the selected subject is in the student's combination
+              return allSubjectIds.includes(selectedSubject);
+            }
+          }
+
+          // If student doesn't have a populated subject combination, don't include them
+          // For bulk marks entry, we only want students with the selected subject
+          return false;
+        }) : aLevelStudents;
+
+        console.log(`Filtered to ${filteredStudents.length} students who have subject ${selectedSubject} in their combination`);
+
         // If no A-Level students found, show a message
-        if (aLevelStudents.length === 0 && studentsData.length > 0) {
-          console.log('No A-Level students found, but found other students');
-          setError('No A-Level students found in this class.');
+        if (filteredStudents.length === 0 && studentsData.length > 0) {
+          console.log('No A-Level students found with the selected subject');
+          setError('No A-Level students found with the selected subject in this class.');
         } else if (studentsData.length === 0) {
           console.log('No students found at all');
           setError('No students found in this class.');
         }
 
         // Filter for A-Level students with subject combinations
-        const aLevelStudentsWithAssignedCombinations = aLevelStudents.filter(student =>
+        const aLevelStudentsWithAssignedCombinations = filteredStudents.filter(student =>
           student.subjectCombination
         );
 
@@ -356,12 +423,11 @@ const ALevelBulkMarksEntry = () => {
         const academicYearId = examResponse.data.academicYear;
         const examTypeId = examResponse.data.examType;
 
-        // We already filtered for A-Level students above, so we can use aLevelStudents directly
-
-        setStudents(aLevelStudents);
+        // Use the filtered students that have the selected subject in their combination
+        setStudents(filteredStudents);
 
         // Initialize marks array with existing marks
-        const initialMarks = aLevelStudents.map(student => {
+        const initialMarks = filteredStudents.map(student => {
           const existingMark = marksResponse.data.find(mark =>
             mark.studentId === student._id
           );

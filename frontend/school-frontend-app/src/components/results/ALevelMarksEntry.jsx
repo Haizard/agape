@@ -161,6 +161,18 @@ const ALevelMarksEntry = () => {
         try {
           // Teachers can only see assigned students
           studentsData = await teacherApi.getAssignedStudents(classId);
+
+          // Get the teacher's assigned subjects for this class
+          const teacherSubjects = await teacherApi.getAssignedSubjects(classId);
+          console.log(`Teacher has ${teacherSubjects.length} assigned subjects in this class`);
+
+          if (teacherSubjects.length > 0) {
+            // Filter students to only include those who have the teacher's subjects in their combination
+            const teacherSubjectIds = teacherSubjects.map(subject => subject._id);
+            console.log('Teacher subject IDs:', teacherSubjectIds);
+
+            // We'll filter the students later after processing their combinations
+          }
         } catch (teacherError) {
           console.error('Error fetching assigned students:', teacherError);
 
@@ -269,16 +281,37 @@ const ALevelMarksEntry = () => {
       // Log the students for debugging
       console.log(`Found ${aLevelStudents.length} A-Level students out of ${studentsData.length} total students`);
 
+      // The backend now handles filtering students by teacher's subjects
+      // We don't need to filter again on the frontend
+      const filteredStudents = aLevelStudents;
+
+      // Log the number of students for debugging
+      console.log(`Using ${filteredStudents.length} A-Level students returned by the API`);
+
+      // If there are no students, check if it's because the teacher is not assigned to this class
+      if (filteredStudents.length === 0 && !isAdmin) {
+        // Get the teacher's assigned subjects for this class to check if they're assigned
+        try {
+          const teacherSubjects = await teacherApi.getAssignedSubjects(classId);
+          if (teacherSubjects.length === 0) {
+            console.log('Teacher has no assigned subjects in this class');
+            setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+          }
+        } catch (error) {
+          console.error('Error checking teacher subjects:', error);
+        }
+      }
+
       // If no A-Level students found, show a message
-      if (aLevelStudents.length === 0 && studentsData.length > 0) {
-        console.log('No A-Level students found, but found other students');
-        setError('No A-Level students found in this class.');
+      if (filteredStudents.length === 0 && studentsData.length > 0) {
+        console.log('No A-Level students found for this teacher');
+        setError('No A-Level students found for this teacher in this class.');
       } else if (studentsData.length === 0) {
         console.log('No students found at all');
         setError('No students found in this class.');
       }
 
-      setStudents(aLevelStudents);
+      setStudents(filteredStudents);
     } catch (err) {
       console.error('Error fetching students:', err);
       setError('Failed to load students. Please try again.');
@@ -294,7 +327,7 @@ const ALevelMarksEntry = () => {
       // Check if user is admin
       const isAdmin = teacherAuthService.isAdmin();
 
-      let classSubjects;
+      let classSubjects = [];
       if (isAdmin) {
         // Admin can see all subjects in the class
         const response = await api.get(`/api/classes/${classId}`);
@@ -314,12 +347,25 @@ const ALevelMarksEntry = () => {
           classSubjects = allSubjects.filter(subject =>
             subjectIds.includes(subject._id)
           );
-        } else {
-          classSubjects = [];
         }
       } else {
         // Teachers can only see assigned subjects
-        classSubjects = await teacherApi.getAssignedSubjects(classId);
+        try {
+          // Get the teacher's assigned subjects for this class
+          console.log(`Fetching subjects that the teacher is assigned to teach in class ${classId}`);
+          classSubjects = await teacherApi.getAssignedSubjects(classId);
+          console.log(`Teacher has ${classSubjects.length} assigned subjects in class ${classId}:`,
+            classSubjects.map(s => `${s.name} (${s._id})`));
+
+          if (classSubjects.length === 0) {
+            console.log('No assigned subjects found for this teacher in this class');
+            setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+          }
+        } catch (error) {
+          console.error('Error fetching teacher subjects:', error);
+          setError('Failed to load subjects. You may not be authorized to teach in this class.');
+          classSubjects = [];
+        }
       }
 
       // Filter for A-Level subjects
@@ -327,10 +373,24 @@ const ALevelMarksEntry = () => {
         subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
       );
 
+      console.log(`Found ${aLevelSubjects.length} A-Level subjects out of ${classSubjects.length} total subjects`);
+
+      if (aLevelSubjects.length === 0) {
+        console.log('No A-Level subjects found');
+        if (classSubjects.length > 0) {
+          setError('No A-Level subjects found for this class. Please contact an administrator.');
+        } else if (!isAdmin) {
+          setError('You are not assigned to teach any A-Level subjects in this class.');
+        } else {
+          setError('No subjects found for this class. Please add subjects to the class first.');
+        }
+      }
+
       setSubjects(aLevelSubjects);
     } catch (err) {
       console.error('Error fetching subjects:', err);
       setError('Failed to load subjects. Please try again.');
+      setSubjects([]);
     } finally {
       setLoading(false);
     }
