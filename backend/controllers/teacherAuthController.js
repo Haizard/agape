@@ -525,46 +525,75 @@ exports.getAssignedSubjectsForStudent = async (req, res) => {
     }
 
     // Get subjects for this student that the teacher is assigned to teach
-    const subjects = await teacherSubjectService.getTeacherSubjectsForStudent(teacher._id, studentId, classId);
+    try {
+      const subjects = await teacherSubjectService.getTeacherSubjectsForStudent(teacher._id, studentId, classId);
 
-    // If no subjects found, check if the student has a subject combination
-    if (subjects.length === 0) {
-      console.log(`No subjects found for student ${studentId} taught by teacher ${teacher._id} in class ${classId}`);
+      // If no subjects found, check if the student has a subject combination
+      if (subjects.length === 0) {
+        console.log(`No subjects found for student ${studentId} taught by teacher ${teacher._id} in class ${classId}`);
 
-      // Get the student details to check if they have a subject combination
-      const student = await Student.findById(studentId).populate('subjectCombination');
+        // Get the student details to check if they have a subject combination
+        const student = await Student.findById(studentId).populate('subjectCombination');
 
-      if (!student) {
-        return res.status(404).json({
-          message: 'Student not found',
+        if (!student) {
+          return res.status(404).json({
+            message: 'Student not found',
+            subjects: []
+          });
+        }
+
+        // If student doesn't have a subject combination, try to get all subjects the teacher teaches in this class
+        if (!student.subjectCombination) {
+          console.log(`Student ${studentId} has no subject combination, falling back to all subjects the teacher teaches in class ${classId}`);
+
+          // Get all subjects the teacher teaches in this class
+          const classSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, false, false);
+
+          if (classSubjects.length > 0) {
+            console.log(`Found ${classSubjects.length} subjects taught by teacher ${teacher._id} in class ${classId}`);
+            return res.json(classSubjects);
+          }
+        } else {
+          console.log(`Student ${studentId} has a subject combination, but teacher ${teacher._id} is not assigned to teach any of their subjects`);
+        }
+
+        console.log(`No subjects found for teacher ${teacher._id} in class ${classId} that match student ${studentId}'s combination`);
+        return res.status(403).json({
+          message: 'You are not assigned to teach any subjects for this student in this class.',
           subjects: []
         });
       }
 
-      // If student doesn't have a subject combination, try to get all subjects the teacher teaches in this class
-      if (!student.subjectCombination) {
-        console.log(`Student ${studentId} has no subject combination, falling back to all subjects the teacher teaches in class ${classId}`);
+      console.log(`Found ${subjects.length} subjects for student ${studentId} taught by teacher ${teacher._id}`);
+      return res.json(subjects);
+    } catch (error) {
+      // If the error is from our service, it's likely an authorization error
+      if (error.message.includes('You are not assigned')) {
+        console.log(`Authorization error: ${error.message}`);
 
-        // Get all subjects the teacher teaches in this class
-        const classSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, false, false);
+        // Get all subjects the teacher teaches in this class as a fallback
+        try {
+          const classSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, false, false);
 
-        if (classSubjects.length > 0) {
-          console.log(`Found ${classSubjects.length} subjects taught by teacher ${teacher._id} in class ${classId}`);
-          return res.json(classSubjects);
+          if (classSubjects.length > 0) {
+            console.log(`Fallback: Found ${classSubjects.length} subjects taught by teacher ${teacher._id} in class ${classId}`);
+            return res.json(classSubjects);
+          }
+        } catch (fallbackError) {
+          console.error('Error in fallback subject fetch:', fallbackError);
         }
-      } else {
-        console.log(`Student ${studentId} has a subject combination, but teacher ${teacher._id} is not assigned to teach any of their subjects`);
+
+        return res.status(403).json({
+          message: error.message,
+          subjects: []
+        });
       }
 
-      console.log(`No subjects found for teacher ${teacher._id} in class ${classId} that match student ${studentId}'s combination`);
-      return res.status(403).json({
-        message: 'You are not assigned to teach any subjects for this student in this class.',
-        subjects: []
-      });
+      // For other errors, pass to the outer catch block
+      throw error;
     }
 
-    console.log(`Found ${subjects.length} subjects for student ${studentId} taught by teacher ${teacher._id}`);
-    return res.json(subjects);
+    // This code is unreachable due to the try/catch block above
   } catch (error) {
     console.error('Error getting assigned subjects for student:', error);
     return res.status(500).json({

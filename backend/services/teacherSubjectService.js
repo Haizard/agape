@@ -17,7 +17,7 @@ const Student = require('../models/Student');
 const cache = {
   teacherSubjects: new Map(), // Map of teacherId -> Map of classId -> subjects
   lastUpdated: new Map(), // Map of teacherId -> timestamp
-  TTL: 30 * 1000, // 30 seconds - reduced from 5 minutes to ensure changes are applied more quickly
+  TTL: 1 * 60 * 1000, // 1 minute - reduced to ensure fresh data
 };
 
 /**
@@ -539,56 +539,46 @@ async function getTeacherStudents(teacherId, classId) {
 
         if (hasTeacherSubject) {
           console.log(`[TeacherSubjectService] Student ${student._id} has subjects taught by teacher ${teacherId}`);
-          // Log which subjects overlap for debugging
-          const overlappingSubjects = studentSubjectIds.filter(subjectId =>
-            teacherSubjectIds.includes(subjectId)
-          );
-          console.log(`[TeacherSubjectService] Overlapping subjects for student ${student._id}: ${overlappingSubjects.join(', ')}`);
           return true;
         }
-
-        console.log(`[TeacherSubjectService] Student ${student._id} has a subject combination but none of their subjects are taught by teacher ${teacherId}`);
-        return false;
       }
 
       // CASE 2: Student doesn't have a subject combination
       console.log(`[TeacherSubjectService] Student ${student._id} has no subject combination, education level: ${student.educationLevel}, form: ${student.form}`);
 
-      // For A-Level classes, we need to be more strict
-      if (isALevelClass || forceALevel) {
-        // Only include A-Level students without combinations if the teacher teaches in this class directly
-        if (isALevelStudent) {
-          // Check if the teacher is directly assigned to teach any subject in this class
-          const isDirectlyAssigned = classObj.subjects.some(subjectAssignment =>
-            subjectAssignment.teacher && subjectAssignment.teacher.toString() === teacherId
-          );
+      // CASE 2A: A-Level class with A-Level student
+      if ((isALevelClass || forceALevel) && isALevelStudent) {
+        // For A-Level students in A-Level classes, check if teacher is directly assigned to the class
+        const isDirectlyAssigned = classObj.subjects.some(subjectAssignment =>
+          subjectAssignment.teacher && subjectAssignment.teacher.toString() === teacherId
+        );
 
-          if (isDirectlyAssigned) {
-            console.log(`[TeacherSubjectService] A-Level student ${student._id} in A-Level class ${classId}, teacher is directly assigned to class, including student`);
-            return true;
-          }
-
-          console.log(`[TeacherSubjectService] A-Level student ${student._id} in A-Level class ${classId}, teacher is NOT directly assigned to class, excluding student`);
-          return false;
+        if (isDirectlyAssigned) {
+          console.log(`[TeacherSubjectService] A-Level student ${student._id} in A-Level class ${classId}, teacher is directly assigned, including in teacher's students`);
+          return true;
         }
 
+        console.log(`[TeacherSubjectService] A-Level student ${student._id} in A-Level class ${classId}, teacher is NOT directly assigned, excluding from teacher's students`);
+        return false;
+      }
+      // CASE 2B: A-Level class with O-Level student
+      else if ((isALevelClass || forceALevel) && !isALevelStudent) {
         // Don't include O-Level students in A-Level classes
         console.log(`[TeacherSubjectService] O-Level student ${student._id} in A-Level class ${classId}, excluding from teacher's students`);
         return false;
       }
-
-      // For O-Level classes, check if the teacher is directly assigned to the class
-      const isDirectlyAssigned = classObj.subjects.some(subjectAssignment =>
-        subjectAssignment.teacher && subjectAssignment.teacher.toString() === teacherId
-      );
-
-      if (isDirectlyAssigned) {
-        console.log(`[TeacherSubjectService] Student ${student._id} in O-Level class ${classId}, teacher is directly assigned to class, including student`);
+      // CASE 2C: O-Level class with A-Level student
+      else if (!isALevelClass && !forceALevel && isALevelStudent) {
+        // A-Level students in O-Level classes should have subject combinations
+        console.log(`[TeacherSubjectService] A-Level student ${student._id} in O-Level class ${classId} has no subject combination, excluding from teacher's students`);
+        return false;
+      }
+      // CASE 2D: O-Level class with O-Level student
+      else {
+        // For O-Level students in O-Level classes, include them by default
+        console.log(`[TeacherSubjectService] O-Level student ${student._id} in O-Level class ${classId}, including in teacher's students`);
         return true;
       }
-
-      console.log(`[TeacherSubjectService] Student ${student._id} in O-Level class ${classId}, teacher is NOT directly assigned to class, excluding student`);
-      return false;
     });
 
     console.log(`[TeacherSubjectService] Filtered to ${filteredStudents.length} students who have subjects taught by teacher ${teacherId}`);
@@ -928,7 +918,7 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
       console.log(`[TeacherSubjectService] Student ${studentId} education level: ${student.educationLevel}, form: ${student.form}`);
       console.log(`[TeacherSubjectService] Class ${classId} is ${(isALevelClass || forceALevel) ? 'an A-Level' : 'not an A-Level'} class`);
 
-      // If student doesn't have a subject combination, we need to handle differently based on class type
+      // CASE 1: A-Level class with A-Level student
       if ((isALevelClass || forceALevel) && isALevelStudent) {
         // For A-Level students in A-Level classes, check if teacher is directly assigned to the class
         const isDirectlyAssigned = classObj.subjects.some(subjectAssignment =>
@@ -941,31 +931,23 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
         }
 
         console.log(`[TeacherSubjectService] A-Level student ${studentId} in A-Level class ${classId}, teacher is NOT directly assigned, returning empty array`);
-        return [];
+        throw new Error('You are not assigned to teach any subjects for this student.');
       }
-
-      if ((isALevelClass || forceALevel) && !isALevelStudent) {
+      // CASE 2: A-Level class with O-Level student
+      else if ((isALevelClass || forceALevel) && !isALevelStudent) {
         console.log(`[TeacherSubjectService] O-Level student ${studentId} in A-Level class ${classId}, cannot access A-Level subjects`);
-        return [];
+        throw new Error('You are not assigned to teach any subjects for this student.');
       }
-
-      if (!isALevelClass && !forceALevel && isALevelStudent) {
+      // CASE 3: O-Level class with A-Level student
+      else if (!isALevelClass && !forceALevel && isALevelStudent) {
         console.log(`[TeacherSubjectService] A-Level student ${studentId} in O-Level class ${classId}, cannot access subjects without combination`);
-        return [];
+        throw new Error('You are not assigned to teach any subjects for this student.');
       }
-
-      // For O-Level students in O-Level classes, check if teacher is directly assigned to the class
-      const isDirectlyAssigned = classObj.subjects.some(subjectAssignment =>
-        subjectAssignment.teacher && subjectAssignment.teacher.toString() === teacherId
-      );
-
-      if (isDirectlyAssigned) {
-        console.log(`[TeacherSubjectService] O-Level student ${studentId} in O-Level class ${classId}, teacher is directly assigned, returning teacher subjects`);
+      // CASE 4: O-Level class with O-Level student
+      else {
+        console.log(`[TeacherSubjectService] O-Level student ${studentId} in O-Level class ${classId}, returning all teacher subjects`);
         return teacherSubjects;
       }
-
-      console.log(`[TeacherSubjectService] O-Level student ${studentId} in O-Level class ${classId}, teacher is NOT directly assigned, returning empty array`);
-      return [];
     }
 
     // Get student's subjects from combination
