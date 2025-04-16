@@ -87,7 +87,7 @@ router.post('/test-exam-type', authenticateToken, async (req, res) => {
     // Check if user has admin role
     if (req.user.role.toLowerCase() !== 'admin') {
       return res.status(403).json({
-        message: 'Unauthorized: Required role: admin, User role: ' + req.user.role,
+        message: `Unauthorized: Required role: admin, User role: ${req.user.role}`,
         user: req.user
       });
     }
@@ -167,6 +167,25 @@ router.post('/test-marks-entry', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error testing marks entry:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+const teacherSubjectService = require('../services/teacherSubjectService');
+
+// Clear teacher subject cache
+router.post('/clear-teacher-subject-cache', authenticateToken, async (req, res) => {
+  try {
+    console.log('Debug: Clearing teacher subject cache');
+
+    // Clear the cache
+    teacherSubjectService.clearCache();
+
+    res.json({
+      message: 'Teacher subject cache cleared successfully'
+    });
+  } catch (error) {
+    console.error('Error clearing teacher subject cache:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

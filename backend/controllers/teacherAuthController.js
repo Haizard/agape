@@ -84,6 +84,9 @@ exports.getSimpleAssignedClasses = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
+// Import the teacher subject service
+const teacherSubjectService = require('../services/teacherSubjectService');
+
 exports.getAssignedSubjectsForMarksEntry = async (req, res) => {
   try {
     console.log('GET /api/teachers/my-subjects - Fetching subjects for current teacher');
@@ -100,7 +103,7 @@ exports.getAssignedSubjectsForMarksEntry = async (req, res) => {
     // If user is admin, return all subjects
     if (req.user.role === 'admin') {
       console.log('User is admin, fetching all subjects');
-      const subjects = await Subject.find().select('name code type description');
+      const subjects = await Subject.find().select('name code type description educationLevel');
       return res.json(subjects);
     }
 
@@ -117,111 +120,109 @@ exports.getAssignedSubjectsForMarksEntry = async (req, res) => {
 
     console.log(`Found teacher: ${teacher.firstName} ${teacher.lastName} (${teacher._id})`);
 
-    // If classId is provided, find subjects for that specific class
+    // First check if the teacher is authorized for this class using the improved authorization logic
     if (classId) {
-      console.log(`Finding subjects for teacher ${teacher._id} in class ${classId}`);
-      const classObj = await Class.findById(classId)
-        .populate({
-          path: 'subjects.subject',
-          model: 'Subject',
-          select: 'name code type description'
-        });
+      const isAuthorized = await teacherSubjectService.isTeacherAuthorizedForClass(teacher._id, classId);
 
-      if (!classObj) {
-        console.log(`Class not found with ID: ${classId}`);
-        return res.status(404).json({ message: 'Class not found' });
-      }
-
-      // Log all subjects in the class for debugging
-      console.log(`Class ${classId} has ${classObj.subjects.length} subjects:`);
-      for (const subjectAssignment of classObj.subjects) {
-        console.log(`Subject: ${subjectAssignment.subject ? subjectAssignment.subject.name : 'Unknown'}, ` +
-                    `Teacher: ${subjectAssignment.teacher ? subjectAssignment.teacher.toString() : 'None'}, ` +
-                    `Teacher ID matches: ${subjectAssignment.teacher &&
-                      subjectAssignment.teacher.toString() === teacher._id.toString()}`);
-      }
-
-      // Filter subjects taught by this teacher in this class
-      const teacherSubjects = [];
-      for (const subjectAssignment of classObj.subjects) {
-        if (subjectAssignment.teacher &&
-            subjectAssignment.teacher.toString() === teacher._id.toString() &&
-            subjectAssignment.subject) {
-
-          teacherSubjects.push({
-            _id: subjectAssignment.subject._id,
-            name: subjectAssignment.subject.name,
-            code: subjectAssignment.subject.code,
-            type: subjectAssignment.subject.type,
-            description: subjectAssignment.subject.description,
-            educationLevel: subjectAssignment.subject.educationLevel || 'UNKNOWN'
-          });
-
-          console.log(`Teacher ${teacher._id} is assigned to teach ${subjectAssignment.subject.name} in class ${classId}`);
-        }
-      }
-
-      console.log(`Found ${teacherSubjects.length} subjects for teacher ${teacher._id} in class ${classId}`);
-
-      // If no subjects found for this class, return empty array with error message
-      if (teacherSubjects.length === 0) {
-        console.log('No subjects found for teacher in this class, returning empty array');
+      if (!isAuthorized) {
+        console.log(`Teacher ${teacher._id} is not authorized to teach in class ${classId}`);
         return res.status(403).json({
-          message: 'You are not assigned to teach any subjects in this class.',
+          message: 'You are not authorized to teach in this class.',
           subjects: []
         });
       }
-
-      return res.json(teacherSubjects);
     }
 
-    // If no classId, find all subjects across all classes
-    console.log(`Finding all subjects for teacher ${teacher._id} across all classes`);
-    const classes = await Class.find({
-      'subjects.teacher': teacher._id
-    })
-    .populate({
-      path: 'subjects.subject',
-      model: 'Subject',
-      select: 'name code type description'
-    });
+    // Use the teacher subject service to get the teacher's subjects
+    // Include subjects from students in the class that the teacher teaches in other classes
+    console.log(`[TeacherAuthController] Calling getTeacherSubjects with teacherId: ${teacher._id}, classId: ${classId}, useCache: true, includeStudentSubjects: true`);
+    const subjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, true, true); // Use cache and include student subjects
 
-    // Create a map to store unique subjects
-    const subjectMap = {};
+    // If no subjects found, try one more approach: check if the teacher teaches any subjects in other classes
+    // that are also taught in this class
+    if (subjects.length === 0 && classId) {
+      console.log(`No subjects found for teacher ${teacher._id} in class ${classId}, trying alternative approach`);
 
-    // Process each class
-    for (const classObj of classes) {
-      // Process each subject assignment in the class
-      for (const subjectAssignment of classObj.subjects) {
-        if (subjectAssignment.teacher &&
-            subjectAssignment.teacher.toString() === teacher._id.toString() &&
-            subjectAssignment.subject) {
+      // Get all subjects the teacher teaches in any class
+      const allTeacherSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, null, false, false);
+      console.log(`Teacher ${teacher._id} teaches ${allTeacherSubjects.length} subjects across all classes`);
 
-          const subjectId = subjectAssignment.subject._id.toString();
+      if (allTeacherSubjects.length > 0) {
+        // Get all subjects in the current class
+        const classObj = await Class.findById(classId).populate('subjects.subject');
 
-          // If this subject is not in the map yet, add it
-          if (!subjectMap[subjectId]) {
-            subjectMap[subjectId] = {
-              _id: subjectAssignment.subject._id,
-              name: subjectAssignment.subject.name,
-              code: subjectAssignment.subject.code,
-              type: subjectAssignment.subject.type,
-              description: subjectAssignment.subject.description
-            };
+        if (classObj?.subjects?.length > 0) {
+          const classSubjectIds = classObj.subjects.map(s => {
+            if (s.subject?._id) {
+              return s.subject._id.toString();
+            }
+            return null;
+          }).filter(Boolean);
+
+          console.log(`Class ${classId} has ${classSubjectIds.length} subjects`);
+
+          // Find subjects that the teacher teaches in other classes that are also in this class
+          const matchingSubjects = allTeacherSubjects.filter(subject =>
+            classSubjectIds.includes(subject._id.toString())
+          );
+
+          if (matchingSubjects.length > 0) {
+            console.log(`Found ${matchingSubjects.length} subjects that teacher ${teacher._id} teaches in other classes that are also in class ${classId}`);
+            return res.json(matchingSubjects);
           }
         }
       }
+
+      // Check if the teacher has any students in this class
+      console.log(`Checking if teacher ${teacher._id} has any students in class ${classId}`);
+      const students = await teacherSubjectService.getTeacherStudents(teacher._id, classId);
+
+      if (students.length > 0) {
+        console.log(`Teacher ${teacher._id} has ${students.length} students in class ${classId}, but no subjects`);
+
+        // Get all subjects in the class
+        const classObj = await Class.findById(classId).populate('subjects.subject');
+
+        if (classObj?.subjects?.length > 0) {
+          // Return all subjects in the class
+          const classSubjects = classObj.subjects.map(s => {
+            if (s.subject) {
+              return {
+                _id: s.subject._id,
+                name: s.subject.name,
+                code: s.subject.code,
+                type: s.subject.type || 'UNKNOWN',
+                description: s.subject.description || '',
+                educationLevel: s.subject.educationLevel || 'UNKNOWN',
+                isPrincipal: s.subject.isPrincipal || false,
+                isCompulsory: s.subject.isCompulsory || false,
+                assignmentType: 'class' // From class
+              };
+            }
+            return null;
+          }).filter(Boolean);
+
+          if (classSubjects.length > 0) {
+            console.log(`Found ${classSubjects.length} subjects in class ${classId} for teacher ${teacher._id} based on student assignments`);
+            return res.json(classSubjects);
+          }
+        }
+      }
+
+      // If we get here, we still couldn't find any subjects
+      console.log(`No subjects found for teacher ${teacher._id} in class ${classId}, returning empty array`);
+      return res.status(403).json({
+        message: 'You are not assigned to teach any subjects in this class.',
+        subjects: []
+      });
     }
 
-    // Convert the map to an array
-    const subjects = Object.values(subjectMap);
-    console.log(`Found ${subjects.length} unique subjects for teacher ${teacher._id} across all classes`);
-
-    // If no subjects found, return empty array with error message
+    // If we get here with no subjects, it means we're not looking for a specific class
+    // and the teacher doesn't teach any subjects anywhere
     if (subjects.length === 0) {
-      console.log('No subjects found for teacher, returning empty array');
+      console.log(`No subjects found for teacher ${teacher._id} across all classes, returning empty array`);
       return res.status(403).json({
-        message: 'You are not assigned to teach any subjects. Please contact an administrator.',
+        message: 'You are not assigned to teach any subjects.',
         subjects: []
       });
     }
@@ -282,112 +283,109 @@ exports.getAssignedSubjects = async (req, res) => {
 
     console.log(`Found teacher: ${teacher.firstName} ${teacher.lastName} (${teacher._id})`);
 
-    // If classId is provided, find subjects for that specific class
+    // First check if the teacher is authorized for this class using the improved authorization logic
     if (classId) {
-      console.log(`Finding subjects for teacher ${teacher._id} in class ${classId}`);
-      const classObj = await Class.findById(classId)
-        .populate({
-          path: 'subjects.subject',
-          model: 'Subject',
-          select: 'name code type description educationLevel'
-        });
+      const isAuthorized = await teacherSubjectService.isTeacherAuthorizedForClass(teacher._id, classId);
 
-      if (!classObj) {
-        console.log(`Class not found with ID: ${classId}`);
-        return res.status(404).json({ message: 'Class not found' });
-      }
-
-      // Log all subjects in the class for debugging
-      console.log(`Class ${classId} has ${classObj.subjects.length} subjects:`);
-      for (const subjectAssignment of classObj.subjects) {
-        console.log(`Subject: ${subjectAssignment.subject ? subjectAssignment.subject.name : 'Unknown'}, ` +
-                    `Teacher: ${subjectAssignment.teacher ? subjectAssignment.teacher.toString() : 'None'}, ` +
-                    `Teacher ID matches: ${subjectAssignment.teacher &&
-                      subjectAssignment.teacher.toString() === teacher._id.toString()}`);
-      }
-
-      // Filter subjects taught by this teacher in this class
-      const teacherSubjects = [];
-      for (const subjectAssignment of classObj.subjects) {
-        if (subjectAssignment.teacher &&
-            subjectAssignment.teacher.toString() === teacher._id.toString() &&
-            subjectAssignment.subject) {
-
-          teacherSubjects.push({
-            _id: subjectAssignment.subject._id,
-            name: subjectAssignment.subject.name,
-            code: subjectAssignment.subject.code,
-            type: subjectAssignment.subject.type,
-            description: subjectAssignment.subject.description,
-            educationLevel: subjectAssignment.subject.educationLevel || 'UNKNOWN'
-          });
-
-          console.log(`Teacher ${teacher._id} is assigned to teach ${subjectAssignment.subject.name} in class ${classId}`);
-        }
-      }
-
-      console.log(`Found ${teacherSubjects.length} subjects for teacher ${teacher._id} in class ${classId}`);
-
-      // If no subjects found for this class, return empty array with error message
-      if (teacherSubjects.length === 0) {
-        console.log('No subjects found for teacher in this class, returning empty array');
+      if (!isAuthorized) {
+        console.log(`Teacher ${teacher._id} is not authorized to teach in class ${classId}`);
         return res.status(403).json({
-          message: 'You are not assigned to teach any subjects in this class.',
+          message: 'You are not authorized to teach in this class.',
           subjects: []
         });
       }
-
-      return res.json(teacherSubjects);
     }
 
-    // If no classId, find all subjects across all classes
-    console.log(`Finding all subjects for teacher ${teacher._id} across all classes`);
-    const classes = await Class.find({
-      'subjects.teacher': teacher._id
-    })
-    .populate({
-      path: 'subjects.subject',
-      model: 'Subject',
-      select: 'name code type description educationLevel'
-    });
+    // Use the teacher subject service to get the teacher's subjects
+    // This is the strict version that only returns subjects the teacher is assigned to teach
+    console.log(`[TeacherAuthController] Calling getTeacherSubjects with teacherId: ${teacher._id}, classId: ${classId}, useCache: false, includeStudentSubjects: false`);
+    const subjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, false, false); // Don't use cache and don't include student subjects
 
-    // Create a map to store unique subjects
-    const subjectMap = {};
+    // If no subjects found, try one more approach: check if the teacher teaches any subjects in other classes
+    // that are also taught in this class
+    if (subjects.length === 0 && classId) {
+      console.log(`No subjects found for teacher ${teacher._id} in class ${classId}, trying alternative approach`);
 
-    // Process each class
-    for (const classObj of classes) {
-      // Process each subject assignment in the class
-      for (const subjectAssignment of classObj.subjects) {
-        if (subjectAssignment.teacher &&
-            subjectAssignment.teacher.toString() === teacher._id.toString() &&
-            subjectAssignment.subject) {
+      // Get all subjects the teacher teaches in any class
+      const allTeacherSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, null, false, false);
+      console.log(`Teacher ${teacher._id} teaches ${allTeacherSubjects.length} subjects across all classes`);
 
-          const subjectId = subjectAssignment.subject._id.toString();
+      if (allTeacherSubjects.length > 0) {
+        // Get all subjects in the current class
+        const classObj = await Class.findById(classId).populate('subjects.subject');
 
-          // If this subject is not in the map yet, add it
-          if (!subjectMap[subjectId]) {
-            subjectMap[subjectId] = {
-              _id: subjectAssignment.subject._id,
-              name: subjectAssignment.subject.name,
-              code: subjectAssignment.subject.code,
-              type: subjectAssignment.subject.type,
-              description: subjectAssignment.subject.description,
-              educationLevel: subjectAssignment.subject.educationLevel || 'UNKNOWN'
-            };
+        if (classObj?.subjects?.length > 0) {
+          const classSubjectIds = classObj.subjects.map(s => {
+            if (s.subject?._id) {
+              return s.subject._id.toString();
+            }
+            return null;
+          }).filter(Boolean);
+
+          console.log(`Class ${classId} has ${classSubjectIds.length} subjects`);
+
+          // Find subjects that the teacher teaches in other classes that are also in this class
+          const matchingSubjects = allTeacherSubjects.filter(subject =>
+            classSubjectIds.includes(subject._id.toString())
+          );
+
+          if (matchingSubjects.length > 0) {
+            console.log(`Found ${matchingSubjects.length} subjects that teacher ${teacher._id} teaches in other classes that are also in class ${classId}`);
+            return res.json(matchingSubjects);
           }
         }
       }
+
+      // Check if the teacher has any students in this class
+      console.log(`Checking if teacher ${teacher._id} has any students in class ${classId}`);
+      const students = await teacherSubjectService.getTeacherStudents(teacher._id, classId);
+
+      if (students.length > 0) {
+        console.log(`Teacher ${teacher._id} has ${students.length} students in class ${classId}, but no subjects`);
+
+        // Get all subjects in the class
+        const classObj = await Class.findById(classId).populate('subjects.subject');
+
+        if (classObj?.subjects?.length > 0) {
+          // Return all subjects in the class
+          const classSubjects = classObj.subjects.map(s => {
+            if (s.subject) {
+              return {
+                _id: s.subject._id,
+                name: s.subject.name,
+                code: s.subject.code,
+                type: s.subject.type || 'UNKNOWN',
+                description: s.subject.description || '',
+                educationLevel: s.subject.educationLevel || 'UNKNOWN',
+                isPrincipal: s.subject.isPrincipal || false,
+                isCompulsory: s.subject.isCompulsory || false,
+                assignmentType: 'class' // From class
+              };
+            }
+            return null;
+          }).filter(Boolean);
+
+          if (classSubjects.length > 0) {
+            console.log(`Found ${classSubjects.length} subjects in class ${classId} for teacher ${teacher._id} based on student assignments`);
+            return res.json(classSubjects);
+          }
+        }
+      }
+
+      // If we get here, we still couldn't find any subjects
+      console.log(`No subjects found for teacher ${teacher._id} in class ${classId}, returning empty array`);
+      return res.status(403).json({
+        message: 'You are not assigned to teach any subjects in this class.',
+        subjects: []
+      });
     }
 
-    // Convert the map to an array
-    const subjects = Object.values(subjectMap);
-    console.log(`Found ${subjects.length} unique subjects for teacher ${teacher._id} across all classes`);
-
-    // If no subjects found, return empty array with error message
+    // If we get here with no subjects, it means we're not looking for a specific class
+    // and the teacher doesn't teach any subjects anywhere
     if (subjects.length === 0) {
-      console.log('No subjects found for teacher, returning empty array');
+      console.log(`No subjects found for teacher ${teacher._id} across all classes, returning empty array`);
       return res.status(403).json({
-        message: 'You are not assigned to teach any subjects. Please contact an administrator.',
+        message: 'You are not assigned to teach any subjects.',
         subjects: []
       });
     }
@@ -409,6 +407,140 @@ exports.getAssignedSubjects = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
+// Get subjects for a specific student that the teacher is assigned to teach
+exports.getAssignedSubjectsForStudent = async (req, res) => {
+  try {
+    console.log('GET /api/teachers/students/:studentId/subjects - Fetching subjects for student that the teacher is assigned to teach');
+    const userId = req.user.userId;
+    const { studentId } = req.params;
+    const { classId } = req.query;
+
+    console.log(`User ID: ${userId}, Student ID: ${studentId}, Class ID: ${classId || 'not provided'}`);
+
+    if (!userId) {
+      console.log('No userId found in token');
+      return res.status(400).json({ message: 'Invalid user token' });
+    }
+
+    if (!studentId) {
+      console.log('No studentId provided');
+      return res.status(400).json({ message: 'Student ID is required' });
+    }
+
+    if (!classId) {
+      console.log('No classId provided');
+      return res.status(400).json({ message: 'Class ID is required' });
+    }
+
+    // If user is admin, return all subjects for the student
+    if (req.user.role === 'admin') {
+      console.log('User is admin, fetching all subjects for student');
+
+      // Get the student with subject combination
+      const student = await Student.findById(studentId)
+        .populate({
+          path: 'subjectCombination',
+          populate: {
+            path: 'subjects compulsorySubjects',
+            model: 'Subject',
+            select: 'name code type description educationLevel isPrincipal isCompulsory'
+          }
+        });
+
+      if (!student) {
+        console.log(`Student ${studentId} not found`);
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      // Get subjects from combination
+      const subjects = [];
+
+      // Add principal subjects
+      if (student.subjectCombination?.subjects && Array.isArray(student.subjectCombination.subjects)) {
+        for (const subject of student.subjectCombination.subjects) {
+          if (typeof subject === 'object' && subject._id) {
+            subjects.push({
+              _id: subject._id,
+              name: subject.name,
+              code: subject.code,
+              type: subject.type,
+              description: subject.description,
+              educationLevel: subject.educationLevel || 'UNKNOWN',
+              isPrincipal: true,
+              isCompulsory: false
+            });
+          }
+        }
+      }
+
+      // Add subsidiary subjects
+      if (student.subjectCombination?.compulsorySubjects && Array.isArray(student.subjectCombination.compulsorySubjects)) {
+        for (const subject of student.subjectCombination.compulsorySubjects) {
+          if (typeof subject === 'object' && subject._id) {
+            subjects.push({
+              _id: subject._id,
+              name: subject.name,
+              code: subject.code,
+              type: subject.type,
+              description: subject.description,
+              educationLevel: subject.educationLevel || 'UNKNOWN',
+              isPrincipal: false,
+              isCompulsory: true
+            });
+          }
+        }
+      }
+
+      console.log(`Found ${subjects.length} subjects for student ${studentId}`);
+      return res.json(subjects);
+    }
+
+    // Find the teacher profile
+    console.log('Looking for teacher with userId:', userId);
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      console.log('No teacher profile found for user:', userId);
+      return res.status(404).json({
+        message: 'Teacher profile not found. Please ensure your account is properly set up as a teacher.'
+      });
+    }
+
+    console.log(`Found teacher: ${teacher.firstName} ${teacher.lastName} (${teacher._id})`);
+
+    // Check if the teacher is authorized for this class
+    const isAuthorized = await teacherSubjectService.isTeacherAuthorizedForClass(teacher._id, classId);
+
+    if (!isAuthorized) {
+      console.log(`Teacher ${teacher._id} is not authorized to teach in class ${classId}`);
+      return res.status(403).json({
+        message: 'You are not authorized to teach in this class.'
+      });
+    }
+
+    // Get subjects for this student that the teacher is assigned to teach
+    const subjects = await teacherSubjectService.getTeacherSubjectsForStudent(teacher._id, studentId, classId);
+
+    // If no subjects found, return empty array with error message
+    if (subjects.length === 0) {
+      console.log(`No subjects found for student ${studentId} taught by teacher ${teacher._id} in class ${classId}`);
+      return res.status(403).json({
+        message: 'You are not assigned to teach any subjects for this student.',
+        subjects: []
+      });
+    }
+
+    console.log(`Found ${subjects.length} subjects for student ${studentId} taught by teacher ${teacher._id}`);
+    return res.json(subjects);
+  } catch (error) {
+    console.error('Error getting assigned subjects for student:', error);
+    return res.status(500).json({
+      message: 'Failed to get assigned subjects for student',
+      error: error.message
+    });
+  }
+};
+
 exports.getAssignedStudents = async (req, res) => {
   try {
     console.log('GET /api/teachers/classes/:classId/students - Fetching students for teacher');
@@ -447,118 +579,31 @@ exports.getAssignedStudents = async (req, res) => {
 
     console.log(`Found teacher: ${teacher.firstName} ${teacher.lastName} (${teacher._id})`);
 
-    // Check if the teacher is assigned to the class
-    const Class = require('../models/Class');
-    const classObj = await Class.findOne({
-      _id: classId,
-      'subjects.teacher': teacher._id
-    });
+    // First check if the teacher is authorized for this class using the improved authorization logic
+    const isAuthorized = await teacherSubjectService.isTeacherAuthorizedForClass(teacher._id, classId);
 
-    if (!classObj) {
-      console.log(`Teacher ${teacher._id} is not assigned to class ${classId}`);
-
-      // Instead of returning all students, return an empty array with a message
-      console.log('Teacher is not assigned to this class, returning empty array');
+    if (!isAuthorized) {
+      console.log(`Teacher ${teacher._id} is not authorized to teach in class ${classId}`);
       return res.status(403).json({
-        message: 'You are not assigned to teach any subjects in this class.',
+        message: 'You are not authorized to teach in this class.',
         students: []
       });
     }
 
-    console.log(`Teacher ${teacher._id} is assigned to class ${classId}`);
+    // Use the teacher subject service to get the teacher's students
+    const students = await teacherSubjectService.getTeacherStudents(teacher._id, classId);
 
-    // Find all students in the class first
-    const allStudents = await Student.find({ class: classId })
-      .populate({
-        path: 'subjectCombination',
-        populate: {
-          path: 'subjects compulsorySubjects',
-          model: 'Subject',
-          select: 'name code type description educationLevel isPrincipal isCompulsory'
-        }
-      })
-      .populate('selectedSubjects')
-      .sort({ firstName: 1, lastName: 1 });
-
-    console.log(`Found ${allStudents.length} total students in class ${classId}`);
-
-    // Get the teacher's assigned subjects for this class
-    const teacherSubjects = classObj.subjects
-      .filter(subjectAssignment =>
-        subjectAssignment.teacher &&
-        subjectAssignment.teacher.toString() === teacher._id.toString()
-      )
-      .map(subjectAssignment =>
-        typeof subjectAssignment.subject === 'object' ?
-          subjectAssignment.subject._id.toString() :
-          subjectAssignment.subject.toString()
-      );
-
-    console.log(`Teacher ${teacher._id} teaches ${teacherSubjects.length} subjects in class ${classId}:`, teacherSubjects);
-
-    // Filter students based on the teacher's subjects
-    const filteredStudents = allStudents.filter(student => {
-      // If student has a subject combination
-      if (student.subjectCombination &&
-          typeof student.subjectCombination === 'object') {
-
-        // Get principal subjects
-        const principalSubjectIds = student.subjectCombination.subjects ?
-          student.subjectCombination.subjects.map(s =>
-            typeof s === 'object' ? s._id.toString() : s.toString()
-          ) : [];
-
-        // Get subsidiary subjects
-        const subsidiarySubjectIds = student.subjectCombination.compulsorySubjects ?
-          student.subjectCombination.compulsorySubjects.map(s =>
-            typeof s === 'object' ? s._id.toString() : s.toString()
-          ) : [];
-
-        // Combine all subject IDs
-        const studentSubjectIds = [...principalSubjectIds, ...subsidiarySubjectIds];
-
-        // Check if any of the student's subjects are taught by this teacher
-        const hasTeacherSubject = studentSubjectIds.some(subjectId =>
-          teacherSubjects.includes(subjectId)
-        );
-
-        return hasTeacherSubject;
-      }
-
-      // If student doesn't have a subject combination, include them
-      // This ensures we don't exclude students who might need to be assigned combinations
-      return true;
-    });
-
-    console.log(`Filtered to ${filteredStudents.length} students who have subjects taught by teacher ${teacher._id}`);
-
-    // Log A-Level students with their subject combinations for debugging
-    const aLevelStudents = filteredStudents.filter(student =>
-      student.educationLevel === 'A_LEVEL' || student.form === 5 || student.form === 6
-    );
-
-    console.log(`Found ${aLevelStudents.length} A-Level students taught by this teacher in class ${classId}`);
-
-    for (const student of aLevelStudents) {
-      if (student.subjectCombination) {
-        console.log(`Student ${student._id} has combination: ${student.subjectCombination.name || student.subjectCombination._id}`);
-
-        // Log principal subjects
-        if (student.subjectCombination.subjects && student.subjectCombination.subjects.length > 0) {
-          console.log(`Principal subjects: ${student.subjectCombination.subjects.map(s => s.name || s.code).join(', ')}`);
-        }
-
-        // Log subsidiary subjects
-        if (student.subjectCombination.compulsorySubjects && student.subjectCombination.compulsorySubjects.length > 0) {
-          console.log(`Subsidiary subjects: ${student.subjectCombination.compulsorySubjects.map(s => s.name || s.code).join(', ')}`);
-        }
-      } else {
-        console.log(`Student ${student._id} has no subject combination assigned`);
-      }
+    // If no students found, return empty array with error message
+    if (students.length === 0) {
+      console.log(`No students found for teacher ${teacher._id} in class ${classId}, returning empty array`);
+      return res.status(403).json({
+        message: 'You are not assigned to teach any students in this class.',
+        students: []
+      });
     }
 
-    // Return the filtered students
-    res.json(filteredStudents);
+    // Return the students
+    res.json(students);
   } catch (error) {
     console.error('Error fetching assigned students:', error);
     res.status(500).json({

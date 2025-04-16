@@ -110,6 +110,9 @@ const authorizeRole = (requiredRoles) => {
   };
 };
 
+// Import the teacher subject service
+const teacherSubjectService = require('../services/teacherSubjectService');
+
 // Middleware to check if a teacher is authorized to access a specific subject
 const authorizeTeacherForSubject = async (req, res, next) => {
   try {
@@ -127,10 +130,18 @@ const authorizeTeacherForSubject = async (req, res, next) => {
       return res.status(403).json({ message: 'Only teachers and admins can access this resource' });
     }
 
-    const { subjectId } = req.params;
+    // Get subject ID from params, query, or body
+    const subjectId = req.params.subjectId || req.query.subjectId || req.body.subjectId;
     if (!subjectId) {
-      console.log('No subjectId provided in request parameters');
+      console.log('No subjectId provided in request');
       return res.status(400).json({ message: 'Subject ID is required' });
+    }
+
+    // Get class ID from params, query, or body
+    const classId = req.params.classId || req.query.classId || req.body.classId;
+    if (!classId) {
+      console.log('No classId provided in request');
+      return res.status(400).json({ message: 'Class ID is required' });
     }
 
     // Find the teacher by userId
@@ -140,22 +151,22 @@ const authorizeTeacherForSubject = async (req, res, next) => {
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
-    // Check if teacher is assigned to this subject
-    const isAssigned = teacher.subjects?.some(subject =>
-      subject.toString() === subjectId
-    ) || false;
+    // Use the teacher subject service to check if the teacher is authorized
+    const isAuthorized = await teacherSubjectService.isTeacherAuthorizedForSubject(
+      teacher._id, classId, subjectId
+    );
 
-    if (!isAssigned) {
-      console.log(`Teacher ${teacher._id} is not assigned to subject ${subjectId}`);
+    if (!isAuthorized) {
+      console.log(`Teacher ${teacher._id} is not authorized to access subject ${subjectId} in class ${classId}`);
       return res.status(403).json({
         message: 'You are not authorized to access this subject',
-        details: 'You must be assigned to teach this subject to access it.'
+        details: 'You must be assigned to teach this subject in this class to access it.'
       });
     }
 
     // Add teacher ID to request for convenience in route handlers
     req.teacherId = teacher._id;
-    console.log(`Teacher ${teacher._id} is authorized to access subject ${subjectId}`);
+    console.log(`Teacher ${teacher._id} is authorized to access subject ${subjectId} in class ${classId}`);
     next();
   } catch (error) {
     console.error('Error in authorizeTeacherForSubject middleware:', error);
@@ -180,9 +191,10 @@ const authorizeTeacherForClass = async (req, res, next) => {
       return res.status(403).json({ message: 'Only teachers and admins can access this resource' });
     }
 
-    const { classId } = req.params;
+    // Get class ID from params, query, or body
+    const classId = req.params.classId || req.query.classId || req.body.classId;
     if (!classId) {
-      console.log('No classId provided in request parameters');
+      console.log('No classId provided in request');
       return res.status(400).json({ message: 'Class ID is required' });
     }
 
@@ -193,36 +205,29 @@ const authorizeTeacherForClass = async (req, res, next) => {
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
-    // Check if teacher is assigned to this class
-    const classItem = await Class.findById(classId).populate('subjects.subject');
-    if (!classItem) {
-      console.log(`Class not found with ID: ${classId}`);
-      return res.status(404).json({ message: 'Class not found' });
-    }
+    // Use the teacher subject service to check if the teacher is authorized
+    const isAuthorized = await teacherSubjectService.isTeacherAuthorizedForClass(
+      teacher._id, classId
+    );
 
-    const isTeacherAssigned = classItem.subjects?.some(subject =>
-      subject.teacher && subject.teacher.toString() === teacher._id.toString()
-    ) || false;
-
-    if (!isTeacherAssigned) {
-      console.log(`Teacher ${teacher._id} is not assigned to class ${classId}`);
+    if (!isAuthorized) {
+      console.log(`Teacher ${teacher._id} is not authorized to access class ${classId}`);
       return res.status(403).json({
         message: 'You are not authorized to access this class',
         details: 'You must be assigned to teach at least one subject in this class to access it.'
       });
     }
 
-    // Add teacher ID and assigned subjects to request for convenience in route handlers
+    // Add teacher ID to request for convenience in route handlers
     req.teacherId = teacher._id;
 
     // Get the subjects this teacher teaches in this class
-    req.teacherSubjects = classItem.subjects
-      .filter(subject => subject.teacher && subject.teacher.toString() === teacher._id.toString())
-      .map(subject => ({
-        id: subject.subject?._id || subject.subject,
-        code: subject.subject?.code || 'Unknown',
-        name: subject.subject?.name || 'Unknown Subject'
-      }));
+    const teacherSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId);
+    req.teacherSubjects = teacherSubjects.map(subject => ({
+      id: subject._id,
+      code: subject.code || 'Unknown',
+      name: subject.name || 'Unknown Subject'
+    }));
 
     console.log(`Teacher ${teacher._id} is authorized to access class ${classId}`);
     console.log('Teacher is assigned to subjects:', req.teacherSubjects);
@@ -251,9 +256,10 @@ const authorizeTeacherForReports = async (req, res, next) => {
       return res.status(403).json({ message: 'Only teachers and admins can access reports' });
     }
 
-    const { classId } = req.params;
+    // Get class ID from params, query, or body
+    const classId = req.params.classId || req.query.classId || req.body.classId;
     if (!classId) {
-      console.log('No classId provided in request parameters');
+      console.log('No classId provided in request');
       return res.status(400).json({ message: 'Class ID is required' });
     }
 
@@ -264,37 +270,29 @@ const authorizeTeacherForReports = async (req, res, next) => {
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
-    // Check if teacher is assigned to this class
-    const classItem = await Class.findById(classId).populate('subjects.subject');
-    if (!classItem) {
-      console.log(`Class not found with ID: ${classId}`);
-      return res.status(404).json({ message: 'Class not found' });
-    }
-
-    // Check if teacher is assigned to any subject in this class
-    const isTeacherAssigned = classItem.subjects.some(subject =>
-      subject.teacher && subject.teacher.toString() === teacher._id.toString()
+    // Use the teacher subject service to check if the teacher is authorized
+    const isAuthorized = await teacherSubjectService.isTeacherAuthorizedForClass(
+      teacher._id, classId
     );
 
-    if (!isTeacherAssigned) {
-      console.log(`Teacher ${teacher._id} is not assigned to class ${classId}`);
+    if (!isAuthorized) {
+      console.log(`Teacher ${teacher._id} is not authorized to view reports for class ${classId}`);
       return res.status(403).json({
         message: 'You are not authorized to view reports for this class',
         details: 'You must be assigned to teach at least one subject in this class to view reports.'
       });
     }
 
-    // Add teacher ID and assigned subjects to request for convenience in route handlers
+    // Add teacher ID to request for convenience in route handlers
     req.teacherId = teacher._id;
 
     // Get the subjects this teacher teaches in this class
-    req.teacherSubjects = classItem.subjects
-      .filter(subject => subject.teacher && subject.teacher.toString() === teacher._id.toString())
-      .map(subject => ({
-        id: subject.subject._id,
-        code: subject.subject.code,
-        name: subject.subject.name
-      }));
+    const teacherSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId);
+    req.teacherSubjects = teacherSubjects.map(subject => ({
+      id: subject._id,
+      code: subject.code || 'Unknown',
+      name: subject.name || 'Unknown Subject'
+    }));
 
     console.log(`Teacher ${teacher._id} is authorized to view reports for class ${classId}`);
     console.log('Teacher is assigned to subjects:', req.teacherSubjects);

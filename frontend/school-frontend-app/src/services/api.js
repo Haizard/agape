@@ -143,6 +143,16 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // Check if this is a teacher-specific endpoint for subjects or students
+      if (originalRequest.url.includes('/teachers/') ||
+          originalRequest.url.includes('/teacher-classes/') ||
+          originalRequest.url.includes('/api/classes/') ||
+          originalRequest.url.includes('/api/students/')) {
+        console.log('Teacher-specific endpoint or class/student endpoint returned auth error, but not logging out');
+        // Don't logout for these endpoints, just reject the promise
+        return Promise.reject(error);
+      }
+
       // For other requests, try to refresh token or logout
       try {
         // Attempt to refresh token (if you have a refresh token endpoint)

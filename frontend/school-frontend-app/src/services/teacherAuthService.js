@@ -28,13 +28,32 @@ const teacherAuthService = {
       if (!classId) {
         return [];
       }
-      const response = await api.get('/api/teachers/my-subjects', {
-        params: { classId }
-      });
-      return response.data || [];
+
+      // Check if user is admin
+      if (this.isAdmin()) {
+        console.log(`[TeacherAuthService] User is admin, fetching all subjects for class ${classId}`);
+        const response = await api.get(`/api/classes/${classId}/subjects`);
+        console.log(`[TeacherAuthService] Admin found ${response.data ? response.data.length : 0} subjects for class ${classId}`);
+        return response.data || [];
+      }
+
+      // For teachers, strictly use the teacher-specific endpoint
+      console.log(`[TeacherAuthService] Fetching subjects for class ${classId} using strict endpoint`);
+      try {
+        const response = await api.get('/api/teachers/marks-entry-subjects', {
+          params: { classId }
+        });
+        console.log(`[TeacherAuthService] Found ${response.data ? response.data.length : 0} subjects for class ${classId}`);
+        return response.data || [];
+      } catch (error) {
+        console.error('[TeacherAuthService] Error fetching assigned subjects:', error);
+        // For all errors, return an empty array to enforce strict access control
+        console.log('[TeacherAuthService] Returning empty array due to error');
+        return [];
+      }
     } catch (error) {
-      console.error('Error fetching assigned subjects:', error);
-      throw error;
+      console.error('[TeacherAuthService] Error in getAssignedSubjects:', error);
+      return [];
     }
   },
 
@@ -48,10 +67,17 @@ const teacherAuthService = {
       if (!classId) {
         return [];
       }
-      const response = await api.get(`/api/classes/${classId}/students`);
+      console.log(`[TeacherAuthService] Fetching students for class ${classId} using teacher-specific endpoint`);
+      const response = await api.get(`/api/teachers/classes/${classId}/students`);
+      console.log(`[TeacherAuthService] Found ${response.data ? response.data.length : 0} students for class ${classId}`);
       return response.data || [];
     } catch (error) {
-      console.error('Error fetching assigned students:', error);
+      console.error('[TeacherAuthService] Error fetching assigned students:', error);
+      // If there's a 403 error, return an empty array instead of throwing
+      if (error.response && error.response.status === 403) {
+        console.log('[TeacherAuthService] Teacher is not authorized for this class, returning empty array');
+        return [];
+      }
       throw error;
     }
   },
@@ -125,7 +151,7 @@ const teacherAuthService = {
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        return `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`;
       }).join(''));
 
       const payload = JSON.parse(jsonPayload);

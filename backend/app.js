@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
+const path = require('node:path');
 const teacherRoutes = require('./routes/teacherRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const smsRoutes = require('./routes/smsRoutes');
@@ -109,6 +109,9 @@ app.use('/api/results/comprehensive', unifiedComprehensiveReportRoutes);
 app.use('/api/results/comprehensive-old', comprehensiveReportRoutes);
 // Demo data routes for testing
 app.use('/api/demo', demoDataRoutes);
+
+// Debug routes
+app.use('/api/debug', require('./routes/debugRoutes'));
 
 // Proxy specific routes to demo data for testing
 // This allows using the real frontend components with demo data

@@ -1355,6 +1355,9 @@ router.get('/marks-entry-subjects', authenticateToken, authorizeRole(['teacher',
 // Get assigned students for the current teacher (for authorization)
 router.get('/classes/:classId/students', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedStudents);
 
+// Get subjects for a specific student that the teacher is assigned to teach
+router.get('/students/:studentId/subjects', authenticateToken, authorizeRole(['teacher', 'admin']), teacherAuthController.getAssignedSubjectsForStudent);
+
 // Get subjects for the current teacher (original implementation)
 router.get('/my-subjects-old', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
   try {
