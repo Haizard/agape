@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import teacherAuthService from '../../services/teacherAuthService';
 import teacherApi from '../../services/teacherApi';
+import studentSubjectsApi from '../../services/studentSubjectsApi';
 import {
   Box,
   Typography,
@@ -96,6 +97,15 @@ const ALevelBulkMarksEntry = () => {
           classesData = assignedClasses.filter(cls =>
             cls.educationLevel === 'A_LEVEL'
           );
+        }
+
+        // Log the classes for debugging
+        console.log(`Found ${classesData.length} A-Level classes`);
+
+        // If no classes found, show a message
+        if (classesData.length === 0) {
+          console.log('No A-Level classes found');
+          setError('No A-Level classes found. Please contact an administrator to assign you to A-Level classes.');
         }
 
         setClasses(classesData);
@@ -196,11 +206,68 @@ const ALevelBulkMarksEntry = () => {
         let studentsData;
         if (isAdmin) {
           // Admin can see all students in the class
-          const studentsResponse = await api.get(`/api/classes/${selectedClass}/students`);
+          const studentsResponse = await api.get(`/api/students/class/${selectedClass}`);
           studentsData = studentsResponse.data || [];
         } else {
-          // Teachers can only see assigned students
-          studentsData = await teacherApi.getAssignedStudents(selectedClass);
+          try {
+            // Teachers can only see assigned students
+            studentsData = await teacherApi.getAssignedStudents(selectedClass);
+          } catch (teacherError) {
+            console.error('Error fetching assigned students:', teacherError);
+
+            // If the teacher-specific endpoint fails, try the general endpoint
+            console.log('Falling back to general students endpoint');
+            const response = await api.get(`/api/students/class/${selectedClass}`);
+            studentsData = response.data || [];
+          }
+        }
+
+        // Log students with their subject combinations
+        console.log(`Fetched ${studentsData.length} students for class ${selectedClass}`);
+
+        // Log raw student data for debugging
+        console.log('Raw student data:', studentsData.slice(0, 3));
+
+        // Filter for A-Level students by educationLevel OR form level (5 or 6)
+        const aLevelStudents = studentsData.filter(student => {
+          // Check if student is explicitly marked as A_LEVEL
+          const isALevel = student.educationLevel === 'A_LEVEL';
+
+          // Check if student is in Form 5 or 6 (A-Level forms)
+          const isFormFiveOrSix = student.form === 5 || student.form === 6;
+
+          // For debugging
+          if (isFormFiveOrSix && !isALevel) {
+            console.log(`Student in Form ${student.form} but not marked as A_LEVEL:`,
+              student.firstName, student.lastName, student.educationLevel);
+          }
+
+          // Return true if either condition is met
+          return isALevel || isFormFiveOrSix;
+        });
+
+        console.log(`Found ${aLevelStudents.length} A-Level students out of ${studentsData.length} total students`);
+
+        // If no A-Level students found, show a message
+        if (aLevelStudents.length === 0 && studentsData.length > 0) {
+          console.log('No A-Level students found, but found other students');
+          setError('No A-Level students found in this class.');
+        } else if (studentsData.length === 0) {
+          console.log('No students found at all');
+          setError('No students found in this class.');
+        }
+
+        // Filter for A-Level students with subject combinations
+        const aLevelStudentsWithCombinations = aLevelStudents.filter(student =>
+          student.subjectCombination
+        );
+
+        console.log(`Found ${aLevelStudentsWithCombinations.length} A-Level students with subject combinations`);
+
+        // Get the selected subject
+        const selectedSubjectObj = subjects.find(s => s._id === selectedSubject);
+        if (selectedSubjectObj) {
+          console.log(`Selected subject: ${selectedSubjectObj.name}`);
         }
 
         // Get existing marks for the selected class, subject, and exam
@@ -218,10 +285,7 @@ const ALevelBulkMarksEntry = () => {
         const academicYearId = examResponse.data.academicYear;
         const examTypeId = examResponse.data.examType;
 
-        // Filter for A-Level students only
-        const aLevelStudents = studentsData.filter(student =>
-          student.educationLevel === 'A_LEVEL'
-        );
+        // We already filtered for A-Level students above, so we can use aLevelStudents directly
 
         setStudents(aLevelStudents);
 
@@ -230,6 +294,28 @@ const ALevelBulkMarksEntry = () => {
           const existingMark = marksResponse.data.find(mark =>
             mark.studentId === student._id
           );
+
+          // Check if this subject is in the student's combination
+          const isInCombination = student.subjectCombination ?
+            studentSubjectsApi.isSubjectInStudentCombination(selectedSubject, student) :
+            false;
+
+          // Determine if this is a principal subject for this student
+          let isPrincipal = existingMark ? existingMark.isPrincipal : false;
+
+          // If we have a subject combination, try to determine principal status from it
+          if (student.subjectCombination && isInCombination) {
+            // Get subjects from combination
+            const combinationSubjects = studentSubjectsApi.getSubjectsFromCombination(student);
+
+            // Find this subject in the combination
+            const subjectInCombination = combinationSubjects.find(s => s._id === selectedSubject);
+
+            // If found, use its isPrincipal flag
+            if (subjectInCombination) {
+              isPrincipal = subjectInCombination.isPrincipal;
+            }
+          }
 
           return {
             studentId: student._id,
@@ -243,8 +329,9 @@ const ALevelBulkMarksEntry = () => {
             grade: existingMark ? existingMark.grade : '',
             points: existingMark ? existingMark.points : '',
             comment: existingMark ? existingMark.comment : '',
-            isPrincipal: existingMark ? existingMark.isPrincipal : false,
-            _id: existingMark ? existingMark._id : null
+            isPrincipal: isPrincipal,
+            _id: existingMark ? existingMark._id : null,
+            isInCombination: isInCombination
           };
         });
 
@@ -258,7 +345,7 @@ const ALevelBulkMarksEntry = () => {
     };
 
     fetchStudents();
-  }, [selectedClass, selectedSubject, selectedExam]);
+  }, [selectedClass, selectedSubject, selectedExam, subjects]);
 
   // Handle class change
   const handleClassChange = (event) => {
@@ -612,6 +699,7 @@ const ALevelBulkMarksEntry = () => {
                           <TableCell width="20%">Marks (0-100)</TableCell>
                           <TableCell width="20%">Comment</TableCell>
                           <TableCell width="15%">Principal Subject</TableCell>
+                          <TableCell width="10%">In Combination</TableCell>
                           <TableCell width="10%">Status</TableCell>
                           <TableCell width="5%">History</TableCell>
                         </TableRow>
@@ -659,6 +747,25 @@ const ALevelBulkMarksEntry = () => {
                                 }
                                 label="Principal"
                               />
+                            </TableCell>
+                            <TableCell>
+                              {mark.isInCombination ? (
+                                <Chip
+                                  label="Yes"
+                                  color="success"
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              ) : (
+                                <Tooltip title="This subject is not in the student's combination">
+                                  <Chip
+                                    label="No"
+                                    color="error"
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                </Tooltip>
+                              )}
                             </TableCell>
                             <TableCell>
                               {mark._id ? (
@@ -719,7 +826,8 @@ const ALevelBulkMarksEntry = () => {
                           <TableCell width="15%" align="center">Marks</TableCell>
                           <TableCell width="15%" align="center">Grade</TableCell>
                           <TableCell width="15%" align="center">Points</TableCell>
-                          <TableCell width="20%" align="center">Principal Subject</TableCell>
+                          <TableCell width="15%" align="center">Principal Subject</TableCell>
+                          <TableCell width="15%" align="center">In Combination</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -768,6 +876,25 @@ const ALevelBulkMarksEntry = () => {
                                     size="small"
                                     variant="outlined"
                                   />
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {mark.isInCombination ? (
+                                  <Chip
+                                    label="Yes"
+                                    color="success"
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                ) : (
+                                  <Tooltip title="This subject is not in the student's combination">
+                                    <Chip
+                                      label="No"
+                                      color="error"
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                  </Tooltip>
                                 )}
                               </TableCell>
                             </TableRow>

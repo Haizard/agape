@@ -1,0 +1,129 @@
+/**
+ * Student Subjects API Service
+ *
+ * This service provides functions for fetching subjects for students,
+ * especially for A-Level students with subject combinations.
+ */
+import api from '../utils/api';
+
+/**
+ * Get subjects for a specific student
+ * @param {string} studentId - The student ID
+ * @returns {Promise<Array>} - Array of subjects for the student
+ */
+const getStudentSubjects = async (studentId) => {
+  try {
+    if (!studentId) {
+      console.warn('No student ID provided to getStudentSubjects');
+      return [];
+    }
+
+    console.log(`Fetching subjects for student: ${studentId}`);
+    const response = await api.get(`/api/students/${studentId}/subjects`);
+
+    // Log the subjects for debugging
+    if (response.data && Array.isArray(response.data)) {
+      console.log(`Found ${response.data.length} subjects for student ${studentId}`);
+
+      // Log principal and subsidiary subjects separately
+      const principalSubjects = response.data.filter(subject =>
+        subject.isPrincipal || subject.type === 'PRINCIPAL'
+      );
+
+      const subsidiarySubjects = response.data.filter(subject =>
+        !subject.isPrincipal && subject.type !== 'PRINCIPAL'
+      );
+
+      console.log(`Principal subjects: ${principalSubjects.map(s => s.name).join(', ')}`);
+      console.log(`Subsidiary subjects: ${subsidiarySubjects.map(s => s.name).join(', ')}`);
+    }
+
+    return response.data || [];
+  } catch (error) {
+    console.error(`Error fetching subjects for student ${studentId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get subjects for a student from their subject combination
+ * @param {Object} student - The student object with populated subjectCombination
+ * @returns {Array} - Array of subjects from the student's combination
+ */
+const getSubjectsFromCombination = (student) => {
+  if (!student) {
+    console.warn('No student provided to getSubjectsFromCombination');
+    return [];
+  }
+
+  // Check if student has a subject combination
+  if (!student.subjectCombination) {
+    console.warn(`Student ${student._id} has no subject combination`);
+    return [];
+  }
+
+  const combination = student.subjectCombination;
+  const subjects = [];
+
+  // Add principal subjects
+  if (combination.subjects && Array.isArray(combination.subjects)) {
+    for (const subject of combination.subjects) {
+      // Add isPrincipal flag if not already present
+      const subjectWithFlag = {
+        ...subject,
+        isPrincipal: true
+      };
+      subjects.push(subjectWithFlag);
+    }
+  }
+
+  // Add subsidiary/compulsory subjects
+  if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+    for (const subject of combination.compulsorySubjects) {
+      // Add isPrincipal flag if not already present
+      const subjectWithFlag = {
+        ...subject,
+        isPrincipal: false
+      };
+      subjects.push(subjectWithFlag);
+    }
+  }
+
+  // Log the subjects for debugging
+  if (subjects.length > 0) {
+    console.log(`Found ${subjects.length} subjects from combination for student ${student._id}`);
+
+    // Log principal and subsidiary subjects separately
+    const principalSubjects = subjects.filter(subject => subject.isPrincipal);
+    const subsidiarySubjects = subjects.filter(subject => !subject.isPrincipal);
+
+    console.log(`Principal subjects: ${principalSubjects.map(s => s.name).join(', ')}`);
+    console.log(`Subsidiary subjects: ${subsidiarySubjects.map(s => s.name).join(', ')}`);
+  }
+
+  return subjects;
+};
+
+/**
+ * Check if a subject is in a student's combination
+ * @param {string} subjectId - The subject ID
+ * @param {Object} student - The student object with populated subjectCombination
+ * @returns {boolean} - True if the subject is in the student's combination
+ */
+const isSubjectInStudentCombination = (subjectId, student) => {
+  if (!subjectId || !student) {
+    return false;
+  }
+
+  // Get subjects from combination
+  const subjects = getSubjectsFromCombination(student);
+
+  // Check if subject is in the list
+  return subjects.some(subject => subject._id === subjectId);
+};
+
+export default {
+  getStudentSubjects,
+  getSubjectsFromCombination,
+  isSubjectInStudentCombination
+};

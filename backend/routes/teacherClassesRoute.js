@@ -11,6 +11,7 @@ const Teacher = require('../models/Teacher');
 const Class = require('../models/Class');
 const Subject = require('../models/Subject');
 const User = require('../models/User');
+const Student = require('../models/Student');
 const TeacherAssignment = require('../models/TeacherAssignment');
 
 // Get all classes for the current teacher
@@ -400,7 +401,25 @@ router.get('/my-classes/:classId/students', authenticateToken, authorizeRole(['t
 
     // Get all students in this class
     const students = await Student.find({ class: classId })
-      .select('firstName lastName admissionNumber rollNumber');
+      .select('firstName lastName admissionNumber rollNumber form educationLevel');
+
+    // Log student data for debugging
+    console.log(`Found ${students.length} students in class ${classId}`);
+
+    // Check if any students are in Form 5 or 6 but not marked as A_LEVEL
+    const formFiveOrSixStudents = students.filter(student =>
+      (student.form === 5 || student.form === 6) && student.educationLevel !== 'A_LEVEL'
+    );
+
+    if (formFiveOrSixStudents.length > 0) {
+      console.log(`Found ${formFiveOrSixStudents.length} students in Form 5 or 6 but not marked as A_LEVEL`);
+
+      // Update these students to have educationLevel = 'A_LEVEL'
+      for (const student of formFiveOrSixStudents) {
+        console.log(`Updating student ${student._id} (${student.firstName} ${student.lastName}) from ${student.educationLevel} to A_LEVEL`);
+        await Student.findByIdAndUpdate(student._id, { educationLevel: 'A_LEVEL' });
+      }
+    }
 
     console.log(`Found ${students.length} students in class ${classId}`);
     res.json(students);

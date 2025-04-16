@@ -10,7 +10,7 @@ const teacherApi = {
    */
   async getAssignedClasses() {
     try {
-      const response = await api.get('/api/teachers/my-classes');
+      const response = await api.get('/api/teacher-classes/my-classes');
       return response.data || [];
     } catch (error) {
       console.error('Error fetching assigned classes:', error);
@@ -28,7 +28,7 @@ const teacherApi = {
       if (!classId) {
         return [];
       }
-      const response = await api.get(`/api/teachers/my-subjects`, {
+      const response = await api.get('/api/teacher-classes/my-subjects', {
         params: { classId }
       });
       return response.data || [];
@@ -48,8 +48,19 @@ const teacherApi = {
       if (!classId) {
         return [];
       }
-      const response = await api.get(`/api/classes/${classId}/students`);
-      return response.data || [];
+
+      try {
+        // First try the teacher-specific endpoint
+        const response = await api.get(`/api/teacher-classes/my-classes/${classId}/students`);
+        return response.data || [];
+      } catch (error) {
+        console.error('Error fetching from teacher-specific endpoint:', error);
+
+        // If that fails, try the general endpoint
+        console.log('Falling back to general students endpoint');
+        const fallbackResponse = await api.get(`/api/students/class/${classId}`);
+        return fallbackResponse.data || [];
+      }
     } catch (error) {
       console.error('Error fetching assigned students:', error);
       throw error;
@@ -62,8 +73,19 @@ const teacherApi = {
    */
   async getAllAssignedStudents() {
     try {
-      const response = await api.get('/api/teachers/my-students');
-      return response.data || [];
+      // Get the teacher's classes first
+      const classesResponse = await api.get('/api/teacher-classes/my-classes');
+      const classes = classesResponse.data || [];
+
+      // Extract students from all classes
+      const students = [];
+      for (const cls of classes) {
+        if (cls.students && Array.isArray(cls.students)) {
+          students.push(...cls.students);
+        }
+      }
+
+      return students;
     } catch (error) {
       console.error('Error fetching all assigned students:', error);
       throw error;
@@ -76,7 +98,8 @@ const teacherApi = {
    */
   async getAllAssignedSubjects() {
     try {
-      const response = await api.get('/api/teachers/all-subjects');
+      // Get the teacher's subjects from the my-subjects endpoint
+      const response = await api.get('/api/teacher-classes/my-subjects');
       return response.data || [];
     } catch (error) {
       console.error('Error fetching all assigned subjects:', error);
@@ -126,7 +149,7 @@ const teacherApi = {
       if (!classId || !subjectId || !examId) {
         return [];
       }
-      const response = await api.get(`/api/marks`, {
+      const response = await api.get('/api/marks', {
         params: { classId, subjectId, examId }
       });
       return response.data || [];
@@ -146,7 +169,7 @@ const teacherApi = {
       if (!classId) {
         return [];
       }
-      const response = await api.get(`/api/exams`, {
+      const response = await api.get('/api/exams', {
         params: { classId }
       });
       return response.data || [];

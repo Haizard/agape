@@ -6,6 +6,9 @@ import { Box, Typography } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
+// Import API URL test utility
+import { runApiUrlTests } from './utils/testApiUrl';
+
 // Context providers
 import { ResultProvider } from './contexts/ResultContext';
 
@@ -139,6 +142,13 @@ function App() {
       console.log('Checked user role:', fixedUser);
     }
   }, [isAuthenticated, user]);
+
+  // Test API URL configuration on app load
+  useEffect(() => {
+    console.log('Testing API URL configuration...');
+    const testResults = runApiUrlTests();
+    console.log('API URL test results:', testResults);
+  }, []);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>

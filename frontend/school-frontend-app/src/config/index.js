@@ -5,22 +5,29 @@
  */
 
 // Set the API URL to the backend server
-let apiUrl = process.env.REACT_APP_API_URL || '/api';
+let apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 // Ensure the API_URL ends with a trailing slash
-if (!apiUrl.endsWith('/') && !apiUrl.endsWith('/api')) {
+if (!apiUrl.endsWith('/')) {
   apiUrl = `${apiUrl}/`;
+}
+
+// Ensure the API_URL does NOT include /api/ since we add it in the API calls
+if (apiUrl.includes('/api')) {
+  // Remove /api/ from the URL
+  apiUrl = apiUrl.replace(/\/api\/?$/, '/');
+  console.log('Removed /api/ from API_URL:', apiUrl);
 }
 
 // Force the API_URL to be the render.com URL in production
 if (process.env.NODE_ENV === 'production') {
-  apiUrl = 'https://agape-render.onrender.com/api/';
+  apiUrl = 'https://agape-render.onrender.com/';
   console.log('Production environment detected, forcing API URL to:', apiUrl);
 }
 
 // For local development, use localhost if not specified
 if (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_URL) {
-  apiUrl = '/api/';
+  apiUrl = 'http://localhost:5000/';
   console.log('Development environment detected, using proxy API URL:', apiUrl);
 }
 

@@ -111,9 +111,17 @@
             if (url.startsWith('/api/') || url.startsWith('api/')) {
                 // Fix duplicate /api/ in URL
                 let fixedUrl = url;
+                // Handle multiple patterns of duplicate API paths
                 if (url.includes('/api/api/')) {
-                    fixedUrl = url.replace('/api/api/', '/api/');
+                    fixedUrl = url.replace(/\/api\/api\//g, '/api/');
                     console.log(`API URL Fixer: Fixed duplicate API path in URL: ${url} -> ${fixedUrl}`);
+                }
+
+                // Make sure URLs have /api/ prefix
+                if (!url.includes('/api/') && !url.startsWith('/api')) {
+                    // Add /api/ prefix if it's missing
+                    fixedUrl = url.startsWith('/') ? `/api${url}` : `/api/${url}`;
+                    console.log(`API URL Fixer: Added missing /api prefix: ${url} -> ${fixedUrl}`);
                 }
 
                 const newUrl = `${BACKEND_URL}${fixedUrl.startsWith('/') ? fixedUrl : `/${fixedUrl}`}`;
@@ -141,9 +149,17 @@
             if (url.startsWith('/api/') || url.startsWith('api/')) {
                 // Fix duplicate /api/ in URL
                 let fixedUrl = url;
+                // Handle multiple patterns of duplicate API paths
                 if (url.includes('/api/api/')) {
-                    fixedUrl = url.replace('/api/api/', '/api/');
+                    fixedUrl = url.replace(/\/api\/api\//g, '/api/');
                     console.log(`API URL Fixer: Fixed duplicate API path in URL: ${url} -> ${fixedUrl}`);
+                }
+
+                // Make sure URLs have /api/ prefix
+                if (!url.includes('/api/') && !url.startsWith('/api')) {
+                    // Add /api/ prefix if it's missing
+                    fixedUrl = url.startsWith('/') ? `/api${url}` : `/api/${url}`;
+                    console.log(`API URL Fixer: Added missing /api prefix: ${url} -> ${fixedUrl}`);
                 }
 
                 const newUrl = `${BACKEND_URL}${fixedUrl.startsWith('/') ? fixedUrl : `/${fixedUrl}`}`;

@@ -20,11 +20,13 @@ import {
   TableHead,
   TableRow,
   Snackbar,
-  Checkbox
+  Checkbox,
+  Chip
 } from '@mui/material';
 import api from '../../utils/api';
 import teacherAuthService from '../../services/teacherAuthService';
 import teacherApi from '../../services/teacherApi';
+import studentSubjectsApi from '../../services/studentSubjectsApi';
 
 /**
  * A-Level Marks Entry Component
@@ -97,6 +99,19 @@ const ALevelMarksEntry = () => {
 
       // Filter for A-Level classes
       const aLevelClasses = classesData.filter(cls => cls.educationLevel === 'A_LEVEL');
+
+      // Log the classes for debugging
+      console.log(`Found ${aLevelClasses.length} A-Level classes out of ${classesData.length} total classes`);
+
+      // If no A-Level classes found, show a message
+      if (aLevelClasses.length === 0 && classesData.length > 0) {
+        console.log('No A-Level classes found, but found other classes');
+        setError('No A-Level classes found. Please contact an administrator to assign you to A-Level classes.');
+      } else if (classesData.length === 0) {
+        console.log('No classes found at all');
+        setError('No classes found. Please contact an administrator to assign you to classes.');
+      }
+
       setClasses(aLevelClasses);
       setExams(examsRes.data || []);
     } catch (err) {
@@ -120,14 +135,51 @@ const ALevelMarksEntry = () => {
         const response = await api.get(`/api/students/class/${classId}`);
         studentsData = response.data || [];
       } else {
-        // Teachers can only see assigned students
-        studentsData = await teacherApi.getAssignedStudents(classId);
+        try {
+          // Teachers can only see assigned students
+          studentsData = await teacherApi.getAssignedStudents(classId);
+        } catch (teacherError) {
+          console.error('Error fetching assigned students:', teacherError);
+
+          // If the teacher-specific endpoint fails, try the general endpoint
+          console.log('Falling back to general students endpoint');
+          const response = await api.get(`/api/students/class/${classId}`);
+          studentsData = response.data || [];
+        }
       }
 
-      // Filter for A-Level students
-      const aLevelStudents = studentsData.filter(student =>
-        student.educationLevel === 'A_LEVEL'
-      );
+      // Log raw student data for debugging
+      console.log('Raw student data:', studentsData.slice(0, 3));
+
+      // Filter for A-Level students by educationLevel OR form level (5 or 6)
+      const aLevelStudents = studentsData.filter(student => {
+        // Check if student is explicitly marked as A_LEVEL
+        const isALevel = student.educationLevel === 'A_LEVEL';
+
+        // Check if student is in Form 5 or 6 (A-Level forms)
+        const isFormFiveOrSix = student.form === 5 || student.form === 6;
+
+        // For debugging
+        if (isFormFiveOrSix && !isALevel) {
+          console.log(`Student in Form ${student.form} but not marked as A_LEVEL:`,
+            student.firstName, student.lastName, student.educationLevel);
+        }
+
+        // Return true if either condition is met
+        return isALevel || isFormFiveOrSix;
+      });
+
+      // Log the students for debugging
+      console.log(`Found ${aLevelStudents.length} A-Level students out of ${studentsData.length} total students`);
+
+      // If no A-Level students found, show a message
+      if (aLevelStudents.length === 0 && studentsData.length > 0) {
+        console.log('No A-Level students found, but found other students');
+        setError('No A-Level students found in this class.');
+      } else if (studentsData.length === 0) {
+        console.log('No students found at all');
+        setError('No students found in this class.');
+      }
 
       setStudents(aLevelStudents);
     } catch (err) {
@@ -195,8 +247,72 @@ const ALevelMarksEntry = () => {
   };
 
   // Handle student selection
-  const handleStudentChange = (e) => {
-    setSelectedStudent(e.target.value);
+  const handleStudentChange = async (e) => {
+    const studentId = e.target.value;
+    setSelectedStudent(studentId);
+
+    // Reset subject selection
+    setSelectedSubject('');
+
+    if (studentId) {
+      try {
+        setLoading(true);
+
+        // Find the selected student object
+        const selectedStudentObj = students.find(s => s._id === studentId);
+
+        if (selectedStudentObj && selectedStudentObj.educationLevel === 'A_LEVEL') {
+          console.log(`Selected A-Level student: ${selectedStudentObj.firstName} ${selectedStudentObj.lastName}`);
+
+          // Check if student has a subject combination
+          if (selectedStudentObj.subjectCombination) {
+            console.log(`Student has subject combination: ${selectedStudentObj.subjectCombination.name || selectedStudentObj.subjectCombination._id}`);
+
+            // Get subjects from the student's combination
+            const combinationSubjects = studentSubjectsApi.getSubjectsFromCombination(selectedStudentObj);
+
+            if (combinationSubjects.length > 0) {
+              console.log(`Found ${combinationSubjects.length} subjects from student's combination`);
+              setSubjects(combinationSubjects);
+            } else {
+              // If no subjects found in combination, fetch them from the API
+              const studentSubjects = await studentSubjectsApi.getStudentSubjects(studentId);
+              if (studentSubjects.length > 0) {
+                console.log(`Found ${studentSubjects.length} subjects for student from API`);
+                setSubjects(studentSubjects);
+              } else {
+                // If still no subjects, fall back to class subjects
+                console.log('No subjects found for student, falling back to class subjects');
+                await fetchSubjectsByClass(selectedClass);
+              }
+            }
+          } else {
+            console.log('Student has no subject combination, fetching subjects from API');
+            // Fetch subjects specifically for this student
+            const studentSubjects = await studentSubjectsApi.getStudentSubjects(studentId);
+            if (studentSubjects.length > 0) {
+              console.log(`Found ${studentSubjects.length} subjects for student from API`);
+              setSubjects(studentSubjects);
+            } else {
+              // If no subjects found, fall back to class subjects
+              console.log('No subjects found for student, falling back to class subjects');
+              await fetchSubjectsByClass(selectedClass);
+            }
+          }
+        } else {
+          console.log('Selected student is not A-Level or not found');
+          // Fall back to class subjects
+          await fetchSubjectsByClass(selectedClass);
+        }
+      } catch (error) {
+        console.error('Error fetching student subjects:', error);
+        setError('Failed to load subjects for this student. Please try again.');
+        // Fall back to class subjects
+        await fetchSubjectsByClass(selectedClass);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   // Handle subject selection
@@ -311,6 +427,21 @@ const ALevelMarksEntry = () => {
       const subject = subjects.find(s => s._id === selectedSubject);
       if (!subject) {
         throw new Error('Selected subject not found');
+      }
+
+      // Validate that the subject is in the student's combination
+      if (student.educationLevel === 'A_LEVEL' && student.subjectCombination) {
+        // Check if the subject is in the student's combination
+        const isInCombination = studentSubjectsApi.isSubjectInStudentCombination(selectedSubject, student);
+
+        if (!isInCombination) {
+          console.warn(`Subject ${subject.name} is not in student's combination`);
+
+          // Confirm with the user before proceeding
+          if (!window.confirm(`Warning: ${subject.name} is not in ${student.firstName}'s subject combination. Are you sure you want to enter marks for this subject?`)) {
+            throw new Error('Mark entry cancelled - subject not in student combination');
+          }
+        }
       }
 
       // Get the selected exam to get academic year
@@ -451,18 +582,37 @@ const ALevelMarksEntry = () => {
                 <MenuItem value="">
                   <em>Select a subject</em>
                 </MenuItem>
-                {Array.isArray(subjects) && subjects.map(subject => (
-                  <MenuItem
-                    key={subject._id}
-                    value={subject._id}
-                    sx={{
-                      fontWeight: subject.isPrincipal ? 'bold' : 'normal',
-                      color: subject.isPrincipal ? 'primary.main' : 'inherit',
-                    }}
-                  >
-                    {subject.name} ({subject.isPrincipal ? 'PRINCIPAL' : 'Subsidiary'})
-                  </MenuItem>
-                ))}
+                {Array.isArray(subjects) && subjects.map(subject => {
+                  // Check if this subject is in the student's combination
+                  const student = students.find(s => s._id === selectedStudent);
+                  const isInCombination = student?.subjectCombination ?
+                    studentSubjectsApi.isSubjectInStudentCombination(subject._id, student) :
+                    false;
+
+                  return (
+                    <MenuItem
+                      key={subject._id}
+                      value={subject._id}
+                      sx={{
+                        fontWeight: subject.isPrincipal ? 'bold' : 'normal',
+                        color: subject.isPrincipal ? 'primary.main' : 'inherit',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span>{subject.name} ({subject.isPrincipal ? 'PRINCIPAL' : 'Subsidiary'})</span>
+                        {isInCombination && (
+                          <Chip
+                            size="small"
+                            label="In Combination"
+                            color="success"
+                            variant="outlined"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                      </Box>
+                    </MenuItem>
+                  );
+                })}
               </Select>
             </FormControl>
           </Grid>

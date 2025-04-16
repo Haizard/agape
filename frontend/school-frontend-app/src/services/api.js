@@ -2,11 +2,18 @@ import axios from 'axios';
 import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 
 // Set the API URL to the backend server
-let baseURL = process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com/';
+let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 // Ensure the baseURL ends with a trailing slash
 if (!baseURL.endsWith('/')) {
-  baseURL = baseURL + '/';
+  baseURL = `${baseURL}/`;
+}
+
+// Ensure the baseURL does NOT include /api/ since we add it in the API calls
+if (baseURL.includes('/api/')) {
+  // Remove /api/ from the URL
+  baseURL = baseURL.replace(/\/api\/?$/, '/');
+  console.log('Removed /api/ from baseURL:', baseURL);
 }
 
 // Force the baseURL to be the render.com URL in production

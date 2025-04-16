@@ -255,6 +255,24 @@ router.get('/class/:classId', authenticateToken, authorizeTeacherForClass, async
       })
       .sort({ rollNumber: 1 });
 
+    // Check if any students are in Form 5 or 6 but not marked as A_LEVEL
+    const formFiveOrSixStudents = students.filter(student =>
+      (student.form === 5 || student.form === 6) && student.educationLevel !== 'A_LEVEL'
+    );
+
+    if (formFiveOrSixStudents.length > 0) {
+      console.log(`Found ${formFiveOrSixStudents.length} students in Form 5 or 6 but not marked as A_LEVEL`);
+
+      // Update these students to have educationLevel = 'A_LEVEL'
+      for (const student of formFiveOrSixStudents) {
+        console.log(`Updating student ${student._id} (${student.firstName} ${student.lastName}) from ${student.educationLevel} to A_LEVEL`);
+        await Student.findByIdAndUpdate(student._id, { educationLevel: 'A_LEVEL' });
+
+        // Update the student in the current array as well
+        student.educationLevel = 'A_LEVEL';
+      }
+    }
+
     if (students.length === 0) {
       return res.status(200).json([]);
     }
@@ -299,13 +317,37 @@ router.get('/a-level/class/:classId', authenticateToken, async (req, res) => {
       educationLevel: 'A_LEVEL'
     })
     .populate('userId', 'username email')
+    .populate({
+      path: 'subjectCombination',
+      populate: {
+        path: 'subjects compulsorySubjects',
+        model: 'Subject',
+        select: 'name code type description educationLevel isPrincipal isCompulsory'
+      }
+    })
     .sort({ rollNumber: 1 });
 
     console.log(`Found ${students.length} A-Level students in class ${req.params.classId}`);
 
-    // Log each student for debugging
+    // Log each student with their subject combination for debugging
     for (const student of students) {
       console.log(`A-Level student: ${student.firstName} ${student.lastName}, ID: ${student._id}`);
+
+      if (student.subjectCombination) {
+        console.log(`  Combination: ${student.subjectCombination.name || student.subjectCombination._id}`);
+
+        // Log principal subjects
+        if (student.subjectCombination.subjects && student.subjectCombination.subjects.length > 0) {
+          console.log(`  Principal subjects: ${student.subjectCombination.subjects.map(s => s.name || s.code).join(', ')}`);
+        }
+
+        // Log subsidiary subjects
+        if (student.subjectCombination.compulsorySubjects && student.subjectCombination.compulsorySubjects.length > 0) {
+          console.log(`  Subsidiary subjects: ${student.subjectCombination.compulsorySubjects.map(s => s.name || s.code).join(', ')}`);
+        }
+      } else {
+        console.log(`  No subject combination assigned`);
+      }
     }
 
     res.json(students);
