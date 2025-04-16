@@ -21,6 +21,10 @@ import {
   TableRow,
   Snackbar,
   Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Chip
 } from '@mui/material';
 import api from '../../utils/api';
@@ -53,6 +57,10 @@ const ALevelMarksEntry = () => {
     message: '',
     severity: 'info'
   });
+
+  // Preview dialog state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
 
   // Fetch initial data
   useEffect(() => {
@@ -148,8 +156,50 @@ const ALevelMarksEntry = () => {
         }
       }
 
+      // Check if any A-Level students have unpopulated subject combinations
+      const aLevelStudentsWithCombinations = studentsData.filter(student =>
+        (student.educationLevel === 'A_LEVEL' || student.form === 5 || student.form === 6) &&
+        student.subjectCombination &&
+        typeof student.subjectCombination === 'object' &&
+        !student.subjectCombination.subjects
+      );
+
+      if (aLevelStudentsWithCombinations.length > 0) {
+        console.log(`Found ${aLevelStudentsWithCombinations.length} A-Level students with unpopulated subject combinations`);
+
+        // Fetch subject combination details for these students
+        for (const student of aLevelStudentsWithCombinations) {
+          try {
+            const combinationId = student.subjectCombination._id;
+            console.log(`Fetching subject combination ${combinationId} for student ${student._id}`);
+
+            const response = await api.get(`/api/subject-combinations/${combinationId}`);
+            const fullCombination = response.data;
+
+            // Update the student's subject combination
+            student.subjectCombination = fullCombination;
+            console.log(`Updated subject combination for student ${student._id}`);
+          } catch (error) {
+            console.error(`Error fetching subject combination for student ${student._id}:`, error);
+          }
+        }
+      }
+
       // Log raw student data for debugging
       console.log('Raw student data:', studentsData.slice(0, 3));
+
+      // Log subject combination details for debugging
+      const studentsWithCombinations = studentsData.filter(student => student.subjectCombination);
+      console.log(`Found ${studentsWithCombinations.length} students with subject combinations out of ${studentsData.length} total students`);
+
+      if (studentsWithCombinations.length > 0) {
+        const sampleStudent = studentsWithCombinations[0];
+        console.log('Sample student with combination:', {
+          studentName: `${sampleStudent.firstName} ${sampleStudent.lastName}`,
+          combinationId: sampleStudent.subjectCombination._id || sampleStudent.subjectCombination,
+          combinationDetails: sampleStudent.subjectCombination
+        });
+      }
 
       // Filter for A-Level students by educationLevel OR form level (5 or 6)
       const aLevelStudents = studentsData.filter(student => {
@@ -268,6 +318,31 @@ const ALevelMarksEntry = () => {
           if (selectedStudentObj.subjectCombination) {
             console.log(`Student has subject combination: ${selectedStudentObj.subjectCombination.name || selectedStudentObj.subjectCombination._id}`);
 
+            // Check if the combination is fully populated
+            const isPopulated = typeof selectedStudentObj.subjectCombination === 'object' &&
+                              selectedStudentObj.subjectCombination.subjects &&
+                              Array.isArray(selectedStudentObj.subjectCombination.subjects);
+
+            if (!isPopulated) {
+              console.log('Subject combination is not fully populated, fetching details...');
+
+              try {
+                // Fetch the full subject combination details
+                const combinationId = typeof selectedStudentObj.subjectCombination === 'object' ?
+                  selectedStudentObj.subjectCombination._id : selectedStudentObj.subjectCombination;
+
+                const response = await api.get(`/api/subject-combinations/${combinationId}`);
+                const fullCombination = response.data;
+
+                // Update the student object with the full combination
+                selectedStudentObj.subjectCombination = fullCombination;
+
+                console.log('Fetched full subject combination:', fullCombination);
+              } catch (error) {
+                console.error('Error fetching subject combination details:', error);
+              }
+            }
+
             // Get subjects from the student's combination
             const combinationSubjects = studentSubjectsApi.getSubjectsFromCombination(selectedStudentObj);
 
@@ -360,13 +435,13 @@ const ALevelMarksEntry = () => {
   // Calculate A-Level points based on grade
   const calculatePoints = (grade) => {
     switch (grade) {
-      case 'A': return 1;
-      case 'B': return 2;
+      case 'A': return 5;
+      case 'B': return 4;
       case 'C': return 3;
-      case 'D': return 4;
-      case 'E': return 5;
-      case 'S': return 6;
-      case 'F': return 7;
+      case 'D': return 2;
+      case 'E': return 1;
+      case 'S': return 0.5;
+      case 'F': return 0;
       default: return 0;
     }
   };
@@ -454,28 +529,58 @@ const ALevelMarksEntry = () => {
       const grade = calculateGrade(Number(marks));
       const points = calculatePoints(grade);
 
-      // Prepare data for API call
+      // Get the class name
+      const classObj = classes.find(c => c._id === selectedClass);
+      const className = classObj ? `${classObj.name} ${classObj.section || ''} ${classObj.stream || ''}` : 'Unknown Class';
+
+      // Prepare data for preview and API call
       const resultData = {
         studentId: selectedStudent,
+        studentName: `${student.firstName} ${student.lastName}`,
         examId: selectedExam,
+        examName: exam.name,
         academicYearId: exam.academicYear,
         examTypeId: exam.examType,
         subjectId: selectedSubject,
+        subjectName: subject.name,
         classId: selectedClass,
+        className: className,
         marksObtained: Number(marks),
         grade,
         points,
         comment,
         educationLevel: 'A_LEVEL',
-        isPrincipal: isPrincipal // Use the state value for isPrincipal
+        isPrincipal: isPrincipal, // Use the state value for isPrincipal
+        isInCombination: studentSubjectsApi.isSubjectInStudentCombination(selectedSubject, student)
       };
 
       console.log(`Subject ${subject.name} is ${subject.isPrincipal ? 'a principal' : 'a subsidiary'} subject`);
+      console.log('Preview A-Level result:', resultData);
 
-      console.log('Submitting A-Level result:', resultData);
+      // Set preview data and open the preview dialog
+      setPreviewData(resultData);
+      setPreviewOpen(true);
 
+    } catch (err) {
+      console.error('Error preparing marks preview:', err);
+      setSnackbar({
+        open: true,
+        message: `Failed to prepare marks preview: ${err.message || 'Unknown error'}`,
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle final submission after preview
+  const handleFinalSubmit = async () => {
+    if (!previewData) return;
+
+    setLoading(true);
+    try {
       // Submit to the ALevelResult model
-      const response = await api.post('/api/a-level-results/enter-marks', resultData);
+      const response = await api.post('/api/a-level-results/enter-marks', previewData);
 
       // Show success message
       setSnackbar({
@@ -483,6 +588,9 @@ const ALevelMarksEntry = () => {
         message: 'Marks saved successfully',
         severity: 'success'
       });
+
+      // Close the preview dialog
+      setPreviewOpen(false);
 
       // Reset form
       setMarks('');
@@ -497,6 +605,11 @@ const ALevelMarksEntry = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle preview dialog close
+  const handlePreviewClose = () => {
+    setPreviewOpen(false);
   };
 
   // Handle snackbar close
@@ -704,6 +817,125 @@ const ALevelMarksEntry = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Preview Dialog */}
+      <Dialog
+        open={previewOpen}
+        onClose={handlePreviewClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Preview Marks Entry</DialogTitle>
+        <DialogContent>
+          {previewData && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>Please review the information below before submitting:</Typography>
+
+              <TableContainer component={Paper} sx={{ mb: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
+                      <TableCell colSpan={2}>
+                        <Typography variant="subtitle1" fontWeight="bold">Student Information</Typography>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell width="30%"><strong>Student Name:</strong></TableCell>
+                      <TableCell>{previewData.studentName}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Class:</strong></TableCell>
+                      <TableCell>{previewData.className}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <TableContainer component={Paper} sx={{ mb: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
+                      <TableCell colSpan={2}>
+                        <Typography variant="subtitle1" fontWeight="bold">Exam Information</Typography>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell width="30%"><strong>Exam:</strong></TableCell>
+                      <TableCell>{previewData.examName}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Subject:</strong></TableCell>
+                      <TableCell>
+                        {previewData.subjectName}
+                        {previewData.isInCombination && (
+                          <Chip
+                            size="small"
+                            label="In Combination"
+                            color="success"
+                            variant="outlined"
+                            sx={{ ml: 1 }}
+                          />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Principal Subject:</strong></TableCell>
+                      <TableCell>{previewData.isPrincipal ? 'Yes' : 'No'}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <TableContainer component={Paper} sx={{ mb: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
+                      <TableCell colSpan={2}>
+                        <Typography variant="subtitle1" fontWeight="bold">Marks Information</Typography>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell width="30%"><strong>Marks:</strong></TableCell>
+                      <TableCell>{previewData.marksObtained}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Grade:</strong></TableCell>
+                      <TableCell>{previewData.grade}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Points:</strong></TableCell>
+                      <TableCell>{previewData.points}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Comment:</strong></TableCell>
+                      <TableCell>{previewData.comment || 'No comment'}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handlePreviewClose} color="secondary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleFinalSubmit}
+            color="primary"
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Confirm & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };

@@ -65,9 +65,25 @@ const getSubjectsFromCombination = (student) => {
   const combination = student.subjectCombination;
   const subjects = [];
 
+  // Log combination details for debugging
+  console.log('Processing subject combination:', {
+    combinationId: combination._id || 'Unknown ID',
+    combinationName: combination.name || 'Unknown Name',
+    combinationCode: combination.code || 'Unknown Code',
+    hasPrincipalSubjects: !!(combination.subjects && Array.isArray(combination.subjects) && combination.subjects.length > 0),
+    hasSubsidiarySubjects: !!(combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects) && combination.compulsorySubjects.length > 0)
+  });
+
   // Add principal subjects
   if (combination.subjects && Array.isArray(combination.subjects)) {
+    console.log(`Found ${combination.subjects.length} principal subjects in combination`);
     for (const subject of combination.subjects) {
+      // Check if subject is a valid object
+      if (!subject || typeof subject !== 'object') {
+        console.warn('Invalid principal subject in combination:', subject);
+        continue;
+      }
+
       // Add isPrincipal flag if not already present
       const subjectWithFlag = {
         ...subject,
@@ -75,11 +91,20 @@ const getSubjectsFromCombination = (student) => {
       };
       subjects.push(subjectWithFlag);
     }
+  } else {
+    console.warn('No principal subjects found in combination or subjects is not an array');
   }
 
   // Add subsidiary/compulsory subjects
   if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+    console.log(`Found ${combination.compulsorySubjects.length} subsidiary subjects in combination`);
     for (const subject of combination.compulsorySubjects) {
+      // Check if subject is a valid object
+      if (!subject || typeof subject !== 'object') {
+        console.warn('Invalid subsidiary subject in combination:', subject);
+        continue;
+      }
+
       // Add isPrincipal flag if not already present
       const subjectWithFlag = {
         ...subject,
@@ -87,6 +112,8 @@ const getSubjectsFromCombination = (student) => {
       };
       subjects.push(subjectWithFlag);
     }
+  } else {
+    console.warn('No subsidiary subjects found in combination or compulsorySubjects is not an array');
   }
 
   // Log the subjects for debugging
@@ -115,11 +142,28 @@ const isSubjectInStudentCombination = (subjectId, student) => {
     return false;
   }
 
+  // Check if student has a subject combination
+  if (!student.subjectCombination) {
+    console.warn(`Student ${student._id} has no subject combination when checking for subject ${subjectId}`);
+    return false;
+  }
+
+  // If the combination is not populated (just an ID), we can't check
+  if (typeof student.subjectCombination === 'string' ||
+      (student.subjectCombination._id && !student.subjectCombination.subjects)) {
+    console.warn(`Student ${student._id} has an unpopulated subject combination: ${typeof student.subjectCombination === 'string' ? student.subjectCombination : student.subjectCombination._id}`);
+    // We'll return false here, but in a real implementation you might want to
+    // fetch the combination details first
+    return false;
+  }
+
   // Get subjects from combination
   const subjects = getSubjectsFromCombination(student);
 
   // Check if subject is in the list
-  return subjects.some(subject => subject._id === subjectId);
+  const isInCombination = subjects.some(subject => subject._id === subjectId);
+  console.log(`Subject ${subjectId} is ${isInCombination ? '' : 'not '}in student's combination`);
+  return isInCombination;
 };
 
 export default {

@@ -30,7 +30,11 @@ import {
   Tooltip,
   IconButton,
   Tabs,
-  Tab
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -71,6 +75,10 @@ const ALevelBulkMarksEntry = () => {
     message: '',
     severity: 'info'
   });
+
+  // Preview dialog state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState([]);
 
   // Fetch classes on component mount
   useEffect(() => {
@@ -222,6 +230,35 @@ const ALevelBulkMarksEntry = () => {
           }
         }
 
+        // Check if any A-Level students have unpopulated subject combinations
+        const aLevelStudentsWithCombinations = studentsData.filter(student =>
+          (student.educationLevel === 'A_LEVEL' || student.form === 5 || student.form === 6) &&
+          student.subjectCombination &&
+          typeof student.subjectCombination === 'object' &&
+          !student.subjectCombination.subjects
+        );
+
+        if (aLevelStudentsWithCombinations.length > 0) {
+          console.log(`Found ${aLevelStudentsWithCombinations.length} A-Level students with unpopulated subject combinations`);
+
+          // Fetch subject combination details for these students
+          for (const student of aLevelStudentsWithCombinations) {
+            try {
+              const combinationId = student.subjectCombination._id;
+              console.log(`Fetching subject combination ${combinationId} for student ${student._id}`);
+
+              const response = await api.get(`/api/subject-combinations/${combinationId}`);
+              const fullCombination = response.data;
+
+              // Update the student's subject combination
+              student.subjectCombination = fullCombination;
+              console.log(`Updated subject combination for student ${student._id}`);
+            } catch (error) {
+              console.error(`Error fetching subject combination for student ${student._id}:`, error);
+            }
+          }
+        }
+
         // Log students with their subject combinations
         console.log(`Fetched ${studentsData.length} students for class ${selectedClass}`);
 
@@ -258,11 +295,11 @@ const ALevelBulkMarksEntry = () => {
         }
 
         // Filter for A-Level students with subject combinations
-        const aLevelStudentsWithCombinations = aLevelStudents.filter(student =>
+        const aLevelStudentsWithAssignedCombinations = aLevelStudents.filter(student =>
           student.subjectCombination
         );
 
-        console.log(`Found ${aLevelStudentsWithCombinations.length} A-Level students with subject combinations`);
+        console.log(`Found ${aLevelStudentsWithAssignedCombinations.length} A-Level students with subject combinations`);
 
         // Get the selected subject
         const selectedSubjectObj = subjects.find(s => s._id === selectedSubject);
@@ -443,7 +480,7 @@ const ALevelBulkMarksEntry = () => {
     }
   };
 
-  // Save marks
+  // Prepare marks for preview
   const handleSaveMarks = async () => {
     try {
       setSaving(true);
@@ -502,11 +539,79 @@ const ALevelBulkMarksEntry = () => {
         return;
       }
 
-      // Save marks
-      await api.post('/api/a-level-results/batch', marksToSave);
+      // Get class and exam details for preview
+      const classObj = classes.find(c => c._id === selectedClass);
+      const className = classObj ? `${classObj.name} ${classObj.section || ''} ${classObj.stream || ''}` : 'Unknown Class';
+
+      const examObj = exams.find(e => e._id === selectedExam);
+      const examName = examObj ? examObj.name : 'Unknown Exam';
+
+      const subjectObj = subjects.find(s => s._id === selectedSubject);
+      const subjectName = subjectObj ? subjectObj.name : 'Unknown Subject';
+
+      // Set preview data
+      setPreviewData({
+        marks: marksToSave,
+        className,
+        examName,
+        subjectName,
+        totalStudents: students.length,
+        markedStudents: marksToSave.length,
+        summary: {
+          totalMarks: marksToSave.reduce((sum, mark) => sum + Number(mark.marksObtained), 0),
+          averageMark: marksToSave.length > 0 ?
+            (marksToSave.reduce((sum, mark) => sum + Number(mark.marksObtained), 0) / marksToSave.length).toFixed(2) : 0,
+          highestMark: marksToSave.length > 0 ?
+            Math.max(...marksToSave.map(mark => Number(mark.marksObtained))) : 0,
+          lowestMark: marksToSave.length > 0 ?
+            Math.min(...marksToSave.map(mark => Number(mark.marksObtained))) : 0,
+          gradeDistribution: {
+            A: marksToSave.filter(mark => mark.grade === 'A').length,
+            B: marksToSave.filter(mark => mark.grade === 'B').length,
+            C: marksToSave.filter(mark => mark.grade === 'C').length,
+            D: marksToSave.filter(mark => mark.grade === 'D').length,
+            E: marksToSave.filter(mark => mark.grade === 'E').length,
+            S: marksToSave.filter(mark => mark.grade === 'S').length,
+            F: marksToSave.filter(mark => mark.grade === 'F').length
+          }
+        }
+      });
+
+      // Open preview dialog
+      setPreviewOpen(true);
 
       // Update marks state with calculated grades and points
       setMarks(marksWithGrades);
+
+    } catch (error) {
+      console.error('Error preparing marks preview:', error);
+      setError(`Failed to prepare marks preview: ${error.response?.data?.message || error.message}`);
+      setSnackbar({
+        open: true,
+        message: `Failed to prepare marks preview: ${error.response?.data?.message || error.message}`,
+        severity: 'error'
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle final submission after preview
+  const handleFinalSubmit = async () => {
+    try {
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
+      if (!previewData || !previewData.marks || previewData.marks.length === 0) {
+        throw new Error('No marks to save');
+      }
+
+      // Save marks
+      await api.post('/api/a-level-results/batch', previewData.marks);
+
+      // Close preview dialog
+      setPreviewOpen(false);
 
       // Show success message
       setSuccess('Marks saved successfully.');
@@ -515,6 +620,10 @@ const ALevelBulkMarksEntry = () => {
         message: 'Marks saved successfully',
         severity: 'success'
       });
+
+      // Refresh data to show saved status
+      handleRefresh();
+
     } catch (error) {
       console.error('Error saving marks:', error);
       setError(`Failed to save marks: ${error.response?.data?.message || error.message}`);
@@ -526,6 +635,11 @@ const ALevelBulkMarksEntry = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Handle preview dialog close
+  const handlePreviewClose = () => {
+    setPreviewOpen(false);
   };
 
   // Refresh data
@@ -936,6 +1050,165 @@ const ALevelBulkMarksEntry = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Preview Dialog */}
+      <Dialog
+        open={previewOpen}
+        onClose={handlePreviewClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Preview Marks Entry</DialogTitle>
+        <DialogContent>
+          {previewData && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>Please review the information below before submitting:</Typography>
+
+              <TableContainer component={Paper} sx={{ mb: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
+                      <TableCell colSpan={2}>
+                        <Typography variant="subtitle1" fontWeight="bold">Class Information</Typography>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell width="30%"><strong>Class:</strong></TableCell>
+                      <TableCell>{previewData.className}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Subject:</strong></TableCell>
+                      <TableCell>{previewData.subjectName}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Exam:</strong></TableCell>
+                      <TableCell>{previewData.examName}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <TableContainer component={Paper} sx={{ mb: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
+                      <TableCell colSpan={2}>
+                        <Typography variant="subtitle1" fontWeight="bold">Marks Summary</Typography>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell width="30%"><strong>Total Students:</strong></TableCell>
+                      <TableCell>{previewData.totalStudents}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Students with Marks:</strong></TableCell>
+                      <TableCell>{previewData.markedStudents}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Average Mark:</strong></TableCell>
+                      <TableCell>{previewData.summary?.averageMark || 0}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Highest Mark:</strong></TableCell>
+                      <TableCell>{previewData.summary?.highestMark || 0}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Lowest Mark:</strong></TableCell>
+                      <TableCell>{previewData.summary?.lowestMark || 0}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <TableContainer component={Paper} sx={{ mb: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
+                      <TableCell colSpan={7}>
+                        <Typography variant="subtitle1" fontWeight="bold">Grade Distribution</Typography>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>A</strong></TableCell>
+                      <TableCell><strong>B</strong></TableCell>
+                      <TableCell><strong>C</strong></TableCell>
+                      <TableCell><strong>D</strong></TableCell>
+                      <TableCell><strong>E</strong></TableCell>
+                      <TableCell><strong>S</strong></TableCell>
+                      <TableCell><strong>F</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>{previewData.summary?.gradeDistribution?.A || 0}</TableCell>
+                      <TableCell>{previewData.summary?.gradeDistribution?.B || 0}</TableCell>
+                      <TableCell>{previewData.summary?.gradeDistribution?.C || 0}</TableCell>
+                      <TableCell>{previewData.summary?.gradeDistribution?.D || 0}</TableCell>
+                      <TableCell>{previewData.summary?.gradeDistribution?.E || 0}</TableCell>
+                      <TableCell>{previewData.summary?.gradeDistribution?.S || 0}</TableCell>
+                      <TableCell>{previewData.summary?.gradeDistribution?.F || 0}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: 'primary.light' }}>
+                      <TableCell colSpan={4}>
+                        <Typography variant="subtitle1" fontWeight="bold">Student Marks Preview (First 10)</Typography>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell><strong>Student</strong></TableCell>
+                      <TableCell><strong>Marks</strong></TableCell>
+                      <TableCell><strong>Grade</strong></TableCell>
+                      <TableCell><strong>Points</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {previewData.marks?.slice(0, 10).map((mark, index) => (
+                      <TableRow key={`mark-preview-${mark.studentId || index}`}>
+                        <TableCell>{mark.studentName}</TableCell>
+                        <TableCell>{mark.marksObtained}</TableCell>
+                        <TableCell>{mark.grade}</TableCell>
+                        <TableCell>{mark.points}</TableCell>
+                      </TableRow>
+                    ))}
+                    {previewData.marks?.length > 10 && (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          <Typography variant="body2" color="textSecondary">
+                            ... and {previewData.marks?.length - 10} more students
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handlePreviewClose} color="secondary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleFinalSubmit}
+            color="primary"
+            variant="contained"
+            disabled={saving}
+          >
+            {saving ? <CircularProgress size={24} /> : 'Confirm & Submit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
