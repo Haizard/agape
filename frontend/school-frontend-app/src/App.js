@@ -116,6 +116,9 @@ import EnterSampleMarks from './components/results/EnterSampleMarks';
 import DirectMarksEntry from './components/results/DirectMarksEntry';
 import RoleFixButton from './components/common/RoleFixButton';
 import { checkAndFixUserRole } from './utils/roleFixUtil';
+import AuthDebugPage from './components/auth/AuthDebugPage';
+import TokenInfoDisplay from './components/common/TokenInfoDisplay';
+import TokenRefreshButton from './components/common/TokenRefreshButton';
 // StudentPanel is already imported on line 25
 
 // Constants
@@ -462,6 +465,21 @@ function App() {
                         use the button below to fix your role.
                       </Typography>
                       <RoleFixButton />
+                    </Box>} />
+
+                    {/* Authentication Debug Page */}
+                    <Route path="/auth-debug" element={<AuthDebugPage />} />
+
+                    {/* Token Info Display */}
+                    <Route path="/token-info" element={<Box sx={{ p: 3 }}>
+                      <Typography variant="h4" gutterBottom>Authentication Token Information</Typography>
+                      <Typography variant="body1" paragraph>
+                        This page shows information about your current authentication token. If you're experiencing authentication issues,
+                        you can use the refresh button to get a new token.
+                      </Typography>
+                      <Box sx={{ maxWidth: 600, mt: 2 }}>
+                        <TokenInfoDisplay />
+                      </Box>
                     </Box>} />
 
                     <Route path="*" element={

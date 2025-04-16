@@ -24,10 +24,62 @@
     // Function to get the authentication token
     const getAuthToken = () => {
         try {
-            return localStorage.getItem('token');
+            const token = localStorage.getItem('token');
+
+            // Log token status for debugging (without exposing the full token)
+            if (token) {
+                const tokenPreview = token.length > 20
+                    ? `${token.substring(0, 10)}...${token.substring(token.length - 5)}`
+                    : '[INVALID TOKEN FORMAT]';
+                console.log(`API URL Fixer: Token found: ${tokenPreview}`);
+            } else {
+                console.warn('API URL Fixer: No authentication token found in localStorage');
+            }
+
+            return token;
         } catch (error) {
-            console.error('Error retrieving auth token:', error);
+            console.error('API URL Fixer: Error retrieving auth token:', error);
             return null;
+        }
+    };
+
+    // Function to check if the token is valid
+    const isTokenValid = () => {
+        try {
+            const token = getAuthToken();
+            if (!token) return false;
+
+            // JWT tokens are in the format: header.payload.signature
+            const parts = token.split('.');
+            if (parts.length !== 3) {
+                console.warn('API URL Fixer: Token is not in valid JWT format');
+                return false;
+            }
+
+            // Decode the payload (middle part)
+            const payload = JSON.parse(atob(parts[1]));
+
+            // Check if the token has an expiration time
+            if (!payload.exp) {
+                console.warn('API URL Fixer: Token does not have an expiration time');
+                return true; // Assume valid if no expiration
+            }
+
+            // Check if the token is expired
+            const now = Math.floor(Date.now() / 1000);
+            const isExpired = payload.exp < now;
+
+            if (isExpired) {
+                console.warn(`API URL Fixer: Token expired at ${new Date(payload.exp * 1000).toLocaleString()}`);
+            } else {
+                const expiresIn = payload.exp - now;
+                console.log(`API URL Fixer: Token valid for ${Math.floor(expiresIn / 60)} minutes and ${expiresIn % 60} seconds`);
+            }
+
+            return !isExpired;
+        } catch (error) {
+            console.error('API URL Fixer: Error checking token validity:', error);
+            return false;
         }
     };
 
@@ -42,10 +94,15 @@
         // Initialize headers if not provided
         options.headers = options.headers || {};
 
-        // Add authentication token if available
+        // Add authentication token if available and valid
         const token = getAuthToken();
-        if (token && !options.headers.Authorization && !options.headers.authorization) {
+        const tokenValid = isTokenValid();
+
+        if (token && tokenValid && !options.headers.Authorization && !options.headers.authorization) {
             options.headers.Authorization = `Bearer ${token}`;
+            console.log(`API URL Fixer: Added valid auth token to fetch request`);
+        } else if (token && !tokenValid) {
+            console.warn(`API URL Fixer: Token is invalid or expired, not adding to fetch request`);
         }
 
         // Check if this is an API request
@@ -106,14 +163,18 @@
         // If this is an API request and no Authorization header has been set
         if (this._isApiRequest) {
             const token = getAuthToken();
-            if (token) {
+            const tokenValid = isTokenValid();
+
+            if (token && tokenValid) {
                 // Add the Authorization header if not already set
                 try {
                     this.setRequestHeader('Authorization', `Bearer ${token}`);
-                    console.log(`API URL Fixer: Added auth token to request for ${this._originalUrl}`);
+                    console.log(`API URL Fixer: Added valid auth token to request for ${this._originalUrl}`);
                 } catch (error) {
                     console.warn(`API URL Fixer: Could not add auth token to request: ${error.message}`);
                 }
+            } else if (token && !tokenValid) {
+                console.warn('API URL Fixer: Token is invalid or expired, not adding to XHR request');
             }
         }
 

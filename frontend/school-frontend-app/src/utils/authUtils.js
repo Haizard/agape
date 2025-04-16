@@ -27,7 +27,19 @@ export const storeAuthToken = (token) => {
  */
 export const getAuthToken = () => {
   try {
-    return localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+
+    // Log token status for debugging (without exposing the full token)
+    if (token) {
+      const tokenPreview = token.length > 20
+        ? `${token.substring(0, 10)}...${token.substring(token.length - 5)}`
+        : '[INVALID TOKEN FORMAT]';
+      console.log(`Token found: ${tokenPreview}`);
+    } else {
+      console.warn('No authentication token found in localStorage');
+    }
+
+    return token;
   } catch (error) {
     console.error('Error retrieving auth token:', error);
     return null;
@@ -176,11 +188,84 @@ export const getRoleRoute = () => {
   return '/';
 };
 
+/**
+ * Check if the token is valid (not expired)
+ * @returns {boolean} True if the token is valid, false otherwise
+ */
+export const isTokenValid = () => {
+  try {
+    const token = getAuthToken();
+    if (!token) return false;
+
+    // JWT tokens are in the format: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.warn('Token is not in valid JWT format');
+      return false;
+    }
+
+    // Decode the payload (middle part)
+    const payload = JSON.parse(atob(parts[1]));
+
+    // Check if the token has an expiration time
+    if (!payload.exp) {
+      console.warn('Token does not have an expiration time');
+      return true; // Assume valid if no expiration
+    }
+
+    // Check if the token is expired
+    const now = Math.floor(Date.now() / 1000);
+    const isExpired = payload.exp < now;
+
+    if (isExpired) {
+      console.warn(`Token expired at ${new Date(payload.exp * 1000).toLocaleString()}`);
+    } else {
+      const expiresIn = payload.exp - now;
+      console.log(`Token valid for ${Math.floor(expiresIn / 60)} minutes and ${expiresIn % 60} seconds`);
+    }
+
+    return !isExpired;
+  } catch (error) {
+    console.error('Error checking token validity:', error);
+    return false;
+  }
+};
+
+/**
+ * Get user information from the token
+ * @returns {Object|null} User information or null if token is invalid
+ */
+export const getUserFromToken = () => {
+  try {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    // JWT tokens are in the format: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    // Decode the payload (middle part)
+    const payload = JSON.parse(atob(parts[1]));
+
+    return {
+      id: payload.id || payload.sub,
+      email: payload.email,
+      role: payload.role,
+      exp: payload.exp
+    };
+  } catch (error) {
+    console.error('Error extracting user from token:', error);
+    return null;
+  }
+};
+
 export default {
   // Token management
   storeAuthToken,
   getAuthToken,
   removeAuthToken,
+  isTokenValid,
+  getUserFromToken,
 
   // User data management
   storeUserData,
