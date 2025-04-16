@@ -322,6 +322,22 @@ function App() {
                       </ProtectedRoute>
                     } />
 
+
+
+
+
+                    {/* O-Level Marks Entry Routes */}
+                    <Route path="/results/o-level/marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <OLevelMarksEntry />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/o-level/bulk-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <OLevelBulkMarksEntry />
+                      </ProtectedRoute>
+                    } />
+
                     {/* A-Level Marks Entry Routes */}
                     <Route path="/results/a-level/marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
@@ -334,15 +350,25 @@ function App() {
                       </ProtectedRoute>
                     } />
 
-                    {/* O-Level Marks Entry Routes */}
-                    <Route path="/results/o-level/marks-entry" element={
+                    {/* Teacher-specific routes */}
+                    <Route path="/teacher/o-level/marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <OLevelMarksEntry />
                       </ProtectedRoute>
                     } />
-                    <Route path="/results/o-level/bulk-marks-entry" element={
+                    <Route path="/teacher/o-level/bulk-marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <OLevelBulkMarksEntry />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/a-level/marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelMarksEntry />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/a-level/bulk-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelBulkMarksEntry />
                       </ProtectedRoute>
                     } />
 

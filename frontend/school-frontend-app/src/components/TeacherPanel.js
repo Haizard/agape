@@ -12,6 +12,11 @@ import TeacherStudentManagement from './teacher/TeacherStudentManagement';
 import ExamList from './ExamList';
 import StudentManagement from './StudentManagement';
 import ResultReportSelector from './results/ResultReportSelector';
+import MarksEntryDashboard from './results/MarksEntryDashboard';
+import OLevelMarksEntry from './results/OLevelMarksEntry';
+import ALevelMarksEntry from './results/ALevelMarksEntry';
+import OLevelBulkMarksEntry from './results/OLevelBulkMarksEntry';
+import ALevelBulkMarksEntry from './results/ALevelBulkMarksEntry';
 
 const TeacherPanel = () => {
   return (
@@ -28,6 +33,13 @@ const TeacherPanel = () => {
         <Route path="exams" element={<ExamList />} />
         <Route path="students" element={<StudentManagement />} />
         <Route path="student-management" element={<TeacherStudentManagement />} />
+
+        {/* Marks Entry Routes */}
+        <Route path="marks-entry-dashboard" element={<MarksEntryDashboard />} />
+        <Route path="o-level/marks-entry" element={<OLevelMarksEntry />} />
+        <Route path="a-level/marks-entry" element={<ALevelMarksEntry />} />
+        <Route path="o-level/bulk-marks-entry" element={<OLevelBulkMarksEntry />} />
+        <Route path="a-level/bulk-marks-entry" element={<ALevelBulkMarksEntry />} />
       </Routes>
     </Box>
   );

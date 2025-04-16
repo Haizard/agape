@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import api from '../../utils/api';
 import teacherAuthService from '../../services/teacherAuthService';
+import teacherApi from '../../services/teacherApi';
 
 /**
  * A-Level Marks Entry Component
@@ -84,15 +85,15 @@ const ALevelMarksEntry = () => {
       let classesData;
       if (isAdmin) {
         // Admin can see all classes
-        const classesRes = await api.get('/classes');
+        const classesRes = await api.get('/api/classes');
         classesData = classesRes.data || [];
       } else {
         // Teachers can only see assigned classes
-        classesData = await teacherAuthService.getAssignedClasses();
+        classesData = await teacherApi.getAssignedClasses();
       }
 
       // Get exams
-      const examsRes = await api.get('/exams');
+      const examsRes = await api.get('/api/exams');
 
       // Filter for A-Level classes
       const aLevelClasses = classesData.filter(cls => cls.educationLevel === 'A_LEVEL');
@@ -116,11 +117,11 @@ const ALevelMarksEntry = () => {
       let studentsData;
       if (isAdmin) {
         // Admin can see all students in the class
-        const response = await api.get(`/students/class/${classId}`);
+        const response = await api.get(`/api/students/class/${classId}`);
         studentsData = response.data || [];
       } else {
         // Teachers can only see assigned students
-        studentsData = await teacherAuthService.getAssignedStudents(classId);
+        studentsData = await teacherApi.getAssignedStudents(classId);
       }
 
       // Filter for A-Level students
@@ -147,7 +148,7 @@ const ALevelMarksEntry = () => {
       let classSubjects;
       if (isAdmin) {
         // Admin can see all subjects in the class
-        const response = await api.get(`/classes/${classId}`);
+        const response = await api.get(`/api/classes/${classId}`);
         const classData = response.data;
 
         if (classData.subjects && classData.subjects.length > 0) {
@@ -157,7 +158,7 @@ const ALevelMarksEntry = () => {
           );
 
           // Fetch subject details
-          const subjectsResponse = await api.get('/subjects');
+          const subjectsResponse = await api.get('/api/subjects');
           const allSubjects = subjectsResponse.data || [];
 
           // Filter subjects that belong to this class
@@ -169,7 +170,7 @@ const ALevelMarksEntry = () => {
         }
       } else {
         // Teachers can only see assigned subjects
-        classSubjects = await teacherAuthService.getAssignedSubjects(classId);
+        classSubjects = await teacherApi.getAssignedSubjects(classId);
       }
 
       // Filter for A-Level subjects
@@ -293,7 +294,8 @@ const ALevelMarksEntry = () => {
         }
 
         // Check if teacher is authorized for this student
-        const isAuthorizedForStudent = await teacherAuthService.isAuthorizedForStudent(selectedClass, selectedStudent);
+        const assignedStudents = await teacherApi.getAssignedStudents(selectedClass);
+        const isAuthorizedForStudent = assignedStudents.some(student => student._id === selectedStudent);
         if (!isAuthorizedForStudent) {
           throw new Error('You are not authorized to enter marks for this student');
         }
@@ -342,7 +344,7 @@ const ALevelMarksEntry = () => {
       console.log('Submitting A-Level result:', resultData);
 
       // Submit to the ALevelResult model
-      const response = await api.post('/a-level-results/enter-marks', resultData);
+      const response = await api.post('/api/a-level-results/enter-marks', resultData);
 
       // Show success message
       setSnackbar({

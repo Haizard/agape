@@ -20,8 +20,8 @@ if (process.env.NODE_ENV === 'production') {
 
 // For local development, use localhost if not specified
 if (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_URL) {
-  apiUrl = 'http://localhost:5000/api/';
-  console.log('Development environment detected, using local API URL:', apiUrl);
+  apiUrl = '/api/';
+  console.log('Development environment detected, using proxy API URL:', apiUrl);
 }
 
 // Export configuration

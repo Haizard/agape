@@ -300,7 +300,7 @@ const ClassTabularReport = () => {
     };
 
     return { classData, examData };
-  }, []);
+  }, [navigate]);
 
   // Fetch class and exam data
   const fetchData = useCallback(async () => {
@@ -374,9 +374,70 @@ const ClassTabularReport = () => {
       const isForm5 = classData.name?.includes('5') || classData.form === 5 || classData.form === '5';
       const isForm6 = classData.name?.includes('6') || classData.form === 6 || classData.form === '6';
 
-      // Set education level
-      const educationLevel = classData.educationLevel || 'A_LEVEL';
-      console.log(`Class education level: ${educationLevel}`);
+      // IMPORTANT: Determine education level based on multiple factors
+      // 1. Check explicit educationLevel property
+      // 2. Check class name for form indicators
+      // 3. Check form property
+      // Default to O_LEVEL for Forms 1-4 and A_LEVEL for Forms 5-6
+
+      const isOLevelByName = classData.name && (
+        classData.name.includes('Form 1') ||
+        classData.name.includes('Form 2') ||
+        classData.name.includes('Form 3') ||
+        classData.name.includes('Form 4') ||
+        classData.name.includes('Form I') ||
+        classData.name.includes('Form II') ||
+        classData.name.includes('Form III') ||
+        classData.name.includes('Form IV')
+      );
+
+      const isOLevelByForm = classData.form && (
+        classData.form === 1 || classData.form === 2 ||
+        classData.form === 3 || classData.form === 4 ||
+        classData.form === '1' || classData.form === '2' ||
+        classData.form === '3' || classData.form === '4'
+      );
+
+      // Determine education level with explicit checks
+      let educationLevel;
+      if (classData.educationLevel) {
+        // Use explicit education level if available
+        educationLevel = classData.educationLevel;
+      } else if (isOLevelByName || isOLevelByForm) {
+        // Infer O_LEVEL from class name or form
+        educationLevel = 'O_LEVEL';
+      } else {
+        // Default to A_LEVEL for Forms 5-6 or unknown
+        educationLevel = 'A_LEVEL';
+      }
+
+      console.log(`Class education level determined as: ${educationLevel}`);
+      console.log(`Class name: ${classData.name}, Form: ${classData.form}`);
+
+      // If this is an O-Level class, redirect to the O-Level report component
+      if (educationLevel === 'O_LEVEL') {
+        console.log('This is an O-Level class. Redirecting to O-Level report component...');
+        console.warn('WARNING: This component is designed for A-Level reports. O-Level classes should use the OLevelClassResultReport component.');
+
+        // Construct the URL for the O-Level report
+        const oLevelReportUrl = `/admin/enhanced-o-level-report/${classId}/${examId}`;
+        console.log(`Redirecting to O-Level report at: ${oLevelReportUrl}`);
+
+        // Show a snackbar message
+        setSnackbar({
+          open: true,
+          message: 'Redirecting to O-Level report component...',
+          severity: 'info'
+        });
+
+        // Set a timeout to allow the snackbar to be seen before redirecting
+        setTimeout(() => {
+          navigate(oLevelReportUrl);
+        }, 1500);
+
+        // Return early to prevent further loading
+        return;
+      }
 
       // If this is not an A-Level class, we'll adapt the data structure later
 
@@ -444,21 +505,47 @@ const ClassTabularReport = () => {
             let resultsResponse;
 
             try {
-              // Try the primary endpoint first
-              resultsResponse = await axios.get(resultsUrl, {
-                headers: {
-                  'Accept': 'application/json',
-                  'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-              });
+              // Check if this is an O-Level class/student
+              const isOLevel = educationLevel === 'O_LEVEL' ||
+                             (student.educationLevel === 'O_LEVEL') ||
+                             (student.form && (student.form === 1 || student.form === 2 ||
+                                              student.form === 3 || student.form === 4 ||
+                                              student.form === '1' || student.form === '2' ||
+                                              student.form === '3' || student.form === '4'));
+
+              if (isOLevel) {
+                // For O-Level students, try the O-Level endpoint first
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${student._id}/${examId}`;
+                resultsUrl += `?academicYear=${academicYear}&term=${term}`;
+                console.log(`Trying O-Level endpoint for student ${student._id}:`, resultsUrl);
+
+                resultsResponse = await axios.get(resultsUrl, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                  }
+                });
+              } else {
+                // For A-Level students, try the A-Level endpoint first
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+                resultsUrl += `?academicYear=${academicYear}&term=${term}`;
+                console.log(`Trying A-Level endpoint for student ${student._id}:`, resultsUrl);
+
+                resultsResponse = await axios.get(resultsUrl, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                  }
+                });
+              }
             } catch (primaryError) {
               console.error(`Error with primary endpoint for student ${student._id}:`, primaryError);
 
               try {
-                // Try the A-Level fallback endpoint
-                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+                // Try the comprehensive endpoint as fallback
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${student._id}/${examId}`;
                 resultsUrl += `?academicYear=${academicYear}&term=${term}`;
-                console.log(`Trying A-Level fallback endpoint for student ${student._id}:`, resultsUrl);
+                console.log(`Trying comprehensive fallback endpoint for student ${student._id}:`, resultsUrl);
 
                 resultsResponse = await axios.get(resultsUrl, {
                   headers: {
@@ -466,21 +553,9 @@ const ClassTabularReport = () => {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                   }
                 });
-              } catch (aLevelError) {
-                console.error(`Error with A-Level fallback endpoint for student ${student._id}:`, aLevelError);
-
-                // Try the O-Level fallback endpoint
-                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${student._id}/${examId}`;
-                resultsUrl += `?academicYear=${academicYear}&term=${term}`;
-                console.log(`Trying O-Level fallback endpoint for student ${student._id}:`, resultsUrl);
-
-                // This will throw if it fails, which is what we want
-                resultsResponse = await axios.get(resultsUrl, {
-                  headers: {
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                  }
-                });
+              } catch (fallbackError) {
+                console.error(`Error with fallback endpoint for student ${student._id}:`, fallbackError);
+                throw fallbackError; // Re-throw to be caught by the outer catch
               }
             }
 
@@ -1442,7 +1517,7 @@ const ClassTabularReport = () => {
     }
   }, [students, classData]);
 
-  // Filter students by combination and form
+  // Filter students by combination and form - SIMPLIFIED VERSION
   const filteredStudents = students.filter(student => {
     // Filter by combination if selected
     if (filterCombination && (student.combination || student.subjectCombination) !== filterCombination) {
@@ -1451,100 +1526,68 @@ const ClassTabularReport = () => {
 
     // Filter by form if selected
     if (filterForm) {
+      // Convert filter form to number for consistent comparison
       const formNumber = Number.parseInt(filterForm, 10);
 
-      // Check student form in various formats
-      const studentForm = student.form;
+      // Convert student form to number if it's a string
+      let studentFormNumber = student.form;
+      if (typeof studentFormNumber === 'string') {
+        studentFormNumber = Number.parseInt(studentFormNumber, 10);
+      }
 
-      // Log detailed information about this student's form
+      // Log for debugging
       console.log(`Student ${student._id || student.id} form check:`, {
-        studentForm,
-        formNumber,
-        formFilter: filterForm,
-        admissionNumber: student.admissionNumber,
-        combination: student.combination || student.subjectCombination
+        originalForm: student.form,
+        normalizedForm: studentFormNumber,
+        filterForm: formNumber,
+        name: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
       });
 
-      // IMPORTANT: For A-Level classes, if no form is explicitly set, we need to assign one
-      // This ensures all students have a form value before filtering
-      if (studentForm === undefined || studentForm === null) {
-        // Default to Form 5 for A-Level classes
-        if (classData?.educationLevel === 'A_LEVEL') {
-          // Modify the student object directly to ensure it has form information
-          student.form = 5;
-          console.log(`Assigned default Form 5 to student ${student._id || student.id} during filtering`);
-        }
-      }
+      // Simple strict equality check
+      if (studentFormNumber !== formNumber) {
+        // If no match, check if we should assign a default form
+        if (studentFormNumber === undefined || studentFormNumber === null || Number.isNaN(studentFormNumber)) {
+          // For Form 5 filter, check if this is likely a Form 5 student
+          if (formNumber === 5) {
+            // Check class name for Form 5 indicators
+            if (classData?.name?.includes('5')) {
+              console.log(`Student ${student._id || student.id} matched as Form 5 based on class name`);
+              // Update the student object with the form number
+              student.form = 5;
+              return true;
+            }
 
-      // Normalize form value for comparison
-      let normalizedStudentForm = studentForm;
+            // Check combination for Form 5 indicators
+            const combinationCode = student.combination || student.subjectCombination;
+            if (combinationCode && ['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
+              console.log(`Student ${student._id || student.id} matched as Form 5 based on combination ${combinationCode}`);
+              // Update the student object with the form number
+              student.form = 5;
+              return true;
+            }
+          }
 
-      // Convert string form values to numbers if possible
-      if (typeof normalizedStudentForm === 'string') {
-        if (normalizedStudentForm.includes('5') || normalizedStudentForm.toLowerCase().includes('form 5') || normalizedStudentForm === '5') {
-          normalizedStudentForm = 5;
-        } else if (normalizedStudentForm.includes('6') || normalizedStudentForm.toLowerCase().includes('form 6') || normalizedStudentForm === '6') {
-          normalizedStudentForm = 6;
-        }
-      }
+          // For Form 6 filter, check if this is likely a Form 6 student
+          if (formNumber === 6) {
+            // Check class name for Form 6 indicators
+            if (classData?.name?.includes('6')) {
+              console.log(`Student ${student._id || student.id} matched as Form 6 based on class name`);
+              // Update the student object with the form number
+              student.form = 6;
+              return true;
+            }
 
-      // Try to match form in different formats
-      const formMatches =
-        // Direct match (number or string)
-        normalizedStudentForm === formNumber ||
-        normalizedStudentForm === filterForm ||
-        String(normalizedStudentForm) === filterForm ||
-        // String match (e.g., "5" or "Form 5")
-        (typeof normalizedStudentForm === 'string' && (
-          normalizedStudentForm.includes(filterForm) ||
-          normalizedStudentForm.toLowerCase().includes(`form ${filterForm}`)
-        )) ||
-        // Check admission number for form info
-        (student.admissionNumber &&
-         typeof student.admissionNumber === 'string' &&
-         (student.admissionNumber.includes(`F${filterForm}-`) ||
-          student.admissionNumber.startsWith(filterForm)));
-
-      // For Form 5 specifically, also check if this is a Form 5 class
-      if (formNumber === 5 && classData?.name &&
-          (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5'))) {
-        // If this is a Form 5 class and no specific form is assigned to the student,
-        // assume they are Form 5
-        if (!normalizedStudentForm) {
-          console.log(`Student ${student._id || student.id} matched as Form 5 based on class name`);
-          return true;
-        }
-      }
-
-      // For Form 6 specifically, also check if this is a Form 6 class
-      if (formNumber === 6 && classData?.name &&
-          (classData.name.includes('6') || classData.name.toLowerCase().includes('form 6'))) {
-        // If this is a Form 6 class and no specific form is assigned to the student,
-        // assume they are Form 6
-        if (!normalizedStudentForm) {
-          console.log(`Student ${student._id || student.id} matched as Form 6 based on class name`);
-          return true;
-        }
-      }
-
-      // Check combination code for form hints
-      if (!formMatches && (student.combination || student.subjectCombination)) {
-        const combinationCode = student.combination || student.subjectCombination;
-
-        // Form 5 combinations
-        if (formNumber === 5 && ['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
-          console.log(`Student ${student._id || student.id} matched as Form 5 based on combination ${combinationCode}`);
-          return true;
+            // Check combination for Form 6 indicators
+            const combinationCode = student.combination || student.subjectCombination;
+            if (combinationCode && ['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
+              console.log(`Student ${student._id || student.id} matched as Form 6 based on combination ${combinationCode}`);
+              // Update the student object with the form number
+              student.form = 6;
+              return true;
+            }
+          }
         }
 
-        // Form 6 combinations
-        if (formNumber === 6 && ['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
-          console.log(`Student ${student._id || student.id} matched as Form 6 based on combination ${combinationCode}`);
-          return true;
-        }
-      }
-
-      if (!formMatches) {
         console.log(`Student ${student._id || student.id} did NOT match form filter ${filterForm}`);
         return false;
       }
@@ -1581,24 +1624,32 @@ const ClassTabularReport = () => {
   const setFormForAllStudents = (formNumber) => {
     if (!formNumber || !students.length) return;
 
+    // Convert to number to ensure consistent type
+    const numericForm = Number(formNumber);
+
     // Create a copy of the students array
     const updatedStudents = [...students];
 
     // Set the form for all students
     for (let i = 0; i < updatedStudents.length; i++) {
-      updatedStudents[i].form = Number(formNumber);
+      updatedStudents[i].form = numericForm;
+      // Also set formLevel for redundancy
+      updatedStudents[i].formLevel = numericForm;
     }
 
     // Update the students array
     setStudents(updatedStudents);
-    console.log(`Set form ${formNumber} for all ${updatedStudents.length} students`);
+    console.log(`Set form ${numericForm} for all ${updatedStudents.length} students`);
 
     // Show success message
     setSnackbar({
       open: true,
-      message: `Set Form ${formNumber} for all ${updatedStudents.length} students`,
+      message: `Set Form ${numericForm} for all ${updatedStudents.length} students`,
       severity: 'success'
     });
+
+    // Return the updated students array for chaining
+    return updatedStudents;
   };
 
   // Print report
@@ -1860,8 +1911,19 @@ const ClassTabularReport = () => {
               color="primary"
               onClick={() => {
                 // Set all students to Form 5 and apply filter
-                setFormForAllStudents(5);
-                setTimeout(() => setFilterForm('5'), 100);
+                const updatedStudents = setFormForAllStudents(5);
+                // Force a re-render before applying the filter
+                setTimeout(() => {
+                  setFilterForm('5');
+                  console.log('Applied Form 5 filter after setting all students to Form 5');
+                }, 100);
+              }}
+              sx={{
+                bgcolor: filterForm === '5' ? '#1565c0' : 'primary.main',
+                fontWeight: filterForm === '5' ? 'bold' : 'normal',
+                '&:hover': {
+                  bgcolor: filterForm === '5' ? '#0d47a1' : 'primary.dark',
+                }
               }}
             >
               Show Form 5 Only
@@ -1872,8 +1934,19 @@ const ClassTabularReport = () => {
               color="primary"
               onClick={() => {
                 // Set all students to Form 6 and apply filter
-                setFormForAllStudents(6);
-                setTimeout(() => setFilterForm('6'), 100);
+                const updatedStudents = setFormForAllStudents(6);
+                // Force a re-render before applying the filter
+                setTimeout(() => {
+                  setFilterForm('6');
+                  console.log('Applied Form 6 filter after setting all students to Form 6');
+                }, 100);
+              }}
+              sx={{
+                bgcolor: filterForm === '6' ? '#1565c0' : 'primary.main',
+                fontWeight: filterForm === '6' ? 'bold' : 'normal',
+                '&:hover': {
+                  bgcolor: filterForm === '6' ? '#0d47a1' : 'primary.dark',
+                }
               }}
             >
               Show Form 6 Only
@@ -2032,22 +2105,62 @@ const ClassTabularReport = () => {
         </Box>
       </Box>
 
+      {/* Active Filter Alert - Only shown when filtering */}
+      {filterForm && (
+        <Box sx={{ mb: 2, p: 2, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #90caf9' }}>
+          <Typography variant="h6" sx={{ color: '#1565c0', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+            <span role="img" aria-label="filter" style={{ marginRight: '8px' }}>🔍</span>
+            Currently Showing Form {filterForm} Students Only
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} match this filter.
+            {students.length - filteredStudents.length > 0 && (
+              <span>
+                {students.length - filteredStudents.length} student{students.length - filteredStudents.length !== 1 ? 's are' : ' is'} hidden.
+              </span>
+            )}
+          </Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            color="primary"
+            onClick={() => setFilterForm('')}
+            sx={{ mt: 1 }}
+          >
+            Show All Students
+          </Button>
+        </Box>
+      )}
+
       {/* Class Summary */}
       <Box className="class-summary">
         <Grid container spacing={2}>
           <Grid item xs={3}>
             <Typography variant="body1">
               <strong>Total Students:</strong> {filteredStudents.length}
+              {filterForm && students.length !== filteredStudents.length && (
+                <span style={{ fontSize: '0.8em', color: '#666', marginLeft: '4px' }}>
+                  (of {students.length})
+                </span>
+              )}
             </Typography>
           </Grid>
           <Grid item xs={3}>
             <Typography variant="body1">
-              <strong>Form:</strong> {filterForm ? `Form ${filterForm}` : 'All Forms'}
+              <strong>Form:</strong> {filterForm ? (
+                <span style={{ fontWeight: 'bold', color: '#1565c0' }}>
+                  Form {filterForm}
+                </span>
+              ) : 'All Forms'}
             </Typography>
           </Grid>
           <Grid item xs={3}>
             <Typography variant="body1">
-              <strong>Combination:</strong> {filterCombination || 'All Combinations'}
+              <strong>Combination:</strong> {filterCombination ? (
+                <span style={{ fontWeight: 'bold', color: '#1565c0' }}>
+                  {filterCombination}
+                </span>
+              ) : 'All Combinations'}
             </Typography>
           </Grid>
           <Grid item xs={3}>

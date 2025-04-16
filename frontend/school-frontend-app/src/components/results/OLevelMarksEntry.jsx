@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 import api from '../../utils/api';
 import teacherAuthService from '../../services/teacherAuthService';
+import teacherApi from '../../services/teacherApi';
 
 /**
  * O-Level Marks Entry Component
@@ -65,15 +66,20 @@ const OLevelMarksEntry = () => {
         let classesData;
         if (isAdmin) {
           // Admin can see all classes
-          const response = await api.get('/classes?educationLevel=O_LEVEL');
+          const response = await api.get('/api/classes?educationLevel=O_LEVEL');
           classesData = response.data || [];
         } else {
           // Teachers can only see assigned classes
-          const assignedClasses = await teacherAuthService.getAssignedClasses();
-          // Filter for O-Level classes
-          classesData = assignedClasses.filter(cls =>
-            cls.educationLevel === 'O_LEVEL' || !cls.educationLevel
-          );
+          try {
+            const assignedClasses = await teacherApi.getAssignedClasses();
+            // Filter for O-Level classes
+            classesData = assignedClasses.filter(cls =>
+              cls.educationLevel === 'O_LEVEL' || !cls.educationLevel
+            );
+          } catch (error) {
+            console.error('Error fetching assigned classes:', error);
+            classesData = [];
+          }
         }
 
         setClasses(classesData);
@@ -123,11 +129,16 @@ const OLevelMarksEntry = () => {
         let subjectsData;
         if (isAdmin) {
           // Admin can see all subjects in the class
-          const response = await api.get(`/classes/${selectedClass}/subjects`);
+          const response = await api.get(`/api/classes/${selectedClass}/subjects`);
           subjectsData = response.data || [];
         } else {
           // Teachers can only see assigned subjects
-          subjectsData = await teacherAuthService.getAssignedSubjects(selectedClass);
+          try {
+            subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
+          } catch (error) {
+            console.error('Error fetching assigned subjects:', error);
+            subjectsData = [];
+          }
         }
 
         // Filter for O-Level subjects
@@ -164,11 +175,16 @@ const OLevelMarksEntry = () => {
         let studentsData;
         if (isAdmin) {
           // Admin can see all students in the class
-          const response = await api.get(`/students/class/${selectedClass}`);
+          const response = await api.get(`/api/students/class/${selectedClass}`);
           studentsData = response.data || [];
         } else {
           // Teachers can only see assigned students
-          studentsData = await teacherAuthService.getAssignedStudents(selectedClass);
+          try {
+            studentsData = await teacherApi.getAssignedStudents(selectedClass);
+          } catch (error) {
+            console.error('Error fetching assigned students:', error);
+            studentsData = [];
+          }
         }
 
         // Filter for O-Level students only
@@ -361,7 +377,7 @@ const OLevelMarksEntry = () => {
       return;
     }
 
-    if (isNaN(Number(marks)) || Number(marks) < 0 || Number(marks) > 100) {
+    if (Number.isNaN(Number(marks)) || Number(marks) < 0 || Number(marks) > 100) {
       setError('Marks must be a number between 0 and 100');
       return;
     }

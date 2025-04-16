@@ -98,7 +98,27 @@ const OLevelClassResultReport = () => {
 
       // Ensure this is an O-Level report
       if (data.educationLevel && data.educationLevel === 'A_LEVEL') {
+        console.error('This is not an O-Level class. Please use the A-Level report component.');
         throw new Error('This is not an O-Level class. Please use the A-Level report component.');
+      }
+
+      // Check for A-Level indicators in class name
+      if (data.className) {
+        const isALevelClass = data.className.includes('Form 5') ||
+                            data.className.includes('Form 6') ||
+                            data.className.includes('Form V') ||
+                            data.className.includes('Form VI');
+
+        if (isALevelClass) {
+          console.error('This appears to be an A-Level class based on the class name. Please use the A-Level report component.');
+          throw new Error('This appears to be an A-Level class. Please use the A-Level report component.');
+        }
+      }
+
+      // Force the education level to be O_LEVEL
+      if (!data.educationLevel || data.educationLevel !== 'O_LEVEL') {
+        console.log('Setting education level to O_LEVEL for this report');
+        data.educationLevel = 'O_LEVEL';
       }
 
       // If data is empty or doesn't have expected structure, show error message

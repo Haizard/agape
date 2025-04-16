@@ -70,6 +70,19 @@ const EnhancedOLevelClassReport = ({
       return;
     }
 
+    // Additional validation for class name
+    if (data.className) {
+      const isALevelClass = data.className.includes('Form 5') ||
+                          data.className.includes('Form 6') ||
+                          data.className.includes('Form V') ||
+                          data.className.includes('Form VI');
+
+      if (isALevelClass) {
+        setReportError('This appears to be an A-Level class based on the class name. Please use the A-Level report component.');
+        return;
+      }
+    }
+
     // Deep clone to avoid modifying original data
     const processedData = JSON.parse(JSON.stringify(data));
 

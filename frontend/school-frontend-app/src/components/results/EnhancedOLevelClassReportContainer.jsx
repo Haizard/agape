@@ -43,6 +43,17 @@ const EnhancedOLevelClassReportContainer = () => {
     if (educationLevel && educationLevel !== 'O_LEVEL') {
       setError('This report is only for O-Level results. Please use the A-Level report for A-Level results.');
       setLoading(false);
+
+      // Redirect to A-Level report if this is explicitly an A-Level class
+      if (educationLevel === 'A_LEVEL') {
+        console.log('Redirecting to A-Level report component...');
+        const aLevelReportUrl = `/admin/enhanced-a-level-report/${classId}/${examId}`;
+
+        setTimeout(() => {
+          navigate(aLevelReportUrl);
+        }, 1500);
+      }
+
       return;
     }
 
@@ -225,7 +236,7 @@ const EnhancedOLevelClassReportContainer = () => {
     } finally {
       setLoading(false);
     }
-  }, [classId, examId, educationLevel]);
+  }, [classId, examId, educationLevel, navigate]);
 
   // Fetch report on component mount or when parameters change
   useEffect(() => {

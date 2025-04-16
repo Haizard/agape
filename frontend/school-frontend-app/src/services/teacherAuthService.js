@@ -10,7 +10,7 @@ const teacherAuthService = {
    */
   async getAssignedClasses() {
     try {
-      const response = await api.get('/teachers/simple-classes');
+      const response = await api.get('/api/teachers/simple-classes');
       return response.data || [];
     } catch (error) {
       console.error('Error fetching assigned classes:', error);
@@ -28,7 +28,7 @@ const teacherAuthService = {
       if (!classId) {
         return [];
       }
-      const response = await api.get('/teachers/my-subjects', {
+      const response = await api.get('/api/teachers/my-subjects', {
         params: { classId }
       });
       return response.data || [];
@@ -48,7 +48,7 @@ const teacherAuthService = {
       if (!classId) {
         return [];
       }
-      const response = await api.get(`/classes/${classId}/students`);
+      const response = await api.get(`/api/classes/${classId}/students`);
       return response.data || [];
     } catch (error) {
       console.error('Error fetching assigned students:', error);
@@ -120,14 +120,14 @@ const teacherAuthService = {
     try {
       const token = localStorage.getItem('token');
       if (!token) return null;
-      
+
       // Decode JWT token to get user role
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
       }).join(''));
-      
+
       const payload = JSON.parse(jsonPayload);
       return payload.role;
     } catch (error) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import teacherAuthService from '../../services/teacherAuthService';
+import teacherApi from '../../services/teacherApi';
 import {
   Box,
   Typography,
@@ -80,7 +81,7 @@ const OLevelBulkMarksEntry = () => {
         let classesData;
         if (isAdmin) {
           // Admin can see all classes
-          const response = await api.get('/classes', {
+          const response = await api.get('/api/classes', {
             params: {
               educationLevel: 'O_LEVEL'
             }
@@ -88,7 +89,7 @@ const OLevelBulkMarksEntry = () => {
           classesData = response.data || [];
         } else {
           // Teachers can only see assigned classes
-          const assignedClasses = await teacherAuthService.getAssignedClasses();
+          const assignedClasses = await teacherApi.getAssignedClasses();
           // Filter for O-Level classes
           classesData = assignedClasses.filter(cls =>
             cls.educationLevel === 'O_LEVEL' || !cls.educationLevel
@@ -114,7 +115,7 @@ const OLevelBulkMarksEntry = () => {
 
       try {
         setLoading(true);
-        const response = await api.get('/exams');
+        const response = await api.get('/api/exams');
         setExams(response.data || []);
       } catch (error) {
         console.error('Error fetching exams:', error);
@@ -141,11 +142,11 @@ const OLevelBulkMarksEntry = () => {
         let subjectsData;
         if (isAdmin) {
           // Admin can see all subjects in the class
-          const response = await api.get(`/classes/${selectedClass}/subjects`);
+          const response = await api.get(`/api/classes/${selectedClass}/subjects`);
           subjectsData = response.data || [];
         } else {
           // Teachers can only see assigned subjects
-          subjectsData = await teacherAuthService.getAssignedSubjects(selectedClass);
+          subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
         }
 
         // Filter for O-Level subjects only
@@ -193,15 +194,15 @@ const OLevelBulkMarksEntry = () => {
         let studentsData;
         if (isAdmin) {
           // Admin can see all students in the class
-          const studentsResponse = await api.get(`/classes/${selectedClass}/students`);
+          const studentsResponse = await api.get(`/api/classes/${selectedClass}/students`);
           studentsData = studentsResponse.data || [];
         } else {
           // Teachers can only see assigned students
-          studentsData = await teacherAuthService.getAssignedStudents(selectedClass);
+          studentsData = await teacherApi.getAssignedStudents(selectedClass);
         }
 
         // Get existing marks for the selected class, subject, and exam
-        const marksResponse = await api.get(`/check-marks/check-existing`, {
+        const marksResponse = await api.get('/api/check-marks/check-existing', {
           params: {
             classId: selectedClass,
             subjectId: selectedSubject,
@@ -210,7 +211,7 @@ const OLevelBulkMarksEntry = () => {
         });
 
         // Get exam details to get academic year
-        const examResponse = await api.get(`/exams/${selectedExam}`);
+        const examResponse = await api.get(`/api/exams/${selectedExam}`);
 
         const academicYearId = examResponse.data.academicYear;
         const examTypeId = examResponse.data.examType;
@@ -284,7 +285,7 @@ const OLevelBulkMarksEntry = () => {
   // Handle mark change
   const handleMarkChange = (studentId, value) => {
     // Validate input (0-100)
-    if (value !== '' && (isNaN(value) || value < 0 || value > 100)) {
+    if (value !== '' && (Number.isNaN(Number(value)) || Number(value) < 0 || Number(value) > 100)) {
       return;
     }
 
@@ -358,7 +359,7 @@ const OLevelBulkMarksEntry = () => {
         }
 
         // Check if teacher is authorized for all students
-        const assignedStudents = await teacherAuthService.getAssignedStudents(selectedClass);
+        const assignedStudents = await teacherApi.getAssignedStudents(selectedClass);
         const assignedStudentIds = assignedStudents.map(student => student._id);
 
         // Check if any marks are for students not assigned to this teacher
@@ -397,7 +398,7 @@ const OLevelBulkMarksEntry = () => {
       }
 
       // Save marks
-      await api.post(`/o-level-results/batch`, marksToSave);
+      await api.post('/api/o-level-results/batch', marksToSave);
 
       // Update marks state with calculated grades and points
       setMarks(marksWithGrades);

@@ -84,6 +84,23 @@ const EnhancedALevelClassReport = ({
       return;
     }
 
+    // Additional validation for class name
+    if (data.className) {
+      const isOLevelClass = data.className.includes('Form 1') ||
+                          data.className.includes('Form 2') ||
+                          data.className.includes('Form 3') ||
+                          data.className.includes('Form 4') ||
+                          data.className.includes('Form I') ||
+                          data.className.includes('Form II') ||
+                          data.className.includes('Form III') ||
+                          data.className.includes('Form IV');
+
+      if (isOLevelClass) {
+        setReportError('This appears to be an O-Level class based on the class name. Please use the O-Level report component.');
+        return;
+      }
+    }
+
     // Deep clone to avoid modifying original data
     const processedData = JSON.parse(JSON.stringify(data));
 
