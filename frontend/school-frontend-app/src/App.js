@@ -262,6 +262,19 @@ function App() {
                         <PrintableClassReport />
                       </ProtectedRoute>
                     } />
+                    {/* O-Level Student Report Route */}
+                    <Route path="/results/o-level/student/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <SingleStudentReport educationLevel="O_LEVEL" />
+                      </ProtectedRoute>
+                    } />
+                    {/* A-Level Student Report Route */}
+                    <Route path="/results/a-level/student/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <ALevelFormStudentReport />
+                      </ProtectedRoute>
+                    } />
+                    {/* Generic Student Report Route (for backward compatibility) */}
                     <Route path="/results/student-report/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
                         <SingleStudentReport />

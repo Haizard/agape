@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -33,10 +33,18 @@ import './SingleStudentReport.css';
  * SingleStudentReport Component (v2.0)
  * Displays a comprehensive academic report for a single student
  * with all subjects (both principal and subsidiary)
+ *
+ * @param {string} educationLevel - Optional education level override ('O_LEVEL' or 'A_LEVEL')
  */
-const SingleStudentReport = () => {
+const SingleStudentReport = ({ educationLevel: educationLevelProp }) => {
   const { studentId, examId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Extract query parameters
+  const queryParams = new URLSearchParams(location.search);
+  const academicYear = queryParams.get('academicYear') || '';
+  const term = queryParams.get('term') || 'Term 1';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [studentData, setStudentData] = useState(null);
@@ -44,6 +52,9 @@ const SingleStudentReport = () => {
   const [principalSubjects, setPrincipalSubjects] = useState([]);
   const [subsidiarySubjects, setSubsidiarySubjects] = useState([]);
   const [summary, setSummary] = useState(null);
+
+  // State to track the detected education level
+  const [detectedEducationLevel, setDetectedEducationLevel] = useState(educationLevelProp || null);
 
   // Fetch student and exam data
   const fetchData = useCallback(async () => {
@@ -112,13 +123,18 @@ const SingleStudentReport = () => {
       };
 
       // Check if this is an O-Level report and adapt the data structure
-      const isOLevel = reportData.educationLevel === 'O_LEVEL' ||
+      // Use the prop if provided, otherwise detect from the data
+      const isOLevel = educationLevelProp === 'O_LEVEL' ||
+                      reportData.educationLevel === 'O_LEVEL' ||
                       (reportData.subjectResults && !reportData.principalSubjects);
+
+      // Set the detected education level
+      setDetectedEducationLevel(isOLevel ? 'O_LEVEL' : 'A_LEVEL');
 
       if (isOLevel) {
         console.log('Processing O-Level report data');
         // Convert O-Level data structure to our format
-        reportData = {
+        const formattedReportData = {
           ...reportData,
           principalSubjects: reportData.subjectResults?.map(subject => ({
             subject: subject.subject?.name || subject.subjectName,
@@ -130,48 +146,57 @@ const SingleStudentReport = () => {
           })) || [],
           subsidiarySubjects: []
         };
-      } else if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
+        return processFormattedData(formattedReportData);
+      }
+
+      // If not O-Level, process as A-Level or generic format
+      if (!reportData.educationLevel || reportData.educationLevel !== 'A_LEVEL') {
         console.warn('Report is not marked as A-Level, but will try to process it anyway');
       }
 
+      return processFormattedData(reportData);
+    };
+
+    // Process formatted data and update state
+    const processFormattedData = (data) => {
       // Format student data
       const formattedStudentData = {
         id: studentId,
-        name: reportData.studentDetails?.name || reportData.studentName || 'Unknown Student',
-        admissionNumber: reportData.studentDetails?.rollNumber || reportData.studentAdmissionNumber || reportData.admissionNumber || 'N/A',
-        gender: reportData.studentDetails?.gender || reportData.studentGender || reportData.gender || 'N/A',
-        form: reportData.studentDetails?.form || reportData.studentForm || reportData.form || 'N/A',
-        class: reportData.studentDetails?.class || reportData.className || reportData.class || 'N/A',
-        subjectCombination: reportData.studentDetails?.subjectCombination || reportData.combinationName || 'N/A',
-        combinationName: reportData.studentDetails?.subjectCombination || reportData.combinationName || 'N/A'
+        name: data.studentDetails?.name || data.studentName || 'Unknown Student',
+        admissionNumber: data.studentDetails?.rollNumber || data.studentAdmissionNumber || data.admissionNumber || 'N/A',
+        gender: data.studentDetails?.gender || data.studentGender || data.gender || 'N/A',
+        form: data.studentDetails?.form || data.studentForm || data.form || 'N/A',
+        class: data.studentDetails?.class || data.className || data.class || 'N/A',
+        subjectCombination: data.studentDetails?.subjectCombination || data.combinationName || 'N/A',
+        combinationName: data.studentDetails?.subjectCombination || data.combinationName || 'N/A'
       };
 
       // Format exam data
       const formattedExamData = {
         id: examId,
-        name: reportData.examName || reportData.exam?.name || 'Unknown Exam',
-        startDate: reportData.examDate?.split(' - ')?.[0] || reportData.exam?.startDate || '',
-        endDate: reportData.examDate?.split(' - ')?.[1] || reportData.exam?.endDate || '',
-        term: reportData.exam?.term || reportData.term || 'Term 1',
-        academicYear: reportData.academicYear || reportData.exam?.academicYear?.name || 'Unknown Year'
+        name: data.examName || data.exam?.name || 'Unknown Exam',
+        startDate: data.examDate?.split(' - ')?.[0] || data.exam?.startDate || '',
+        endDate: data.examDate?.split(' - ')?.[1] || data.exam?.endDate || '',
+        term: data.exam?.term || data.term || term || 'Term 1',
+        academicYear: data.academicYear || data.exam?.academicYear?.name || academicYear || 'Unknown Year'
       };
 
       // Set the state with the formatted data
       setStudentData(formattedStudentData);
       setExamData(formattedExamData);
-      setPrincipalSubjects(reportData.principalSubjects || []);
-      setSubsidiarySubjects(reportData.subsidiarySubjects || []);
+      setPrincipalSubjects(data.principalSubjects || []);
+      setSubsidiarySubjects(data.subsidiarySubjects || []);
 
       // Format summary data
       const formattedSummary = {
-        totalMarks: reportData.summary?.totalMarks || reportData.totalMarks || 0,
-        averageMarks: reportData.summary?.averageMarks || reportData.averageMarks || 0,
-        totalPoints: reportData.summary?.totalPoints || reportData.totalPoints || reportData.points || 0,
-        bestThreePoints: reportData.summary?.bestThreePoints || 0,
-        bestSevenPoints: reportData.summary?.bestSevenPoints || reportData.bestSevenPoints || 0,
-        division: reportData.summary?.division || reportData.division || 'N/A',
-        rank: reportData.summary?.rank || reportData.rank || 'N/A',
-        totalStudents: reportData.summary?.totalStudents || reportData.totalStudents || 0
+        totalMarks: data.summary?.totalMarks || data.totalMarks || 0,
+        averageMarks: data.summary?.averageMarks || data.averageMarks || 0,
+        totalPoints: data.summary?.totalPoints || data.totalPoints || data.points || 0,
+        bestThreePoints: data.summary?.bestThreePoints || 0,
+        bestSevenPoints: data.summary?.bestSevenPoints || data.bestSevenPoints || 0,
+        division: data.summary?.division || data.division || 'N/A',
+        rank: data.summary?.rank || data.rank || 'N/A',
+        totalStudents: data.summary?.totalStudents || data.totalStudents || 0
       };
 
       setSummary(formattedSummary);
@@ -287,7 +312,7 @@ const SingleStudentReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [studentId, examId]);
+  }, [studentId, examId, academicYear, term, educationLevelProp]);
 
   // Generate demo data for testing
   const generateDemoData = (formLevel) => {
@@ -521,7 +546,7 @@ const SingleStudentReport = () => {
       // Format student info for Excel
       const studentInfo = [
         ['Student Report'],
-        ['School', 'AGAPE LUTHERAN JUNIOR SEMINARY'],
+        ['School', 'ST. JOHN VIANNEY SCHOOL MANAGEMENT SYSTEM'],
         ['Exam', examData.name],
         ['Academic Year', examData.academicYear],
         ['Student Name', studentData.name],
@@ -687,10 +712,10 @@ const SingleStudentReport = () => {
       <Box className="report-header">
         <Box className="header-left">
           <Typography variant="h6" className="school-name">
-            AGAPE LUTHERAN JUNIOR SEMINARY
+            ST. JOHN VIANNEY SCHOOL MANAGEMENT SYSTEM
           </Typography>
           <Typography variant="body2" className="school-address">
-            P.O. BOX 8882, MOSHI, KILIMANJARO
+            P.O. BOX 123, DAR ES SALAAM, TANZANIA
           </Typography>
           <Typography variant="body1" className="exam-info">
             {examData.name} - {examData.academicYear}
@@ -1017,7 +1042,13 @@ const SingleStudentReport = () => {
 // Define PropTypes for the component
 SingleStudentReport.propTypes = {
   studentId: PropTypes.string,
-  examId: PropTypes.string
+  examId: PropTypes.string,
+  educationLevel: PropTypes.oneOf(['O_LEVEL', 'A_LEVEL'])
+};
+
+// Default props
+SingleStudentReport.defaultProps = {
+  educationLevel: null
 };
 
 export default SingleStudentReport;

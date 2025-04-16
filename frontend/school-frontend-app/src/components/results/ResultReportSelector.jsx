@@ -154,8 +154,15 @@ const ResultReportSelector = () => {
       return;
     }
 
-    // Use the new unified report route for all education levels
-    navigate(`/results/student-report/${selectedStudent}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
+    // Use the education level specific routes
+    if (educationLevel === 'O_LEVEL') {
+      navigate(`/results/o-level/student/${selectedStudent}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
+    } else if (educationLevel === 'A_LEVEL') {
+      navigate(`/results/a-level/student/${selectedStudent}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
+    } else {
+      // Fallback to the generic route
+      navigate(`/results/student-report/${selectedStudent}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
+    }
   };
 
   // Generate class report
