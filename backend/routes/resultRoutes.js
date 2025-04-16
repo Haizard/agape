@@ -5,7 +5,7 @@ const Student = require('../models/Student');
 const Class = require('../models/Class');
 const Subject = require('../models/Subject');
 const Teacher = require('../models/Teacher');
-const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { authenticateToken, authorizeRole, authorizeTeacherForSubject, authorizeTeacherForClass, authorizeTeacherForReports } = require('../middleware/auth');
 const { checkExistingMarks, preventDuplicateMarks } = require('../middleware/markEntryValidation');
 const mongoose = require('mongoose');
 
@@ -21,24 +21,12 @@ router.post('/', authenticateToken, authorizeRole(['admin']), async (req, res) =
 });
 
 // Enter marks for a student
-router.post('/enter-marks', authenticateToken, authorizeRole(['teacher', 'admin']), checkExistingMarks, preventDuplicateMarks, async (req, res) => {
+router.post('/enter-marks', authenticateToken, authorizeRole(['teacher', 'admin']), authorizeTeacherForSubject, checkExistingMarks, preventDuplicateMarks, async (req, res) => {
   try {
     let { studentId, examId, academicYearId, examTypeId, subjectId, marksObtained, grade, comment, educationLevel } = req.body;
 
-    // Check if teacher is authorized to enter marks for this subject
-    // Skip this check for admin users
-    if (req.user.role === 'teacher') {
-      // Find the teacher by userId
-      const teacher = await Teacher.findOne({ userId: req.user.userId });
-      if (!teacher) {
-        return res.status(404).json({ message: 'Teacher profile not found' });
-      }
-
-      // Check if teacher is assigned to this subject
-      if (!teacher.subjects.some(s => s.toString() === subjectId)) {
-        return res.status(403).json({ message: 'You are not authorized to enter marks for this subject' });
-      }
-    }
+    // Authorization is now handled by the authorizeTeacherForSubject middleware
+    // The middleware adds teacherId to the request if authorized
 
     // Get student to determine education level if not provided
     if (!educationLevel) {
@@ -68,7 +56,7 @@ router.post('/enter-marks', authenticateToken, authorizeRole(['teacher', 'admin'
 });
 
 // Enter marks for multiple students
-router.post('/enter-marks/batch', authenticateToken, authorizeRole(['teacher', 'admin']), checkExistingMarks, preventDuplicateMarks, async (req, res) => {
+router.post('/enter-marks/batch', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
   console.log('POST /api/results/enter-marks/batch - Processing batch marks entry');
   console.log('Request body:', req.body);
   const session = await mongoose.startSession();
@@ -84,15 +72,28 @@ router.post('/enter-marks/batch', authenticateToken, authorizeRole(['teacher', '
     // Check if teacher is authorized to enter marks for this subject
     // Skip this check for admin users
     if (req.user.role === 'teacher') {
-      const teacherId = req.user.teacherId;
+      // Find the teacher by userId
+      const teacher = await Teacher.findOne({ userId: req.user.userId });
+      if (!teacher) {
+        return res.status(404).json({ message: 'Teacher profile not found' });
+      }
+
       const subjectId = marksData[0].subjectId; // Assuming all entries are for the same subject
 
-      if (teacherId) {
-        const teacher = await Teacher.findById(teacherId);
-        if (!teacher.subjects.includes(subjectId)) {
-          return res.status(403).json({ message: 'You are not authorized to enter marks for this subject' });
-        }
+      // Check if teacher is assigned to this subject
+      const isAssigned = teacher.subjects?.some(s => s.toString() === subjectId) || false;
+
+      if (!isAssigned) {
+        console.log(`Teacher ${teacher._id} is not authorized to enter marks for subject ${subjectId}`);
+        return res.status(403).json({
+          message: 'You are not authorized to enter marks for this subject',
+          details: 'You must be assigned to teach this subject to enter marks.'
+        });
       }
+
+      // Add teacher ID to request for convenience
+      req.teacherId = teacher._id;
+      console.log(`Teacher ${teacher._id} is authorized to enter marks for subject ${subjectId}`);
     }
 
     // Check if results already exist and update them, otherwise create new ones
@@ -314,7 +315,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get results by subject ID
-router.get('/subject/:subjectId', authenticateToken, async (req, res) => {
+router.get('/subject/:subjectId', authenticateToken, authorizeTeacherForSubject, async (req, res) => {
   try {
     const { subjectId } = req.params;
     const { classId, examId } = req.query;
@@ -342,7 +343,7 @@ router.get('/subject/:subjectId', authenticateToken, async (req, res) => {
 });
 
 // Get results by class ID
-router.get('/class/:classId', authenticateToken, async (req, res) => {
+router.get('/class/:classId', authenticateToken, authorizeTeacherForReports, async (req, res) => {
   try {
     const { classId } = req.params;
     const { examId, examTypeId, academicYear, term } = req.query;

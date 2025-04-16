@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const Student = require('../models/Student');
-const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { authenticateToken, authorizeRole, authorizeTeacherForClass } = require('../middleware/auth');
+const { validateStudentData, validateSubjectAssignment } = require('../middleware/studentValidation');
 
 // Debug middleware for this router
 router.use((req, res, next) => {
@@ -11,14 +12,55 @@ router.use((req, res, next) => {
 });
 
 // Create a new student
-router.post('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+router.post('/', authenticateToken, authorizeRole(['admin', 'teacher']), validateStudentData, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     console.log('Creating student with data:', req.body);
     const student = new Student(req.body);
-    const savedStudent = await student.save();
+    const savedStudent = await student.save({ session });
     console.log('Student created:', savedStudent);
-    res.status(201).json(savedStudent);
+
+    // Automatically assign core subjects for O-Level students
+    if (savedStudent.educationLevel === 'O_LEVEL') {
+      console.log('Automatically assigning core subjects for O-Level student');
+      const Subject = require('../models/Subject');
+
+      // Find all core subjects for O-Level
+      const coreSubjects = await Subject.find({
+        type: 'CORE',
+        educationLevel: { $in: ['O_LEVEL', 'BOTH'] }
+      }).session(session);
+
+      console.log(`Found ${coreSubjects.length} core subjects for O-Level`);
+
+      // Assign core subjects to student
+      if (coreSubjects.length > 0) {
+        savedStudent.selectedSubjects = coreSubjects.map(subject => subject._id);
+        await savedStudent.save({ session });
+        console.log(`Assigned ${coreSubjects.length} core subjects to student ${savedStudent._id}`);
+      }
+    }
+
+    // Validate A-Level students have a combination assigned
+    if (savedStudent.educationLevel === 'A_LEVEL' && !savedStudent.subjectCombination) {
+      console.log('Warning: A-Level student created without a subject combination');
+      // We'll just log a warning for now, but we could enforce this requirement if needed
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // Return the student with populated subjects
+    const populatedStudent = await Student.findById(savedStudent._id)
+      .populate('selectedSubjects', 'name code type description')
+      .populate('subjectCombination');
+
+    res.status(201).json(populatedStudent);
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error('Error creating student:', error);
     res.status(400).json({ message: error.message });
   }
@@ -162,7 +204,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Update a student
-router.put('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+router.put('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), validateStudentData, async (req, res) => {
   try {
     const updatedStudent = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!updatedStudent) {
@@ -189,38 +231,15 @@ router.delete('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), as
 });
 
 // Get students by class ID with teacher authorization check
-router.get('/class/:classId', authenticateToken, async (req, res) => {
+router.get('/class/:classId', authenticateToken, authorizeTeacherForClass, async (req, res) => {
   try {
     console.log('Fetching students for class:', req.params.classId);
 
-    // If user is a teacher, check if they are assigned to this class
-    if (req.user.role === 'teacher') {
-      const Teacher = require('../models/Teacher');
-      const Class = require('../models/Class');
-
-      // Find the teacher profile
-      const teacher = await Teacher.findOne({ userId: req.user.userId });
-      if (!teacher) {
-        return res.status(403).json({ message: 'Teacher profile not found' });
-      }
-
-      // Find the class and check if this teacher teaches any subject in it
-      const classItem = await Class.findById(req.params.classId);
-      if (!classItem) {
-        return res.status(404).json({ message: 'Class not found' });
-      }
-
-      // Check if teacher is assigned to this class
-      const isAssigned = classItem.subjects.some(subject =>
-        subject.teacher && subject.teacher.toString() === teacher._id.toString()
-      );
-
-      // If teacher is not assigned to this class, return forbidden
-      if (!isAssigned) {
-        return res.status(403).json({
-          message: 'You are not authorized to view students in this class'
-        });
-      }
+    // Authorization is now handled by the authorizeTeacherForClass middleware
+    // The middleware adds teacherId and teacherSubjects to the request if authorized
+    console.log('Teacher is authorized to view students in this class');
+    if (req.teacherSubjects) {
+      console.log(`Teacher is assigned to ${req.teacherSubjects.length} subjects in this class`);
     }
 
     // Fetch students for the class
@@ -267,7 +286,7 @@ router.get('/a-level/class/:classId', authenticateToken, async (req, res) => {
 });
 
 // Add subjects to a student
-router.post('/:id/subjects', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+router.post('/:id/subjects', authenticateToken, authorizeRole(['admin', 'teacher']), validateSubjectAssignment, async (req, res) => {
   try {
     console.log(`POST /api/students/${req.params.id}/subjects - Adding subjects to student`);
     console.log('Request body:', req.body);
@@ -279,40 +298,9 @@ router.post('/:id/subjects', authenticateToken, authorizeRole(['admin', 'teacher
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    // Get the subjects from the request
-    const { subjects } = req.body;
-    if (!subjects || !Array.isArray(subjects)) {
-      console.log('Invalid subjects array in request');
-      return res.status(400).json({ message: 'Invalid subjects array' });
-    }
-
-    // Validate that all subjects exist
-    const Subject = require('../models/Subject');
-    const validSubjects = [];
-
-    for (const subjectId of subjects) {
-      try {
-        if (!mongoose.Types.ObjectId.isValid(subjectId)) {
-          console.log(`Invalid subject ID format: ${subjectId}`);
-          continue; // Skip invalid IDs instead of failing
-        }
-
-        const subject = await Subject.findById(subjectId);
-        if (subject) {
-          validSubjects.push(subjectId);
-        } else {
-          console.log(`Subject not found with ID: ${subjectId}`);
-          // Continue instead of failing
-        }
-      } catch (err) {
-        console.error(`Error validating subject ${subjectId}:`, err);
-        // Continue instead of failing
-      }
-    }
-
-    if (validSubjects.length === 0) {
-      return res.status(400).json({ message: 'No valid subjects found in the provided list' });
-    }
+    // Get the validated subjects from the middleware
+    const validSubjects = req.validatedSubjects;
+    console.log(`Using ${validSubjects.length} validated subjects from middleware`);
 
     // Initialize selectedSubjects if it doesn't exist
     if (!student.selectedSubjects) {

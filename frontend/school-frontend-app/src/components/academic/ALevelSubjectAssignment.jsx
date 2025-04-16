@@ -40,6 +40,7 @@ const ALevelSubjectAssignment = () => {
   const [selectedCombination, setSelectedCombination] = useState('');
   const [classStudents, setClassStudents] = useState([]);
   const [studentAssignments, setStudentAssignments] = useState([]);
+  const [studentsWithoutCombinations, setStudentsWithoutCombinations] = useState([]);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -86,6 +87,15 @@ const ALevelSubjectAssignment = () => {
       const aLevelStudents = studentsRes.data.filter(student => student.educationLevel === 'A_LEVEL');
       console.log(`Found ${aLevelStudents.length} A-Level students in total`);
       setStudents(aLevelStudents);
+
+      // Check for A-Level students without combinations
+      const studentsWithoutCombos = aLevelStudents.filter(student => !student.subjectCombination);
+      setStudentsWithoutCombinations(studentsWithoutCombos);
+
+      if (studentsWithoutCombos.length > 0) {
+        console.warn(`Found ${studentsWithoutCombos.length} A-Level students without subject combinations`);
+        setError(`Warning: ${studentsWithoutCombos.length} A-Level students do not have subject combinations assigned. Please assign combinations to all A-Level students.`);
+      }
 
       // Fetch existing assignments
       await fetchExistingAssignments();
@@ -217,7 +227,7 @@ const ALevelSubjectAssignment = () => {
 
       console.log(`Assigning combination ${combination?.name || selectedCombination} to student ${student?.firstName} ${student?.lastName || selectedStudent}`);
       if (!wasAlreadyALevel) {
-        console.log(`Student was not A-Level, will be updated automatically`);
+        console.log('Student was not A-Level, will be updated automatically');
       }
 
       // Update student with selected combination
@@ -250,6 +260,9 @@ const ALevelSubjectAssignment = () => {
       if (!wasAlreadyALevel) {
         setNonALevelStudents(prev => prev.filter(s => s._id !== selectedStudent));
       }
+
+      // Update studentsWithoutCombinations list
+      setStudentsWithoutCombinations(prev => prev.filter(s => s._id !== selectedStudent));
 
       // Refresh assignments
       await fetchExistingAssignments();
@@ -467,6 +480,58 @@ const ALevelSubjectAssignment = () => {
       </Grid>
 
       <Divider sx={{ my: 4 }} />
+
+      {studentsWithoutCombinations.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" gutterBottom sx={{ color: 'error.main' }}>
+            A-Level Students Without Combinations
+          </Typography>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            The following A-Level students do not have subject combinations assigned.
+            Please assign combinations to ensure proper academic tracking and reporting.
+          </Alert>
+
+          <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell><strong>Student</strong></TableCell>
+                  <TableCell><strong>Roll Number</strong></TableCell>
+                  <TableCell><strong>Class</strong></TableCell>
+                  <TableCell><strong>Action</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {studentsWithoutCombinations.map(student => {
+                  // Find the class details
+                  const classObj = classes.find(c => c._id === (student.class?._id || student.class));
+
+                  return (
+                    <TableRow key={student._id} sx={{ bgcolor: 'error.light' }}>
+                      <TableCell>{student.firstName} {student.lastName}</TableCell>
+                      <TableCell>{student.rollNumber || 'N/A'}</TableCell>
+                      <TableCell>{classObj ? classObj.name : 'Unknown Class'}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="primary"
+                          onClick={() => {
+                            setSelectedStudent(student._id);
+                            setSelectedClass(student.class?._id || student.class);
+                          }}
+                        >
+                          Assign Combination
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      )}
 
       <Typography variant="h5" gutterBottom>
         Existing Assignments

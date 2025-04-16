@@ -58,6 +58,7 @@ const ClassTabularReport = () => {
   });
   const [filterForm, setFilterForm] = useState('');
   const [combinations, setCombinations] = useState([]);
+  const [combinationDetails, setCombinationDetails] = useState({});
   // Add academicYear and term state variables with default values
   const [academicYear, setAcademicYear] = useState('current');
   const [term, setTerm] = useState('current');
@@ -1511,18 +1512,30 @@ const ClassTabularReport = () => {
         // Try to determine from combination code
         if (!formAssigned && (student.combination || student.subjectCombination)) {
           const combinationCode = student.combination || student.subjectCombination;
-          // This is just a heuristic - adjust based on your school's actual patterns
-          if (['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
-            // These are typically Form 5 combinations
+
+          // IMPORTANT: We no longer automatically assign Form 6 based on combination codes
+          // This was causing incorrect form assignments
+          // Instead, we'll use the class name as the primary indicator
+
+          // If the class name indicates Form 5, assign Form 5 regardless of combination
+          if (classData?.name && (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5'))) {
             student.form = 5;
             student.formLevel = 5;
-            console.log(`Assigned Form 5 to student ${student._id || student.id} based on combination ${combinationCode}`);
+            console.log(`Assigned Form 5 to student ${student._id || student.id} based on class name, combination: ${combinationCode}`);
             formAssigned = true;
-          } else if (['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
-            // These might be more common in Form 6
+          }
+          // If the class name indicates Form 6, assign Form 6 regardless of combination
+          else if (classData?.name && (classData.name.includes('6') || classData.name.toLowerCase().includes('form 6'))) {
             student.form = 6;
             student.formLevel = 6;
-            console.log(`Assigned Form 6 to student ${student._id || student.id} based on combination ${combinationCode}`);
+            console.log(`Assigned Form 6 to student ${student._id || student.id} based on class name, combination: ${combinationCode}`);
+            formAssigned = true;
+          }
+          // If we can't determine from class name, default to Form 5 for all combinations
+          else {
+            student.form = 5;
+            student.formLevel = 5;
+            console.log(`Assigned default Form 5 to student ${student._id || student.id} with combination ${combinationCode}`);
             formAssigned = true;
           }
         }
@@ -1559,10 +1572,124 @@ const ClassTabularReport = () => {
     return updatedStudents;
   }, [students, classData, normalizeFormValue]);
 
+  // Function to fetch subject combination details
+  const fetchCombinationDetails = useCallback(async () => {
+    if (!combinations.length) return;
+
+    try {
+      console.log('Fetching subject combination details...');
+
+      // Create a mapping of combination codes to full details
+      const detailsMap = {};
+
+      // First, use the combinations we already have
+      combinations.forEach(combo => {
+        if (combo.code) {
+          detailsMap[combo.code] = {
+            code: combo.code,
+            name: combo.name || combo.code,
+            description: combo.description || '',
+            subjects: combo.subjects || [],
+            compulsorySubjects: combo.compulsorySubjects || []
+          };
+        }
+      });
+
+      // Try to fetch more detailed information from the API
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/subject-combinations?educationLevel=A_LEVEL`, {
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (response.data && Array.isArray(response.data)) {
+          response.data.forEach(combo => {
+            if (combo.code) {
+              detailsMap[combo.code] = {
+                code: combo.code,
+                name: combo.name || combo.code,
+                description: combo.description || '',
+                subjects: combo.subjects || [],
+                compulsorySubjects: combo.compulsorySubjects || []
+              };
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching subject combinations:', error);
+        // Continue with what we have
+      }
+
+      // Add standard combinations if they're not already in the map
+      const standardCombinations = {
+        'PCM': { name: 'Physics, Chemistry, Mathematics', subjects: ['Physics', 'Chemistry', 'Mathematics'] },
+        'PCB': { name: 'Physics, Chemistry, Biology', subjects: ['Physics', 'Chemistry', 'Biology'] },
+        'CBG': { name: 'Chemistry, Biology, Geography', subjects: ['Chemistry', 'Biology', 'Geography'] },
+        'HKL': { name: 'History, Kiswahili, Literature', subjects: ['History', 'Kiswahili', 'Literature'] },
+        'HGE': { name: 'History, Geography, Economics', subjects: ['History', 'Geography', 'Economics'] },
+        'EGM': { name: 'Economics, Geography, Mathematics', subjects: ['Economics', 'Geography', 'Mathematics'] }
+      };
+
+      Object.entries(standardCombinations).forEach(([code, details]) => {
+        if (!detailsMap[code]) {
+          detailsMap[code] = {
+            code,
+            name: details.name,
+            description: '',
+            subjects: details.subjects.map(name => ({ name })),
+            compulsorySubjects: ['General Studies', 'Basic Applied Mathematics', 'English Language'].map(name => ({ name }))
+          };
+        }
+      });
+
+      console.log('Combination details map:', detailsMap);
+      setCombinationDetails(detailsMap);
+    } catch (error) {
+      console.error('Error processing combination details:', error);
+    }
+  }, [combinations]);
+
   // Load data on component mount
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Fetch subject combinations from the API
+  const fetchSubjectCombinations = useCallback(async () => {
+    try {
+      console.log('Fetching subject combinations from API...');
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/subject-combinations?educationLevel=A_LEVEL`, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.data && Array.isArray(response.data)) {
+        console.log(`Fetched ${response.data.length} subject combinations from API`);
+
+        // Only update if we got new combinations
+        if (response.data.length > 0) {
+          setCombinations(response.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching subject combinations:', error);
+      // Continue with what we have
+    }
+  }, []);
+
+  // Fetch combination details when combinations change
+  useEffect(() => {
+    if (combinations.length > 0) {
+      fetchCombinationDetails();
+    } else {
+      // If we don't have combinations yet, try to fetch them
+      fetchSubjectCombinations();
+    }
+  }, [combinations, fetchCombinationDetails, fetchSubjectCombinations]);
 
   // Handle A-Level form assignment after data is loaded
   useEffect(() => {
@@ -1669,24 +1796,19 @@ const ClassTabularReport = () => {
       });
 
       // If we're filtering for Form 5 and this is an A-Level class with no form set,
-      // default to showing the student in Form 5
+      // default to showing the student in Form 5 ONLY if the class name indicates Form 5
       if (formNumber === 5 && classData?.educationLevel === 'A_LEVEL' && studentFormNumber === null) {
-        student.form = 5;
-        student.formLevel = 5;
-        console.log(`Defaulting A-Level student ${student._id || student.id} to Form 5 for filtering`);
-        return true;
-      }
-
-      // If we're filtering for Form 6 and this student has specific Form 6 indicators, include them
-      if (formNumber === 6) {
-        const combinationCode = student.combination || student.subjectCombination;
-        if (combinationCode && ['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
-          student.form = 6;
-          student.formLevel = 6;
-          console.log(`Matched student ${student._id || student.id} as Form 6 based on combination ${combinationCode}`);
+        // Only default to Form 5 if the class name indicates Form 5
+        if (classData?.name && (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5'))) {
+          student.form = 5;
+          student.formLevel = 5;
+          console.log(`Defaulting A-Level student ${student._id || student.id} to Form 5 for filtering based on class name`);
           return true;
         }
       }
+
+      // REMOVED: We no longer automatically assign students to Form 6 based on combination
+      // This was causing Form 5 students to incorrectly show up when filtering for Form 6
 
       // Simple equality check with the normalized form value
       if (studentFormNumber !== formNumber) {
@@ -1712,6 +1834,26 @@ const ClassTabularReport = () => {
     })));
   }
 
+  // Helper function to get combination details for a student
+  const getCombinationDetails = useCallback((student) => {
+    const combinationCode = student.combination || student.subjectCombination;
+    if (!combinationCode) return null;
+
+    // If we have details for this combination, return them
+    if (combinationDetails[combinationCode]) {
+      return combinationDetails[combinationCode];
+    }
+
+    // Otherwise return a basic object with just the code
+    return {
+      code: combinationCode,
+      name: combinationCode,
+      description: '',
+      subjects: [],
+      compulsorySubjects: []
+    };
+  }, [combinationDetails]);
+
   // Handle combination filter change
   const handleCombinationFilterChange = (event) => {
     setFilterCombination(event.target.value);
@@ -1730,19 +1872,28 @@ const ClassTabularReport = () => {
     const numericForm = Number(formNumber);
 
     // For A-Level classes, use our specialized function if setting to form 5
-    if (classData?.educationLevel === 'A_LEVEL' && numericForm === 5) {
-      // This will apply more intelligent form assignment
-      const result = setDefaultFormForALevelStudents();
-      console.log(`Set form values for all ${result.length} A-Level students using intelligent assignment`);
+    if (classData?.educationLevel === 'A_LEVEL') {
+      // Create a copy of the students array
+      const updatedStudents = [...students];
+
+      // Set all students to the specified form
+      for (const student of updatedStudents) {
+        student.form = numericForm;
+        student.formLevel = numericForm;
+        console.log(`Set student ${student._id || student.id} to Form ${numericForm}`);
+      }
+
+      // Update the state
+      setStudents(updatedStudents);
 
       // Show success message
       setSnackbar({
         open: true,
-        message: `Set Form 5 for all ${result.length} A-Level students with intelligent assignment`,
+        message: `Set Form ${numericForm} for all ${updatedStudents.length} students`,
         severity: 'success'
       });
 
-      return result;
+      return updatedStudents;
     }
 
     // Create a deep copy of the students array to avoid reference issues
@@ -1946,7 +2097,7 @@ const ClassTabularReport = () => {
         </Box>
 
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <FormControl sx={{ minWidth: 200 }}>
+          <FormControl sx={{ minWidth: 250 }}>
             <InputLabel id="combination-filter-label">Filter by Combination</InputLabel>
             <Select
               labelId="combination-filter-label"
@@ -1955,11 +2106,22 @@ const ClassTabularReport = () => {
               label="Filter by Combination"
             >
               <MenuItem value="">All Combinations</MenuItem>
-              {combinations.map((combination, index) => (
-                <MenuItem key={combination.code || `combo-${index}`} value={combination.code}>
-                  {combination.code} - {combination.name}
-                </MenuItem>
-              ))}
+              {combinations.map((combination, index) => {
+                // Get full details if available
+                const details = combinationDetails[combination.code] || combination;
+                return (
+                  <MenuItem key={combination.code || `combo-${index}`} value={combination.code}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        {combination.code}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {details.name || combination.name || ''}
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                );
+              })}
             </Select>
           </FormControl>
 
@@ -1995,6 +2157,18 @@ const ClassTabularReport = () => {
               label={`Showing Form ${filterForm} Students Only`}
               color="primary"
               onDelete={() => setFilterForm('')}
+              sx={{ ml: 1 }}
+            />
+          )}
+
+          {filterCombination && (
+            <Chip
+              label={(() => {
+                const combo = combinationDetails[filterCombination] || { code: filterCombination, name: '' };
+                return `Combination: ${combo.code}${combo.name ? ` (${combo.name})` : ''}`;
+              })()}
+              color="secondary"
+              onDelete={() => setFilterCombination('')}
               sx={{ ml: 1 }}
             />
           )}
@@ -2429,15 +2603,51 @@ const ClassTabularReport = () => {
               <TableCell key="header-sex" className="info-header">SEX</TableCell>
               <TableCell key="header-points" className="info-header">POINTS</TableCell>
               <TableCell key="header-div" className="info-header">DIV</TableCell>
-              {subjects.map((subject) => (
-                <TableCell
-                  key={`header-${subject.code || subject.name || 'unknown'}`}
-                  align="center"
-                  className={subject.isPrincipal ? "principal-subject" : "subsidiary-subject"}
-                >
-                  {subject.code || (subject.name ? subject.name.substring(0, 3).toUpperCase() : 'UNK')}
-                </TableCell>
-              ))}
+              {subjects.map((subject) => {
+                // Get a proper display name for the subject
+                let displayCode = subject.code;
+
+                // Create a mapping for numeric codes to proper subject codes
+                const numericCodeMap = {
+                  '012': 'PHY', // Physics
+                  '013': 'CHE', // Chemistry
+                  '031': 'BIO', // Biology
+                  '032': 'MAT', // Mathematics
+                  '122': 'GEO', // Geography
+                  '142': 'HIS', // History
+                  '141': 'ENG', // English
+                };
+
+                // If the code looks like a number, try to map it to a proper subject code
+                if (displayCode && !Number.isNaN(Number(displayCode))) {
+                  // This is likely a numeric code that needs to be mapped
+                  console.log(`Found numeric subject code: ${displayCode}`);
+
+                  // First check our mapping
+                  if (numericCodeMap[displayCode]) {
+                    displayCode = numericCodeMap[displayCode];
+                    console.log(`Mapped numeric code ${subject.code} to ${displayCode}`);
+                  }
+                  // If not in our mapping, try to use the subject name if available
+                  else if (subject.name) {
+                    // Convert the name to a 3-letter code
+                    displayCode = subject.name.substring(0, 3).toUpperCase();
+                    console.log(`Using name-based code for ${subject.code}: ${displayCode}`);
+                  }
+                }
+
+                return (
+                  <TableCell
+                    key={`header-${subject.code || subject.name || 'unknown'}`}
+                    align="center"
+                    className={subject.isPrincipal ? "principal-subject" : "subsidiary-subject"}
+                  >
+                    <Tooltip title={subject.name || displayCode} arrow placement="top">
+                      <span>{displayCode || (subject.name ? subject.name.substring(0, 3).toUpperCase() : 'UNK')}</span>
+                    </Tooltip>
+                  </TableCell>
+                );
+              })}
               <TableCell key="header-total" align="center" className="total-header">TOTAL</TableCell>
               <TableCell key="header-avg" align="center" className="average-header">AVG</TableCell>
               <TableCell key="header-rank" align="center" className="rank-header">RANK</TableCell>
@@ -2450,7 +2660,24 @@ const ClassTabularReport = () => {
                   {student.name || `${student.firstName} ${student.lastName}`}
                   <div className="student-number">{student.admissionNumber}</div>
                   <div className="student-combination">
-                    {student.combination || student.subjectCombination}
+                    {(() => {
+                      // Get the combination code
+                      const combinationCode = student.combination || student.subjectCombination;
+
+                      // If we have details for this combination, show them
+                      if (combinationCode && combinationDetails[combinationCode]) {
+                        const combo = combinationDetails[combinationCode];
+                        return (
+                          <>
+                            <span style={{ fontWeight: 'bold' }}>{combinationCode}</span>
+                            <span style={{ marginLeft: '5px', fontSize: '0.9em' }}>({combo.name})</span>
+                          </>
+                        );
+                      }
+
+                      // Otherwise just show the code
+                      return combinationCode || 'No Combination';
+                    })()}
                     {student.form && <span style={{ marginLeft: '5px', fontSize: '0.8em', color: '#666' }}>(Form {student.form})</span>}
                   </div>
                 </TableCell>
@@ -2467,12 +2694,36 @@ const ClassTabularReport = () => {
                   // Enhanced subject matching logic with debugging
                   let studentSubject = null;
 
+                  // Create a mapping for numeric codes to proper subject codes
+                  const numericCodeMap = {
+                    '012': 'PHY', // Physics
+                    '013': 'CHE', // Chemistry
+                    '031': 'BIO', // Biology
+                    '032': 'MAT', // Mathematics
+                    '122': 'GEO', // Geography
+                    '142': 'HIS', // History
+                    '141': 'ENG', // English
+                  };
+
+                  // Get the normalized subject code, handling numeric codes
+                  let normalizedSubjectCode = subject.code;
+                  if (normalizedSubjectCode && !Number.isNaN(Number(normalizedSubjectCode)) && numericCodeMap[normalizedSubjectCode]) {
+                    normalizedSubjectCode = numericCodeMap[normalizedSubjectCode];
+                    console.log(`Normalized subject code ${subject.code} to ${normalizedSubjectCode}`);
+                  }
+
                   // First try to match in the subjects array
                   if (student.subjects && Array.isArray(student.subjects)) {
                     studentSubject = student.subjects.find(s => {
                       // Try to match by code first (most reliable)
-                      if (s.code === subject.code) {
+                      if (s.code === subject.code || s.code === normalizedSubjectCode) {
                         console.log(`Found subject match by code in subjects array: ${s.code}, marks: ${s.marks || s.marksObtained}`);
+                        return true;
+                      }
+
+                      // Also try to match by normalized code if the student subject has a numeric code
+                      if (s.code && !Number.isNaN(Number(s.code)) && numericCodeMap[s.code] === normalizedSubjectCode) {
+                        console.log(`Found subject match by normalized code in subjects array: ${s.code} -> ${normalizedSubjectCode}, marks: ${s.marks || s.marksObtained}`);
                         return true;
                       }
 
@@ -2522,8 +2773,16 @@ const ClassTabularReport = () => {
                   if (!studentSubject && student.allSubjects && Array.isArray(student.allSubjects)) {
                     console.log(`No match found in subjects array, trying allSubjects for ${subject.name}`);
                     studentSubject = student.allSubjects.find(s => {
-                      if (s.code === subject.code || s.subjectCode === subject.code) {
+                      if (s.code === subject.code || s.subjectCode === subject.code ||
+                          s.code === normalizedSubjectCode || s.subjectCode === normalizedSubjectCode) {
                         console.log(`Found subject in allSubjects by code: ${s.code || s.subjectCode}, marks: ${s.marks || s.marksObtained}`);
+                        return true;
+                      }
+
+                      // Also try to match by normalized code if the student subject has a numeric code
+                      if ((s.code && !Number.isNaN(Number(s.code)) && numericCodeMap[s.code] === normalizedSubjectCode) ||
+                          (s.subjectCode && !Number.isNaN(Number(s.subjectCode)) && numericCodeMap[s.subjectCode] === normalizedSubjectCode)) {
+                        console.log(`Found subject in allSubjects by normalized code: ${s.code || s.subjectCode} -> ${normalizedSubjectCode}, marks: ${s.marks || s.marksObtained}`);
                         return true;
                       }
 
@@ -2542,8 +2801,14 @@ const ClassTabularReport = () => {
                     console.log(`No match found in subjects array, trying subjectResults for ${subject.name}`);
                     studentSubject = student.subjectResults.find(s => {
                       // Match by code
-                      if (s.code === subject.code) {
+                      if (s.code === subject.code || s.code === normalizedSubjectCode) {
                         console.log(`Found subject in subjectResults by code: ${s.code}, marks: ${s.marks || s.marksObtained || s.mark}`);
+                        return true;
+                      }
+
+                      // Also try to match by normalized code if the student subject has a numeric code
+                      if (s.code && !Number.isNaN(Number(s.code)) && numericCodeMap[s.code] === normalizedSubjectCode) {
+                        console.log(`Found subject in subjectResults by normalized code: ${s.code} -> ${normalizedSubjectCode}, marks: ${s.marks || s.marksObtained || s.mark}`);
                         return true;
                       }
 
@@ -2630,6 +2895,36 @@ const ClassTabularReport = () => {
                     }
                   }
 
+                  // If still no match, check if this student should have this subject based on their combination
+                  if (!studentSubject) {
+                    // Get the student's combination
+                    const combinationCode = student.combination || student.subjectCombination;
+                    const combination = combinationDetails[combinationCode];
+
+                    // If we have combination details, check if this subject is part of the combination
+                    if (combination && combination.subjects) {
+                      const isPartOfCombination = combination.subjects.some(s =>
+                        (s.code === subject.code) ||
+                        (s.name && subject.name && s.name.toLowerCase() === subject.name.toLowerCase())
+                      );
+
+                      // If this subject is part of the combination but we didn't find a result,
+                      // it means the student should take this subject but doesn't have a result yet
+                      if (isPartOfCombination) {
+                        console.log(`Subject ${subject.code || subject.name} is part of combination ${combinationCode} but student has no result`);
+                        // Create a placeholder subject with empty marks
+                        studentSubject = {
+                          code: subject.code,
+                          name: subject.name,
+                          isPrincipal: subject.isPrincipal,
+                          marks: '-',
+                          grade: '-',
+                          points: '-'
+                        };
+                      }
+                    }
+                  }
+
                   // If still no match, try looking in results array as a last resort
                   if (!studentSubject && student.results && Array.isArray(student.results)) {
                     console.log(`No match found in subjects or subjectResults, trying results array for ${subject.name}`);
@@ -2657,12 +2952,47 @@ const ClassTabularReport = () => {
                     });
                   }
 
+                  // Determine if this subject is applicable to this student based on their combination
+                  const combinationCode = student.combination || student.subjectCombination;
+                  const combination = combinationDetails[combinationCode];
+                  let isApplicableSubject = false;
+
+                  // If we have combination details, check if this subject is part of the combination
+                  if (combination?.subjects) {
+                    // Check if it's a principal subject in the combination
+                    isApplicableSubject = combination.subjects.some(s =>
+                      (s.code === subject.code) ||
+                      (s.name && subject.name && s.name.toLowerCase() === subject.name.toLowerCase())
+                    );
+                  }
+
+                  // Also check compulsory subjects
+                  if (!isApplicableSubject && combination?.compulsorySubjects) {
+                    isApplicableSubject = combination.compulsorySubjects.some(s =>
+                      (s.code === subject.code) ||
+                      (s.name && subject.name && s.name.toLowerCase() === subject.name.toLowerCase())
+                    );
+                  }
+
+                  // If we don't have combination details or can't determine, assume it's applicable
+                  if (!combination) {
+                    isApplicableSubject = true;
+                  }
+
                   // Generate a unique key for this cell
                   const cellKey = `${student.id || student._id || 'unknown'}-${subject.code || subject.name || 'unknown'}`;
 
                   return (
-                    <TableCell key={cellKey} align="center" className="subject-cell">
-                      {studentSubject ? (
+                    <TableCell
+                      key={cellKey}
+                      align="center"
+                      className={`subject-cell ${isApplicableSubject ? 'applicable-subject' : 'non-applicable-subject'}`}
+                      sx={{
+                        backgroundColor: isApplicableSubject ? 'inherit' : '#f5f5f5',
+                        color: isApplicableSubject ? 'inherit' : '#999'
+                      }}
+                    >
+                      {isApplicableSubject && studentSubject ? (
                         <div className="subject-data">
                           <div className="subject-marks">
                             {(() => {
@@ -2713,10 +3043,15 @@ const ClassTabularReport = () => {
                             {studentSubject.grade && studentSubject.grade !== '-' ? studentSubject.grade : '-'}
                           </div>
                         </div>
-                      ) : (
+                      ) : isApplicableSubject ? (
                         <div className="subject-data">
                           <div className="subject-marks">-</div>
                           <div className="subject-grade">-</div>
+                        </div>
+                      ) : (
+                        <div className="subject-data">
+                          <div className="subject-marks">N/A</div>
+                          <div className="subject-grade">N/A</div>
                         </div>
                       )}
                     </TableCell>

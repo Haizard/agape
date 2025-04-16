@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../services/api';
+import { processClassData } from '../../utils/dataProcessing';
 
 const FixedSubjectClassAssignment = () => {
   const [subjects, setSubjects] = useState([]);
@@ -55,16 +56,16 @@ const FixedSubjectClassAssignment = () => {
         api.get('/api/classes'),
         api.get('/api/teachers?status=active')
       ]);
-      
+
       // Ensure we have valid data
       const validSubjects = Array.isArray(subjectsRes.data) ? subjectsRes.data : [];
       const validClasses = Array.isArray(classesRes.data) ? classesRes.data : [];
       const validTeachers = Array.isArray(teachersRes.data) ? teachersRes.data : [];
-      
+
       console.log('Fetched subjects:', validSubjects.length);
       console.log('Fetched classes:', validClasses.length);
       console.log('Fetched teachers:', validTeachers.length);
-      
+
       setSubjects(validSubjects);
       setClasses(validClasses);
       setTeachers(validTeachers);
@@ -90,7 +91,7 @@ const FixedSubjectClassAssignment = () => {
       setSelectedClass(null);
       return;
     }
-    
+
     setLoading(true);
     try {
       const response = await api.get(`/api/classes/${classId}`);
@@ -109,29 +110,29 @@ const FixedSubjectClassAssignment = () => {
       setError('Invalid class or subject ID');
       return;
     }
-    
+
     if (window.confirm('Are you sure you want to remove this subject from the class?')) {
       setLoading(true);
       try {
         // Get current class data
         const classResponse = await api.get(`/api/classes/${classId}`);
         const classData = classResponse.data;
-        
+
         // Filter out the subject to remove
         const updatedSubjects = (classData.subjects || []).filter(
           item => item.subject?._id !== subjectId && item.subject !== subjectId
         );
-        
+
         console.log('Removing subject. Updated subjects array:', updatedSubjects);
-        
+
         // Update the class with the new subjects array
         const updateResponse = await api.put(`/api/classes/${classId}/subjects`, {
           subjects: updatedSubjects
         });
-        
+
         console.log('Subject removal response:', updateResponse.data);
         setSuccess('Subject removed from class successfully');
-        
+
         // Refresh the selected class data
         fetchClassDetails(classId);
       } catch (err) {
@@ -145,33 +146,33 @@ const FixedSubjectClassAssignment = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.classId || !formData.subjectId) {
       setError('Please select both a class and a subject');
       return;
     }
-    
+
     setLoading(true);
     setDebugInfo(null);
     try {
       // Get current class data
       const classResponse = await api.get(`/api/classes/${formData.classId}`);
       const classData = classResponse.data;
-      
+
       // Check if this subject is already in the class
       const subjects = classData.subjects || [];
       let subjectExists = false;
-      
+
       // Create a new subjects array to avoid reference issues
       const updatedSubjects = [...subjects];
-      
+
       // Update or add the subject-teacher assignment
       for (let i = 0; i < updatedSubjects.length; i++) {
         const subjectId = updatedSubjects[i].subject?._id || updatedSubjects[i].subject;
         const formSubjectId = formData.subjectId;
-        
-        if (subjectId && 
-            (subjectId === formSubjectId || 
+
+        if (subjectId &&
+            (subjectId === formSubjectId ||
              subjectId.toString() === formSubjectId.toString())) {
           // Update existing subject
           updatedSubjects[i] = {
@@ -182,7 +183,7 @@ const FixedSubjectClassAssignment = () => {
           break;
         }
       }
-      
+
       // If subject doesn't exist in this class, add it
       if (!subjectExists) {
         updatedSubjects.push({
@@ -190,32 +191,32 @@ const FixedSubjectClassAssignment = () => {
           teacher: formData.teacherId || null
         });
       }
-      
+
       console.log('Submitting updated subjects:', updatedSubjects);
-      
+
       // Store debug info
       setDebugInfo({
         originalSubjects: subjects,
         updatedSubjects: updatedSubjects,
         formData: { ...formData }
       });
-      
+
       // Update the class with the new subjects array
       const updateResponse = await api.put(`/api/classes/${formData.classId}/subjects`, {
         subjects: updatedSubjects
       });
-      
+
       console.log('Update response:', updateResponse.data);
       setSuccess('Subject assigned to class successfully');
       setOpenDialog(false);
-      
+
       // Reset form data
       setFormData({
         classId: '',
         subjectId: '',
         teacherId: ''
       });
-      
+
       // Refresh the selected class data if it's the same as the one we just updated
       if (selectedClass && selectedClass._id === formData.classId) {
         fetchClassDetails(formData.classId);
@@ -333,11 +334,11 @@ const FixedSubjectClassAssignment = () => {
                     // Get the subject details
                     const subjectId = subjectItem.subject?._id || subjectItem.subject;
                     const subject = subjects.find(s => s._id === subjectId);
-                    
+
                     // Get the teacher details
                     const teacherId = subjectItem.teacher?._id || subjectItem.teacher;
                     const teacher = teachers.find(t => t._id === teacherId);
-                    
+
                     return (
                       <TableRow key={`${subjectId}-${index}`}>
                         <TableCell>{renderSubjectName(subject)}</TableCell>
@@ -367,9 +368,9 @@ const FixedSubjectClassAssignment = () => {
           <pre style={{ overflow: 'auto', maxHeight: '200px' }}>
             {JSON.stringify(debugInfo, null, 2)}
           </pre>
-          <Button 
-            variant="outlined" 
-            size="small" 
+          <Button
+            variant="outlined"
+            size="small"
             onClick={() => setDebugInfo(null)}
             sx={{ mt: 1 }}
           >
