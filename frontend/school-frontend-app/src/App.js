@@ -44,6 +44,7 @@ import SubjectCombinationManagement from './components/academic/SubjectCombinati
 import SubjectAssignmentPage from './components/academic/SubjectAssignmentPage';
 import CompulsorySubjectAssignment from './components/academic/CompulsorySubjectAssignment';
 import TeacherAssignment from './components/academic/TeacherAssignment';
+import TeacherSubjectAssignment from './components/admin/TeacherSubjectAssignment';
 import StudentAssignment from './components/academic/StudentAssignmentFixed';
 import ParentContactManagement from './components/admin/ParentContactManagement';
 import SMSSettings from './components/admin/SMSSettings';
@@ -211,6 +212,7 @@ function App() {
                           <Route path="direct-student-register" element={<DirectStudentRegistration />} />
                           <Route path="debug-user-role" element={<DebugUserRole />} />
                           <Route path="teacher-assignments" element={<TeacherAssignment />} />
+                          <Route path="teacher-subject-assignment" element={<TeacherSubjectAssignment />} />
                           <Route path="student-assignments" element={<StudentAssignment />} />
                           <Route path="students" element={<StudentManagement />} />
                           <Route path="exams" element={<ExamList />} />
