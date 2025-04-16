@@ -1427,111 +1427,176 @@ const ClassTabularReport = () => {
     }
   }, [classId, examId, generateDemoData, academicYear, term]);
 
+  // Function to normalize form values (convert strings to numbers, handle edge cases)
+  const normalizeFormValue = useCallback((formValue) => {
+    // If it's already a number 5 or 6, return it
+    if (formValue === 5 || formValue === 6) {
+      return formValue;
+    }
+
+    // If it's a string '5' or '6', convert to number
+    if (formValue === '5') return 5;
+    if (formValue === '6') return 6;
+
+    // If it's a string containing '5' or '6', extract and convert
+    if (typeof formValue === 'string') {
+      if (formValue.includes('5') || formValue.toLowerCase().includes('form 5')) {
+        return 5;
+      }
+      if (formValue.includes('6') || formValue.toLowerCase().includes('form 6')) {
+        return 6;
+      }
+    }
+
+    // Return null for invalid values
+    return null;
+  }, []);
+
+  // Function to set form values for all students in A-Level classes
+  const setDefaultFormForALevelStudents = useCallback(() => {
+    if (students.length === 0 || classData?.educationLevel !== 'A_LEVEL') {
+      return students;
+    }
+
+    console.log('Setting default form values for A-Level students...');
+    // Create a deep copy of the students array to avoid reference issues
+    const updatedStudents = JSON.parse(JSON.stringify(students));
+    let updatedCount = 0;
+
+    // Set form for each student
+    for (let i = 0; i < updatedStudents.length; i++) {
+      const student = updatedStudents[i];
+      let formAssigned = false;
+
+      // First try to normalize existing form value
+      const normalizedForm = normalizeFormValue(student.form);
+      if (normalizedForm) {
+        student.form = normalizedForm;
+        student.formLevel = normalizedForm; // Set formLevel for redundancy
+        formAssigned = true;
+        console.log(`Normalized form value for student ${student._id || student.id} to ${normalizedForm}`);
+      } else {
+        // Try to determine form from class name
+        if (classData?.name) {
+          if (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5')) {
+            student.form = 5;
+            student.formLevel = 5;
+            console.log(`Assigned Form 5 to student ${student._id || student.id} based on class name`);
+            formAssigned = true;
+          } else if (classData.name.includes('6') || classData.name.toLowerCase().includes('form 6')) {
+            student.form = 6;
+            student.formLevel = 6;
+            console.log(`Assigned Form 6 to student ${student._id || student.id} based on class name`);
+            formAssigned = true;
+          }
+        }
+
+        // Try to determine from admission number
+        if (!formAssigned && student.admissionNumber) {
+          if (typeof student.admissionNumber === 'string') {
+            if (student.admissionNumber.includes('F5-') || student.admissionNumber.startsWith('5')) {
+              student.form = 5;
+              student.formLevel = 5;
+              console.log(`Assigned Form 5 to student ${student._id || student.id} based on admission number`);
+              formAssigned = true;
+            } else if (student.admissionNumber.includes('F6-') || student.admissionNumber.startsWith('6')) {
+              student.form = 6;
+              student.formLevel = 6;
+              console.log(`Assigned Form 6 to student ${student._id || student.id} based on admission number`);
+              formAssigned = true;
+            }
+          }
+        }
+
+        // Try to determine from combination code
+        if (!formAssigned && (student.combination || student.subjectCombination)) {
+          const combinationCode = student.combination || student.subjectCombination;
+          // This is just a heuristic - adjust based on your school's actual patterns
+          if (['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
+            // These are typically Form 5 combinations
+            student.form = 5;
+            student.formLevel = 5;
+            console.log(`Assigned Form 5 to student ${student._id || student.id} based on combination ${combinationCode}`);
+            formAssigned = true;
+          } else if (['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
+            // These might be more common in Form 6
+            student.form = 6;
+            student.formLevel = 6;
+            console.log(`Assigned Form 6 to student ${student._id || student.id} based on combination ${combinationCode}`);
+            formAssigned = true;
+          }
+        }
+
+        // If still not set, default to Form 5 for A-Level classes
+        if (!formAssigned) {
+          student.form = 5; // Default to Form 5 for A-Level
+          student.formLevel = 5;
+          console.log(`Assigned default Form 5 to A-Level student ${student._id || student.id}`);
+          formAssigned = true;
+        }
+
+        if (formAssigned) {
+          updatedCount++;
+        }
+      }
+    }
+
+    // Update the students array with the updated form information
+    if (updatedCount > 0) {
+      console.log(`Updated form information for ${updatedCount} students`);
+      // Use a timeout to ensure state updates properly
+      setTimeout(() => {
+        setStudents(updatedStudents);
+      }, 0);
+    }
+
+    console.log('Student forms after processing:', updatedStudents.map(s => ({
+      id: s._id || s.id,
+      name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+      form: s.form
+    })));
+
+    return updatedStudents;
+  }, [students, classData, normalizeFormValue]);
+
   // Load data on component mount
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Add form information to students if missing
+  // Handle A-Level form assignment after data is loaded
   useEffect(() => {
-    if (students.length > 0) {
-      // For A-Level classes, we need to ensure all students have form 5 or 6
-      if (classData?.educationLevel === 'A_LEVEL') {
-        // Create a copy of the students array
-        const updatedStudents = [...students];
-        let updatedCount = 0;
+    // Only run this effect when students are loaded and we have class data
+    if (students.length > 0 && classData?.educationLevel === 'A_LEVEL' && !loading) {
+      // Check if we have students with form values not set to 5 or 6
+      const needsFormAssignment = students.some(s => {
+        const normalizedForm = normalizeFormValue(s.form);
+        return normalizedForm !== 5 && normalizedForm !== 6;
+      });
 
-        // Try to determine form for each student
-        for (let i = 0; i < updatedStudents.length; i++) {
-          const student = updatedStudents[i];
-          let formAssigned = false;
+      if (needsFormAssignment) {
+        // Automatically set form values for A-Level students
+        console.log('Automatically setting form values for A-Level students...');
+        const updatedStudents = setDefaultFormForALevelStudents();
 
-          // Check if the student already has a valid A-Level form
-          if (student.form === 5 || student.form === 6 || student.form === '5' || student.form === '6') {
-            // Normalize to number
-            student.form = student.form === '5' ? 5 : student.form === '6' ? 6 : student.form;
-            formAssigned = true;
-          } else {
-            // Try to determine form from class name
-            if (classData?.name) {
-              if (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5')) {
-                student.form = 5;
-                console.log(`Assigned Form 5 to student ${student._id || student.id} based on class name`);
-                formAssigned = true;
-              } else if (classData.name.includes('6') || classData.name.toLowerCase().includes('form 6')) {
-                student.form = 6;
-                console.log(`Assigned Form 6 to student ${student._id || student.id} based on class name`);
-                formAssigned = true;
-              }
-            }
-
-            // Try to determine from admission number
-            if (!formAssigned && student.admissionNumber) {
-              if (typeof student.admissionNumber === 'string') {
-                if (student.admissionNumber.includes('F5-') || student.admissionNumber.startsWith('5')) {
-                  student.form = 5;
-                  console.log(`Assigned Form 5 to student ${student._id || student.id} based on admission number`);
-                  formAssigned = true;
-                } else if (student.admissionNumber.includes('F6-') || student.admissionNumber.startsWith('6')) {
-                  student.form = 6;
-                  console.log(`Assigned Form 6 to student ${student._id || student.id} based on admission number`);
-                  formAssigned = true;
-                }
-              }
-            }
-
-            // Try to determine from combination code
-            if (!formAssigned && (student.combination || student.subjectCombination)) {
-              const combinationCode = student.combination || student.subjectCombination;
-              // This is just a heuristic - adjust based on your school's actual patterns
-              if (['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
-                // These are typically Form 5 combinations
-                student.form = 5;
-                console.log(`Assigned Form 5 to student ${student._id || student.id} based on combination ${combinationCode}`);
-                formAssigned = true;
-              } else if (['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
-                // These might be more common in Form 6
-                student.form = 6;
-                console.log(`Assigned Form 6 to student ${student._id || student.id} based on combination ${combinationCode}`);
-                formAssigned = true;
-              }
-            }
-
-            // If still not set, default to Form 5 for A-Level classes
-            if (!formAssigned) {
-              student.form = 5; // Default to Form 5 for A-Level
-              console.log(`Assigned default Form 5 to A-Level student ${student._id || student.id}`);
-              formAssigned = true;
-            }
-
-            if (formAssigned) {
-              updatedCount++;
-            }
-          }
-        }
-
-        // Update the students array with the updated form information
-        if (updatedCount > 0) {
-          console.log(`Updated form information for ${updatedCount} students`);
-          setStudents(updatedStudents);
-        }
-        console.log('Student forms after processing:', updatedStudents.map(s => ({
-          id: s._id || s.id,
-          name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
-          form: s.form
-        })));
+        // Show a notification about the automatic form assignment
+        setSnackbar({
+          open: true,
+          message: 'Form values have been automatically set for A-Level students. Use the Form filter to view students by form level.',
+          severity: 'success'
+        });
       } else {
-        // For O-Level classes, just log the current form information
-        console.log('O-Level class - student forms:', students.map(s => ({
-          id: s._id || s.id,
-          name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
-          form: s.form
-        })));
+        // Show a notification about form filtering for A-Level classes
+        setSnackbar({
+          open: true,
+          message: 'This is an A-Level class. Use the "Set Form for All Students" buttons if students are not showing up in the report.',
+          severity: 'info'
+        });
       }
     }
-  }, [students, classData]);
+  }, [classData, students, loading, setDefaultFormForALevelStudents, normalizeFormValue]);
 
-  // Filter students by combination and form - SIMPLIFIED VERSION
+  // Filter students by combination and form - IMPROVED VERSION
   const filteredStudents = students.filter(student => {
     // Filter by combination if selected
     if (filterCombination && (student.combination || student.subjectCombination) !== filterCombination) {
@@ -1543,10 +1608,56 @@ const ClassTabularReport = () => {
       // Convert filter form to number for consistent comparison
       const formNumber = Number.parseInt(filterForm, 10);
 
-      // Convert student form to number if it's a string
-      let studentFormNumber = student.form;
-      if (typeof studentFormNumber === 'string') {
-        studentFormNumber = Number.parseInt(studentFormNumber, 10);
+      // Use our normalizeFormValue function to get a consistent form value
+      let studentFormNumber = normalizeFormValue(student.form);
+
+      // If we couldn't determine a form value, try to assign one
+      if (studentFormNumber === null) {
+        // For A-Level classes, we need to ensure all students have form 5 or 6
+        if (classData?.educationLevel === 'A_LEVEL') {
+          // Try to determine form from various indicators
+
+          // Check class name
+          if (classData?.name) {
+            if (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5')) {
+              studentFormNumber = 5;
+              student.form = 5;
+              student.formLevel = 5;
+              console.log(`Assigned Form 5 to student ${student._id || student.id} based on class name`);
+            } else if (classData.name.includes('6') || classData.name.toLowerCase().includes('form 6')) {
+              studentFormNumber = 6;
+              student.form = 6;
+              student.formLevel = 6;
+              console.log(`Assigned Form 6 to student ${student._id || student.id} based on class name`);
+            }
+          }
+
+          // Check combination code
+          if (studentFormNumber === null) {
+            const combinationCode = student.combination || student.subjectCombination;
+            if (combinationCode) {
+              if (['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
+                studentFormNumber = 5;
+                student.form = 5;
+                student.formLevel = 5;
+                console.log(`Assigned Form 5 to student ${student._id || student.id} based on combination ${combinationCode}`);
+              } else if (['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
+                studentFormNumber = 6;
+                student.form = 6;
+                student.formLevel = 6;
+                console.log(`Assigned Form 6 to student ${student._id || student.id} based on combination ${combinationCode}`);
+              }
+            }
+          }
+
+          // If still not set, default to Form 5 for A-Level
+          if (studentFormNumber === null) {
+            studentFormNumber = 5;
+            student.form = 5;
+            student.formLevel = 5;
+            console.log(`Assigned default Form 5 to A-Level student ${student._id || student.id}`);
+          }
+        }
       }
 
       // Log for debugging
@@ -1557,51 +1668,28 @@ const ClassTabularReport = () => {
         name: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
       });
 
-      // Simple strict equality check
-      if (studentFormNumber !== formNumber) {
-        // If no match, check if we should assign a default form
-        if (studentFormNumber === undefined || studentFormNumber === null || Number.isNaN(studentFormNumber)) {
-          // For Form 5 filter, check if this is likely a Form 5 student
-          if (formNumber === 5) {
-            // Check class name for Form 5 indicators
-            if (classData?.name?.includes('5')) {
-              console.log(`Student ${student._id || student.id} matched as Form 5 based on class name`);
-              // Update the student object with the form number
-              student.form = 5;
-              return true;
-            }
+      // If we're filtering for Form 5 and this is an A-Level class with no form set,
+      // default to showing the student in Form 5
+      if (formNumber === 5 && classData?.educationLevel === 'A_LEVEL' && studentFormNumber === null) {
+        student.form = 5;
+        student.formLevel = 5;
+        console.log(`Defaulting A-Level student ${student._id || student.id} to Form 5 for filtering`);
+        return true;
+      }
 
-            // Check combination for Form 5 indicators
-            const combinationCode = student.combination || student.subjectCombination;
-            if (combinationCode && ['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
-              console.log(`Student ${student._id || student.id} matched as Form 5 based on combination ${combinationCode}`);
-              // Update the student object with the form number
-              student.form = 5;
-              return true;
-            }
-          }
-
-          // For Form 6 filter, check if this is likely a Form 6 student
-          if (formNumber === 6) {
-            // Check class name for Form 6 indicators
-            if (classData?.name?.includes('6')) {
-              console.log(`Student ${student._id || student.id} matched as Form 6 based on class name`);
-              // Update the student object with the form number
-              student.form = 6;
-              return true;
-            }
-
-            // Check combination for Form 6 indicators
-            const combinationCode = student.combination || student.subjectCombination;
-            if (combinationCode && ['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
-              console.log(`Student ${student._id || student.id} matched as Form 6 based on combination ${combinationCode}`);
-              // Update the student object with the form number
-              student.form = 6;
-              return true;
-            }
-          }
+      // If we're filtering for Form 6 and this student has specific Form 6 indicators, include them
+      if (formNumber === 6) {
+        const combinationCode = student.combination || student.subjectCombination;
+        if (combinationCode && ['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
+          student.form = 6;
+          student.formLevel = 6;
+          console.log(`Matched student ${student._id || student.id} as Form 6 based on combination ${combinationCode}`);
+          return true;
         }
+      }
 
+      // Simple equality check with the normalized form value
+      if (studentFormNumber !== formNumber) {
         console.log(`Student ${student._id || student.id} did NOT match form filter ${filterForm}`);
         return false;
       }
@@ -1641,8 +1729,24 @@ const ClassTabularReport = () => {
     // Convert to number to ensure consistent type
     const numericForm = Number(formNumber);
 
-    // Create a copy of the students array
-    const updatedStudents = [...students];
+    // For A-Level classes, use our specialized function if setting to form 5
+    if (classData?.educationLevel === 'A_LEVEL' && numericForm === 5) {
+      // This will apply more intelligent form assignment
+      const result = setDefaultFormForALevelStudents();
+      console.log(`Set form values for all ${result.length} A-Level students using intelligent assignment`);
+
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: `Set Form 5 for all ${result.length} A-Level students with intelligent assignment`,
+        severity: 'success'
+      });
+
+      return result;
+    }
+
+    // Create a deep copy of the students array to avoid reference issues
+    const updatedStudents = JSON.parse(JSON.stringify(students));
 
     // Set the form for all students
     for (let i = 0; i < updatedStudents.length; i++) {
@@ -1651,8 +1755,11 @@ const ClassTabularReport = () => {
       updatedStudents[i].formLevel = numericForm;
     }
 
-    // Update the students array
-    setStudents(updatedStudents);
+    // Update the students array - use setTimeout to ensure state updates properly
+    setTimeout(() => {
+      setStudents(updatedStudents);
+    }, 0);
+
     console.log(`Set form ${numericForm} for all ${updatedStudents.length} students`);
 
     // Show success message
@@ -1892,82 +1999,210 @@ const ClassTabularReport = () => {
             />
           )}
 
-          <Box sx={{ display: 'flex', gap: 1, ml: 2, alignItems: 'center' }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', ml: 2, p: 1, border: '1px solid #e0e0e0', borderRadius: 1, bgcolor: '#f5f5f5' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
               Set Form for All Students:
             </Typography>
-            <Button
-              size="small"
-              variant="outlined"
-              color="secondary"
-              onClick={() => setFormForAllStudents(5)}
-            >
-              All Form 5
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              color="secondary"
-              onClick={() => setFormForAllStudents(6)}
-            >
-              All Form 6
-            </Button>
+            <Typography variant="caption" sx={{ mb: 1, color: 'text.secondary' }}>
+              If students are not showing up in the report, use these buttons to set the form level for all students.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button
+                size="small"
+                variant="contained"
+                color="secondary"
+                onClick={() => setFormForAllStudents(5)}
+                sx={{ fontWeight: 'bold' }}
+              >
+                Set All to Form 5
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="secondary"
+                onClick={() => setFormForAllStudents(6)}
+                sx={{ fontWeight: 'bold' }}
+              >
+                Set All to Form 6
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="info"
+                onClick={() => {
+                  // Reset all form values to undefined
+                  const resetStudents = students.map(student => ({
+                    ...student,
+                    form: undefined,
+                    formLevel: undefined
+                  }));
+
+                  // Update the state
+                  setStudents(resetStudents);
+
+                  // Clear any form filter
+                  setFilterForm('');
+
+                  // After a short delay, run the intelligent form detection
+                  setTimeout(() => {
+                    setDefaultFormForALevelStudents();
+
+                    // Show success message
+                    setSnackbar({
+                      open: true,
+                      message: 'Reset and auto-detected form values for all students',
+                      severity: 'success'
+                    });
+                  }, 100);
+                }}
+                sx={{ fontWeight: 'bold' }}
+              >
+                Reset & Auto-Detect Forms
+              </Button>
+            </Box>
           </Box>
 
           {/* Quick actions for filtering */}
-          <Box sx={{ display: 'flex', gap: 1, ml: 2, alignItems: 'center', borderLeft: '1px solid #ddd', pl: 2 }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-              Quick Filter:
+          <Box sx={{ display: 'flex', flexDirection: 'column', ml: 2, p: 1, border: '1px solid #e0e0e0', borderRadius: 1, bgcolor: '#f0f7ff' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+              Quick Filter Actions:
             </Typography>
-            <Button
-              size="small"
-              variant="contained"
-              color="primary"
-              onClick={() => {
-                // Set all students to Form 5 and apply filter
-                const updatedStudents = setFormForAllStudents(5);
-                // Force a re-render before applying the filter
-                setTimeout(() => {
-                  setFilterForm('5');
-                  console.log('Applied Form 5 filter after setting all students to Form 5');
-                }, 100);
-              }}
-              sx={{
-                bgcolor: filterForm === '5' ? '#1565c0' : 'primary.main',
-                fontWeight: filterForm === '5' ? 'bold' : 'normal',
-                '&:hover': {
-                  bgcolor: filterForm === '5' ? '#0d47a1' : 'primary.dark',
-                }
-              }}
-            >
-              Show Form 5 Only
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              color="primary"
-              onClick={() => {
-                // Set all students to Form 6 and apply filter
-                const updatedStudents = setFormForAllStudents(6);
-                // Force a re-render before applying the filter
-                setTimeout(() => {
-                  setFilterForm('6');
-                  console.log('Applied Form 6 filter after setting all students to Form 6');
-                }, 100);
-              }}
-              sx={{
-                bgcolor: filterForm === '6' ? '#1565c0' : 'primary.main',
-                fontWeight: filterForm === '6' ? 'bold' : 'normal',
-                '&:hover': {
-                  bgcolor: filterForm === '6' ? '#0d47a1' : 'primary.dark',
-                }
-              }}
-            >
-              Show Form 6 Only
-            </Button>
+            <Typography variant="caption" sx={{ mb: 1, color: 'text.secondary' }}>
+              These buttons will set all students to the selected form AND apply the filter in one step.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                size="small"
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  // Set all students to Form 5 and apply filter
+                  const updatedStudents = setFormForAllStudents(5);
+                  // Force a re-render before applying the filter
+                  setTimeout(() => {
+                    // First clear the filter to force a re-evaluation
+                    setFilterForm('');
+                    // Then set it again after a short delay
+                    setTimeout(() => {
+                      setFilterForm('5');
+                      console.log('Applied Form 5 filter after setting all students to Form 5');
+                    }, 50);
+                  }, 100);
+                }}
+                sx={{
+                  bgcolor: filterForm === '5' ? '#1565c0' : 'primary.main',
+                  fontWeight: 'bold',
+                  '&:hover': {
+                    bgcolor: filterForm === '5' ? '#0d47a1' : 'primary.dark',
+                  }
+                }}
+              >
+                Set All to Form 5 AND Show Form 5 Only
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  // Set all students to Form 6 and apply filter
+                  const updatedStudents = setFormForAllStudents(6);
+                  // Force a re-render before applying the filter
+                  setTimeout(() => {
+                    // First clear the filter to force a re-evaluation
+                    setFilterForm('');
+                    // Then set it again after a short delay
+                    setTimeout(() => {
+                      setFilterForm('6');
+                      console.log('Applied Form 6 filter after setting all students to Form 6');
+                    }, 50);
+                  }, 100);
+                }}
+                sx={{
+                  bgcolor: filterForm === '6' ? '#1565c0' : 'primary.main',
+                  fontWeight: 'bold',
+                  '&:hover': {
+                    bgcolor: filterForm === '6' ? '#0d47a1' : 'primary.dark',
+                  }
+                }}
+              >
+                Set All to Form 6 AND Show Form 6 Only
+              </Button>
+            </Box>
           </Box>
         </Box>
       </Box>
+
+      {/* A-Level Form Alert - Only shown for A-Level classes */}
+      {classData?.educationLevel === 'A_LEVEL' && (
+        <Box sx={{ mb: 2, p: 2, bgcolor: '#fff3e0', borderRadius: 1, border: '1px solid #ffe0b2' }}>
+          <Typography variant="h6" sx={{ color: '#e65100', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+            <span role="img" aria-label="warning" style={{ marginRight: '8px' }}>⚠️</span>
+            Important: A-Level Form Assignment
+          </Typography>
+          <Typography variant="body1" sx={{ mt: 1 }}>
+            This is an A-Level class. If students are not showing up in the report, you need to set their form level:
+          </Typography>
+          <Box sx={{ mt: 1, mb: 1 }}>
+            <ul style={{ margin: 0, paddingLeft: '20px' }}>
+              <li>Use the <strong>"Set All to Form 5"</strong> button to set all students to Form 5</li>
+              <li>Use the <strong>"Set All to Form 6"</strong> button to set all students to Form 6</li>
+              <li>Use <strong>"Reset & Auto-Detect Forms"</strong> to intelligently assign forms based on student data</li>
+              <li>Or use the quick filter buttons to set and filter in one step</li>
+            </ul>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={() => setFormForAllStudents(5)}
+              sx={{ fontWeight: 'bold' }}
+            >
+              Set All to Form 5
+            </Button>
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={() => setFormForAllStudents(6)}
+              sx={{ fontWeight: 'bold' }}
+            >
+              Set All to Form 6
+            </Button>
+            <Button
+              variant="outlined"
+              color="warning"
+              onClick={() => {
+                // Reset all form values to undefined
+                const resetStudents = students.map(student => ({
+                  ...student,
+                  form: undefined,
+                  formLevel: undefined
+                }));
+
+                // Update the state
+                setStudents(resetStudents);
+
+                // Clear any form filter
+                setFilterForm('');
+
+                // After a short delay, run the intelligent form detection
+                setTimeout(() => {
+                  setDefaultFormForALevelStudents();
+
+                  // Show success message
+                  setSnackbar({
+                    open: true,
+                    message: 'Reset and auto-detected form values for all students',
+                    severity: 'success'
+                  });
+                }, 100);
+              }}
+              sx={{ fontWeight: 'bold' }}
+            >
+              Reset & Auto-Detect Forms
+            </Button>
+          </Box>
+        </Box>
+      )}
 
       {/* Debug Information - Only visible in development */}
       {process.env.NODE_ENV === 'development' && (
