@@ -176,7 +176,15 @@ const ALevelMarksEntry = () => {
         } catch (teacherError) {
           console.error('Error fetching assigned students:', teacherError);
 
-          // If the teacher-specific endpoint fails, try the general endpoint
+          // Handle 403/401 errors gracefully without logging out
+          if (teacherError.response && (teacherError.response.status === 403 || teacherError.response.status === 401)) {
+            console.log('Teacher is not authorized for this class');
+            setError('You are not authorized to teach in this class. Please contact an administrator.');
+            setLoading(false);
+            return; // Exit early if unauthorized
+          }
+
+          // If the teacher-specific endpoint fails for other reasons, try the general endpoint
           console.log('Falling back to general students endpoint');
           const response = await api.get(`/api/students/class/${classId}`);
           studentsData = response.data || [];
@@ -260,13 +268,68 @@ const ALevelMarksEntry = () => {
         });
       }
 
-      // Filter for A-Level students by educationLevel OR form level (5 or 6)
+      // Check if the class is an A-Level class (Form 5 or Form 6)
+      const selectedClassObj = classes.find(cls => cls._id === classId);
+
+      // Check if the class name contains 'FORM V' or 'FORM VI' (special case for this school)
+      const hasALevelName = selectedClassObj?.name && (
+        selectedClassObj.name.toUpperCase().includes('FORM V') ||
+        selectedClassObj.name.toUpperCase().includes('FORM VI')
+      );
+
+      // Enhanced A-Level class detection
+      let isALevelClass = selectedClassObj && (
+        // Check form property
+        selectedClassObj.form === 5 ||
+        selectedClassObj.form === 6 ||
+        selectedClassObj.educationLevel === 'A_LEVEL' ||
+        // Check name for various formats (case insensitive)
+        (selectedClassObj.name && (
+          selectedClassObj.name.toUpperCase().includes('FORM 5') ||
+          selectedClassObj.name.toUpperCase().includes('FORM 6') ||
+          selectedClassObj.name.toUpperCase().includes('FORM V') ||
+          selectedClassObj.name.toUpperCase().includes('FORM VI') ||
+          selectedClassObj.name.toUpperCase().includes('F5') ||
+          selectedClassObj.name.toUpperCase().includes('F6') ||
+          selectedClassObj.name.toUpperCase().includes('FV') ||
+          selectedClassObj.name.toUpperCase().includes('FVI') ||
+          // Check for A-Level indicators
+          selectedClassObj.name.toUpperCase().includes('A-LEVEL') ||
+          selectedClassObj.name.toUpperCase().includes('A LEVEL')
+        ))
+      );
+
+      // Force A-Level class for testing if the class name contains 'FORM V' or 'FORM VI'
+      if (hasALevelName) {
+        console.log(`Class ${selectedClassObj.name} is recognized as an A-Level class by name`);
+        console.log(`Forcing class ${selectedClassObj.name} to be recognized as an A-Level class`);
+        isALevelClass = true;
+      }
+
+      console.log(`Class ${classId} is ${isALevelClass ? 'an A-Level' : 'not an A-Level'} class:`,
+        selectedClassObj?.name,
+        `Form: ${selectedClassObj?.form}`);
+
+      // Filter for A-Level students by educationLevel OR form level (5 or 6) OR being in an A-Level class
       const aLevelStudents = studentsData.filter(student => {
         // Check if student is explicitly marked as A_LEVEL
         const isALevel = student.educationLevel === 'A_LEVEL';
 
         // Check if student is in Form 5 or 6 (A-Level forms)
         const isFormFiveOrSix = student.form === 5 || student.form === 6;
+
+        // Determine if this is an A-Level student
+        const isALevelStudent = isALevel || isFormFiveOrSix;
+
+        // If the class is an A-Level class, only include A-Level students
+        if (isALevelClass) {
+          if (isALevelStudent) {
+            console.log(`Student ${student.firstName} ${student.lastName} is an A-Level student in an A-Level class`);
+            return true;
+          }
+          console.log(`Student ${student.firstName} ${student.lastName} is not an A-Level student but is in an A-Level class, excluding`);
+          return false;
+        }
 
         // For debugging
         if (isFormFiveOrSix && !isALevel) {
@@ -275,7 +338,7 @@ const ALevelMarksEntry = () => {
         }
 
         // Return true if either condition is met
-        return isALevel || isFormFiveOrSix;
+        return isALevelStudent;
       });
 
       // Log the students for debugging
@@ -353,13 +416,27 @@ const ALevelMarksEntry = () => {
         try {
           // Get the teacher's assigned subjects for this class
           console.log(`Fetching subjects that the teacher is assigned to teach in class ${classId}`);
-          classSubjects = await teacherApi.getAssignedSubjects(classId);
-          console.log(`Teacher has ${classSubjects.length} assigned subjects in class ${classId}:`,
-            classSubjects.map(s => `${s.name} (${s._id})`));
+          try {
+            classSubjects = await teacherApi.getAssignedSubjects(classId);
+            console.log(`Teacher has ${classSubjects.length} assigned subjects in class ${classId}:`,
+              classSubjects.map(s => `${s.name} (${s._id})`));
 
-          if (classSubjects.length === 0) {
-            console.log('No assigned subjects found for this teacher in this class');
-            setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+            if (classSubjects.length === 0) {
+              console.log('No assigned subjects found for this teacher in this class');
+              setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+              setLoading(false);
+              return; // Exit early if no subjects found
+            }
+          } catch (error) {
+            console.error('Error fetching assigned subjects:', error);
+            // Handle 403/401 errors gracefully without logging out
+            if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+              setError('You are not authorized to teach in this class. Please contact an administrator.');
+            } else {
+              setError(error.response?.data?.message || 'Error fetching assigned subjects. Please try again later.');
+            }
+            setLoading(false);
+            return; // Exit early if error occurs
           }
         } catch (error) {
           console.error('Error fetching teacher subjects:', error);
@@ -418,72 +495,79 @@ const ALevelMarksEntry = () => {
         // Find the selected student object
         const selectedStudentObj = students.find(s => s._id === studentId);
 
-        if (selectedStudentObj && selectedStudentObj.educationLevel === 'A_LEVEL') {
-          console.log(`Selected A-Level student: ${selectedStudentObj.firstName} ${selectedStudentObj.lastName}`);
+        // Check if the class is an A-Level class
+        const selectedClassObj = classes.find(cls => cls._id === selectedClass);
 
-          // Check if student has a subject combination
-          if (selectedStudentObj.subjectCombination) {
-            console.log(`Student has subject combination: ${selectedStudentObj.subjectCombination.name || selectedStudentObj.subjectCombination._id}`);
+        // Check if the class name contains 'FORM V' or 'FORM VI' (special case for this school)
+        const hasALevelName = selectedClassObj?.name && (
+          selectedClassObj.name.toUpperCase().includes('FORM V') ||
+          selectedClassObj.name.toUpperCase().includes('FORM VI')
+        );
 
-            // Check if the combination is fully populated
-            const isPopulated = typeof selectedStudentObj.subjectCombination === 'object' &&
-                              selectedStudentObj.subjectCombination.subjects &&
-                              Array.isArray(selectedStudentObj.subjectCombination.subjects);
+        // Enhanced A-Level class detection
+        let isALevelClass = selectedClassObj && (
+          // Check form property
+          selectedClassObj.form === 5 ||
+          selectedClassObj.form === 6 ||
+          selectedClassObj.educationLevel === 'A_LEVEL' ||
+          // Check name for various formats (case insensitive)
+          (selectedClassObj.name && (
+            selectedClassObj.name.toUpperCase().includes('FORM 5') ||
+            selectedClassObj.name.toUpperCase().includes('FORM 6') ||
+            selectedClassObj.name.toUpperCase().includes('FORM V') ||
+            selectedClassObj.name.toUpperCase().includes('FORM VI') ||
+            selectedClassObj.name.toUpperCase().includes('F5') ||
+            selectedClassObj.name.toUpperCase().includes('F6') ||
+            selectedClassObj.name.toUpperCase().includes('FV') ||
+            selectedClassObj.name.toUpperCase().includes('FVI') ||
+            // Check for A-Level indicators
+            selectedClassObj.name.toUpperCase().includes('A-LEVEL') ||
+            selectedClassObj.name.toUpperCase().includes('A LEVEL')
+          ))
+        );
 
-            if (!isPopulated) {
-              console.log('Subject combination is not fully populated, fetching details...');
+        // Force A-Level class for testing if the class name contains 'FORM V' or 'FORM VI'
+        if (hasALevelName) {
+          console.log(`Student selection: Class ${selectedClassObj.name} is recognized as an A-Level class by name`);
+          console.log(`Student selection: Forcing class ${selectedClassObj.name} to be recognized as an A-Level class`);
+          isALevelClass = true;
+        }
 
-              try {
-                // Fetch the full subject combination details
-                const combinationId = typeof selectedStudentObj.subjectCombination === 'object' ?
-                  selectedStudentObj.subjectCombination._id : selectedStudentObj.subjectCombination;
+        // Check if student is explicitly marked as A_LEVEL
+        const isALevel = selectedStudentObj?.educationLevel === 'A_LEVEL';
 
-                const response = await api.get(`/api/subject-combinations/${combinationId}`);
-                const fullCombination = response.data;
+        // Check if student is in Form 5 or 6 (A-Level forms)
+        const isFormFiveOrSix = selectedStudentObj?.form === 5 || selectedStudentObj?.form === 6;
 
-                // Update the student object with the full combination
-                selectedStudentObj.subjectCombination = fullCombination;
+        // Determine if this is an A-Level student
+        const isALevelStudent = isALevel || isFormFiveOrSix;
 
-                console.log('Fetched full subject combination:', fullCombination);
-              } catch (error) {
-                console.error('Error fetching subject combination details:', error);
-              }
-            }
+        // If the student is in an A-Level class AND is an A-Level student, proceed
+        if (isALevelClass && isALevelStudent) {
+          console.log(`Selected ${isALevelClass ? 'student in A-Level class' : 'A-Level student'}: ${selectedStudentObj.firstName} ${selectedStudentObj.lastName}`);
 
-            // Get subjects from the student's combination
-            const combinationSubjects = studentSubjectsApi.getSubjectsFromCombination(selectedStudentObj);
+          // Always use the teacher API to get subjects for this student
+          console.log('Fetching subjects for student that the teacher is assigned to teach');
+          try {
+            // Use the new endpoint to get subjects for this student that the teacher is assigned to teach
+            const teacherSubjectsForStudent = await teacherApi.getAssignedSubjectsForStudent(studentId, selectedClass);
 
-            if (combinationSubjects.length > 0) {
-              console.log(`Found ${combinationSubjects.length} subjects from student's combination`);
-              setSubjects(combinationSubjects);
+            if (teacherSubjectsForStudent.length > 0) {
+              console.log(`Found ${teacherSubjectsForStudent.length} subjects for student taught by this teacher`);
+              setSubjects(teacherSubjectsForStudent);
             } else {
-              // If no subjects found in combination, fetch them from the API
-              console.log('No subjects found in combination, fetching from API');
-              const studentSubjects = await studentSubjectsApi.getStudentSubjects(studentId);
-              if (studentSubjects.length > 0) {
-                console.log(`Found ${studentSubjects.length} subjects for student from API`);
-                setSubjects(studentSubjects);
-              } else {
-                console.log('No subjects found for student from API');
-                setSubjects([]);
-                setError('No subjects found for this student. Please ensure the student has a subject combination assigned.');
-              }
-            }
-          } else {
-            console.log('Student has no subject combination, fetching subjects from API');
-            // Fetch subjects specifically for this student
-            const studentSubjects = await studentSubjectsApi.getStudentSubjects(studentId);
-            if (studentSubjects.length > 0) {
-              console.log(`Found ${studentSubjects.length} subjects for student from API`);
-              setSubjects(studentSubjects);
-            } else {
-              console.log('No subjects found for student from API');
+              // If no subjects found that the teacher teaches, show a message
+              console.log('No subjects found for student that the teacher is assigned to teach');
               setSubjects([]);
-              setError('No subjects found for this student. Please ensure the student has a subject combination assigned.');
+              setError('You are not assigned to teach any subjects for this student. Please contact an administrator.');
             }
+          } catch (error) {
+            console.error('Error fetching teacher subjects for student:', error);
+            setSubjects([]);
+            setError('Failed to load subjects for this student. Please try again.');
           }
         } else {
-          console.log('Selected student is not A-Level or not found');
+          console.log('Selected student is not in an A-Level class and not marked as A-Level');
           setSubjects([]);
           setError('This component is only for A-Level students. Please select an A-Level student.');
         }

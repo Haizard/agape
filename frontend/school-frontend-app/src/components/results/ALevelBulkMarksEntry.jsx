@@ -176,13 +176,27 @@ const ALevelBulkMarksEntry = () => {
           try {
             // Get the teacher's assigned subjects for this class
             console.log(`Fetching subjects that the teacher is assigned to teach in class ${selectedClass}`);
-            subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
-            console.log(`Teacher has ${subjectsData.length} assigned subjects in class ${selectedClass}:`,
-              subjectsData.map(s => `${s.name} (${s._id})`));
+            try {
+              subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
+              console.log(`Teacher has ${subjectsData.length} assigned subjects in class ${selectedClass}:`,
+                subjectsData.map(s => `${s.name} (${s._id})`));
 
-            if (subjectsData.length === 0) {
-              console.log('No assigned subjects found for this teacher in this class');
-              setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+              if (subjectsData.length === 0) {
+                console.log('No assigned subjects found for this teacher in this class');
+                setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+                setLoading(false);
+                return; // Exit early if no subjects found
+              }
+            } catch (error) {
+              console.error('Error fetching assigned subjects:', error);
+              // Handle 403/401 errors gracefully without logging out
+              if (error.response && (error.response.status === 403 || error.response.status === 401)) {
+                setError('You are not authorized to teach in this class. Please contact an administrator.');
+              } else {
+                setError(error.response?.data?.message || 'Error fetching assigned subjects. Please try again later.');
+              }
+              setLoading(false);
+              return; // Exit early if error occurs
             }
           } catch (error) {
             console.error('Error fetching teacher subjects:', error);
@@ -259,7 +273,15 @@ const ALevelBulkMarksEntry = () => {
           } catch (teacherError) {
             console.error('Error fetching assigned students:', teacherError);
 
-            // If the teacher-specific endpoint fails, try the general endpoint
+            // Handle 403/401 errors gracefully without logging out
+            if (teacherError.response && (teacherError.response.status === 403 || teacherError.response.status === 401)) {
+              console.log('Teacher is not authorized for this class');
+              setError('You are not authorized to teach in this class. Please contact an administrator.');
+              setLoading(false);
+              return; // Exit early if unauthorized
+            }
+
+            // If the teacher-specific endpoint fails for other reasons, try the general endpoint
             console.log('Falling back to general students endpoint');
             const response = await api.get(`/api/students/class/${selectedClass}`);
             studentsData = response.data || [];
@@ -328,6 +350,45 @@ const ALevelBulkMarksEntry = () => {
         // Log raw student data for debugging
         console.log('Raw student data:', studentsData.slice(0, 3));
 
+        // Get the class object to check if it's an A-Level class
+        const selectedClassObj = classes.find(cls => cls._id === selectedClass);
+
+        // Enhanced A-Level class detection
+        const isALevelClass = selectedClassObj && (
+          // Check form property
+          selectedClassObj.form === 5 ||
+          selectedClassObj.form === 6 ||
+          selectedClassObj.educationLevel === 'A_LEVEL' ||
+          // Check name for various formats (case insensitive)
+          (selectedClassObj.name && (
+            selectedClassObj.name.toUpperCase().includes('FORM 5') ||
+            selectedClassObj.name.toUpperCase().includes('FORM 6') ||
+            selectedClassObj.name.toUpperCase().includes('FORM V') ||
+            selectedClassObj.name.toUpperCase().includes('FORM VI') ||
+            selectedClassObj.name.toUpperCase().includes('F5') ||
+            selectedClassObj.name.toUpperCase().includes('F6') ||
+            selectedClassObj.name.toUpperCase().includes('FV') ||
+            selectedClassObj.name.toUpperCase().includes('FVI') ||
+            selectedClassObj.name.toUpperCase().includes('A-LEVEL') ||
+            selectedClassObj.name.toUpperCase().includes('A LEVEL')
+          ))
+        );
+
+        // Special case for this school - force A-Level class if name contains 'FORM V' or 'FORM VI'
+        let forceALevel = false;
+        if (selectedClassObj?.name && (
+          selectedClassObj.name.toUpperCase().includes('FORM V') ||
+          selectedClassObj.name.toUpperCase().includes('FORM VI')
+        )) {
+          console.log(`Class ${selectedClassObj.name} is recognized as an A-Level class by name`);
+          console.log(`Forcing class ${selectedClassObj.name} to be recognized as an A-Level class`);
+          forceALevel = true;
+        }
+
+        console.log(`Class ${selectedClass} is ${(isALevelClass || forceALevel) ? 'an A-Level' : 'not an A-Level'} class:`,
+          selectedClassObj?.name,
+          `Form: ${selectedClassObj?.form}`);
+
         // Filter for A-Level students by educationLevel OR form level (5 or 6)
         const aLevelStudents = studentsData.filter(student => {
           // Check if student is explicitly marked as A_LEVEL
@@ -336,6 +397,19 @@ const ALevelBulkMarksEntry = () => {
           // Check if student is in Form 5 or 6 (A-Level forms)
           const isFormFiveOrSix = student.form === 5 || student.form === 6;
 
+          // Determine if this is an A-Level student
+          const isALevelStudent = isALevel || isFormFiveOrSix;
+
+          // If the class is an A-Level class, only include A-Level students
+          if (isALevelClass || forceALevel) {
+            if (isALevelStudent) {
+              console.log(`Student ${student.firstName} ${student.lastName} is an A-Level student in an A-Level class`);
+              return true;
+            }
+            console.log(`Student ${student.firstName} ${student.lastName} is not an A-Level student but is in an A-Level class, excluding`);
+            return false;
+          }
+
           // For debugging
           if (isFormFiveOrSix && !isALevel) {
             console.log(`Student in Form ${student.form} but not marked as A_LEVEL:`,
@@ -343,7 +417,7 @@ const ALevelBulkMarksEntry = () => {
           }
 
           // Return true if either condition is met
-          return isALevel || isFormFiveOrSix;
+          return isALevelStudent;
         });
 
         console.log(`Found ${aLevelStudents.length} A-Level students out of ${studentsData.length} total students`);
@@ -498,7 +572,7 @@ const ALevelBulkMarksEntry = () => {
     };
 
     fetchStudents();
-  }, [selectedClass, selectedSubject, selectedExam, subjects]);
+  }, [selectedClass, selectedSubject, selectedExam, subjects, classes]);
 
   // Handle class change
   const handleClassChange = (event) => {
