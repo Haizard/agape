@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import api from '../../utils/api';
+import api, { constructApiUrl } from '../../utils/api';
 import {
   Box,
   Typography,
@@ -71,20 +71,22 @@ const MarksHistoryViewer = () => {
 
         switch (type) {
           case 'result':
-            endpoint = `/marks-history/result/${id}?resultModel=${resultModel}`;
+            endpoint = constructApiUrl(`/marks-history/result/${id}?resultModel=${resultModel}`);
             break;
           case 'student':
-            endpoint = `/marks-history/student/${id}`;
+            endpoint = constructApiUrl(`/marks-history/student/${id}`);
             break;
           case 'subject':
-            endpoint = `/marks-history/subject/${id}`;
+            endpoint = constructApiUrl(`/marks-history/subject/${id}`);
             break;
           case 'exam':
-            endpoint = `/marks-history/exam/${id}`;
+            endpoint = constructApiUrl(`/marks-history/exam/${id}`);
             break;
           default:
             throw new Error('Invalid history type');
         }
+
+        console.log(`Fetching marks history from endpoint: ${endpoint}`);
 
         const response = await api.get(endpoint);
 
@@ -108,10 +110,13 @@ const MarksHistoryViewer = () => {
   const handleConfirmRevert = async () => {
     try {
       setLoading(true);
-      await api.post(`/marks-history/revert/${selectedEntry._id}`, { reason: revertReason });
+      console.log(`Reverting marks history entry: ${selectedEntry._id}`);
+      await api.post(`/api/marks-history/revert/${selectedEntry._id}`, { reason: revertReason });
 
       // Refresh history after revert
-      const response = await api.get(`/marks-history/${type}/${id}${type === 'result' ? `?resultModel=${resultModel}` : ''}`);
+      const refreshEndpoint = `/api/marks-history/${type}/${id}${type === 'result' ? `?resultModel=${resultModel}` : ''}`;
+      console.log(`Refreshing history from endpoint: ${refreshEndpoint}`);
+      const response = await api.get(refreshEndpoint);
 
       setHistory(response.data.data);
       setConfirmDialogOpen(false);

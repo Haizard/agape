@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { API_URL } from '../config/index';
 
+// Log the API URL for debugging
+console.log('API URL in api.js:', API_URL);
+
 // Create an axios instance with the API URL
 const api = axios.create({
   baseURL: API_URL,
@@ -39,8 +42,46 @@ api.interceptors.response.use(
       // You could redirect to login page or refresh token here
     }
 
+    // Log detailed error information for debugging
+    if (error.response) {
+      console.error('API Error Response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        url: error.config.url,
+        method: error.config.method,
+        data: error.response.data
+      });
+    } else if (error.request) {
+      console.error('API Error Request:', {
+        url: error.config.url,
+        method: error.config.method,
+        noResponse: true
+      });
+    } else {
+      console.error('API Error:', error.message);
+    }
+
     return Promise.reject(error);
   }
 );
+
+// Utility function to ensure API URLs are correctly formatted
+export const constructApiUrl = (endpoint) => {
+  // If the endpoint already starts with http:// or https://, return it as is
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+
+  // Ensure the endpoint starts with a slash
+  const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // If the endpoint already includes /api/, don't add it again
+  if (formattedEndpoint.includes('/api/')) {
+    return formattedEndpoint;
+  }
+
+  // Add /api/ prefix if it's missing
+  return `/api${formattedEndpoint}`;
+};
 
 export default api;

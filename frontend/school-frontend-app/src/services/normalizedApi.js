@@ -4,8 +4,36 @@ import { normalizeApiResponse } from './dataNormalizer';
 /**
  * Create a new axios instance with interceptors to normalize responses
  */
+// Utility function to construct API URLs correctly
+const constructApiUrl = (path) => {
+  let newPath = path;
+
+  // Ensure path starts with a slash
+  if (!newPath.startsWith('/')) {
+    newPath = `/${newPath}`;
+  }
+
+  // Ensure path starts with /api
+  if (!newPath.startsWith('/api')) {
+    newPath = `/api${newPath}`;
+  }
+
+  return newPath;
+};
+
+// Determine the base URL without duplicating '/api'
+let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+// Remove trailing '/api' if it exists to avoid duplication
+if (baseURL.endsWith('/api')) {
+  baseURL = baseURL.slice(0, -4); // Remove '/api'
+  console.log('Removed trailing /api from baseURL to avoid duplication');
+}
+
+console.log('Using baseURL:', baseURL);
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -56,10 +84,13 @@ export const getStudentResultReport = async (studentId, examId, educationLevel =
   try {
     let endpoint = '';
     if (educationLevel === 'A_LEVEL') {
-      endpoint = `/api/a-level-results/student/${studentId}/${examId}`;
+      endpoint = constructApiUrl(`/a-level-results/student/${studentId}/${examId}`);
     } else {
-      endpoint = `/api/o-level-results/student/${studentId}/${examId}`;
+      endpoint = constructApiUrl(`/o-level-results/student/${studentId}/${examId}`);
     }
+
+    // Log the full URL for debugging
+    console.log(`Full URL: ${baseURL}${endpoint}`);
     console.log(`Fetching result report from endpoint: ${endpoint}`);
     const response = await api.get(endpoint);
     return response.data;
@@ -139,10 +170,13 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
     let endpoint = '';
     if (educationLevel === 'A_LEVEL') {
       // Try the API endpoint first
-      endpoint = `/api/a-level-results/class/${classId}/${examId}`;
+      endpoint = constructApiUrl(`/a-level-results/class/${classId}/${examId}`);
     } else {
-      endpoint = `/api/o-level-results/class/${classId}/${examId}`;
+      endpoint = constructApiUrl(`/o-level-results/class/${classId}/${examId}`);
     }
+
+    // Log the full URL for debugging
+    console.log(`Full URL: ${baseURL}${endpoint}`);
     console.log(`Fetching class result report from endpoint: ${endpoint}`);
     const response = await api.get(endpoint);
 
@@ -185,7 +219,7 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
         // Process each subject result to ensure consistent format
         const processedResults = student.subjectResults.map(result => {
           // If result is already in the expected format, return it
-          if (result.subject && result.subject.name && result.marks !== undefined) {
+          if (result.subject?.name && result.marks !== undefined) {
             return result;
           }
 
@@ -260,7 +294,7 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
         console.log('Student has results array:', student.results);
         const processedResults = student.results.map(result => {
           // If result already has subject.name, return it
-          if (result.subject && result.subject.name) {
+          if (result.subject?.name) {
             return {
               subject: result.subject,
               marks: result.marks || result.marksObtained || null
@@ -562,10 +596,13 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
         // Try the API endpoint as a fallback
         let apiEndpoint;
         if (educationLevel === 'A_LEVEL') {
-          apiEndpoint = `/api/a-level-results/api/class/${classId}/${examId}`;
+          apiEndpoint = constructApiUrl(`/a-level-results/api/class/${classId}/${examId}`);
         } else {
-          apiEndpoint = `/api/o-level-results/api/class/${classId}/${examId}`;
+          apiEndpoint = constructApiUrl(`/o-level-results/api/class/${classId}/${examId}`);
         }
+
+        // Log the full URL for debugging
+        console.log(`Full fallback URL: ${baseURL}${apiEndpoint}`);
         console.log(`Trying fallback endpoint: ${apiEndpoint}`);
         const response = await api.get(apiEndpoint);
 
@@ -984,10 +1021,13 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
           console.log('Trying test endpoint as last resort');
           let testEndpoint;
           if (educationLevel === 'A_LEVEL') {
-            testEndpoint = `/api/a-level-results/test-no-auth/${classId}/${examId}`;
+            testEndpoint = constructApiUrl(`/a-level-results/test-no-auth/${classId}/${examId}`);
           } else {
-            testEndpoint = `/api/o-level-results/test-no-auth/${classId}/${examId}`;
+            testEndpoint = constructApiUrl(`/o-level-results/test-no-auth/${classId}/${examId}`);
           }
+
+          // Log the full URL for debugging
+          console.log(`Full test URL: ${baseURL}${testEndpoint}`);
           console.log(`Trying test endpoint: ${testEndpoint}`);
           const testResponse = await api.get(testEndpoint);
 
