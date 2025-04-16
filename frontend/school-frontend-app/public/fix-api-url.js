@@ -109,7 +109,14 @@
         if (typeof url === 'string' && url.includes('/api/')) {
             // Convert relative URL to absolute URL with the correct backend
             if (url.startsWith('/api/') || url.startsWith('api/')) {
-                const newUrl = `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
+                // Fix duplicate /api/ in URL
+                let fixedUrl = url;
+                if (url.includes('/api/api/')) {
+                    fixedUrl = url.replace('/api/api/', '/api/');
+                    console.log(`API URL Fixer: Fixed duplicate API path in URL: ${url} -> ${fixedUrl}`);
+                }
+
+                const newUrl = `${BACKEND_URL}${fixedUrl.startsWith('/') ? fixedUrl : `/${fixedUrl}`}`;
                 console.log(`API URL Fixer: Redirecting fetch from ${url} to ${newUrl}`);
                 url = newUrl;
             }
@@ -132,7 +139,14 @@
         if (typeof url === 'string' && url.includes('/api/')) {
             // Convert relative URL to absolute URL with the correct backend
             if (url.startsWith('/api/') || url.startsWith('api/')) {
-                const newUrl = `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
+                // Fix duplicate /api/ in URL
+                let fixedUrl = url;
+                if (url.includes('/api/api/')) {
+                    fixedUrl = url.replace('/api/api/', '/api/');
+                    console.log(`API URL Fixer: Fixed duplicate API path in URL: ${url} -> ${fixedUrl}`);
+                }
+
+                const newUrl = `${BACKEND_URL}${fixedUrl.startsWith('/') ? fixedUrl : `/${fixedUrl}`}`;
                 console.log(`API URL Fixer: Redirecting XHR from ${url} to ${newUrl}`);
                 url = newUrl;
 

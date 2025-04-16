@@ -245,10 +245,40 @@ router.get('/class/:classId', authenticateToken, authorizeTeacherForClass, async
     // Fetch students for the class
     const students = await Student.find({ class: req.params.classId })
       .populate('userId', 'username email')
+      .populate({
+        path: 'subjectCombination',
+        populate: {
+          path: 'subjects compulsorySubjects',
+          model: 'Subject',
+          select: 'name code type description educationLevel isPrincipal isCompulsory'
+        }
+      })
       .sort({ rollNumber: 1 });
 
     if (students.length === 0) {
       return res.status(200).json([]);
+    }
+
+    // Log A-Level students with their subject combinations for debugging
+    const aLevelStudents = students.filter(student => student.educationLevel === 'A_LEVEL');
+    console.log(`Found ${aLevelStudents.length} A-Level students in class ${req.params.classId}`);
+
+    for (const student of aLevelStudents) {
+      if (student.subjectCombination) {
+        console.log(`Student ${student._id} has combination: ${student.subjectCombination.name || student.subjectCombination._id}`);
+
+        // Log principal subjects
+        if (student.subjectCombination.subjects && student.subjectCombination.subjects.length > 0) {
+          console.log(`Principal subjects: ${student.subjectCombination.subjects.map(s => s.name || s.code).join(', ')}`);
+        }
+
+        // Log subsidiary subjects
+        if (student.subjectCombination.compulsorySubjects && student.subjectCombination.compulsorySubjects.length > 0) {
+          console.log(`Subsidiary subjects: ${student.subjectCombination.compulsorySubjects.map(s => s.name || s.code).join(', ')}`);
+        }
+      } else {
+        console.log(`Student ${student._id} has no subject combination assigned`);
+      }
     }
 
     res.json(students);

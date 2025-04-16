@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import api, { constructApiUrl } from '../../utils/api';
+import marksHistoryApi from '../../services/marksHistoryApi';
 import {
   Box,
   Typography,
@@ -67,30 +68,26 @@ const MarksHistoryViewer = () => {
       setLoading(true);
       setError(null);
       try {
-        let endpoint = '';
+        let response;
 
         switch (type) {
           case 'result':
-            endpoint = constructApiUrl(`/marks-history/result/${id}?resultModel=${resultModel}`);
+            response = await marksHistoryApi.getResultHistory(id, resultModel);
             break;
           case 'student':
-            endpoint = constructApiUrl(`/marks-history/student/${id}`);
+            response = await marksHistoryApi.getStudentHistory(id);
             break;
           case 'subject':
-            endpoint = constructApiUrl(`/marks-history/subject/${id}`);
+            response = await marksHistoryApi.getSubjectHistory(id);
             break;
           case 'exam':
-            endpoint = constructApiUrl(`/marks-history/exam/${id}`);
+            response = await marksHistoryApi.getExamHistory(id);
             break;
           default:
             throw new Error('Invalid history type');
         }
 
-        console.log(`Fetching marks history from endpoint: ${endpoint}`);
-
-        const response = await api.get(endpoint);
-
-        setHistory(response.data.data);
+        setHistory(response.data || []);
       } catch (err) {
         console.error('Error fetching marks history:', err);
         setError(err.response?.data?.message || err.message || 'Failed to fetch marks history');
@@ -111,15 +108,30 @@ const MarksHistoryViewer = () => {
     try {
       setLoading(true);
       console.log(`Reverting marks history entry: ${selectedEntry._id}`);
-      const revertEndpoint = constructApiUrl(`/marks-history/revert/${selectedEntry._id}`);
-      await api.post(revertEndpoint, { reason: revertReason });
+
+      // Revert to the selected version
+      await marksHistoryApi.revertToVersion(selectedEntry._id, revertReason);
 
       // Refresh history after revert
-      const refreshEndpoint = constructApiUrl(`/marks-history/${type}/${id}${type === 'result' ? `?resultModel=${resultModel}` : ''}`);
-      console.log(`Refreshing history from endpoint: ${refreshEndpoint}`);
-      const response = await api.get(refreshEndpoint);
+      let response;
+      switch (type) {
+        case 'result':
+          response = await marksHistoryApi.getResultHistory(id, resultModel);
+          break;
+        case 'student':
+          response = await marksHistoryApi.getStudentHistory(id);
+          break;
+        case 'subject':
+          response = await marksHistoryApi.getSubjectHistory(id);
+          break;
+        case 'exam':
+          response = await marksHistoryApi.getExamHistory(id);
+          break;
+        default:
+          throw new Error('Invalid history type');
+      }
 
-      setHistory(response.data.data);
+      setHistory(response.data || []);
       setConfirmDialogOpen(false);
       setRevertReason('');
       setSelectedEntry(null);
