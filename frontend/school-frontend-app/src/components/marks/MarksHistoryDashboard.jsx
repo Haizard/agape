@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import api from '../../utils/api';
+import api, { constructApiUrl } from '../../utils/api';
 import {
   Box,
   Typography,
@@ -60,13 +60,19 @@ const MarksHistoryDashboard = () => {
         setLoading(true);
 
         // Fetch students
-        const studentsResponse = await api.get('/students');
+        const studentsEndpoint = constructApiUrl('/students');
+        console.log(`Fetching students from: ${studentsEndpoint}`);
+        const studentsResponse = await api.get(studentsEndpoint);
 
         // Fetch subjects
-        const subjectsResponse = await api.get('/subjects');
+        const subjectsEndpoint = constructApiUrl('/subjects');
+        console.log(`Fetching subjects from: ${subjectsEndpoint}`);
+        const subjectsResponse = await api.get(subjectsEndpoint);
 
         // Fetch exams
-        const examsResponse = await api.get('/exams');
+        const examsEndpoint = constructApiUrl('/exams');
+        console.log(`Fetching exams from: ${examsEndpoint}`);
+        const examsResponse = await api.get(examsEndpoint);
 
         setStudents(studentsResponse.data || []);
         setSubjects(subjectsResponse.data || []);
@@ -110,6 +116,7 @@ const MarksHistoryDashboard = () => {
   // View student history
   const viewStudentHistory = () => {
     if (selectedStudent) {
+      console.log(`Navigating to student history: ${selectedStudent}`);
       navigate(`/marks-history/student/${selectedStudent}`);
     }
   };
@@ -117,6 +124,7 @@ const MarksHistoryDashboard = () => {
   // View subject history
   const viewSubjectHistory = () => {
     if (selectedSubject) {
+      console.log(`Navigating to subject history: ${selectedSubject}`);
       navigate(`/marks-history/subject/${selectedSubject}`);
     }
   };
@@ -124,6 +132,7 @@ const MarksHistoryDashboard = () => {
   // View exam history
   const viewExamHistory = () => {
     if (selectedExam) {
+      console.log(`Navigating to exam history: ${selectedExam}`);
       navigate(`/marks-history/exam/${selectedExam}`);
     }
   };
@@ -131,6 +140,7 @@ const MarksHistoryDashboard = () => {
   // View result history
   const viewResultHistory = () => {
     if (resultId && resultModel) {
+      console.log(`Navigating to result history: ${resultId} (${resultModel})`);
       navigate(`/marks-history/result/${resultId}?model=${resultModel}`);
     }
   };

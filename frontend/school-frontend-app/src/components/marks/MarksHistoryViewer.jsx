@@ -111,10 +111,11 @@ const MarksHistoryViewer = () => {
     try {
       setLoading(true);
       console.log(`Reverting marks history entry: ${selectedEntry._id}`);
-      await api.post(`/api/marks-history/revert/${selectedEntry._id}`, { reason: revertReason });
+      const revertEndpoint = constructApiUrl(`/marks-history/revert/${selectedEntry._id}`);
+      await api.post(revertEndpoint, { reason: revertReason });
 
       // Refresh history after revert
-      const refreshEndpoint = `/api/marks-history/${type}/${id}${type === 'result' ? `?resultModel=${resultModel}` : ''}`;
+      const refreshEndpoint = constructApiUrl(`/marks-history/${type}/${id}${type === 'result' ? `?resultModel=${resultModel}` : ''}`);
       console.log(`Refreshing history from endpoint: ${refreshEndpoint}`);
       const response = await api.get(refreshEndpoint);
 
