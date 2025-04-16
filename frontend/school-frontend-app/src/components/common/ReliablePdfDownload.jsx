@@ -197,7 +197,7 @@ const ReliablePdfDownload = ({
 
             if (tryManual) {
               // Offer a printable HTML version instead
-              const printableUrl = `/public/printable-report/${classId}/${examId}`;
+              const printableUrl = `/printable-report/${classId}/${examId}`;
               console.log(`Opening printable HTML report: ${printableUrl}`);
               // Open in a new tab
               const newTab = window.open(printableUrl, '_blank');

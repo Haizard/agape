@@ -1065,6 +1065,30 @@ const ClassTabularReport = () => {
                 }
               }
 
+              // Try to determine from admission number
+              if (!studentForm && student.admissionNumber) {
+                if (typeof student.admissionNumber === 'string') {
+                  if (student.admissionNumber.includes('F5-') || student.admissionNumber.startsWith('5')) {
+                    studentForm = 5;
+                  } else if (student.admissionNumber.includes('F6-') || student.admissionNumber.startsWith('6')) {
+                    studentForm = 6;
+                  }
+                }
+              }
+
+              // Try to determine from combination code (certain combinations are more common in Form 5 or Form 6)
+              if (!studentForm && (student.combination || student.subjectCombination)) {
+                const combinationCode = student.combination || student.subjectCombination;
+                // This is just a heuristic - adjust based on your school's actual patterns
+                if (['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
+                  // These are typically Form 5 combinations
+                  studentForm = 5;
+                } else if (['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
+                  // These might be more common in Form 6
+                  studentForm = 6;
+                }
+              }
+
               // If still not set, use the class-level determination
               if (!studentForm) {
                 studentForm = isForm5 ? 5 : isForm6 ? 6 : null;
@@ -1333,6 +1357,91 @@ const ClassTabularReport = () => {
     fetchData();
   }, [fetchData]);
 
+  // Add form information to students if missing
+  useEffect(() => {
+    if (students.length > 0) {
+      // Check if any students are missing form information or have form information in the wrong format
+      const studentsWithoutForm = students.filter(s => !s.form || typeof s.form === 'string' && !['5', '6'].includes(s.form));
+
+      if (studentsWithoutForm.length > 0) {
+        console.log(`Found ${studentsWithoutForm.length} students without proper form information. Attempting to assign...`);
+
+        // Create a copy of the students array
+        const updatedStudents = [...students];
+
+        // Try to determine form for each student
+        for (let i = 0; i < updatedStudents.length; i++) {
+          const student = updatedStudents[i];
+
+          // Normalize existing form value if it's in the wrong format
+          if (student.form) {
+            if (typeof student.form === 'string') {
+              // Convert string form to number if possible
+              if (student.form.includes('5') || student.form.toLowerCase().includes('form 5') || student.form === '5') {
+                student.form = 5;
+                console.log(`Normalized Form 5 for student ${student._id || student.id} from string value`);
+              } else if (student.form.includes('6') || student.form.toLowerCase().includes('form 6') || student.form === '6') {
+                student.form = 6;
+                console.log(`Normalized Form 6 for student ${student._id || student.id} from string value`);
+              }
+            }
+          } else {
+            // Try to determine form from class name
+            if (classData?.name) {
+              if (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5')) {
+                student.form = 5;
+                console.log(`Assigned Form 5 to student ${student._id || student.id} based on class name`);
+              } else if (classData.name.includes('6') || classData.name.toLowerCase().includes('form 6')) {
+                student.form = 6;
+                console.log(`Assigned Form 6 to student ${student._id || student.id} based on class name`);
+              }
+            }
+
+            // Try to determine from admission number
+            if (!student.form && student.admissionNumber) {
+              if (typeof student.admissionNumber === 'string') {
+                if (student.admissionNumber.includes('F5-') || student.admissionNumber.startsWith('5')) {
+                  student.form = 5;
+                  console.log(`Assigned Form 5 to student ${student._id || student.id} based on admission number`);
+                } else if (student.admissionNumber.includes('F6-') || student.admissionNumber.startsWith('6')) {
+                  student.form = 6;
+                  console.log(`Assigned Form 6 to student ${student._id || student.id} based on admission number`);
+                }
+              }
+            }
+
+            // Try to determine from combination code
+            if (!student.form && (student.combination || student.subjectCombination)) {
+              const combinationCode = student.combination || student.subjectCombination;
+              // This is just a heuristic - adjust based on your school's actual patterns
+              if (['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
+                // These are typically Form 5 combinations
+                student.form = 5;
+                console.log(`Assigned Form 5 to student ${student._id || student.id} based on combination ${combinationCode}`);
+              } else if (['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
+                // These might be more common in Form 6
+                student.form = 6;
+                console.log(`Assigned Form 6 to student ${student._id || student.id} based on combination ${combinationCode}`);
+              }
+            }
+
+            // If still not set, default to Form 5 for A-Level classes
+            if (!student.form && classData?.educationLevel === 'A_LEVEL') {
+              student.form = 5; // Default to Form 5 for A-Level
+              console.log(`Assigned default Form 5 to A-Level student ${student._id || student.id}`);
+            }
+          }
+        }
+
+        // Update the students array with the updated form information
+        setStudents(updatedStudents);
+        console.log('Updated students with form information:', updatedStudents.map(s => ({ id: s._id || s.id, form: s.form })));
+      } else {
+        console.log('All students have form information:', students.map(s => ({ id: s._id || s.id, form: s.form })));
+      }
+    }
+  }, [students, classData]);
+
   // Filter students by combination and form
   const filteredStudents = students.filter(student => {
     // Filter by combination if selected
@@ -1341,12 +1450,122 @@ const ClassTabularReport = () => {
     }
 
     // Filter by form if selected
-    if (filterForm && student.form !== Number.parseInt(filterForm, 10)) {
-      return false;
+    if (filterForm) {
+      const formNumber = Number.parseInt(filterForm, 10);
+
+      // Check student form in various formats
+      const studentForm = student.form;
+
+      // Log detailed information about this student's form
+      console.log(`Student ${student._id || student.id} form check:`, {
+        studentForm,
+        formNumber,
+        formFilter: filterForm,
+        admissionNumber: student.admissionNumber,
+        combination: student.combination || student.subjectCombination
+      });
+
+      // IMPORTANT: For A-Level classes, if no form is explicitly set, we need to assign one
+      // This ensures all students have a form value before filtering
+      if (studentForm === undefined || studentForm === null) {
+        // Default to Form 5 for A-Level classes
+        if (classData?.educationLevel === 'A_LEVEL') {
+          // Modify the student object directly to ensure it has form information
+          student.form = 5;
+          console.log(`Assigned default Form 5 to student ${student._id || student.id} during filtering`);
+        }
+      }
+
+      // Normalize form value for comparison
+      let normalizedStudentForm = studentForm;
+
+      // Convert string form values to numbers if possible
+      if (typeof normalizedStudentForm === 'string') {
+        if (normalizedStudentForm.includes('5') || normalizedStudentForm.toLowerCase().includes('form 5') || normalizedStudentForm === '5') {
+          normalizedStudentForm = 5;
+        } else if (normalizedStudentForm.includes('6') || normalizedStudentForm.toLowerCase().includes('form 6') || normalizedStudentForm === '6') {
+          normalizedStudentForm = 6;
+        }
+      }
+
+      // Try to match form in different formats
+      const formMatches =
+        // Direct match (number or string)
+        normalizedStudentForm === formNumber ||
+        normalizedStudentForm === filterForm ||
+        String(normalizedStudentForm) === filterForm ||
+        // String match (e.g., "5" or "Form 5")
+        (typeof normalizedStudentForm === 'string' && (
+          normalizedStudentForm.includes(filterForm) ||
+          normalizedStudentForm.toLowerCase().includes(`form ${filterForm}`)
+        )) ||
+        // Check admission number for form info
+        (student.admissionNumber &&
+         typeof student.admissionNumber === 'string' &&
+         (student.admissionNumber.includes(`F${filterForm}-`) ||
+          student.admissionNumber.startsWith(filterForm)));
+
+      // For Form 5 specifically, also check if this is a Form 5 class
+      if (formNumber === 5 && classData?.name &&
+          (classData.name.includes('5') || classData.name.toLowerCase().includes('form 5'))) {
+        // If this is a Form 5 class and no specific form is assigned to the student,
+        // assume they are Form 5
+        if (!normalizedStudentForm) {
+          console.log(`Student ${student._id || student.id} matched as Form 5 based on class name`);
+          return true;
+        }
+      }
+
+      // For Form 6 specifically, also check if this is a Form 6 class
+      if (formNumber === 6 && classData?.name &&
+          (classData.name.includes('6') || classData.name.toLowerCase().includes('form 6'))) {
+        // If this is a Form 6 class and no specific form is assigned to the student,
+        // assume they are Form 6
+        if (!normalizedStudentForm) {
+          console.log(`Student ${student._id || student.id} matched as Form 6 based on class name`);
+          return true;
+        }
+      }
+
+      // Check combination code for form hints
+      if (!formMatches && (student.combination || student.subjectCombination)) {
+        const combinationCode = student.combination || student.subjectCombination;
+
+        // Form 5 combinations
+        if (formNumber === 5 && ['PCM', 'CBG', 'HKL'].includes(combinationCode)) {
+          console.log(`Student ${student._id || student.id} matched as Form 5 based on combination ${combinationCode}`);
+          return true;
+        }
+
+        // Form 6 combinations
+        if (formNumber === 6 && ['PCB', 'HGE', 'EGM'].includes(combinationCode)) {
+          console.log(`Student ${student._id || student.id} matched as Form 6 based on combination ${combinationCode}`);
+          return true;
+        }
+      }
+
+      if (!formMatches) {
+        console.log(`Student ${student._id || student.id} did NOT match form filter ${filterForm}`);
+        return false;
+      }
+
+      console.log(`Student ${student._id || student.id} matched form filter ${filterForm}`);
     }
 
     return true;
   });
+
+  // Log filtered students for debugging
+  console.log(`Filtered students: ${filteredStudents.length} of ${students.length}`);
+  if (filterForm) {
+    console.log(`Form filter: ${filterForm}`);
+    console.log('Student forms:', students.map(s => ({
+      id: s._id || s.id,
+      name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+      form: s.form,
+      combination: s.combination || s.subjectCombination
+    })));
+  }
 
   // Handle combination filter change
   const handleCombinationFilterChange = (event) => {
@@ -1356,6 +1575,30 @@ const ClassTabularReport = () => {
   // Handle form filter change
   const handleFormFilterChange = (event) => {
     setFilterForm(event.target.value);
+  };
+
+  // Set form for all students
+  const setFormForAllStudents = (formNumber) => {
+    if (!formNumber || !students.length) return;
+
+    // Create a copy of the students array
+    const updatedStudents = [...students];
+
+    // Set the form for all students
+    for (let i = 0; i < updatedStudents.length; i++) {
+      updatedStudents[i].form = Number(formNumber);
+    }
+
+    // Update the students array
+    setStudents(updatedStudents);
+    console.log(`Set form ${formNumber} for all ${updatedStudents.length} students`);
+
+    // Show success message
+    setSnackbar({
+      open: true,
+      message: `Set Form ${formNumber} for all ${updatedStudents.length} students`,
+      severity: 'success'
+    });
   };
 
   // Print report
@@ -1520,8 +1763,8 @@ const ClassTabularReport = () => {
             variant="outlined"
             color="primary"
             onClick={() => {
-              // Ensure we're using the correct URL format
-              const printableUrl = `/public/printable-report/${classId}/${examId}`;
+              // Use the direct route for easier access
+              const printableUrl = `/printable-report/${classId}/${examId}`;
               console.log(`Opening printable report: ${printableUrl}`);
               window.open(printableUrl, '_blank');
             }}
@@ -1530,7 +1773,7 @@ const ClassTabularReport = () => {
           </Button>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel id="combination-filter-label">Filter by Combination</InputLabel>
             <Select
@@ -1555,14 +1798,175 @@ const ClassTabularReport = () => {
               value={filterForm}
               onChange={handleFormFilterChange}
               label="Filter by Form"
+              sx={{
+                bgcolor: filterForm ? '#e3f2fd' : 'inherit',
+                fontWeight: filterForm ? 'bold' : 'normal'
+              }}
             >
               <MenuItem value="">All Forms</MenuItem>
               <MenuItem value="5">Form 5</MenuItem>
               <MenuItem value="6">Form 6</MenuItem>
             </Select>
           </FormControl>
+
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={fetchData}
+            startIcon={<span role="img" aria-label="refresh">🔄</span>}
+          >
+            Refresh Data
+          </Button>
+
+          {filterForm && (
+            <Chip
+              label={`Showing Form ${filterForm} Students Only`}
+              color="primary"
+              onDelete={() => setFilterForm('')}
+              sx={{ ml: 1 }}
+            />
+          )}
+
+          <Box sx={{ display: 'flex', gap: 1, ml: 2, alignItems: 'center' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+              Set Form for All Students:
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              color="secondary"
+              onClick={() => setFormForAllStudents(5)}
+            >
+              All Form 5
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="secondary"
+              onClick={() => setFormForAllStudents(6)}
+            >
+              All Form 6
+            </Button>
+          </Box>
+
+          {/* Quick actions for filtering */}
+          <Box sx={{ display: 'flex', gap: 1, ml: 2, alignItems: 'center', borderLeft: '1px solid #ddd', pl: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+              Quick Filter:
+            </Typography>
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              onClick={() => {
+                // Set all students to Form 5 and apply filter
+                setFormForAllStudents(5);
+                setTimeout(() => setFilterForm('5'), 100);
+              }}
+            >
+              Show Form 5 Only
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              onClick={() => {
+                // Set all students to Form 6 and apply filter
+                setFormForAllStudents(6);
+                setTimeout(() => setFilterForm('6'), 100);
+              }}
+            >
+              Show Form 6 Only
+            </Button>
+          </Box>
         </Box>
       </Box>
+
+      {/* Debug Information - Only visible in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <Box sx={{ mb: 2, p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Debug Information (Development Only)
+          </Typography>
+          <Typography variant="body2">
+            Total Students: {students.length} | Filtered Students: {filteredStudents.length}
+          </Typography>
+          <Typography variant="body2">
+            Form Filter: {filterForm || 'None'} | Combination Filter: {filterCombination || 'None'}
+          </Typography>
+          <Typography variant="body2">
+            Class Education Level: {classData?.educationLevel || 'Unknown'} | Class Name: {classData?.name || 'Unknown'}
+          </Typography>
+
+          {/* Form distribution summary */}
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 1 }}>
+            Form Distribution:
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Typography variant="body2">
+              Form 5 Students: {students.filter(s => s.form === 5 || s.form === '5').length}
+            </Typography>
+            <Typography variant="body2">
+              Form 6 Students: {students.filter(s => s.form === 6 || s.form === '6').length}
+            </Typography>
+            <Typography variant="body2">
+              Unknown Form: {students.filter(s => !s.form && s.form !== 0 && s.form !== '0').length}
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 1 }}>
+            Student Form Information:
+          </Typography>
+          <Box sx={{ maxHeight: '150px', overflow: 'auto', fontSize: '0.75rem', bgcolor: '#f5f5f5', p: 1, borderRadius: 1 }}>
+            {students.map((student, index) => (
+              <div key={student._id || student.id || index} style={{
+                padding: '2px 0',
+                borderBottom: '1px dotted #ddd',
+                color: filterForm && String(student.form) !== filterForm ? '#999' : 'inherit',
+                fontWeight: filterForm && String(student.form) === filterForm ? 'bold' : 'normal'
+              }}>
+                <span style={{ display: 'inline-block', minWidth: '200px' }}>
+                  {student.name || `${student.firstName || ''} ${student.lastName || ''}`}
+                </span>
+                <span style={{ display: 'inline-block', minWidth: '80px' }}>
+                  Form: <strong>{student.form || 'Not Set'}</strong>
+                </span>
+                <span style={{ display: 'inline-block', minWidth: '100px' }}>
+                  Combination: {student.combination || student.subjectCombination || 'None'}
+                </span>
+              </div>
+            ))}
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+            <Button
+              size="small"
+              variant="text"
+              color="primary"
+              onClick={() => console.log('All students:', students)}
+            >
+              Log All Students to Console
+            </Button>
+
+            <Button
+              size="small"
+              variant="text"
+              color="secondary"
+              onClick={() => {
+                // Force re-detection of form information
+                const updatedStudents = students.map(student => ({
+                  ...student,
+                  form: undefined // Set form to undefined to force re-detection
+                }));
+                setStudents(updatedStudents);
+                console.log('Reset form information for all students');
+              }}
+            >
+              Reset Form Information
+            </Button>
+          </Box>
+        </Box>
+      )}
 
       {/* Report Header */}
       <Box className="report-header">
@@ -1683,7 +2087,10 @@ const ClassTabularReport = () => {
                 <TableCell className="student-name">
                   {student.name || `${student.firstName} ${student.lastName}`}
                   <div className="student-number">{student.admissionNumber}</div>
-                  <div className="student-combination">{student.combination || student.subjectCombination}</div>
+                  <div className="student-combination">
+                    {student.combination || student.subjectCombination}
+                    {student.form && <span style={{ marginLeft: '5px', fontSize: '0.8em', color: '#666' }}>(Form {student.form})</span>}
+                  </div>
                 </TableCell>
                 <TableCell align="center" className="gender-cell">
                   {student.gender || '-'}

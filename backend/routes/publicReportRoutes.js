@@ -7,7 +7,9 @@ const Subject = require('../models/Subject');
 const ALevelResult = require('../models/ALevelResult');
 const OLevelResult = require('../models/OLevelResult');
 const AcademicYear = require('../models/AcademicYear');
-const { logToFile } = require('../utils/logger');
+
+// Import logger
+const logger = require('../utils/logger');
 
 /**
  * Public API endpoint for A-Level class results (JSON only, no authentication required)
@@ -18,25 +20,25 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
     const { classId, examId } = req.params;
     const { format = 'json' } = req.query;
 
-    logToFile(`GET /api/public/a-level/class/${classId}/${examId} - Generating public A-Level class result data`);
+    logger.info(`GET /api/public/a-level/class/${classId}/${examId} - Generating public A-Level class result data`);
 
     // Find the class
     const classObj = await Class.findById(classId);
     if (!classObj) {
-      logToFile(`Class not found with ID: ${classId}`);
+      logger.warn(`Class not found with ID: ${classId}`);
       return res.status(404).json({ message: 'Class not found' });
     }
 
     // Check if this is an A-Level class
     if (classObj.educationLevel !== 'A_LEVEL') {
-      logToFile(`Class ${classId} is not an A-Level class`);
+      logger.warn(`Class ${classId} is not an A-Level class`);
       return res.status(400).json({ message: 'This endpoint is only for A-Level classes' });
     }
 
     // Find the exam
     const exam = await Exam.findById(examId);
     if (!exam) {
-      logToFile(`Exam not found with ID: ${examId}`);
+      logger.warn(`Exam not found with ID: ${examId}`);
       return res.status(404).json({ message: 'Exam not found' });
     }
 
@@ -46,7 +48,7 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
       .sort({ firstName: 1, lastName: 1 });
 
     if (!students || students.length === 0) {
-      logToFile(`No students found in class ${classId}`);
+      logger.warn(`No students found in class ${classId}`);
       return res.json({
         className: classObj.name,
         examName: exam.name,
@@ -69,7 +71,7 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
       }).populate('subject');
 
       // Get the student's subject combination
-      const combination = student.subjectCombination ? 
+      const combination = student.subjectCombination ?
         student.subjectCombination.code || 'Unknown' : 'Unknown';
 
       // Calculate total marks and average
@@ -82,23 +84,23 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
       // Process subject results
       const subjectResults = results.map(result => {
         const subject = result.subject;
-        
+
         // Determine if this is a principal or subsidiary subject
         const isPrincipal = subject && (
-          subject.category === 'Principal' || 
-          (combination && combination.substring(0, 3).includes(subject.code.charAt(0)))
+          subject.category === 'Principal' ||
+          (combination && combination.substring(0, 3).includes(subject?.code?.charAt(0) || ''))
         );
-        
+
         const isSubsidiary = subject && (
-          subject.category === 'Subsidiary' || 
-          subject.code === 'GS' || 
+          subject.category === 'Subsidiary' ||
+          subject.code === 'GS' ||
           subject.code === 'BAM'
         );
 
         // Calculate grade based on marks
         let grade = '-';
         let points = 0;
-        
+
         if (result.marksObtained !== undefined && result.marksObtained !== null) {
           // A-Level grading system
           if (isPrincipal) {
@@ -116,11 +118,11 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
             else if (result.marksObtained >= 40) { grade = 'e'; points = 0; }
             else { grade = 'f'; points = 0; }
           }
-          
+
           // Add to total marks
           totalMarks += result.marksObtained;
           subjectCount++;
-          
+
           // Add to points
           if (isPrincipal) {
             principalPoints += points;
@@ -128,7 +130,7 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
             subsidiaryPoints += points;
           }
         }
-        
+
         return {
           subjectId: subject ? subject._id : 'unknown',
           subjectName: subject ? subject.name : 'Unknown Subject',
@@ -140,30 +142,30 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
           isSubsidiary: isSubsidiary || false
         };
       });
-      
+
       // Calculate best three principal subjects
       const principalSubjects = subjectResults
         .filter(s => s.isPrincipal)
         .sort((a, b) => b.points - a.points);
-      
+
       if (principalSubjects.length >= 3) {
         bestThreePoints = principalSubjects.slice(0, 3).reduce((sum, s) => sum + s.points, 0);
       } else {
         bestThreePoints = principalSubjects.reduce((sum, s) => sum + s.points, 0);
       }
-      
+
       // Add subsidiary points
       const totalPoints = bestThreePoints + subsidiaryPoints;
-      
+
       // Calculate division
       let division = 'IV';
       if (totalPoints >= 9) division = 'I';
       else if (totalPoints >= 6) division = 'II';
       else if (totalPoints >= 3) division = 'III';
-      
+
       // Calculate average
       const average = subjectCount > 0 ? (totalMarks / subjectCount).toFixed(1) : 0;
-      
+
       return {
         _id: student._id,
         name: `${student.firstName} ${student.lastName}`,
@@ -180,12 +182,12 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
         division
       };
     }));
-    
+
     // Calculate class statistics
-    const classAverage = studentResults.length > 0 
-      ? (studentResults.reduce((sum, s) => sum + parseFloat(s.average), 0) / studentResults.length).toFixed(1)
+    const classAverage = studentResults.length > 0
+      ? (studentResults.reduce((sum, s) => sum + Number.parseFloat(s.average), 0) / studentResults.length).toFixed(1)
       : 0;
-    
+
     // Calculate division distribution
     const divisionDistribution = {
       'I': studentResults.filter(s => s.division === 'I').length,
@@ -193,7 +195,7 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
       'III': studentResults.filter(s => s.division === 'III').length,
       'IV': studentResults.filter(s => s.division === 'IV').length
     };
-    
+
     // Format the report
     const report = {
       className: classObj.name,
@@ -208,11 +210,11 @@ router.get('/a-level/class/:classId/:examId', async (req, res) => {
       divisionDistribution,
       educationLevel: 'A_LEVEL'
     };
-    
+
     // Return the report as JSON
     res.json(report);
   } catch (error) {
-    logToFile(`Error generating public A-Level class report: ${error.message}`);
+    logger.error(`Error generating public A-Level class report: ${error.message}`, error);
     res.status(500).json({ message: `Error generating public A-Level class report: ${error.message}` });
   }
 });
@@ -226,25 +228,25 @@ router.get('/o-level/class/:classId/:examId', async (req, res) => {
     const { classId, examId } = req.params;
     const { format = 'json' } = req.query;
 
-    logToFile(`GET /api/public/o-level/class/${classId}/${examId} - Generating public O-Level class result data`);
+    logger.info(`GET /api/public/o-level/class/${classId}/${examId} - Generating public O-Level class result data`);
 
     // Find the class
     const classObj = await Class.findById(classId);
     if (!classObj) {
-      logToFile(`Class not found with ID: ${classId}`);
+      logger.warn(`Class not found with ID: ${classId}`);
       return res.status(404).json({ message: 'Class not found' });
     }
 
     // Check if this is an O-Level class
     if (classObj.educationLevel !== 'O_LEVEL') {
-      logToFile(`Class ${classId} is not an O-Level class`);
+      logger.warn(`Class ${classId} is not an O-Level class`);
       return res.status(400).json({ message: 'This endpoint is only for O-Level classes' });
     }
 
     // Find the exam
     const exam = await Exam.findById(examId);
     if (!exam) {
-      logToFile(`Exam not found with ID: ${examId}`);
+      logger.warn(`Exam not found with ID: ${examId}`);
       return res.status(404).json({ message: 'Exam not found' });
     }
 
@@ -253,7 +255,7 @@ router.get('/o-level/class/:classId/:examId', async (req, res) => {
       .sort({ firstName: 1, lastName: 1 });
 
     if (!students || students.length === 0) {
-      logToFile(`No students found in class ${classId}`);
+      logger.warn(`No students found in class ${classId}`);
       return res.json({
         className: classObj.name,
         examName: exam.name,
@@ -283,11 +285,11 @@ router.get('/o-level/class/:classId/:examId', async (req, res) => {
       // Process subject results
       const subjectResults = results.map(result => {
         const subject = result.subject;
-        
+
         // Calculate grade based on marks
         let grade = '-';
         let points = 0;
-        
+
         if (result.marksObtained !== undefined && result.marksObtained !== null) {
           // O-Level grading system
           if (result.marksObtained >= 81) { grade = 'A'; points = 1; }
@@ -297,15 +299,15 @@ router.get('/o-level/class/:classId/:examId', async (req, res) => {
           else if (result.marksObtained >= 21) { grade = 'E'; points = 5; }
           else if (result.marksObtained >= 11) { grade = 'S'; points = 6; }
           else { grade = 'F'; points = 7; }
-          
+
           // Add to total marks
           totalMarks += result.marksObtained;
           subjectCount++;
-          
+
           // Add to points
           totalPoints += points;
         }
-        
+
         return {
           subjectId: subject ? subject._id : 'unknown',
           subjectName: subject ? subject.name : 'Unknown Subject',
@@ -315,16 +317,16 @@ router.get('/o-level/class/:classId/:examId', async (req, res) => {
           points
         };
       });
-      
+
       // Calculate division
       let division = 'IV';
       if (totalPoints <= 17) division = 'I';
       else if (totalPoints <= 25) division = 'II';
       else if (totalPoints <= 33) division = 'III';
-      
+
       // Calculate average
       const average = subjectCount > 0 ? (totalMarks / subjectCount).toFixed(1) : 0;
-      
+
       return {
         _id: student._id,
         name: `${student.firstName} ${student.lastName}`,
@@ -337,12 +339,12 @@ router.get('/o-level/class/:classId/:examId', async (req, res) => {
         division
       };
     }));
-    
+
     // Calculate class statistics
-    const classAverage = studentResults.length > 0 
-      ? (studentResults.reduce((sum, s) => sum + parseFloat(s.average), 0) / studentResults.length).toFixed(1)
+    const classAverage = studentResults.length > 0
+      ? (studentResults.reduce((sum, s) => sum + Number.parseFloat(s.average), 0) / studentResults.length).toFixed(1)
       : 0;
-    
+
     // Calculate division distribution
     const divisionDistribution = {
       'I': studentResults.filter(s => s.division === 'I').length,
@@ -350,7 +352,7 @@ router.get('/o-level/class/:classId/:examId', async (req, res) => {
       'III': studentResults.filter(s => s.division === 'III').length,
       'IV': studentResults.filter(s => s.division === 'IV').length
     };
-    
+
     // Format the report
     const report = {
       className: classObj.name,
@@ -365,11 +367,11 @@ router.get('/o-level/class/:classId/:examId', async (req, res) => {
       divisionDistribution,
       educationLevel: 'O_LEVEL'
     };
-    
+
     // Return the report as JSON
     res.json(report);
   } catch (error) {
-    logToFile(`Error generating public O-Level class report: ${error.message}`);
+    logger.error(`Error generating public O-Level class report: ${error.message}`, error);
     res.status(500).json({ message: `Error generating public O-Level class report: ${error.message}` });
   }
 });

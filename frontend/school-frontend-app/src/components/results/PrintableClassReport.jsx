@@ -90,6 +90,8 @@ const PrintableClassReport = () => {
         // Remove trailing '/api' if it exists to avoid duplication
         const apiBase = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl}/api`;
 
+        console.log('API Base URL:', apiBase);
+
         // Fetch report data from the public API endpoint
         let reportUrl;
         if (educationLevel === 'A_LEVEL') {

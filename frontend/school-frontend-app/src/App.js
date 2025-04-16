@@ -456,6 +456,8 @@ function App() {
                   <Route path="/admin-registration" element={<AdminRegistration />} />
                   <Route path="/test-connection" element={<TestConnection />} />
                   <Route path="/public/printable-report/:classId/:examId" element={<PrintableClassReport />} />
+                  {/* Add a direct route for easier access */}
+                  <Route path="/printable-report/:classId/:examId" element={<PrintableClassReport />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
                 <Footer />
