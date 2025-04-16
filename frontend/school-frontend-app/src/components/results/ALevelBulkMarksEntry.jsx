@@ -453,9 +453,11 @@ const ALevelBulkMarksEntry = () => {
             }
           }
 
-          // If student doesn't have a populated subject combination, don't include them
-          // For bulk marks entry, we only want students with the selected subject
-          return false;
+          // If student doesn't have a populated subject combination, include them anyway
+          // This is a special case to handle A-Level students without subject combinations
+          // We'll mark the subject as not in their combination, but still allow marks entry
+          console.log(`Student ${student.firstName} ${student.lastName} has no subject combination, including for bulk marks entry`);
+          return true;
         }) : aLevelStudents;
 
         console.log(`Filtered to ${filteredStudents.length} students who have subject ${selectedSubject} in their combination`);

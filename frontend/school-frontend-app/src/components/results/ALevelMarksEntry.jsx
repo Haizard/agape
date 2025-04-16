@@ -556,15 +556,48 @@ const ALevelMarksEntry = () => {
               console.log(`Found ${teacherSubjectsForStudent.length} subjects for student taught by this teacher`);
               setSubjects(teacherSubjectsForStudent);
             } else {
-              // If no subjects found that the teacher teaches, show a message
-              console.log('No subjects found for student that the teacher is assigned to teach');
-              setSubjects([]);
-              setError('You are not assigned to teach any subjects for this student. Please contact an administrator.');
+              // If no subjects found that the teacher teaches, check if the student has a subject combination
+              if (!selectedStudentObj.subjectCombination) {
+                console.log('Student has no subject combination, fetching all teacher subjects for this class');
+
+                // If student doesn't have a subject combination, get all subjects the teacher teaches in this class
+                const teacherClassSubjects = await teacherApi.getAssignedSubjects(selectedClass);
+
+                if (teacherClassSubjects.length > 0) {
+                  console.log(`Found ${teacherClassSubjects.length} subjects taught by teacher in this class`);
+                  setSubjects(teacherClassSubjects);
+                } else {
+                  console.log('No subjects found that the teacher teaches in this class');
+                  setSubjects([]);
+                  setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+                }
+              } else {
+                // If student has a subject combination but no subjects found, show a message
+                console.log('No subjects found for student that the teacher is assigned to teach');
+                setSubjects([]);
+                setError('You are not assigned to teach any subjects for this student. Please contact an administrator.');
+              }
             }
           } catch (error) {
             console.error('Error fetching teacher subjects for student:', error);
-            setSubjects([]);
-            setError('Failed to load subjects for this student. Please try again.');
+
+            // If there's an error, try to get all subjects the teacher teaches in this class
+            try {
+              console.log('Falling back to fetching all teacher subjects for this class');
+              const teacherClassSubjects = await teacherApi.getAssignedSubjects(selectedClass);
+
+              if (teacherClassSubjects.length > 0) {
+                console.log(`Found ${teacherClassSubjects.length} subjects taught by teacher in this class`);
+                setSubjects(teacherClassSubjects);
+              } else {
+                setSubjects([]);
+                setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+              }
+            } catch (fallbackError) {
+              console.error('Error in fallback subject fetch:', fallbackError);
+              setSubjects([]);
+              setError('Failed to load subjects for this student. Please try again.');
+            }
           }
         } else {
           console.log('Selected student is not in an A-Level class and not marked as A-Level');
