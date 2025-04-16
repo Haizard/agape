@@ -88,6 +88,8 @@ exports.getSimpleAssignedClasses = async (req, res) => {
 const teacherSubjectService = require('../services/teacherSubjectService');
 
 exports.getAssignedSubjectsForMarksEntry = async (req, res) => {
+    // Clear the cache to ensure we get fresh data
+    teacherSubjectService.clearCache();
   try {
     console.log('GET /api/teachers/my-subjects - Fetching subjects for current teacher');
     const userId = req.user.userId;
@@ -251,6 +253,8 @@ exports.getAssignedSubjectsForMarksEntry = async (req, res) => {
  * @param {Object} res - Express response object
  */
 exports.getAssignedSubjects = async (req, res) => {
+    // Clear the cache to ensure we get fresh data
+    teacherSubjectService.clearCache();
   try {
     console.log('GET /api/teachers/marks-entry-subjects - Fetching subjects for marks entry');
     const userId = req.user.userId;
@@ -409,6 +413,8 @@ exports.getAssignedSubjects = async (req, res) => {
  */
 // Get subjects for a specific student that the teacher is assigned to teach
 exports.getAssignedSubjectsForStudent = async (req, res) => {
+    // Clear the cache to ensure we get fresh data
+    teacherSubjectService.clearCache();
   try {
     console.log('GET /api/teachers/students/:studentId/subjects - Fetching subjects for student that the teacher is assigned to teach');
     const userId = req.user.userId;
@@ -542,6 +548,8 @@ exports.getAssignedSubjectsForStudent = async (req, res) => {
 };
 
 exports.getAssignedStudents = async (req, res) => {
+    // Clear the cache to ensure we get fresh data
+    teacherSubjectService.clearCache();
   try {
     console.log('GET /api/teachers/classes/:classId/students - Fetching students for teacher');
     const userId = req.user.userId;

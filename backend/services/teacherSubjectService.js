@@ -17,7 +17,7 @@ const Student = require('../models/Student');
 const cache = {
   teacherSubjects: new Map(), // Map of teacherId -> Map of classId -> subjects
   lastUpdated: new Map(), // Map of teacherId -> timestamp
-  TTL: 5 * 60 * 1000, // 5 minutes
+  TTL: 30 * 1000, // 30 seconds - reduced from 5 minutes to ensure changes are applied more quickly
 };
 
 /**
