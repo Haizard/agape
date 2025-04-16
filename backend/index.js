@@ -67,7 +67,6 @@ const subjectCombinationRoutes = require('./routes/subjectCombinationRoutes');
 const studentSubjectSelectionRoutes = require('./routes/studentSubjectSelectionRoutes');
 const dataConsistencyRoutes = require('./routes/dataConsistencyRoutes');
 const publicReportRoutes = require('./routes/publicReportRoutes');
-const teacherSubjectAssignmentRoutes = require('./routes/api/teacherSubjectAssignment');
 
 const app = express();
 
@@ -319,8 +318,6 @@ app.use('/api/education-levels', educationLevelRoutes);
 app.use('/api/subject-combinations', subjectCombinationRoutes);
 app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
 app.use('/api/data-consistency', dataConsistencyRoutes);
-// Teacher subject assignment route
-app.use('/api/teacher-subject-assignment', teacherSubjectAssignmentRoutes);
 // Public routes with no authentication required
 app.use('/api/public', criticalRoutesCors, publicReportRoutes);
 
