@@ -85,8 +85,16 @@ const ALevelClassResultReport = () => {
 
       // Fetch the report data from the A-Level endpoint
       const reportUrl = resultApi.getALevelClassReportUrl(classId, examId);
+      console.log('Fetching A-Level class report from:', reportUrl);
       const response = await axios.get(reportUrl);
       const data = response.data;
+
+      console.log('A-Level Class Report Data:', data);
+
+      // Debug student results
+      if (data.students && data.students.length > 0) {
+        console.log('First student results:', data.students[0].results);
+      }
 
       // Ensure this is an A-Level class
       if (!data.educationLevel || data.educationLevel !== 'A_LEVEL') {
@@ -167,6 +175,37 @@ const ALevelClassResultReport = () => {
   // Handle snackbar close
   const handleSnackbarClose = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  // Update class to A-Level
+  const updateClassToALevel = async () => {
+    try {
+      setUpdatingEducationLevel(true);
+
+      // Call API to update class education level
+      await axios.patch(`/api/classes/${classId}`, {
+        educationLevel: 'A_LEVEL'
+      });
+
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Class updated to A-Level successfully',
+        severity: 'success'
+      });
+
+      // Refetch the report
+      fetchReport();
+    } catch (err) {
+      console.error('Error updating class:', err);
+      setSnackbar({
+        open: true,
+        message: 'Failed to update class to A-Level',
+        severity: 'error'
+      });
+    } finally {
+      setUpdatingEducationLevel(false);
+    }
   };
 
   if (loading) {
@@ -315,31 +354,34 @@ const ALevelClassResultReport = () => {
                   <TableCell>Roll No.</TableCell>
 
                   {/* Get all unique subjects from the first student */}
-                  {report.students && report.students[0]?.results?.map((result, index) => (
-                    <TableCell key={index} align="center">
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <Typography variant="body2">{result.subject}</Typography>
-                        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-                          {result.isPrincipal && (
-                            <Chip
-                              label="Principal"
-                              color="primary"
-                              size="small"
-                              sx={{ fontSize: '0.7rem' }}
-                            />
-                          )}
-                          {result.isCompulsory && (
-                            <Chip
-                              label="Compulsory"
-                              color="secondary"
-                              size="small"
-                              sx={{ fontSize: '0.7rem' }}
-                            />
-                          )}
+                  {report.students && report.students[0]?.results?.map((result, index) => {
+                    console.log(`Rendering subject header: ${result.subject}`);
+                    return (
+                      <TableCell key={index} align="center">
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <Typography variant="body2">{result.subject}</Typography>
+                          <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+                            {result.isPrincipal && (
+                              <Chip
+                                label="Principal"
+                                color="primary"
+                                size="small"
+                                sx={{ fontSize: '0.7rem' }}
+                              />
+                            )}
+                            {result.isCompulsory && (
+                              <Chip
+                                label="Compulsory"
+                                color="secondary"
+                                size="small"
+                                sx={{ fontSize: '0.7rem' }}
+                              />
+                            )}
+                          </Box>
                         </Box>
-                      </Box>
-                    </TableCell>
-                  ))}
+                      </TableCell>
+                    );
+                  })}
 
                   <TableCell align="center">Total</TableCell>
                   <TableCell align="center">Average</TableCell>
@@ -357,11 +399,24 @@ const ALevelClassResultReport = () => {
                     <TableCell>{student.rollNumber}</TableCell>
 
                     {/* Display results for each subject */}
-                    {student.results?.map((result, resultIndex) => (
-                      <TableCell key={resultIndex} align="center">
-                        {result.marks} ({result.grade})
-                      </TableCell>
-                    ))}
+                    {report.students && report.students[0]?.results?.map((headerResult, resultIndex) => {
+                      // Find the corresponding result for this student and subject
+                      const result = student.results?.find(r => r.subject === headerResult.subject);
+
+                      console.log(`Rendering result for student ${student.name}, subject ${headerResult.subject}:`, result);
+
+                      return (
+                        <TableCell key={resultIndex} align="center">
+                          {result ?
+                            <>
+                              {result.marksObtained !== undefined ? Number(result.marksObtained).toFixed(1) :
+                               result.marks !== undefined ? Number(result.marks).toFixed(1) : '-'}
+                              ({result.grade || 'N/A'})
+                            </> :
+                            '-'}
+                        </TableCell>
+                      );
+                    })}
 
                     <TableCell align="center">{student.totalMarks}</TableCell>
                     <TableCell align="center">{student.averageMarks}</TableCell>
@@ -408,7 +463,8 @@ const ALevelClassResultReport = () => {
                   report.students.forEach(student => {
                     const result = student.results.find(r => r.subject === subjectTemplate.subject);
                     if (result) {
-                      totalMarks += result.marks;
+                      totalMarks += result.marksObtained !== undefined ? result.marksObtained :
+                                   result.marks !== undefined ? result.marks : 0;
                     }
                   });
                   const average = studentsCount > 0 ? (totalMarks / studentsCount).toFixed(2) : '0.00';

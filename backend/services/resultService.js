@@ -394,6 +394,85 @@ class ResultService {
   }
 
   /**
+   * Enter marks for a student
+   * @param {Object} marksData - The marks data
+   * @returns {Promise<Object>} - The created result
+   */
+  static async enterMarks(marksData) {
+    try {
+      // Validate marks data
+      const validatedData = await ResultService.validateResultData(marksData);
+
+      // Get the appropriate model
+      const ResultModel = ResultService.getResultModel(validatedData.educationLevel);
+
+      // Check if a result already exists for this student, exam, and subject
+      const existingResult = await ResultModel.findOne({
+        studentId: validatedData.studentId,
+        examId: validatedData.examId,
+        subjectId: validatedData.subjectId
+      });
+
+      if (existingResult) {
+        // Update existing result
+        logger.info(`Updating existing result: ${existingResult._id}`);
+        return await ResultService.updateResult(
+          existingResult._id,
+          validatedData,
+          validatedData.educationLevel
+        );
+      } else {
+        // Create new result
+        logger.info(`Creating new result for student ${validatedData.studentId}, subject ${validatedData.subjectId}, exam ${validatedData.examId}`);
+        return await ResultService.createResult(validatedData);
+      }
+    } catch (error) {
+      logger.error(`Error entering marks: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Enter batch marks for multiple students
+   * @param {Array} marksData - Array of marks data objects
+   * @returns {Promise<Array>} - The created/updated results
+   */
+  static async enterBatchMarks(marksData) {
+    try {
+      // Validate input
+      if (!marksData || !Array.isArray(marksData) || marksData.length === 0) {
+        const error = new Error('Invalid or empty marks data');
+        logger.error(`Error entering batch marks: ${error.message}`);
+        throw error;
+      }
+
+      // Log the batch operation
+      logger.info(`Starting batch marks entry for ${marksData.length} students`);
+
+      const results = [];
+
+      // Process each mark entry
+      for (const markData of marksData) {
+        try {
+          const result = await ResultService.enterMarks(markData);
+          results.push(result);
+        } catch (error) {
+          logger.warn(`Error entering marks for student ${markData.studentId}, subject ${markData.subjectId}: ${error.message}`);
+          // Continue processing other marks
+        }
+      }
+
+      // Log the summary
+      logger.info(`Batch marks entry completed: ${results.length} results processed out of ${marksData.length} requested`);
+
+      return results;
+    } catch (error) {
+      logger.error(`Error entering batch marks: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Create multiple results in a batch
    * @param {Array} resultsData - Array of result data objects
    * @returns {Promise<Array>} - The created results

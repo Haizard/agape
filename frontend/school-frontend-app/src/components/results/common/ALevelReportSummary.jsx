@@ -58,6 +58,7 @@ const ALevelReportSummary = ({ studentDetails, subjectResults, summary }) => {
             <TableHead>
               <TableRow sx={{ bgcolor: '#f0f0f0' }}>
                 <TableCell><strong>Subject</strong></TableCell>
+                <TableCell align="center"><strong>Marks</strong></TableCell>
                 <TableCell align="center"><strong>Grade</strong></TableCell>
                 <TableCell align="center"><strong>Points</strong></TableCell>
                 <TableCell><strong>Type</strong></TableCell>
@@ -68,6 +69,12 @@ const ALevelReportSummary = ({ studentDetails, subjectResults, summary }) => {
               {principalSubjects.map((result) => (
                 <TableRow key={`principal-${result.subject}`}>
                   <TableCell>{result.subject}</TableCell>
+                  <TableCell align="center">
+                    {result.marksObtained !== undefined && result.marksObtained !== null ?
+                      Number(result.marksObtained).toFixed(1) :
+                      result.marks !== undefined && result.marks !== null ?
+                      Number(result.marks).toFixed(1) : '-'}
+                  </TableCell>
                   <TableCell align="center">
                     <Chip
                       label={result.grade || 'N/A'}
@@ -82,7 +89,7 @@ const ALevelReportSummary = ({ studentDetails, subjectResults, summary }) => {
                       size="small"
                     />
                   </TableCell>
-                  <TableCell align="center">{result.points || 0}</TableCell>
+                  <TableCell align="center">{result.points !== undefined ? result.points : '-'}</TableCell>
                   <TableCell>
                     <Chip
                       label="Principal"
@@ -99,6 +106,12 @@ const ALevelReportSummary = ({ studentDetails, subjectResults, summary }) => {
                 <TableRow key={`subsidiary-${result.subject}`}>
                   <TableCell>{result.subject}</TableCell>
                   <TableCell align="center">
+                    {result.marksObtained !== undefined && result.marksObtained !== null ?
+                      Number(result.marksObtained).toFixed(1) :
+                      result.marks !== undefined && result.marks !== null ?
+                      Number(result.marks).toFixed(1) : '-'}
+                  </TableCell>
+                  <TableCell align="center">
                     <Chip
                       label={result.grade || 'N/A'}
                       color={
@@ -112,7 +125,7 @@ const ALevelReportSummary = ({ studentDetails, subjectResults, summary }) => {
                       size="small"
                     />
                   </TableCell>
-                  <TableCell align="center">{result.points || 0}</TableCell>
+                  <TableCell align="center">{result.points !== undefined ? result.points : '-'}</TableCell>
                   <TableCell>
                     <Chip
                       label="Subsidiary"
@@ -141,7 +154,9 @@ const ALevelReportSummary = ({ studentDetails, subjectResults, summary }) => {
             </Grid>
             <Grid item xs={6} md={3}>
               <Typography variant="body2">
-                <strong>Division:</strong> {summary?.division || 'N/A'}
+                <strong>Division:</strong> {summary?.division ?
+                  (summary.division.startsWith('Division') ? summary.division : `Division ${summary.division}`)
+                  : 'N/A'}
               </Typography>
             </Grid>
             <Grid item xs={6} md={3}>

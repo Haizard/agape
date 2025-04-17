@@ -77,7 +77,8 @@ export const constructApiUrl = (endpoint) => {
 
   // If the endpoint already includes /api/, don't add it again
   if (formattedEndpoint.includes('/api/')) {
-    return formattedEndpoint;
+    // Remove duplicate /api/ prefixes
+    return formattedEndpoint.replace(/\/api\/api\//, '/api/');
   }
 
   // Add /api/ prefix if it's missing

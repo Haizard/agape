@@ -118,8 +118,10 @@ const calculateBestThreeAndDivision = (results, principalSubjectIds = []) => {
     return result;
   });
 
-  // Filter for principal subjects if IDs are provided
-  let principalResults = resultsWithPoints;
+  // Filter for principal subjects
+  let principalResults = [];
+
+  // Method 1: Use provided principal subject IDs if available
   if (principalSubjectIds && principalSubjectIds.length > 0) {
     principalResults = resultsWithPoints.filter(result => {
       const subjectId = result.subjectId?._id || result.subjectId || result.subject?._id || result.subject;
@@ -127,6 +129,26 @@ const calculateBestThreeAndDivision = (results, principalSubjectIds = []) => {
         id.toString() === (subjectId?.toString ? subjectId.toString() : subjectId)
       );
     });
+    logger.debug(`Found ${principalResults.length} principal subjects using provided IDs`);
+  }
+
+  // Method 2: If no results found or no IDs provided, check isPrincipal flag
+  if (principalResults.length === 0) {
+    principalResults = resultsWithPoints.filter(result => {
+      // Check multiple possible locations for isPrincipal flag
+      return result.isPrincipal === true ||
+             (result.subject && result.subject.isPrincipal === true) ||
+             (result.subjectId && result.subjectId.isPrincipal === true);
+    });
+    logger.debug(`Found ${principalResults.length} principal subjects using isPrincipal flag`);
+  }
+
+  // Method 3: If still no results, use best subjects as fallback
+  if (principalResults.length === 0) {
+    logger.warn('No principal subjects found for A-Level division calculation. Using best subjects as fallback.');
+    // Sort by points and take the best 3 as a fallback
+    principalResults = [...resultsWithPoints].sort((a, b) => (a.points || 7) - (b.points || 7)).slice(0, 3);
+    logger.debug(`Using ${principalResults.length} best subjects as fallback for principal subjects`);
   }
 
   // Exclude General Studies from division calculation as per NECTA standards

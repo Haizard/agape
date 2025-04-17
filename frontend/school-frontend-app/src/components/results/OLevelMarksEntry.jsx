@@ -242,7 +242,7 @@ const OLevelMarksEntry = () => {
         }
 
         // Check for existing marks
-        const response = await api.get('/check-marks/check-existing', {
+        const response = await api.get('/marks/check-existing', {
           params: {
             classId: selectedClass,
             subjectId: selectedSubject,
@@ -313,7 +313,7 @@ const OLevelMarksEntry = () => {
         }
 
         // Check if student has existing marks
-        const response = await api.get('/check-marks/check-student-marks', {
+        const response = await api.get('/marks/check-student-marks', {
           params: {
             studentId: selectedStudent,
             subjectId: selectedSubject,
@@ -456,7 +456,7 @@ const OLevelMarksEntry = () => {
       setComment('');
 
       // Refresh existing results
-      const updatedResponse = await api.get('/check-marks/check-existing', {
+      const updatedResponse = await api.get('/marks/check-existing', {
         params: {
           classId: selectedClass,
           subjectId: selectedSubject,

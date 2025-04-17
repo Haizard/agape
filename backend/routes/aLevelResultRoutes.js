@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const Exam = require('../models/Exam');
 const Subject = require('../models/Subject');
 const ALevelResult = require('../models/ALevelResult');
+// Form level utilities
 const AcademicYear = require('../models/AcademicYear');
 const CharacterAssessment = require('../models/CharacterAssessment');
 const SubjectCombination = require('../models/SubjectCombination');
@@ -26,6 +28,11 @@ const {
   validateALevelResult,
   formatValidationErrors
 } = require('../utils/dataValidator');
+const {
+  determineFormLevel,
+  filterStudentsByFormLevel,
+  validateStudentFormLevel
+} = require('../utils/formLevelUtils');
 
 // Setup logging - using centralized logger
 const logToFile = (message) => {
@@ -44,7 +51,7 @@ function getRemarks(grade) {
 /**
  * Calculate A-LEVEL division based on points
  * @param {Number} points - The total points from best 3 principal subjects
- * @returns {String} - The division (I, II, III, IV, 0)
+ * @returns {String} - The division (Division I, Division II, etc.)
  */
 function calculateALevelDivision(points) {
   // Log the points for debugging
@@ -52,14 +59,10 @@ function calculateALevelDivision(points) {
   logToFile(`Calculating A-Level division for ${points} points`);
 
   // Use the A-Level specific grade calculator
-  const division = aLevelGradeCalculator.calculateDivision(points);
+  const divisionValue = aLevelGradeCalculator.calculateDivision(points);
 
-  // Format the division for display
-  if (division === '0') {
-    return 'Division 0';
-  }
-
-  return `Division ${division}`;
+  // Always format the division consistently for display
+  return `Division ${divisionValue}`;
 }
 
 // Get student result report (general endpoint)
@@ -76,12 +79,12 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    // Get student form level (5 or 6)
-    const formLevel = student.form || (student.class?.name?.includes('6') ? 6 : 5);
-    logToFile(`Student form level: ${formLevel}`);
+    // Get student form level (5 or 6) using the standardized utility
+    const formLevel = determineFormLevel(student, classObj);
+    logToFile(`Student form level determined as: ${formLevel}`);
 
     // If form level is not set in the student record, update it
-    if (!student.form) {
+    if (!student.form && formLevel) {
       try {
         await Student.findByIdAndUpdate(studentId, { form: formLevel });
         logToFile(`Updated student ${studentId} form level to ${formLevel}`);
@@ -243,10 +246,9 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
         // Add to subject results
         subjectResults.push({
           subject: subject.name,
-          marks: result.marksObtained || 0,
-          marksObtained: result.marksObtained || 0, // Add both marks and marksObtained for compatibility
+          marksObtained: result.marksObtained !== undefined ? result.marksObtained : 0,
           grade: result.grade || '',
-          points: result.points || 0,
+          points: result.points !== undefined ? result.points : 0,
           remarks: getRemarks(result.grade),
           isPrincipal: subject.isPrincipal || false
         });
@@ -261,8 +263,7 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
         // Add to subject results with default values
         subjectResults.push({
           subject: subject.name,
-          marks: 0,
-          marksObtained: 0, // Add both marks and marksObtained for compatibility
+          marksObtained: 0,
           grade: '-',
           points: 0,
           remarks: 'Not Taken',
@@ -296,13 +297,13 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
       // If we have at least 3 subjects with grades, mark the top 3 as principal
       if (validSubjects.length >= 3) {
         // Sort by marks (descending)
-        validSubjects.sort((a, b) => b.marks - a.marks);
+        validSubjects.sort((a, b) => b.marksObtained - a.marksObtained);
 
         // Take top 3 and mark as principal
         for (let i = 0; i < Math.min(3, validSubjects.length); i++) {
           validSubjects[i].isPrincipal = true;
-          logToFile(`Marking subject ${validSubjects[i].subject} as principal (marks: ${validSubjects[i].marks})`);
-          console.log(`Marking subject ${validSubjects[i].subject} as principal (marks: ${validSubjects[i].marks})`);
+          logToFile(`Marking subject ${validSubjects[i].subject} as principal (marks: ${validSubjects[i].marksObtained})`);
+          console.log(`Marking subject ${validSubjects[i].subject} as principal (marks: ${validSubjects[i].marksObtained})`);
 
           // Also update in the database for future reference
           try {
@@ -336,8 +337,8 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
 
     // Log all principal subjects for debugging
     for (const subject of principalSubjects) {
-      logToFile(`Principal subject: ${subject.subject}, Marks: ${subject.marks}, Grade: ${subject.grade}, Points: ${subject.points}`);
-      console.log(`Principal subject: ${subject.subject}, Marks: ${subject.marks}, Grade: ${subject.grade}, Points: ${subject.points}`);
+      logToFile(`Principal subject: ${subject.subject}, Marks: ${subject.marksObtained}, Grade: ${subject.grade}, Points: ${subject.points}`);
+      console.log(`Principal subject: ${subject.subject}, Marks: ${subject.marksObtained}, Grade: ${subject.grade}, Points: ${subject.points}`);
     }
 
     // Sort by points (ascending) - lower points are better in A-Level
@@ -349,8 +350,8 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
     // Log best 3 principal subjects
     logToFile(`Best ${bestThreePrincipalSubjects.length} principal subjects:`);
     for (const subject of bestThreePrincipalSubjects) {
-      logToFile(`Best principal subject: ${subject.subject}, Grade: ${subject.grade}, Points: ${subject.points}`);
-      console.log(`Best principal subject: ${subject.subject}, Grade: ${subject.grade}, Points: ${subject.points}`);
+      logToFile(`Best principal subject: ${subject.subject}, Marks: ${subject.marksObtained}, Grade: ${subject.grade}, Points: ${subject.points}`);
+      console.log(`Best principal subject: ${subject.subject}, Marks: ${subject.marksObtained}, Grade: ${subject.grade}, Points: ${subject.points}`);
     }
 
     // Calculate total points from best 3 principal subjects
@@ -662,6 +663,21 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
       return res.status(404).json({ message: 'No students found in class' });
     }
 
+    // Check if any students have results
+    let hasResults = false;
+    for (const student of students) {
+      const results = await ALevelResult.find({ studentId: student._id, examId });
+      if (results && results.length > 0) {
+        hasResults = true;
+        break;
+      }
+    }
+
+    if (!hasResults) {
+      console.log(`No A-Level results found for any student in class ${classId} for exam ${examId}`);
+      logToFile(`No A-Level results found for any student in class ${classId} for exam ${examId}`);
+    }
+
     // Get results for all students
     const studentResults = [];
     let classTotal = 0;
@@ -670,7 +686,17 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
     for (const student of students) {
       // Get results for this student
       const results = await ALevelResult.find({ studentId: student._id, examId })
-        .populate('subjectId', 'name code isPrincipal');
+        .populate({
+          path: 'subjectId',
+          select: 'name code isPrincipal isCompulsory'
+        });
+
+      console.log(`Found ${results.length} results for student ${student._id} (${student.firstName} ${student.lastName})`);
+      if (results.length > 0) {
+        console.log('First result:', JSON.stringify(results[0], null, 2));
+      } else {
+        console.log(`No results found for student ${student._id} (${student.firstName} ${student.lastName}). Will display dashes.`);
+      }
 
       logToFile(`Found ${results.length} results for student ${student._id}`);
 
@@ -679,15 +705,28 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
       let studentTotal = 0;
       let studentPoints = 0;
 
+      // Debug student information
+      console.log(`Processing results for student: ${student.firstName} ${student.lastName} (ID: ${student._id})`);
+      console.log(`Student form level: ${student.form}`);
+      console.log(`Student education level: ${student.educationLevel}`);
+
       for (const result of results) {
         // Get subject details
         const subject = result.subjectId;
-        if (!subject || !subject.name) continue;
+        if (!subject || !subject.name) {
+          console.log(`Skipping result with missing subject: ${result._id}`);
+          continue;
+        }
+
+        // Debug result information
+        console.log(`Processing result for subject: ${subject.name}`);
+        console.log(`Marks: ${result.marksObtained}, Grade: ${result.grade}, Points: ${result.points}`);
+        console.log(`Is Principal: ${subject.isPrincipal}, Is Compulsory: ${subject.isCompulsory}`);
 
         // Add to subject results
         subjectResults.push({
           subject: subject.name,
-          marks: result.marksObtained || 0,
+          marksObtained: result.marksObtained || 0,
           grade: result.grade || '',
           points: result.points || 0,
           remarks: getRemarks(result.grade),
@@ -704,6 +743,12 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
         classCount++;
       }
 
+      // Debug subject results
+      console.log(`Total subject results for student ${student._id}: ${subjectResults.length}`);
+      if (subjectResults.length > 0) {
+        console.log('First subject result:', JSON.stringify(subjectResults[0], null, 2));
+      }
+
       // Calculate student average
       const studentAverage = subjectResults.length > 0 ? studentTotal / subjectResults.length : 0;
 
@@ -716,13 +761,13 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
         logToFile(`No principal subjects found for student ${student._id}. Marking top 3 subjects as principal.`);
 
         // Sort subjects by marks (descending)
-        const sortedSubjects = [...subjectResults].sort((a, b) => b.marks - a.marks);
+        const sortedSubjects = [...subjectResults].sort((a, b) => b.marksObtained - a.marksObtained);
 
         // Mark top 3 subjects as principal
         for (let i = 0; i < Math.min(3, sortedSubjects.length); i++) {
           sortedSubjects[i].isPrincipal = true;
-          console.log(`Marking subject ${sortedSubjects[i].subject} as principal (marks: ${sortedSubjects[i].marks})`);
-          logToFile(`Marking subject ${sortedSubjects[i].subject} as principal (marks: ${sortedSubjects[i].marks})`);
+          console.log(`Marking subject ${sortedSubjects[i].subject} as principal (marks: ${sortedSubjects[i].marksObtained})`);
+          logToFile(`Marking subject ${sortedSubjects[i].subject} as principal (marks: ${sortedSubjects[i].marksObtained})`);
         }
 
         // Update principalSubjects array
@@ -798,6 +843,7 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
       try {
         subjectCombination = await getFullSubjectCombination(combinationId);
         console.log(`Found subject combination: ${subjectCombination?.name || 'Unknown'}`);
+        console.log('Subject combination details:', JSON.stringify(subjectCombination, null, 2));
 
         // Add compulsory subjects to each student's results if they're not already included
         if (subjectCombination?.compulsorySubjects && subjectCombination.compulsorySubjects.length > 0) {
@@ -816,10 +862,20 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
                 console.log(`Adding compulsory subject to student ${studentResult.name}: ${compulsorySubject.name}`);
 
                 // Try to find a result for this subject
+                // First, find the subject by name
+                const subject = await Subject.findOne({ name: compulsorySubject.name });
+                if (!subject) {
+                  console.log(`Subject not found with name: ${compulsorySubject.name}`);
+                  continue;
+                }
+
+                console.log(`Found subject: ${subject.name} (ID: ${subject._id})`);
+
+                // Now find the result using the subject ID
                 const result = await ALevelResult.findOne({
                   studentId: studentResult.id,
                   examId: examId,
-                  'subjectId.name': compulsorySubject.name
+                  subjectId: subject._id
                 }).populate('subjectId');
 
                 if (result) {
@@ -829,7 +885,7 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
                   // Add to subject results
                   studentResult.results.push({
                     subject: compulsorySubject.name,
-                    marks: result.marksObtained || 0,
+                    marksObtained: result.marksObtained || 0,
                     grade: result.grade || '',
                     points: result.points || 0,
                     remarks: getRemarks(result.grade),
@@ -850,7 +906,7 @@ router.get('/class/:classId/:examId', authenticateToken, authorizeRole(['admin',
                   // Add to subject results with default values
                   studentResult.results.push({
                     subject: compulsorySubject.name,
-                    marks: 0,
+                    marksObtained: 0,
                     grade: '-',
                     points: 0,
                     remarks: 'Not taken',
@@ -1183,14 +1239,16 @@ router.get('/form5/student/:studentId/:examId', authenticateToken, async (req, r
       ));
     }
 
-    // Verify this is a Form 5 student
-    if (student.form !== 5 && student.form !== '5' && student.form !== 'Form 5') {
+    // Verify this is a Form 5 student using our standardized utility
+    if (!validateStudentFormLevel(student, 5)) {
       return res.status(400).json(formatErrorResponse(
         new Error('This is not a Form 5 student'),
         'form5/student',
-        { form: student.form }
+        { formLevel: student.form || 'Not set' }
       ));
     }
+
+    // Form 5 validation already done with validateStudentFormLevel
 
     // Find the class
     const classObj = await Class.findById(student.class);
@@ -1268,12 +1326,12 @@ router.get('/form6/student/:studentId/:examId', authenticateToken, async (req, r
       ));
     }
 
-    // Verify this is a Form 6 student
-    if (student.form !== 6 && student.form !== '6' && student.form !== 'Form 6') {
+    // Verify this is a Form 6 student using our standardized utility
+    if (!validateStudentFormLevel(student, 6)) {
       return res.status(400).json(formatErrorResponse(
         new Error('This is not a Form 6 student'),
         'form6/student',
-        { form: student.form }
+        { formLevel: student.form || 'Not set' }
       ));
     }
 
@@ -1431,8 +1489,8 @@ router.get('/form5/class/:classId/:examId', authenticateToken, authorizeRole(['a
       return res.status(404).json({ message: 'Exam not found' });
     }
 
-    // Filter for Form 5 students only
-    const students = classObj.students.filter(student => student.form === 5);
+    // Filter for Form 5 students only using our standardized utility
+    const students = filterStudentsByFormLevel(classObj.students, 5, classObj);
 
     if (students.length === 0) {
       logToFile(`No Form 5 students found in class ${classId}`);
@@ -1610,8 +1668,8 @@ router.get('/form6/class/:classId/:examId', authenticateToken, authorizeRole(['a
       return res.status(404).json({ message: 'Exam not found' });
     }
 
-    // Filter for Form 6 students only
-    const students = classObj.students.filter(student => student.form === 6);
+    // Filter for Form 6 students only using our standardized utility
+    const students = filterStudentsByFormLevel(classObj.students, 6, classObj);
 
     if (students.length === 0) {
       logToFile(`No Form 6 students found in class ${classId}`);

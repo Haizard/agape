@@ -155,7 +155,7 @@ const WorkingSubjectMarksEntry = () => {
       setLoading(true);
 
       // Call the API to check for existing marks
-      const response = await api.get('/api/marks/check-existing', {
+      const response = await api.get('/marks/check-existing', {
         params: {
           classId: selectedClass,
           subjectId: selectedSubject,

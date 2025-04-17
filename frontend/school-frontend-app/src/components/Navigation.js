@@ -172,7 +172,7 @@ const Navigation = () => {
           { text: 'Student Subject Selection', icon: <AssignmentIndIcon />, path: '/admin/student-subject-selection', hidden: true },
           { text: 'Core Subjects', icon: <SubjectIcon />, path: '/admin/core-subjects', hidden: true },
           { text: 'Optional Subjects', icon: <SubjectIcon />, path: '/admin/optional-subjects', hidden: true },
-          { text: 'Unified Academic Management', icon: <SchoolIcon />, path: '/academic/unified', highlight: true, description: 'Complete academic setup in one place' },
+          // Removed duplicate entry for Unified Academic Management
           { text: 'Teacher Assignments', icon: <AssignmentIcon />, path: '/admin/teacher-assignments', hidden: true },
           { text: 'Student Assignments', icon: <AssignmentIcon />, path: '/admin/student-assignments', hidden: true },
           { text: 'Results', icon: <AssessmentIcon />, path: '/admin/results', hidden: true },

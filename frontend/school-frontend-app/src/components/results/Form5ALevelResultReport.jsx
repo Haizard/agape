@@ -66,8 +66,18 @@ const Form5ALevelResultReport = () => {
         throw new Error('This is not an A-Level report. Please use the O-Level report component.');
       }
 
-      // Ensure this is a Form 5 student
-      if (data.studentDetails?.form !== 5 && data.studentDetails?.form !== 'Form 5') {
+      // Ensure this is a Form 5 student - check multiple possible formats
+      const studentForm = data.studentDetails?.form;
+      const isForm5 =
+        studentForm === 5 ||
+        studentForm === '5' ||
+        (typeof studentForm === 'string' &&
+          (studentForm.includes('Form 5') ||
+           studentForm.includes('Form V') ||
+           studentForm.toLowerCase().includes('form 5') ||
+           studentForm.toLowerCase().includes('form v')));
+
+      if (!isForm5) {
         throw new Error('This is not a Form 5 student. Please use the Form 6 report component.');
       }
 

@@ -44,6 +44,8 @@ const aLevelComprehensiveReportRoutes = require('./routes/aLevelComprehensiveRep
 const unifiedComprehensiveReportRoutes = require('./routes/unifiedComprehensiveReportRoutes');
 const characterAssessmentRoutes = require('./routes/characterAssessmentRoutes');
 const studentEducationLevelRoutes = require('./routes/studentEducationLevelRoutes');
+// Import v2 routes
+const v2ResultRoutes = require('./routes/v2/resultRoutes');
 const examRoutes = require('./routes/examRoutes');
 const newsRoutes = require('./routes/newsRoutes');
 const examTypeRoutes = require('./routes/examTypeRoutes');
@@ -167,7 +169,17 @@ mongoose.connection.on('error', (err) => {
 app.use(express.json({ limit: '10mb' }));
 
 // Serve static files from the React app build directory
-app.use(express.static(path.join(__dirname, '../frontend/school-frontend-app/build')));
+const frontendBuildPath = path.join(__dirname, '../frontend/school-frontend-app/build');
+
+// Check if the frontend build directory exists before serving static files
+const fs = require('fs');
+if (fs.existsSync(frontendBuildPath)) {
+  console.log('Frontend build directory found, serving static files');
+  app.use(express.static(frontendBuildPath));
+} else {
+  console.log('Frontend build directory not found at:', frontendBuildPath);
+  console.log('Static file serving disabled');
+}
 
 // Debug middleware to log all requests and fix API URL duplication
 app.use((req, res, next) => {
@@ -220,6 +232,8 @@ app.use('/api/o-level-results/batch', criticalRoutesCors, oLevelResultBatchRoute
 app.use('/api/a-level-comprehensive', aLevelComprehensiveReportRoutes);
 app.use('/api/character-assessments', characterAssessmentRoutes);
 app.use('/api/student-education-level', studentEducationLevelRoutes);
+// Register v2 routes
+app.use('/api/v2/results', v2ResultRoutes);
 
 // Apply special CORS for critical routes
 app.use('/api/exams', criticalRoutesCors, examRoutes);
@@ -332,8 +346,18 @@ app.use((err, req, res, next) => {
 
 // Catch-all route handler for client-side routing
 app.get('*', (req, res) => {
-  // Serve the index.html file from the frontend build directory for any unmatched routes
-  res.sendFile(path.join(__dirname, '../frontend/school-frontend-app/build', 'index.html'));
+  // Check if the frontend build directory exists
+  const indexPath = path.join(__dirname, '../frontend/school-frontend-app/build', 'index.html');
+  if (fs.existsSync(indexPath)) {
+    // Serve the index.html file from the frontend build directory for any unmatched routes
+    res.sendFile(indexPath);
+  } else {
+    // If the frontend build directory doesn't exist, return a JSON response
+    res.status(404).json({
+      message: 'Frontend build not found',
+      error: 'The frontend build directory does not exist. This server is configured to serve API requests only.'
+    });
+  }
 });
 
 module.exports = app;

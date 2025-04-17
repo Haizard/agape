@@ -64,18 +64,10 @@ const ALevelMarksEntry = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
-  // Monitor previewOpen state
+  // Monitor preview dialog state
   useEffect(() => {
     console.log('previewOpen state changed:', previewOpen);
   }, [previewOpen]);
-
-  // Test dialog state
-  const [testDialogOpen, setTestDialogOpen] = useState(false);
-
-  // Monitor test dialog state
-  useEffect(() => {
-    console.log('testDialogOpen state changed:', testDialogOpen);
-  }, [testDialogOpen]);
 
   // Fetch initial data
   useEffect(() => {
@@ -316,7 +308,15 @@ const ALevelMarksEntry = () => {
         const isALevel = student.educationLevel === 'A_LEVEL';
 
         // Check if student is in Form 5 or 6 (A-Level forms)
-        const isFormFiveOrSix = student.form === 5 || student.form === 6;
+        // Handle both number and string representations of form
+        const isFormFiveOrSix =
+          student.form === 5 || student.form === 6 ||
+          student.form === '5' || student.form === '6' ||
+          (typeof student.form === 'string' &&
+            (student.form.includes('Form 5') ||
+             student.form.includes('Form 6') ||
+             student.form.includes('Form V') ||
+             student.form.includes('Form VI')));
 
         // Determine if this is an A-Level student
         const isALevelStudent = isALevel || isFormFiveOrSix;
@@ -537,7 +537,15 @@ const ALevelMarksEntry = () => {
         const isALevel = selectedStudentObj?.educationLevel === 'A_LEVEL';
 
         // Check if student is in Form 5 or 6 (A-Level forms)
-        const isFormFiveOrSix = selectedStudentObj?.form === 5 || selectedStudentObj?.form === 6;
+        // Handle both number and string representations of form
+        const isFormFiveOrSix =
+          selectedStudentObj?.form === 5 || selectedStudentObj?.form === 6 ||
+          selectedStudentObj?.form === '5' || selectedStudentObj?.form === '6' ||
+          (typeof selectedStudentObj?.form === 'string' &&
+            (selectedStudentObj.form.includes('Form 5') ||
+             selectedStudentObj.form.includes('Form 6') ||
+             selectedStudentObj.form.includes('Form V') ||
+             selectedStudentObj.form.includes('Form VI')));
 
         // Determine if this is an A-Level student
         const isALevelStudent = isALevel || isFormFiveOrSix;
@@ -656,16 +664,16 @@ const ALevelMarksEntry = () => {
     return 'F';
   };
 
-  // Calculate A-Level points based on grade
+  // Calculate A-Level points based on grade (using NECTA system where lower is better)
   const calculatePoints = (grade) => {
     switch (grade) {
-      case 'A': return 5;
-      case 'B': return 4;
+      case 'A': return 1;
+      case 'B': return 2;
       case 'C': return 3;
-      case 'D': return 2;
-      case 'E': return 1;
-      case 'S': return 0.5;
-      case 'F': return 0;
+      case 'D': return 4;
+      case 'E': return 5;
+      case 'S': return 6;
+      case 'F': return 7;
       default: return 0;
     }
   };
@@ -806,8 +814,11 @@ const ALevelMarksEntry = () => {
 
     setLoading(true);
     try {
-      // Submit to the ALevelResult model
-      const response = await api.post('/api/a-level-results/enter-marks', previewData);
+      // Submit to the standardized v2 API endpoint
+      const response = await api.post('/api/v2/results/enter-marks', {
+        ...previewData,
+        educationLevel: 'A_LEVEL'
+      });
 
       // Show success message
       setSnackbar({
@@ -1034,30 +1045,6 @@ const ALevelMarksEntry = () => {
               >
                 {loading ? <CircularProgress size={24} /> : 'Save Marks'}
               </Button>
-
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={() => {
-                  console.log('Test button clicked, setting previewOpen to true');
-                  setPreviewOpen(true);
-                }}
-                sx={{ mt: 2 }}
-              >
-                Test Preview Dialog
-              </Button>
-
-              <Button
-                variant="outlined"
-                color="info"
-                onClick={() => {
-                  console.log('Test dialog button clicked, setting testDialogOpen to true');
-                  setTestDialogOpen(true);
-                }}
-                sx={{ mt: 2 }}
-              >
-                Test Simple Dialog
-              </Button>
             </Box>
           </Grid>
         </Grid>
@@ -1083,27 +1070,7 @@ const ALevelMarksEntry = () => {
         type="individual"
       />
 
-      {/* Test Simple Dialog */}
-      <Dialog
-        open={testDialogOpen}
-        onClose={() => setTestDialogOpen(false)}
-        aria-labelledby="test-dialog-title"
-        aria-describedby="test-dialog-description"
-        disablePortal={false}
-        container={document.body}
-      >
-        <DialogTitle id="test-dialog-title">Test Dialog</DialogTitle>
-        <DialogContent>
-          <Typography id="test-dialog-description">
-            This is a simple test dialog to check if dialogs are working correctly.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setTestDialogOpen(false)} color="primary">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+
     </Paper>
   );
 };

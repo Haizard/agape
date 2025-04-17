@@ -12,7 +12,7 @@ if (!baseURL.endsWith('/')) {
 // Ensure the baseURL does NOT include /api/ since we add it in the API calls
 if (baseURL.includes('/api/')) {
   // Remove /api/ from the URL
-  baseURL = baseURL.replace(/\/api\/?$/, '/');
+  baseURL = baseURL.replace(/\/api\/?/, '/');
   console.log('Removed /api/ from baseURL:', baseURL);
 }
 

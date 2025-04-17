@@ -501,7 +501,7 @@ const ClassTabularReport = () => {
         studentsResponse.data.map(async (student) => {
           try {
             // Try multiple API endpoints to ensure compatibility
-            let resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${student._id}/${examId}`;
+            let resultsUrl = `${process.env.REACT_APP_API_URL || ''}results/comprehensive/student/${student._id}/${examId}`;
             resultsUrl += `?academicYear=${academicYear}&term=${term}`;
             let resultsResponse;
 
@@ -516,7 +516,7 @@ const ClassTabularReport = () => {
 
               if (isOLevel) {
                 // For O-Level students, try the O-Level endpoint first
-                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/o-level-results/student/${student._id}/${examId}`;
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}o-level-results/student/${student._id}/${examId}`;
                 resultsUrl += `?academicYear=${academicYear}&term=${term}`;
                 console.log(`Trying O-Level endpoint for student ${student._id}:`, resultsUrl);
 
@@ -528,7 +528,7 @@ const ClassTabularReport = () => {
                 });
               } else {
                 // For A-Level students, try the A-Level endpoint first
-                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${student._id}/${examId}`;
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}a-level-comprehensive/student/${student._id}/${examId}`;
                 resultsUrl += `?academicYear=${academicYear}&term=${term}`;
                 console.log(`Trying A-Level endpoint for student ${student._id}:`, resultsUrl);
 
@@ -544,7 +544,7 @@ const ClassTabularReport = () => {
 
               try {
                 // Try the comprehensive endpoint as fallback
-                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/api/results/comprehensive/student/${student._id}/${examId}`;
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}results/comprehensive/student/${student._id}/${examId}`;
                 resultsUrl += `?academicYear=${academicYear}&term=${term}`;
                 console.log(`Trying comprehensive fallback endpoint for student ${student._id}:`, resultsUrl);
 
@@ -711,7 +711,7 @@ const ClassTabularReport = () => {
               // First, try to fetch actual marks data for this student
               try {
                 console.log(`Attempting to fetch actual marks data for student ${student._id}`);
-                const marksUrl = `${process.env.REACT_APP_API_URL || ''}/api/v2/results/student/${student._id}?examId=${examId}&academicYear=${academicYear}&term=${term}`;
+                const marksUrl = `${process.env.REACT_APP_API_URL || ''}v2/results/student/${student._id}?examId=${examId}&academicYear=${academicYear}&term=${term}`;
 
                 const marksResponse = await axios.get(marksUrl, {
                   headers: {
@@ -741,7 +741,7 @@ const ClassTabularReport = () => {
                 // Try the direct marks API as a fallback
                 try {
                   console.log(`Attempting to fetch marks from direct API for student ${student._id}`);
-                  const directMarksUrl = `${process.env.REACT_APP_API_URL || ''}/api/marks?studentId=${student._id}&examId=${examId}`;
+                  const directMarksUrl = `${process.env.REACT_APP_API_URL || ''}marks?studentId=${student._id}&examId=${examId}`;
 
                   const directMarksResponse = await axios.get(directMarksUrl, {
                     headers: {
@@ -776,8 +776,8 @@ const ClassTabularReport = () => {
                                          (student.className && (student.className.includes('5') || student.className.includes('6')));
 
                     const apiEndpoint = isLikelyALevel ?
-                      `/api/a-level-results/student-marks/${student._id}/${examId}` :
-                      `/api/o-level-results/student-marks/${student._id}/${examId}`;
+                      `a-level-results/student-marks/${student._id}/${examId}` :
+                      `o-level-results/student-marks/${student._id}/${examId}`;
 
                     console.log(`Attempting to fetch marks from ${isLikelyALevel ? 'A-Level' : 'O-Level'} API for student ${student._id}`);
                     const levelSpecificUrl = `${process.env.REACT_APP_API_URL || ''}${apiEndpoint}`;
@@ -875,7 +875,7 @@ const ClassTabularReport = () => {
                           generatedSubjects.map(async (subject) => {
                             try {
                               // Try to fetch marks for this specific subject
-                              const subjectMarksUrl = `${process.env.REACT_APP_API_URL || ''}/api/marks?studentId=${student._id}&examId=${examId}&subjectCode=${subject.code}`;
+                              const subjectMarksUrl = `${process.env.REACT_APP_API_URL || ''}marks?studentId=${student._id}&examId=${examId}&subjectCode=${subject.code}`;
 
                               const subjectMarksResponse = await axios.get(subjectMarksUrl, {
                                 headers: {
@@ -1064,10 +1064,12 @@ const ClassTabularReport = () => {
                   const subject = subjectsWithMarks[i];
 
                   try {
-                    // Construct the URL to fetch marks for this specific subject
-                    const subjectMarksUrl = `${process.env.REACT_APP_API_URL || ''}/api/marks/check-student-marks?studentId=${student._id}&subjectId=${subject.code}&examId=${examId}&academicYearId=${academicYear}`;
+                    // Use the api utility to construct the URL properly
+                    const subjectMarksUrl = `/marks/check-student-marks?studentId=${student._id}&subjectId=${subject.code}&examId=${examId}&academicYearId=${academicYear}`;
 
-                    const subjectMarksResponse = await axios.get(subjectMarksUrl, {
+                    // Import the api utility at the top of the file
+                    // import api from '../../utils/api';
+                    const subjectMarksResponse = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api${subjectMarksUrl}`, {
                       headers: {
                         'Accept': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1597,7 +1599,7 @@ const ClassTabularReport = () => {
 
       // Try to fetch more detailed information from the API
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/subject-combinations?educationLevel=A_LEVEL`, {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}subject-combinations?educationLevel=A_LEVEL`, {
           headers: {
             'Accept': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1660,7 +1662,7 @@ const ClassTabularReport = () => {
   const fetchSubjectCombinations = useCallback(async () => {
     try {
       console.log('Fetching subject combinations from API...');
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/subject-combinations?educationLevel=A_LEVEL`, {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}subject-combinations?educationLevel=A_LEVEL`, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1947,7 +1949,7 @@ const ClassTabularReport = () => {
       setUpdatingEducationLevel(true);
 
       // Call the API to update the class's education level
-      await axios.put(`${process.env.REACT_APP_API_URL || ''}/api/classes/${classId}`, {
+      await axios.put(`${process.env.REACT_APP_API_URL || ''}classes/${classId}`, {
         educationLevel: 'A_LEVEL'
       }, {
         headers: {

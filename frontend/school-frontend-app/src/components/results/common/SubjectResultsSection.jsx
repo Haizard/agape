@@ -19,9 +19,15 @@ import {
  * Displays subject results in a formatted table with principal and subsidiary subjects
  */
 const SubjectResultsSection = ({ subjectResults }) => {
+  // Debug the incoming data
+  console.log('SubjectResultsSection received data:', subjectResults);
+
   // Separate principal and subsidiary subjects
   const principalSubjects = subjectResults.filter(result => result.isPrincipal);
   const subsidiarySubjects = subjectResults.filter(result => !result.isPrincipal);
+
+  console.log('Principal subjects:', principalSubjects);
+  console.log('Subsidiary subjects:', subsidiarySubjects);
 
   return (
     <Paper sx={{ mb: 3 }}>
@@ -74,7 +80,10 @@ const SubjectResultsSection = ({ subjectResults }) => {
                 </TableCell>
                 <TableCell align="center">
                   <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                    {result.marksObtained || result.marks || 0}
+                    {result.marksObtained !== undefined && result.marksObtained !== null ?
+                      Number(result.marksObtained).toFixed(1) :
+                      result.marks !== undefined && result.marks !== null ?
+                      Number(result.marks).toFixed(1) : '-'}
                   </Typography>
                 </TableCell>
                 <TableCell align="center">
@@ -93,7 +102,7 @@ const SubjectResultsSection = ({ subjectResults }) => {
                 </TableCell>
                 <TableCell align="center">
                   <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                    {result.points || 0}
+                    {result.points !== undefined ? result.points : '-'}
                   </Typography>
                 </TableCell>
                 <TableCell>{result.remarks || 'N/A'}</TableCell>
@@ -129,7 +138,14 @@ const SubjectResultsSection = ({ subjectResults }) => {
                     </Box>
                   </Box>
                 </TableCell>
-                <TableCell align="center">{result.marksObtained || result.marks || 0}</TableCell>
+                <TableCell align="center">
+                  <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                    {result.marksObtained !== undefined && result.marksObtained !== null ?
+                      Number(result.marksObtained).toFixed(1) :
+                      result.marks !== undefined && result.marks !== null ?
+                      Number(result.marks).toFixed(1) : '-'}
+                  </Typography>
+                </TableCell>
                 <TableCell align="center">
                   <Chip
                     label={result.grade || 'N/A'}
@@ -144,7 +160,7 @@ const SubjectResultsSection = ({ subjectResults }) => {
                     size="small"
                   />
                 </TableCell>
-                <TableCell align="center">{result.points || 0}</TableCell>
+                <TableCell align="center">{result.points !== undefined ? result.points : '-'}</TableCell>
                 <TableCell>{result.remarks || 'N/A'}</TableCell>
               </TableRow>
             ))}
