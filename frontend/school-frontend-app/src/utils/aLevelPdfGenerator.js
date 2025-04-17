@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { formatALevelDivision, formatALevelGrade, getALevelGradeRemarks } from './resultDataStructures';
 
 /**
  * Generate a PDF for an A-Level student result report
