@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subject Combination Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .container {
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .combination-list {
+            margin-top: 20px;
+        }
+        .combination-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .subject-list {
+            margin-top: 10px;
+        }
+        .subject-item {
+            padding: 8px;
+            border: 1px solid #ddd;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .subject-item.principal {
+            background-color: #e8f5e9;
+            border-color: #81c784;
+        }
+        .subject-item.subsidiary {
+            background-color: #e3f2fd;
+            border-color: #64b5f6;
+        }
+        .subject-item button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        .warning {
+            color: orange;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 7px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+        .badge-principal {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #81c784;
+        }
+        .badge-subsidiary {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #64b5f6;
+        }
+        .badge-warning {
+            background-color: #fff3e0;
+            color: #e65100;
+            border: 1px solid #ffb74d;
+        }
+    </style>
+</head>
+<body>
+    <h1>Subject Combination Tool</h1>
+    
+    <div class="container">
+        <h2>Authentication</h2>
+        <div class="form-group">
+            <label for="token">API Token:</label>
+            <input type="text" id="token" placeholder="Enter your API token">
+        </div>
+        <div class="form-group">
+            <label for="api-url">API URL:</label>
+            <input type="text" id="api-url" value="https://agape-seminary-school.onrender.com/api" placeholder="Enter API URL">
+        </div>
+        <button id="load-combinations">Load Combinations</button>
+    </div>
+    
+    <div class="container">
+        <h2>Subject Combinations</h2>
+        <div id="combination-list" class="combination-list">
+            <p>Click "Load Combinations" to view subject combinations</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Log</h2>
+        <div id="log" class="log"></div>
+    </div>
+    
+    <script>
+        // DOM elements
+        const tokenInput = document.getElementById('token');
+        const apiUrlInput = document.getElementById('api-url');
+        const loadCombinationsBtn = document.getElementById('load-combinations');
+        const combinationListDiv = document.getElementById('combination-list');
+        const logDiv = document.getElementById('log');
+        
+        // Check if token is stored in localStorage
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+            tokenInput.value = storedToken;
+            log('Token loaded from localStorage', 'success');
+        }
+        
+        // Log function
+        function log(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEntry.className = type;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // Load combinations
+        loadCombinationsBtn.addEventListener('click', async () => {
+            const token = tokenInput.value.trim();
+            const apiUrl = apiUrlInput.value.trim();
+            
+            if (!token) {
+                log('Please enter an API token', 'error');
+                return;
+            }
+            
+            if (!apiUrl) {
+                log('Please enter an API URL', 'error');
+                return;
+            }
+            
+            // Store token in localStorage
+            localStorage.setItem('token', token);
+            
+            try {
+                log('Loading subjects...');
+                
+                // First, load all subjects
+                const subjectsResponse = await fetch(`${apiUrl}/subjects`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!subjectsResponse.ok) {
+                    throw new Error(`Failed to load subjects: ${subjectsResponse.status} ${subjectsResponse.statusText}`);
+                }
+                
+                const subjects = await subjectsResponse.json();
+                log(`Loaded ${subjects.length} subjects`, 'success');
+                
+                // Create a map of subject IDs to subjects for easy lookup
+                const subjectMap = {};
+                subjects.forEach(subject => {
+                    subjectMap[subject._id] = subject;
+                });
+                
+                // Now load combinations
+                log('Loading subject combinations...');
+                
+                const combinationsResponse = await fetch(`${apiUrl}/subject-combinations`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!combinationsResponse.ok) {
+                    throw new Error(`Failed to load combinations: ${combinationsResponse.status} ${combinationsResponse.statusText}`);
+                }
+                
+                const combinations = await combinationsResponse.json();
+                log(`Loaded ${combinations.length} subject combinations`, 'success');
+                
+                // Display combinations
+                displayCombinations(combinations, subjectMap, apiUrl, token);
+                
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Display combinations
+        function displayCombinations(combinations, subjectMap, apiUrl, token) {
+            combinationListDiv.innerHTML = '';
+            
+            if (combinations.length === 0) {
+                combinationListDiv.innerHTML = '<p>No subject combinations found</p>';
+                return;
+            }
+            
+            // Sort combinations by name
+            combinations.sort((a, b) => a.name.localeCompare(b.name));
+            
+            combinations.forEach(combination => {
+                const combinationItem = document.createElement('div');
+                combinationItem.className = 'combination-item';
+                
+                const combinationHeader = document.createElement('h3');
+                combinationHeader.textContent = `${combination.name} (${combination.code})`;
+                
+                const combinationDescription = document.createElement('p');
+                combinationDescription.textContent = combination.description || 'No description';
+                
+                combinationItem.appendChild(combinationHeader);
+                combinationItem.appendChild(combinationDescription);
+                
+                // Principal subjects section
+                const principalSubjectsHeader = document.createElement('h4');
+                principalSubjectsHeader.innerHTML = 'Principal Subjects <span class="badge badge-principal">P</span>';
+                
+                const principalSubjectsList = document.createElement('div');
+                principalSubjectsList.className = 'subject-list';
+                
+                // Check if subjects array exists and has items
+                if (combination.subjects && combination.subjects.length > 0) {
+                    combination.subjects.forEach(subjectRef => {
+                        const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                        const subject = subjectMap[subjectId];
+                        
+                        if (subject) {
+                            const subjectItem = createSubjectItem(
+                                subject, 
+                                'principal', 
+                                !subject.isPrincipal,
+                                combination,
+                                apiUrl,
+                                token
+                            );
+                            principalSubjectsList.appendChild(subjectItem);
+                        } else {
+                            const unknownSubjectItem = document.createElement('div');
+                            unknownSubjectItem.className = 'subject-item';
+                            unknownSubjectItem.textContent = `Unknown subject (ID: ${subjectId})`;
+                            principalSubjectsList.appendChild(unknownSubjectItem);
+                        }
+                    });
+                } else {
+                    const noSubjectsMsg = document.createElement('p');
+                    noSubjectsMsg.textContent = 'No principal subjects assigned';
+                    principalSubjectsList.appendChild(noSubjectsMsg);
+                }
+                
+                // Subsidiary subjects section
+                const subsidiarySubjectsHeader = document.createElement('h4');
+                subsidiarySubjectsHeader.innerHTML = 'Subsidiary Subjects <span class="badge badge-subsidiary">S</span>';
+                
+                const subsidiarySubjectsList = document.createElement('div');
+                subsidiarySubjectsList.className = 'subject-list';
+                
+                // Check if compulsorySubjects array exists and has items
+                if (combination.compulsorySubjects && combination.compulsorySubjects.length > 0) {
+                    combination.compulsorySubjects.forEach(subjectRef => {
+                        const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                        const subject = subjectMap[subjectId];
+                        
+                        if (subject) {
+                            const subjectItem = createSubjectItem(
+                                subject, 
+                                'subsidiary', 
+                                subject.isPrincipal,
+                                combination,
+                                apiUrl,
+                                token
+                            );
+                            subsidiarySubjectsList.appendChild(subjectItem);
+                        } else {
+                            const unknownSubjectItem = document.createElement('div');
+                            unknownSubjectItem.className = 'subject-item';
+                            unknownSubjectItem.textContent = `Unknown subject (ID: ${subjectId})`;
+                            subsidiarySubjectsList.appendChild(unknownSubjectItem);
+                        }
+                    });
+                } else {
+                    const noSubjectsMsg = document.createElement('p');
+                    noSubjectsMsg.textContent = 'No subsidiary subjects assigned';
+                    subsidiarySubjectsList.appendChild(noSubjectsMsg);
+                }
+                
+                // Add sections to combination item
+                combinationItem.appendChild(principalSubjectsHeader);
+                combinationItem.appendChild(principalSubjectsList);
+                combinationItem.appendChild(subsidiarySubjectsHeader);
+                combinationItem.appendChild(subsidiarySubjectsList);
+                
+                // Add fix button if needed
+                const hasIssues = (combination.subjects && combination.subjects.some(subjectRef => {
+                    const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                    const subject = subjectMap[subjectId];
+                    return subject && !subject.isPrincipal;
+                })) || (combination.compulsorySubjects && combination.compulsorySubjects.some(subjectRef => {
+                    const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                    const subject = subjectMap[subjectId];
+                    return subject && subject.isPrincipal;
+                }));
+                
+                if (hasIssues) {
+                    const fixButton = document.createElement('button');
+                    fixButton.textContent = 'Fix All Issues';
+                    fixButton.style.backgroundColor = '#ff9800';
+                    
+                    fixButton.addEventListener('click', async () => {
+                        try {
+                            log(`Fixing issues in combination: ${combination.name}...`);
+                            
+                            // Fix principal subjects
+                            if (combination.subjects) {
+                                for (const subjectRef of combination.subjects) {
+                                    const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                                    const subject = subjectMap[subjectId];
+                                    
+                                    if (subject && !subject.isPrincipal) {
+                                        log(`Marking subject ${subject.name} as principal...`);
+                                        
+                                        const updateResponse = await fetch(`${apiUrl}/subjects/${subject._id}`, {
+                                            method: 'PUT',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Authorization': `Bearer ${token}`
+                                            },
+                                            body: JSON.stringify({
+                                                ...subject,
+                                                isPrincipal: true
+                                            })
+                                        });
+                                        
+                                        if (updateResponse.ok) {
+                                            const updatedSubject = await updateResponse.json();
+                                            log(`Successfully marked ${updatedSubject.name} as principal`, 'success');
+                                            
+                                            // Update the subject in our map
+                                            subjectMap[subject._id] = { ...subject, isPrincipal: true };
+                                        } else {
+                                            log(`Failed to update subject ${subject.name}`, 'error');
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Fix subsidiary subjects
+                            if (combination.compulsorySubjects) {
+                                for (const subjectRef of combination.compulsorySubjects) {
+                                    const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                                    const subject = subjectMap[subjectId];
+                                    
+                                    if (subject && subject.isPrincipal) {
+                                        log(`Marking subject ${subject.name} as subsidiary...`);
+                                        
+                                        const updateResponse = await fetch(`${apiUrl}/subjects/${subject._id}`, {
+                                            method: 'PUT',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Authorization': `Bearer ${token}`
+                                            },
+                                            body: JSON.stringify({
+                                                ...subject,
+                                                isPrincipal: false
+                                            })
+                                        });
+                                        
+                                        if (updateResponse.ok) {
+                                            const updatedSubject = await updateResponse.json();
+                                            log(`Successfully marked ${updatedSubject.name} as subsidiary`, 'success');
+                                            
+                                            // Update the subject in our map
+                                            subjectMap[subject._id] = { ...subject, isPrincipal: false };
+                                        } else {
+                                            log(`Failed to update subject ${subject.name}`, 'error');
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            log(`All issues in combination ${combination.name} fixed`, 'success');
+                            
+                            // Reload combinations
+                            loadCombinationsBtn.click();
+                            
+                        } catch (error) {
+                            log(`Error fixing issues: ${error.message}`, 'error');
+                        }
+                    });
+                    
+                    combinationItem.appendChild(document.createElement('hr'));
+                    combinationItem.appendChild(fixButton);
+                }
+                
+                combinationListDiv.appendChild(combinationItem);
+            });
+        }
+        
+        // Create a subject item
+        function createSubjectItem(subject, type, hasIssue, combination, apiUrl, token) {
+            const subjectItem = document.createElement('div');
+            subjectItem.className = `subject-item ${type}`;
+            
+            const subjectInfo = document.createElement('div');
+            
+            let badgeHtml = '';
+            if (type === 'principal') {
+                badgeHtml = `<span class="badge badge-principal">P</span>`;
+                if (!subject.isPrincipal) {
+                    badgeHtml += `<span class="badge badge-warning">Not marked as principal!</span>`;
+                }
+            } else {
+                badgeHtml = `<span class="badge badge-subsidiary">S</span>`;
+                if (subject.isPrincipal) {
+                    badgeHtml += `<span class="badge badge-warning">Marked as principal!</span>`;
+                }
+            }
+            
+            subjectInfo.innerHTML = `
+                <strong>${subject.name}</strong> (${subject.code}) ${badgeHtml}
+                <br>
+                <small>Education Level: ${subject.educationLevel}</small>
+            `;
+            
+            subjectItem.appendChild(subjectInfo);
+            
+            // Add fix button if there's an issue
+            if (hasIssue) {
+                const fixButton = document.createElement('button');
+                
+                if (type === 'principal' && !subject.isPrincipal) {
+                    fixButton.textContent = 'Mark as Principal';
+                } else if (type === 'subsidiary' && subject.isPrincipal) {
+                    fixButton.textContent = 'Mark as Subsidiary';
+                    fixButton.style.backgroundColor = '#f44336';
+                }
+                
+                fixButton.addEventListener('click', async () => {
+                    try {
+                        log(`Updating subject: ${subject.name}...`);
+                        
+                        const shouldBePrincipal = type === 'principal';
+                        
+                        const updateResponse = await fetch(`${apiUrl}/subjects/${subject._id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                ...subject,
+                                isPrincipal: shouldBePrincipal
+                            })
+                        });
+                        
+                        if (!updateResponse.ok) {
+                            throw new Error(`Failed to update subject: ${updateResponse.status} ${updateResponse.statusText}`);
+                        }
+                        
+                        const updatedSubject = await updateResponse.json();
+                        log(`Successfully updated subject: ${updatedSubject.name}`, 'success');
+                        
+                        // Reload combinations
+                        loadCombinationsBtn.click();
+                        
+                    } catch (error) {
+                        log(`Error: ${error.message}`, 'error');
+                    }
+                });
+                
+                subjectItem.appendChild(fixButton);
+            }
+            
+            return subjectItem;
+        }
+    </script>
+</body>
+</html>

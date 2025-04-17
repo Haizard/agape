@@ -229,7 +229,7 @@ async function getTeacherSubjects(teacherId, classId = null, useCache = true, in
         .populate({
           path: 'subjects.subject',
           model: 'Subject',
-          select: 'name code'
+          select: 'name code type description educationLevel isPrincipal isCompulsory'
         });
 
       if (!classObj) {
@@ -457,7 +457,7 @@ async function getTeacherStudents(teacherId, classId) {
 
     console.log(`[TeacherSubjectService] Teacher ${teacherId} teaches ${teacherSubjectIds.length} subjects in class ${classId}:`, teacherSubjectIds);
 
-    // Find all students in the class
+    // Find all students in the class with deep population of subject combinations
     const allStudents = await Student.find({ class: classId })
       .populate({
         path: 'subjectCombination',
@@ -469,6 +469,31 @@ async function getTeacherStudents(teacherId, classId) {
       })
       .populate('selectedSubjects')
       .sort({ firstName: 1, lastName: 1 });
+
+    // Log subject combinations for debugging
+    for (const student of allStudents) {
+      if (student.subjectCombination) {
+        console.log(`[TeacherSubjectService] Student ${student._id} has subject combination: ${student.subjectCombination.name || student.subjectCombination.code}`);
+
+        // Log principal subjects
+        if (student.subjectCombination.subjects && Array.isArray(student.subjectCombination.subjects)) {
+          const principalSubjects = student.subjectCombination.subjects
+            .filter(s => typeof s === 'object' && s._id)
+            .map(s => s.name || s.code);
+          console.log(`[TeacherSubjectService] Principal subjects: ${principalSubjects.join(', ')}`);
+        }
+
+        // Log subsidiary subjects
+        if (student.subjectCombination.compulsorySubjects && Array.isArray(student.subjectCombination.compulsorySubjects)) {
+          const subsidiarySubjects = student.subjectCombination.compulsorySubjects
+            .filter(s => typeof s === 'object' && s._id)
+            .map(s => s.name || s.code);
+          console.log(`[TeacherSubjectService] Subsidiary subjects: ${subsidiarySubjects.join(', ')}`);
+        }
+      } else {
+        console.log(`[TeacherSubjectService] Student ${student._id} has no subject combination`);
+      }
+    }
 
     console.log(`[TeacherSubjectService] Found ${allStudents.length} total students in class ${classId}`);
 
@@ -846,8 +871,12 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
     const teacherSubjectIds = teacherSubjects.map(subject => subject._id.toString());
 
     console.log(`[TeacherSubjectService] Teacher ${teacherId} teaches ${teacherSubjectIds.length} subjects in class ${classId}`);
+    if (teacherSubjectIds.length === 0) {
+      console.log(`[TeacherSubjectService] Teacher ${teacherId} doesn't teach any subjects in class ${classId}`);
+      return [];
+    }
 
-    // Get the student
+    // Get the student with all subject-related fields populated
     const student = await Student.findById(studentId)
       .populate({
         path: 'subjectCombination',
@@ -857,7 +886,8 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
           select: 'name code type description educationLevel isPrincipal isCompulsory'
         }
       })
-      .populate('selectedSubjects');
+      .populate('selectedSubjects')
+      .populate('class');
 
     if (!student) {
       console.log(`[TeacherSubjectService] Student ${studentId} not found`);
@@ -866,49 +896,53 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
 
     console.log(`[TeacherSubjectService] Found student ${studentId}: ${student.firstName} ${student.lastName}`);
 
+    // Get the class object
+    const classObj = student.class || await Class.findById(classId);
+    if (!classObj) {
+      console.log(`[TeacherSubjectService] Class ${classId} not found`);
+      return [];
+    }
+
+    // Determine if this is an A-Level class
+    const isALevelClass = classObj && (
+      classObj.form === 5 ||
+      classObj.form === 6 ||
+      classObj.educationLevel === 'A_LEVEL' ||
+      (classObj.name && (
+        classObj.name.toUpperCase().includes('FORM 5') ||
+        classObj.name.toUpperCase().includes('FORM 6') ||
+        classObj.name.toUpperCase().includes('FORM V') ||
+        classObj.name.toUpperCase().includes('FORM VI') ||
+        classObj.name.toUpperCase().includes('F5') ||
+        classObj.name.toUpperCase().includes('F6') ||
+        classObj.name.toUpperCase().includes('FV') ||
+        classObj.name.toUpperCase().includes('FVI') ||
+        classObj.name.toUpperCase().includes('A-LEVEL') ||
+        classObj.name.toUpperCase().includes('A LEVEL')
+      ))
+    );
+
+    // Special case for this school - force A-Level class if name contains 'FORM V' or 'FORM VI'
+    let forceALevel = false;
+    if (classObj?.name && (
+      classObj.name.toUpperCase().includes('FORM V') ||
+      classObj.name.toUpperCase().includes('FORM VI')
+    )) {
+      console.log(`[TeacherSubjectService] Forcing class ${classObj.name} to be recognized as an A-Level class`);
+      forceALevel = true;
+    }
+
+    // Check if the student is actually an A-Level student (Form 5 or 6)
+    const isALevelStudent = student.educationLevel === 'A_LEVEL' ||
+                           student.form === 5 ||
+                           student.form === 6;
+
+    console.log(`[TeacherSubjectService] Student ${studentId} education level: ${student.educationLevel}, form: ${student.form}`);
+    console.log(`[TeacherSubjectService] Class ${classId} is ${(isALevelClass || forceALevel) ? 'an A-Level' : 'not an A-Level'} class`);
+
     // Check if student has a subject combination
     if (!student.subjectCombination) {
       console.log(`[TeacherSubjectService] Student ${studentId} has no subject combination`);
-
-      // Check if the class is an A-Level class (Form 5 or Form 6)
-      const classObj = await Class.findById(classId);
-
-      // First, determine if this is an A-Level class
-      const isALevelClass = classObj && (
-        classObj.form === 5 ||
-        classObj.form === 6 ||
-        classObj.educationLevel === 'A_LEVEL' ||
-        (classObj.name && (
-          classObj.name.toUpperCase().includes('FORM 5') ||
-          classObj.name.toUpperCase().includes('FORM 6') ||
-          classObj.name.toUpperCase().includes('FORM V') ||
-          classObj.name.toUpperCase().includes('FORM VI') ||
-          classObj.name.toUpperCase().includes('F5') ||
-          classObj.name.toUpperCase().includes('F6') ||
-          classObj.name.toUpperCase().includes('FV') ||
-          classObj.name.toUpperCase().includes('FVI') ||
-          classObj.name.toUpperCase().includes('A-LEVEL') ||
-          classObj.name.toUpperCase().includes('A LEVEL')
-        ))
-      );
-
-      // Special case for this school - force A-Level class if name contains 'FORM V' or 'FORM VI'
-      let forceALevel = false;
-      if (classObj?.name && (
-        classObj.name.toUpperCase().includes('FORM V') ||
-        classObj.name.toUpperCase().includes('FORM VI')
-      )) {
-        console.log(`[TeacherSubjectService] Forcing class ${classObj.name} to be recognized as an A-Level class`);
-        forceALevel = true;
-      }
-
-      // Check if the student is actually an A-Level student (Form 5 or 6)
-      const isALevelStudent = student.educationLevel === 'A_LEVEL' ||
-                             student.form === 5 ||
-                             student.form === 6;
-
-      console.log(`[TeacherSubjectService] Student ${studentId} education level: ${student.educationLevel}, form: ${student.form}`);
-      console.log(`[TeacherSubjectService] Class ${classId} is ${(isALevelClass || forceALevel) ? 'an A-Level' : 'not an A-Level'} class`);
 
       // CASE 1: A-Level class with A-Level student
       if ((isALevelClass || forceALevel) && isALevelStudent) {
@@ -920,12 +954,12 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
       // CASE 2: A-Level class with O-Level student
       else if ((isALevelClass || forceALevel) && !isALevelStudent) {
         console.log(`[TeacherSubjectService] O-Level student ${studentId} in A-Level class ${classId}, cannot access A-Level subjects`);
-        throw new Error('You are not assigned to teach any subjects for this student.');
+        return [];
       }
       // CASE 3: O-Level class with A-Level student
       else if (!isALevelClass && !forceALevel && isALevelStudent) {
         console.log(`[TeacherSubjectService] A-Level student ${studentId} in O-Level class ${classId}, cannot access subjects without combination`);
-        throw new Error('You are not assigned to teach any subjects for this student.');
+        return [];
       }
       // CASE 4: O-Level class with O-Level student
       else {
@@ -951,6 +985,7 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
             isPrincipal: true,
             isCompulsory: false
           });
+          console.log(`[TeacherSubjectService] Added principal subject ${subject.name} from student's combination`);
         }
       }
     }
@@ -969,22 +1004,102 @@ async function getTeacherSubjectsForStudent(teacherId, studentId, classId) {
             isPrincipal: false,
             isCompulsory: true
           });
+          console.log(`[TeacherSubjectService] Added subsidiary subject ${subject.name} from student's combination`);
+        }
+      }
+    }
+
+    // Add selected subjects if any
+    if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+      for (const subject of student.selectedSubjects) {
+        if (typeof subject === 'object' && subject._id) {
+          // Check if this subject is already in the list
+          const existingSubject = studentSubjects.find(s => s._id.toString() === subject._id.toString());
+          if (!existingSubject) {
+            studentSubjects.push({
+              _id: subject._id,
+              name: subject.name,
+              code: subject.code,
+              type: subject.type,
+              description: subject.description,
+              educationLevel: subject.educationLevel || 'UNKNOWN',
+              isPrincipal: false,
+              isCompulsory: false
+            });
+            console.log(`[TeacherSubjectService] Added selected subject ${subject.name} from student's selected subjects`);
+          }
         }
       }
     }
 
     console.log(`[TeacherSubjectService] Student ${studentId} has ${studentSubjects.length} subjects in combination`);
 
+    // Log all teacher subjects and student subjects for debugging
+    console.log(`[TeacherSubjectService] Teacher ${teacherId} teaches ${teacherSubjects.length} subjects in class ${classId}:`);
+    for (const subject of teacherSubjects) {
+      console.log(`[TeacherSubjectService] Teacher subject: ${subject.name} (${subject._id})`);
+    }
+
+    console.log(`[TeacherSubjectService] Student ${studentId} has ${studentSubjects.length} subjects in combination:`);
+    for (const subject of studentSubjects) {
+      console.log(`[TeacherSubjectService] Student subject: ${subject.name} (${subject._id})`);
+    }
+
     // Filter student subjects to only include those taught by the teacher
-    const filteredSubjects = studentSubjects.filter(subject => {
-      const isTeacherSubject = teacherSubjectIds.includes(subject._id.toString());
-      if (isTeacherSubject) {
-        console.log(`[TeacherSubjectService] Subject ${subject.name} (${subject._id}) is taught by teacher ${teacherId}`);
+    const filteredSubjects = [];
+
+    // First, try exact ID matching
+    for (const studentSubject of studentSubjects) {
+      const studentSubjectId = studentSubject._id.toString();
+      const matchingTeacherSubject = teacherSubjects.find(ts => ts._id.toString() === studentSubjectId);
+
+      if (matchingTeacherSubject) {
+        console.log(`[TeacherSubjectService] EXACT MATCH: Subject ${studentSubject.name} (${studentSubjectId}) is taught by teacher ${teacherId}`);
+        filteredSubjects.push(studentSubject);
       }
-      return isTeacherSubject;
-    });
+    }
+
+    // If no exact matches, try matching by code
+    if (filteredSubjects.length === 0) {
+      console.log(`[TeacherSubjectService] No exact ID matches found, trying to match by subject code`);
+
+      for (const studentSubject of studentSubjects) {
+        if (!studentSubject.code) continue;
+
+        const matchingTeacherSubject = teacherSubjects.find(ts =>
+          ts.code && ts.code.toUpperCase() === studentSubject.code.toUpperCase());
+
+        if (matchingTeacherSubject) {
+          console.log(`[TeacherSubjectService] CODE MATCH: Subject ${studentSubject.name} (${studentSubject.code}) is taught by teacher ${teacherId}`);
+          filteredSubjects.push(studentSubject);
+        }
+      }
+    }
+
+    // If no code matches, try matching by name
+    if (filteredSubjects.length === 0) {
+      console.log(`[TeacherSubjectService] No code matches found, trying to match by subject name`);
+
+      for (const studentSubject of studentSubjects) {
+        if (!studentSubject.name) continue;
+
+        const matchingTeacherSubject = teacherSubjects.find(ts =>
+          ts.name && ts.name.toUpperCase() === studentSubject.name.toUpperCase());
+
+        if (matchingTeacherSubject) {
+          console.log(`[TeacherSubjectService] NAME MATCH: Subject ${studentSubject.name} is taught by teacher ${teacherId}`);
+          filteredSubjects.push(studentSubject);
+        }
+      }
+    }
 
     console.log(`[TeacherSubjectService] Found ${filteredSubjects.length} subjects for student ${studentId} taught by teacher ${teacherId}`);
+
+    // If no subjects found but this is an A-Level student in an A-Level class, return all teacher subjects
+    if (filteredSubjects.length === 0 && (isALevelClass || forceALevel) && isALevelStudent) {
+      console.log(`[TeacherSubjectService] No matching subjects found, but this is an A-Level student in an A-Level class. Returning all teacher subjects as fallback.`);
+      return teacherSubjects;
+    }
 
     return filteredSubjects;
   } catch (error) {

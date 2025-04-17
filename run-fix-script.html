@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Principal Subjects</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .instructions {
+            background-color: #f5f5f5;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .info {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fix Principal Subjects</h1>
+    
+    <div class="warning">
+        <strong>Important:</strong> Make sure you are logged in to your admin panel in another tab before using this tool.
+    </div>
+    
+    <div class="instructions">
+        <p>This tool will automatically fix principal subject markings in your system by:</p>
+        <ol>
+            <li>Fetching all subjects and subject combinations</li>
+            <li>Identifying which subjects should be principal based on their placement in combinations</li>
+            <li>Updating subjects to have the correct <code>isPrincipal</code> flag</li>
+            <li>Fixing any subject combinations that have subjects in the wrong arrays</li>
+        </ol>
+    </div>
+    
+    <button id="step1">Step 1: Fetch Subjects and Combinations</button>
+    <button id="step2" disabled>Step 2: Update Subjects</button>
+    <button id="step3" disabled>Step 3: Update Combinations</button>
+    
+    <div id="log"></div>
+    
+    <script>
+        // DOM elements
+        const step1Button = document.getElementById('step1');
+        const step2Button = document.getElementById('step2');
+        const step3Button = document.getElementById('step3');
+        const logDiv = document.getElementById('log');
+        
+        // Global data object
+        let globalData = null;
+        
+        // Log function
+        function log(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEntry.className = type;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            // Also log to console
+            console.log(message);
+        }
+        
+        // Step 1: Fetch subjects and combinations
+        async function fetchSubjectsAndCombinations() {
+            log('Starting automatic principal subject fix...', 'info');
+            
+            // Get the authentication token from localStorage
+            const token = localStorage.getItem('token');
+            if (!token) {
+                log('No authentication token found. Please log in to your admin panel in another tab first.', 'error');
+                return null;
+            }
+            
+            log('Found authentication token', 'success');
+            
+            // API URL
+            const API_URL = '/api';
+            
+            try {
+                // Step 1: Fetch all subjects
+                log('Fetching all subjects...', 'info');
+                const subjectsResponse = await fetch(`${API_URL}/subjects`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!subjectsResponse.ok) {
+                    throw new Error(`Failed to fetch subjects: ${subjectsResponse.status} ${subjectsResponse.statusText}`);
+                }
+                
+                const allSubjects = await subjectsResponse.json();
+                log(`Found ${allSubjects.length} subjects in total.`, 'success');
+                
+                // Filter for A-Level subjects
+                const aLevelSubjects = allSubjects.filter(subject => 
+                    subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
+                );
+                log(`Found ${aLevelSubjects.length} A-Level subjects.`, 'success');
+                
+                // Step 2: Fetch all subject combinations
+                log('Fetching all subject combinations...', 'info');
+                const combinationsResponse = await fetch(`${API_URL}/subject-combinations`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!combinationsResponse.ok) {
+                    throw new Error(`Failed to fetch combinations: ${combinationsResponse.status} ${combinationsResponse.statusText}`);
+                }
+                
+                const combinations = await combinationsResponse.json();
+                log(`Found ${combinations.length} subject combinations.`, 'success');
+                
+                // Enable step 2 button
+                step2Button.disabled = false;
+                
+                return {
+                    token,
+                    API_URL,
+                    allSubjects,
+                    aLevelSubjects,
+                    combinations
+                };
+            } catch (error) {
+                log(`Error fetching data: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        // Step 2: Identify and update subjects
+        async function updateSubjects(data) {
+            if (!data) {
+                log('No data provided. Please run Step 1 first.', 'error');
+                return null;
+            }
+            
+            const { token, API_URL, allSubjects, aLevelSubjects, combinations } = data;
+            
+            try {
+                // Create a map of subject IDs to subjects for easy lookup
+                const subjectMap = {};
+                allSubjects.forEach(subject => {
+                    subjectMap[subject._id] = subject;
+                });
+                
+                // Step 3: Identify which subjects should be principal
+                // We'll consider a subject as principal if it's in the 'subjects' array of any combination
+                const shouldBePrincipal = new Set();
+                const shouldBeSubsidiary = new Set();
+                
+                combinations.forEach(combination => {
+                    // Check principal subjects
+                    if (combination.subjects && Array.isArray(combination.subjects)) {
+                        combination.subjects.forEach(subjectRef => {
+                            const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                            shouldBePrincipal.add(subjectId);
+                        });
+                    }
+                    
+                    // Check subsidiary subjects
+                    if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+                        combination.compulsorySubjects.forEach(subjectRef => {
+                            const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                            shouldBeSubsidiary.add(subjectId);
+                        });
+                    }
+                });
+                
+                log(`Identified ${shouldBePrincipal.size} subjects that should be principal.`, 'info');
+                log(`Identified ${shouldBeSubsidiary.size} subjects that should be subsidiary.`, 'info');
+                
+                // Step 4: Update subjects that need to be marked as principal
+                const subjectsToUpdate = [];
+                
+                aLevelSubjects.forEach(subject => {
+                    const shouldBePrincipalFlag = shouldBePrincipal.has(subject._id);
+                    
+                    if (shouldBePrincipalFlag && !subject.isPrincipal) {
+                        log(`Subject ${subject.name} (${subject.code}) should be marked as principal.`, 'info');
+                        subjectsToUpdate.push({
+                            ...subject,
+                            isPrincipal: true
+                        });
+                    } else if (!shouldBePrincipalFlag && subject.isPrincipal && shouldBeSubsidiary.has(subject._id)) {
+                        log(`Subject ${subject.name} (${subject.code}) should be marked as subsidiary.`, 'info');
+                        subjectsToUpdate.push({
+                            ...subject,
+                            isPrincipal: false
+                        });
+                    }
+                });
+                
+                log(`Found ${subjectsToUpdate.length} subjects that need updating.`, 'info');
+                
+                // Step 5: Update the subjects
+                for (const subject of subjectsToUpdate) {
+                    log(`Updating subject: ${subject.name} (${subject.code})...`, 'info');
+                    
+                    const updateResponse = await fetch(`${API_URL}/subjects/${subject._id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(subject)
+                    });
+                    
+                    if (!updateResponse.ok) {
+                        log(`Failed to update subject ${subject.name}: ${updateResponse.status} ${updateResponse.statusText}`, 'error');
+                        continue;
+                    }
+                    
+                    const updatedSubject = await updateResponse.json();
+                    log(`Successfully updated subject: ${updatedSubject.name} (${updatedSubject.code}) - isPrincipal: ${updatedSubject.isPrincipal}`, 'success');
+                    
+                    // Update our local copy
+                    subjectMap[subject._id] = updatedSubject;
+                }
+                
+                log('Subject updates complete!', 'success');
+                
+                // Enable step 3 button
+                step3Button.disabled = false;
+                
+                return {
+                    ...data,
+                    subjectMap,
+                    updatedSubjects: subjectsToUpdate
+                };
+            } catch (error) {
+                log(`Error updating subjects: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        // Step 3: Update combinations
+        async function updateCombinations(data) {
+            if (!data) {
+                log('No data provided. Please run Step 2 first.', 'error');
+                return;
+            }
+            
+            const { token, API_URL, combinations, subjectMap } = data;
+            
+            try {
+                // Step 6: Check if any subjects are in the wrong array in combinations
+                const combinationsToUpdate = [];
+                
+                combinations.forEach(combination => {
+                    let needsUpdate = false;
+                    const updatedCombination = {
+                        ...combination,
+                        subjects: [...(combination.subjects || [])],
+                        compulsorySubjects: [...(combination.compulsorySubjects || [])]
+                    };
+                    
+                    // Check if any principal subjects are in the subsidiary array
+                    if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+                        for (let i = combination.compulsorySubjects.length - 1; i >= 0; i--) {
+                            const subjectRef = combination.compulsorySubjects[i];
+                            const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                            const subject = subjectMap[subjectId];
+                            
+                            if (subject && subject.isPrincipal) {
+                                log(`Subject ${subject.name} is marked as principal but is in the subsidiary array of combination ${combination.name}.`, 'info');
+                                
+                                // Remove from compulsorySubjects
+                                updatedCombination.compulsorySubjects.splice(i, 1);
+                                
+                                // Add to subjects if not already there
+                                const alreadyInSubjects = updatedCombination.subjects.some(s => 
+                                    (typeof s === 'object' ? s._id : s) === subjectId
+                                );
+                                
+                                if (!alreadyInSubjects) {
+                                    updatedCombination.subjects.push(subjectId);
+                                }
+                                
+                                needsUpdate = true;
+                            }
+                        }
+                    }
+                    
+                    // Check if any subsidiary subjects are in the principal array
+                    if (combination.subjects && Array.isArray(combination.subjects)) {
+                        for (let i = combination.subjects.length - 1; i >= 0; i--) {
+                            const subjectRef = combination.subjects[i];
+                            const subjectId = typeof subjectRef === 'object' ? subjectRef._id : subjectRef;
+                            const subject = subjectMap[subjectId];
+                            
+                            if (subject && !subject.isPrincipal) {
+                                log(`Subject ${subject.name} is not marked as principal but is in the principal array of combination ${combination.name}.`, 'info');
+                                
+                                // Remove from subjects
+                                updatedCombination.subjects.splice(i, 1);
+                                
+                                // Add to compulsorySubjects if not already there
+                                const alreadyInCompulsory = updatedCombination.compulsorySubjects.some(s => 
+                                    (typeof s === 'object' ? s._id : s) === subjectId
+                                );
+                                
+                                if (!alreadyInCompulsory) {
+                                    updatedCombination.compulsorySubjects.push(subjectId);
+                                }
+                                
+                                needsUpdate = true;
+                            }
+                        }
+                    }
+                    
+                    if (needsUpdate) {
+                        combinationsToUpdate.push(updatedCombination);
+                    }
+                });
+                
+                log(`Found ${combinationsToUpdate.length} combinations that need updating.`, 'info');
+                
+                // Step 7: Update the combinations
+                for (const combination of combinationsToUpdate) {
+                    log(`Updating combination: ${combination.name} (${combination.code})...`, 'info');
+                    
+                    const updateResponse = await fetch(`${API_URL}/subject-combinations/${combination._id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(combination)
+                    });
+                    
+                    if (!updateResponse.ok) {
+                        log(`Failed to update combination ${combination.name}: ${updateResponse.status} ${updateResponse.statusText}`, 'error');
+                        continue;
+                    }
+                    
+                    const updatedCombination = await updateResponse.json();
+                    log(`Successfully updated combination: ${updatedCombination.name} (${updatedCombination.code})`, 'success');
+                }
+                
+                log('Combination updates complete!', 'success');
+                log('All updates complete! Your subjects should now be properly marked as principal or subsidiary.', 'success');
+                
+                return {
+                    ...data,
+                    updatedCombinations: combinationsToUpdate
+                };
+            } catch (error) {
+                log(`Error updating combinations: ${error.message}`, 'error');
+            }
+        }
+        
+        // Event listeners
+        step1Button.addEventListener('click', async () => {
+            globalData = await fetchSubjectsAndCombinations();
+        });
+        
+        step2Button.addEventListener('click', async () => {
+            globalData = await updateSubjects(globalData);
+        });
+        
+        step3Button.addEventListener('click', async () => {
+            await updateCombinations(globalData);
+        });
+    </script>
+</body>
+</html>

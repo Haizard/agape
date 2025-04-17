@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Principal Subject Fix Bookmarklet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .bookmarklet {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .instructions {
+            background-color: #f5f5f5;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .warning {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Principal Subject Fix Bookmarklet</h1>
+    
+    <p>This page contains a bookmarklet that will automatically fix principal subject markings in your system.</p>
+    
+    <div class="warning">
+        <strong>Important:</strong> Make sure you are logged in to your admin panel before using this bookmarklet.
+    </div>
+    
+    <h2>How to Use</h2>
+    
+    <div class="instructions">
+        <ol>
+            <li>Drag the bookmarklet below to your bookmarks bar:</li>
+            <li><a href="javascript:(function(){var script=document.createElement('script');script.src='https://cdn.jsdelivr.net/gh/Haizard/agape@main/fix-principal-subjects.js?v='+Math.random();document.body.appendChild(script);})();" class="bookmarklet">Fix Principal Subjects</a></li>
+            <li>Log in to your admin panel in your browser</li>
+            <li>Click the bookmarklet in your bookmarks bar to run the script</li>
+            <li>Check the browser console (F12) to see the progress and results</li>
+        </ol>
+    </div>
+    
+    <h2>Alternative Method</h2>
+    
+    <p>If you can't drag the bookmarklet, follow these steps:</p>
+    
+    <div class="instructions">
+        <ol>
+            <li>Create a new bookmark in your browser</li>
+            <li>Name it "Fix Principal Subjects"</li>
+            <li>Copy the following code as the URL:</li>
+            <li><code>javascript:(function(){var script=document.createElement('script');script.src='https://cdn.jsdelivr.net/gh/Haizard/agape@main/fix-principal-subjects.js?v='+Math.random();document.body.appendChild(script);})();</code></li>
+            <li>Save the bookmark</li>
+            <li>Log in to your admin panel and click the bookmark to run the script</li>
+        </ol>
+    </div>
+    
+    <h2>What This Script Does</h2>
+    
+    <p>The script will:</p>
+    <ul>
+        <li>Fetch all subjects and subject combinations</li>
+        <li>Identify which subjects should be principal based on their placement in combinations</li>
+        <li>Update subjects to have the correct <code>isPrincipal</code> flag</li>
+        <li>Fix any subject combinations that have subjects in the wrong arrays</li>
+    </ul>
+    
+    <p>After running this script, your subjects should be properly marked as principal or subsidiary, and they should appear correctly in the A-Level marks entry form.</p>
+    
+    <div class="warning">
+        <strong>Note:</strong> You need to create a GitHub repository and upload the script file there for this to work. Alternatively, you can host the script on any other CDN or web server.
+    </div>
+</body>
+</html>

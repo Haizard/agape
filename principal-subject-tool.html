@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Principal Subject Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .subject-list {
+            margin-top: 20px;
+        }
+        .subject-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .subject-item.principal {
+            background-color: #e8f5e9;
+            border-color: #81c784;
+        }
+        .subject-item button {
+            margin-left: 10px;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Principal Subject Tool</h1>
+    
+    <div class="container">
+        <h2>Authentication</h2>
+        <div class="form-group">
+            <label for="token">API Token:</label>
+            <input type="text" id="token" placeholder="Enter your API token">
+        </div>
+        <div class="form-group">
+            <label for="api-url">API URL:</label>
+            <input type="text" id="api-url" value="https://agape-seminary-school.onrender.com/api" placeholder="Enter API URL">
+        </div>
+        <button id="load-subjects">Load Subjects</button>
+    </div>
+    
+    <div class="container">
+        <h2>A-Level Subjects</h2>
+        <div id="subject-list" class="subject-list">
+            <p>Click "Load Subjects" to view A-Level subjects</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Log</h2>
+        <div id="log" class="log"></div>
+    </div>
+    
+    <script>
+        // DOM elements
+        const tokenInput = document.getElementById('token');
+        const apiUrlInput = document.getElementById('api-url');
+        const loadSubjectsBtn = document.getElementById('load-subjects');
+        const subjectListDiv = document.getElementById('subject-list');
+        const logDiv = document.getElementById('log');
+        
+        // Check if token is stored in localStorage
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+            tokenInput.value = storedToken;
+            log('Token loaded from localStorage', 'success');
+        }
+        
+        // Log function
+        function log(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEntry.className = type;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // Load subjects
+        loadSubjectsBtn.addEventListener('click', async () => {
+            const token = tokenInput.value.trim();
+            const apiUrl = apiUrlInput.value.trim();
+            
+            if (!token) {
+                log('Please enter an API token', 'error');
+                return;
+            }
+            
+            if (!apiUrl) {
+                log('Please enter an API URL', 'error');
+                return;
+            }
+            
+            // Store token in localStorage
+            localStorage.setItem('token', token);
+            
+            try {
+                log('Loading subjects...');
+                
+                const response = await fetch(`${apiUrl}/subjects`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load subjects: ${response.status} ${response.statusText}`);
+                }
+                
+                const subjects = await response.json();
+                log(`Loaded ${subjects.length} subjects`, 'success');
+                
+                // Filter for A-Level subjects
+                const aLevelSubjects = subjects.filter(subject => 
+                    subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
+                );
+                
+                log(`Found ${aLevelSubjects.length} A-Level subjects`, 'success');
+                
+                // Display subjects
+                displaySubjects(aLevelSubjects, apiUrl, token);
+                
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Display subjects
+        function displaySubjects(subjects, apiUrl, token) {
+            subjectListDiv.innerHTML = '';
+            
+            if (subjects.length === 0) {
+                subjectListDiv.innerHTML = '<p>No A-Level subjects found</p>';
+                return;
+            }
+            
+            // Sort subjects by name
+            subjects.sort((a, b) => a.name.localeCompare(b.name));
+            
+            subjects.forEach(subject => {
+                const subjectItem = document.createElement('div');
+                subjectItem.className = `subject-item ${subject.isPrincipal ? 'principal' : ''}`;
+                
+                const subjectInfo = document.createElement('div');
+                subjectInfo.innerHTML = `
+                    <strong>${subject.name}</strong> (${subject.code})
+                    <br>
+                    <small>Education Level: ${subject.educationLevel}</small>
+                    <br>
+                    <small>Principal: ${subject.isPrincipal ? 'YES' : 'NO'}</small>
+                `;
+                
+                const actionButton = document.createElement('button');
+                if (subject.isPrincipal) {
+                    actionButton.textContent = 'Mark as Subsidiary';
+                    actionButton.style.backgroundColor = '#f44336';
+                } else {
+                    actionButton.textContent = 'Mark as Principal';
+                }
+                
+                actionButton.addEventListener('click', async () => {
+                    try {
+                        log(`Updating subject: ${subject.name}...`);
+                        
+                        const updateResponse = await fetch(`${apiUrl}/subjects/${subject._id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                ...subject,
+                                isPrincipal: !subject.isPrincipal
+                            })
+                        });
+                        
+                        if (!updateResponse.ok) {
+                            throw new Error(`Failed to update subject: ${updateResponse.status} ${updateResponse.statusText}`);
+                        }
+                        
+                        const updatedSubject = await updateResponse.json();
+                        log(`Successfully updated subject: ${updatedSubject.name}`, 'success');
+                        
+                        // Update the UI
+                        subject.isPrincipal = updatedSubject.isPrincipal;
+                        subjectItem.className = `subject-item ${subject.isPrincipal ? 'principal' : ''}`;
+                        subjectInfo.innerHTML = `
+                            <strong>${subject.name}</strong> (${subject.code})
+                            <br>
+                            <small>Education Level: ${subject.educationLevel}</small>
+                            <br>
+                            <small>Principal: ${subject.isPrincipal ? 'YES' : 'NO'}</small>
+                        `;
+                        
+                        if (subject.isPrincipal) {
+                            actionButton.textContent = 'Mark as Subsidiary';
+                            actionButton.style.backgroundColor = '#f44336';
+                        } else {
+                            actionButton.textContent = 'Mark as Principal';
+                            actionButton.style.backgroundColor = '#4CAF50';
+                        }
+                        
+                    } catch (error) {
+                        log(`Error: ${error.message}`, 'error');
+                    }
+                });
+                
+                subjectItem.appendChild(subjectInfo);
+                subjectItem.appendChild(actionButton);
+                subjectListDiv.appendChild(subjectItem);
+            });
+        }
+    </script>
+</body>
+</html>

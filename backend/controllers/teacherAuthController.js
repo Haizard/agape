@@ -398,10 +398,21 @@ exports.getAssignedSubjects = async (req, res) => {
     res.json(subjects);
   } catch (error) {
     console.error('Error fetching assigned subjects for marks entry:', error);
+
+    // Provide more specific error messages based on the error type
+    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid class ID format',
+        error: error.message
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Error fetching assigned subjects',
-      error: error.message
+      error: error.message,
+      details: 'There was an error retrieving the subjects you are assigned to teach.'
     });
   }
 };
@@ -411,7 +422,13 @@ exports.getAssignedSubjects = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-// Get subjects for a specific student that the teacher is assigned to teach
+/**
+ * Get subjects for a specific student that the teacher is assigned to teach
+ * This endpoint is used by the A-Level marks entry system to determine which subjects
+ * a teacher can enter marks for a specific student
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.getAssignedSubjectsForStudent = async (req, res) => {
     // Clear the cache to ensure we get fresh data
     teacherSubjectService.clearCache();
@@ -526,79 +543,222 @@ exports.getAssignedSubjectsForStudent = async (req, res) => {
 
     // Get subjects for this student that the teacher is assigned to teach
     try {
-      const subjects = await teacherSubjectService.getTeacherSubjectsForStudent(teacher._id, studentId, classId);
+      // First, check if the student exists with full population of subject combination
+      const student = await Student.findById(studentId)
+        .populate({
+          path: 'subjectCombination',
+          populate: {
+            path: 'subjects compulsorySubjects',
+            model: 'Subject',
+            select: 'name code type description educationLevel isPrincipal isCompulsory'
+          }
+        })
+        .populate('selectedSubjects');
 
-      // If no subjects found, check if the student has a subject combination
-      if (subjects.length === 0) {
-        console.log(`No subjects found for student ${studentId} taught by teacher ${teacher._id} in class ${classId}`);
+      if (!student) {
+        console.log(`Student ${studentId} not found`);
+        return res.status(404).json({
+          message: 'Student not found',
+          subjects: []
+        });
+      }
 
-        // Get the student details to check if they have a subject combination
-        const student = await Student.findById(studentId).populate('subjectCombination');
+      // Check if the student belongs to the specified class
+      if (student.class.toString() !== classId) {
+        console.log(`Student ${studentId} does not belong to class ${classId}`);
+        return res.status(400).json({
+          message: 'Student does not belong to the specified class',
+          subjects: []
+        });
+      }
 
-        if (!student) {
-          return res.status(404).json({
-            message: 'Student not found',
+      // Log student subject combination for debugging
+      if (student.subjectCombination) {
+        console.log(`Student ${studentId} has subject combination: ${student.subjectCombination.name || student.subjectCombination.code}`);
+
+        // Log principal subjects
+        if (student.subjectCombination.subjects && Array.isArray(student.subjectCombination.subjects)) {
+          const principalSubjects = student.subjectCombination.subjects
+            .filter(s => typeof s === 'object' && s._id)
+            .map(s => s.name || s.code);
+          console.log(`Principal subjects: ${principalSubjects.join(', ')}`);
+        }
+
+        // Log subsidiary subjects
+        if (student.subjectCombination.compulsorySubjects && Array.isArray(student.subjectCombination.compulsorySubjects)) {
+          const subsidiarySubjects = student.subjectCombination.compulsorySubjects
+            .filter(s => typeof s === 'object' && s._id)
+            .map(s => s.name || s.code);
+          console.log(`Subsidiary subjects: ${subsidiarySubjects.join(', ')}`);
+        }
+      } else {
+        console.log(`Student ${studentId} has no subject combination`);
+      }
+
+      // Check if the teacher is assigned to teach any subjects in this class
+      const classObj = await Class.findById(classId)
+        .populate({
+          path: 'subjects.subject',
+          select: 'name code type description educationLevel isPrincipal isCompulsory'
+        });
+
+      if (!classObj) {
+        console.log(`Class ${classId} not found`);
+        return res.status(404).json({
+          message: 'Class not found',
+          subjects: []
+        });
+      }
+
+      // Check if the teacher is assigned to any subjects in this class
+      const teacherSubjectAssignments = classObj.subjects.filter(s =>
+        s.teacher && s.teacher.toString() === teacher._id.toString());
+
+      if (teacherSubjectAssignments.length > 0) {
+        console.log(`Teacher ${teacher._id} is assigned to teach ${teacherSubjectAssignments.length} subjects in class ${classId}`);
+
+        // Log the subjects the teacher is assigned to teach
+        teacherSubjectAssignments.forEach(assignment => {
+          console.log(`Teacher ${teacher._id} is assigned to teach subject: ${assignment.subject?.name || assignment.subject}`);
+        });
+      } else {
+        console.log(`Teacher ${teacher._id} is not assigned to teach any subjects in class ${classId}`);
+      }
+
+      // Get all subjects the teacher teaches in this class
+      console.log(`Getting subjects for teacher ${teacher._id} in class ${classId}`);
+      const teacherClassSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, false, false);
+
+      if (teacherClassSubjects.length === 0 && teacherSubjectAssignments.length === 0) {
+        console.log(`No subjects found for teacher ${teacher._id} in class ${classId}`);
+        return res.status(403).json({
+          message: 'You are not assigned to teach any subjects in this class. Please contact an administrator to assign you to teach subjects in this class.',
+          subjects: []
+        });
+      }
+
+
+
+      console.log(`Teacher ${teacher._id} teaches ${teacherClassSubjects.length} subjects in class ${classId}`);
+
+      try {
+        // Try to get student-specific subjects
+        console.log(`Getting subjects for student ${studentId} taught by teacher ${teacher._id} in class ${classId}`);
+        const studentSubjects = await teacherSubjectService.getTeacherSubjectsForStudent(teacher._id, studentId, classId);
+
+        if (studentSubjects.length > 0) {
+          console.log(`Found ${studentSubjects.length} subjects for student ${studentId} taught by teacher ${teacher._id}`);
+          return res.json(studentSubjects);
+        }
+
+        // We already have the student object from above, so we don't need to fetch it again
+        // Just check if this is an A-Level student
+        const isALevelStudent = student.educationLevel === 'A_LEVEL' || student.form === 5 || student.form === 6;
+
+        if (isALevelStudent) {
+          // For A-Level students, we need to check if they have a subject combination
+          if (!student.subjectCombination) {
+            console.log(`A-Level student ${studentId} has no subject combination`);
+            return res.status(400).json({
+              message: 'This A-Level student has no subject combination assigned. Please assign a subject combination to the student first.',
+              subjects: []
+            });
+          }
+
+          // If the teacher is assigned to teach subjects in this class, check if any of them match the student's subjects
+          if (teacherSubjectAssignments.length > 0) {
+            console.log(`Teacher ${teacher._id} is assigned to teach subjects in class ${classId}, checking if any match student ${studentId}'s subjects`);
+
+            // Get the student's subject combination
+            const studentSubjectIds = [];
+
+            // Add principal subjects
+            if (student.subjectCombination.subjects && Array.isArray(student.subjectCombination.subjects)) {
+              for (const subject of student.subjectCombination.subjects) {
+                if (typeof subject === 'object' && subject._id) {
+                  studentSubjectIds.push(subject._id.toString());
+                  console.log(`Added principal subject ${subject.name} (${subject._id}) from student's combination`);
+                }
+              }
+            }
+
+            // Add subsidiary subjects
+            if (student.subjectCombination.compulsorySubjects && Array.isArray(student.subjectCombination.compulsorySubjects)) {
+              for (const subject of student.subjectCombination.compulsorySubjects) {
+                if (typeof subject === 'object' && subject._id) {
+                  studentSubjectIds.push(subject._id.toString());
+                  console.log(`Added subsidiary subject ${subject.name} (${subject._id}) from student's combination`);
+                }
+              }
+            }
+
+            // Get the teacher's assigned subject IDs
+            const teacherSubjectIds = teacherSubjectAssignments
+              .filter(assignment => assignment.subject?._id)
+              .map(assignment => assignment.subject._id.toString());
+
+            console.log(`Teacher ${teacher._id} is assigned to teach subjects: ${teacherSubjectIds.join(', ')}`);
+            console.log(`Student ${studentId} has subjects: ${studentSubjectIds.join(', ')}`);
+
+            // Check if any of the teacher's subjects match the student's subjects
+            const matchingSubjects = teacherSubjectIds.filter(subjectId => studentSubjectIds.includes(subjectId));
+
+            if (matchingSubjects.length > 0) {
+              console.log(`Found ${matchingSubjects.length} matching subjects between teacher ${teacher._id} and student ${studentId}`);
+
+              // Get the matching subjects
+              const subjects = await Subject.find({
+                _id: { $in: matchingSubjects }
+              }).select('name code type description educationLevel isPrincipal isCompulsory');
+
+              return res.json(subjects);
+            }
+          }
+
+          // If they have a combination but no matching subjects with the teacher,
+          // it means the teacher doesn't teach any of the student's subjects
+          console.log(`A-Level student ${studentId} has a subject combination, but none of the subjects match with teacher ${teacher._id}`);
+          return res.status(403).json({
+            message: 'You are not assigned to teach any of this student\'s subjects. Please contact an administrator to assign you to teach one of this student\'s subjects.',
             subjects: []
           });
         }
 
-        // If student doesn't have a subject combination, try to get all subjects the teacher teaches in this class
-        if (!student.subjectCombination) {
-          console.log(`Student ${studentId} has no subject combination, falling back to all subjects the teacher teaches in class ${classId}`);
-
-          // Get all subjects the teacher teaches in this class
-          const classSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, false, false);
-
-          if (classSubjects.length > 0) {
-            console.log(`Found ${classSubjects.length} subjects taught by teacher ${teacher._id} in class ${classId}`);
-            return res.json(classSubjects);
-          }
-        } else {
-          console.log(`Student ${studentId} has a subject combination, but teacher ${teacher._id} is not assigned to teach any of their subjects`);
-        }
-
-        console.log(`No subjects found for teacher ${teacher._id} in class ${classId} that match student ${studentId}'s combination`);
-        return res.status(403).json({
-          message: 'You are not assigned to teach any subjects for this student in this class.',
+        // For O-Level students, return all teacher's subjects for this class
+        console.log(`O-Level student ${studentId}, returning all teacher subjects for class ${classId}`);
+        return res.json(teacherClassSubjects);
+      } catch (studentSubjectsError) {
+        // If there's an error getting student-specific subjects, log it and return a helpful error message
+        console.error(`Error getting student-specific subjects: ${studentSubjectsError.message}`);
+        return res.status(500).json({
+          message: 'Error determining which subjects you can teach for this student',
+          error: studentSubjectsError.message,
           subjects: []
         });
       }
-
-      console.log(`Found ${subjects.length} subjects for student ${studentId} taught by teacher ${teacher._id}`);
-      return res.json(subjects);
     } catch (error) {
-      // If the error is from our service, it's likely an authorization error
-      if (error.message.includes('You are not assigned')) {
-        console.log(`Authorization error: ${error.message}`);
-
-        // Get all subjects the teacher teaches in this class as a fallback
-        try {
-          const classSubjects = await teacherSubjectService.getTeacherSubjects(teacher._id, classId, false, false);
-
-          if (classSubjects.length > 0) {
-            console.log(`Fallback: Found ${classSubjects.length} subjects taught by teacher ${teacher._id} in class ${classId}`);
-            return res.json(classSubjects);
-          }
-        } catch (fallbackError) {
-          console.error('Error in fallback subject fetch:', fallbackError);
-        }
-
-        return res.status(403).json({
-          message: error.message,
-          subjects: []
-        });
-      }
-
-      // For other errors, pass to the outer catch block
-      throw error;
+      console.error('Error getting assigned subjects for student:', error);
+      return res.status(500).json({
+        message: 'Failed to get assigned subjects for student',
+        error: error.message,
+        details: 'There was an error retrieving the subjects you teach in this class.'
+      });
     }
-
-    // This code is unreachable due to the try/catch block above
   } catch (error) {
     console.error('Error getting assigned subjects for student:', error);
+
+    // Provide more specific error messages based on the error type
+    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+      return res.status(400).json({
+        message: 'Invalid student or class ID format',
+        error: error.message
+      });
+    }
+
     return res.status(500).json({
       message: 'Failed to get assigned subjects for student',
-      error: error.message
+      error: error.message,
+      details: 'There was an unexpected error processing your request.'
     });
   }
 };
