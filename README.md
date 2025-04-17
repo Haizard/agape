@@ -1,5 +1,7 @@
 # AGAPE LUTHERAN JUNIOR SEMINARY School Management System
 
+> Last updated: April 17, 2025 - Fixed A-Level marks entry for students without subject combinations
+
 This is a comprehensive school management system for AGAPE LUTHERAN JUNIOR SEMINARY, featuring student management, teacher management, academic management, and result reporting for both O-Level and A-Level education systems.
 
 ## Project Structure
