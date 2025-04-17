@@ -98,6 +98,7 @@ import ALevelMarksEntry from './components/results/ALevelMarksEntry';
 import OLevelMarksEntry from './components/results/OLevelMarksEntry';
 import ALevelFormSpecificReport from './components/results/ALevelFormSpecificReport';
 import ALevelFormStudentReport from './components/results/ALevelFormStudentReport';
+import ALevelStudentReportRouter from './components/results/ALevelStudentReportRouter';
 import DemoDataNavigator from './components/demo/DemoDataNavigator';
 import UnifiedMarksEntry from './components/results/UnifiedMarksEntry';
 import CharacterAssessmentEntry from './components/results/CharacterAssessmentEntry';
@@ -287,7 +288,7 @@ function App() {
                     {/* A-Level Student Report Route */}
                     <Route path="/results/a-level/student/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <ALevelFormStudentReport />
+                        <ALevelStudentReportRouter />
                       </ProtectedRoute>
                     } />
                     {/* Generic Student Report Route (for backward compatibility) */}
