@@ -4,6 +4,9 @@ const OLevelResult = require('../models/OLevelResult');
 const ALevelResult = require('../models/ALevelResult');
 const Result = require('../models/Result');
 const Student = require('../models/Student');
+const Class = require('../models/Class');
+const Subject = require('../models/Subject');
+const Exam = require('../models/Exam');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 /**
@@ -12,12 +15,17 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
  */
 router.get('/check-existing', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
   try {
+    console.log('GET /api/check-marks/check-existing - Checking if marks exist');
     const { classId, subjectId, examId, academicYearId } = req.query;
 
+    console.log(`Class ID: ${classId}, Subject ID: ${subjectId}, Exam ID: ${examId}, Academic Year ID: ${academicYearId || 'not provided'}`);
+
     // Validate required parameters
-    if (!classId || !subjectId || !examId || !academicYearId) {
+    if (!classId || !subjectId || !examId) {
+      console.log('Missing required parameters');
       return res.status(400).json({
-        message: 'Missing required parameters. Please provide classId, subjectId, examId, and academicYearId.'
+        success: false,
+        message: 'Missing required parameters. Please provide classId, subjectId, and examId.'
       });
     }
 
@@ -39,12 +47,18 @@ router.get('/check-existing', authenticateToken, authorizeRole(['admin', 'teache
       const ResultModel = student.educationLevel === 'A_LEVEL' ? ALevelResult : OLevelResult;
 
       // Check if marks exist
-      const existingResult = await ResultModel.findOne({
+      const query = {
         studentId: student._id,
         subjectId,
-        examId,
-        academicYearId
-      });
+        examId
+      };
+
+      // Add academicYearId to query if provided
+      if (academicYearId) {
+        query.academicYearId = academicYearId;
+      }
+
+      const existingResult = await ResultModel.findOne(query);
 
       // If marks exist, add to the list
       if (existingResult) {
@@ -82,9 +96,9 @@ router.get('/check-student-marks', authenticateToken, authorizeRole(['admin', 't
     const { studentId, subjectId, examId, academicYearId } = req.query;
 
     // Validate required parameters
-    if (!studentId || !subjectId || !examId || !academicYearId) {
+    if (!studentId || !subjectId || !examId) {
       return res.status(400).json({
-        message: 'Missing required parameters. Please provide studentId, subjectId, examId, and academicYearId.'
+        message: 'Missing required parameters. Please provide studentId, subjectId, and examId.'
       });
     }
 
@@ -98,12 +112,18 @@ router.get('/check-student-marks', authenticateToken, authorizeRole(['admin', 't
     const ResultModel = student.educationLevel === 'A_LEVEL' ? ALevelResult : OLevelResult;
 
     // Check if marks exist
-    const existingResult = await ResultModel.findOne({
+    const query = {
       studentId,
       subjectId,
-      examId,
-      academicYearId
-    });
+      examId
+    };
+
+    // Add academicYearId to query if provided
+    if (academicYearId) {
+      query.academicYearId = academicYearId;
+    }
+
+    const existingResult = await ResultModel.findOne(query);
 
     if (existingResult) {
       res.json({

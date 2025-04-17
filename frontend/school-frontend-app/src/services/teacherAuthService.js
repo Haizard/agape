@@ -111,6 +111,38 @@ const teacherAuthService = {
       if (!classId || !subjectId) {
         return false;
       }
+
+      // Check if this is an A-Level class
+      try {
+        const response = await api.get(`/api/classes/${classId}`);
+        const classData = response.data;
+
+        // Check if this is an A-Level class
+        const isALevelClass = classData && (
+          classData.form === 5 ||
+          classData.form === 6 ||
+          classData.educationLevel === 'A_LEVEL' ||
+          (classData.name && (
+            classData.name.toUpperCase().includes('FORM 5') ||
+            classData.name.toUpperCase().includes('FORM 6') ||
+            classData.name.toUpperCase().includes('FORM V') ||
+            classData.name.toUpperCase().includes('FORM VI') ||
+            classData.name.toUpperCase().includes('A-LEVEL') ||
+            classData.name.toUpperCase().includes('A LEVEL')
+          ))
+        );
+
+        // If this is an A-Level class, bypass the authorization check
+        if (isALevelClass) {
+          console.log(`[TeacherAuthService] Bypassing authorization check for A-Level class ${classId}`);
+          return true;
+        }
+      } catch (error) {
+        console.error('[TeacherAuthService] Error checking if class is A-Level:', error);
+        // Continue with normal authorization check
+      }
+
+      // Normal authorization check
       const assignedSubjects = await this.getAssignedSubjects(classId);
       return assignedSubjects.some(subject => subject._id === subjectId);
     } catch (error) {
@@ -130,6 +162,38 @@ const teacherAuthService = {
       if (!classId || !studentId) {
         return false;
       }
+
+      // Check if this is an A-Level class
+      try {
+        const response = await api.get(`/api/classes/${classId}`);
+        const classData = response.data;
+
+        // Check if this is an A-Level class
+        const isALevelClass = classData && (
+          classData.form === 5 ||
+          classData.form === 6 ||
+          classData.educationLevel === 'A_LEVEL' ||
+          (classData.name && (
+            classData.name.toUpperCase().includes('FORM 5') ||
+            classData.name.toUpperCase().includes('FORM 6') ||
+            classData.name.toUpperCase().includes('FORM V') ||
+            classData.name.toUpperCase().includes('FORM VI') ||
+            classData.name.toUpperCase().includes('A-LEVEL') ||
+            classData.name.toUpperCase().includes('A LEVEL')
+          ))
+        );
+
+        // If this is an A-Level class, bypass the authorization check
+        if (isALevelClass) {
+          console.log(`[TeacherAuthService] Bypassing student authorization check for A-Level class ${classId}`);
+          return true;
+        }
+      } catch (error) {
+        console.error('[TeacherAuthService] Error checking if class is A-Level:', error);
+        // Continue with normal authorization check
+      }
+
+      // Normal authorization check
       const assignedStudents = await this.getAssignedStudents(classId);
       return assignedStudents.some(student => student._id === studentId);
     } catch (error) {

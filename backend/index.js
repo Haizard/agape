@@ -44,6 +44,7 @@ const aLevelComprehensiveReportRoutes = require('./routes/aLevelComprehensiveRep
 const unifiedComprehensiveReportRoutes = require('./routes/unifiedComprehensiveReportRoutes');
 const characterAssessmentRoutes = require('./routes/characterAssessmentRoutes');
 const studentEducationLevelRoutes = require('./routes/studentEducationLevelRoutes');
+const checkMarksRoutes = require('./routes/checkMarksRoutes');
 // Import v2 routes
 const v2ResultRoutes = require('./routes/v2/resultRoutes');
 const examRoutes = require('./routes/examRoutes');
@@ -57,6 +58,7 @@ const teacherClassesRoute = require('./routes/teacherClassesRoute');
 const classRoutes = require('./routes/classRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const fixedSubjectRoutes = require('./routes/fixedSubjectRoutes');
+const aLevelSubjectRoutes = require('./routes/aLevelSubjectRoutes');
 const parentContactRoutes = require('./routes/parentContactRoutes');
 const financeRoutes = require('./routes/financeRoutes');
 const smsRoutes = require('./routes/smsRoutes');
@@ -232,6 +234,7 @@ app.use('/api/o-level-results/batch', criticalRoutesCors, oLevelResultBatchRoute
 app.use('/api/a-level-comprehensive', aLevelComprehensiveReportRoutes);
 app.use('/api/character-assessments', characterAssessmentRoutes);
 app.use('/api/student-education-level', studentEducationLevelRoutes);
+app.use('/api/check-marks', checkMarksRoutes);
 // Register v2 routes
 app.use('/api/v2/results', v2ResultRoutes);
 
@@ -321,6 +324,7 @@ app.use('/api/direct-test', directTestRoutes);
 app.use('/api/teacher-classes', teacherClassesRoute);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/fixed-subjects', fixedSubjectRoutes);
+app.use('/api/a-level-subjects', aLevelSubjectRoutes);
 app.use('/api/parent-contacts', parentContactRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/sms', smsRoutes);

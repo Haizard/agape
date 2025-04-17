@@ -416,6 +416,121 @@ router.get('/:id/classes', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all subjects for the current teacher
+router.get('/my-subjects', authenticateToken, async (req, res) => {
+  try {
+    console.log(`GET /api/teachers/my-subjects - Fetching subjects for current teacher`);
+
+    // Get the teacher ID from the authenticated user
+    const teacherId = req.user.teacherId;
+    const { classId } = req.query;
+
+    if (!teacherId) {
+      console.log('No teacher ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    // Find the teacher profile
+    const teacher = await Teacher.findById(teacherId).populate('subjects');
+    if (!teacher) {
+      console.log(`Teacher profile not found for ID ${teacherId}`);
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    console.log(`Found teacher profile: ${teacher._id}`);
+
+    // Get subjects from teacher profile
+    const teacherSubjects = teacher.subjects || [];
+    console.log(`Found ${teacherSubjects.length} subjects in teacher profile`);
+
+    // Find all classes where this teacher is assigned to teach subjects
+    const classQuery = {};
+    if (classId) {
+      classQuery._id = classId;
+    }
+    classQuery['subjects.teacher'] = teacher._id;
+
+    const classes = await Class.find(classQuery)
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject',
+        select: 'name code type description educationLevel'
+      });
+
+    console.log(`Found ${classes.length} classes for teacher ${teacher._id}`);
+
+    // Extract subjects from classes
+    const classSubjects = [];
+    for (const cls of classes) {
+      if (!cls.subjects || !Array.isArray(cls.subjects)) continue;
+
+      for (const subjectItem of cls.subjects) {
+        if (!subjectItem.teacher || subjectItem.teacher.toString() !== teacher._id.toString()) continue;
+        if (!subjectItem.subject) continue;
+
+        // Get the subject details
+        const subject = await Subject.findById(subjectItem.subject);
+        if (!subject) continue;
+
+        classSubjects.push({
+          _id: subject._id,
+          name: subject.name,
+          code: subject.code,
+          type: subject.type,
+          description: subject.description,
+          educationLevel: subject.educationLevel,
+          class: {
+            _id: cls._id,
+            name: cls.name,
+            stream: cls.stream,
+            section: cls.section
+          }
+        });
+      }
+    }
+
+    console.log(`Found ${classSubjects.length} subjects from classes`);
+
+    // Return the subjects
+    res.json(classSubjects);
+  } catch (error) {
+    console.error('Error fetching subjects for teacher:', error);
+    res.status(500).json({ message: 'Failed to fetch subjects for teacher' });
+  }
+});
+
+// Get subjects that a teacher is assigned to teach for marks entry
+router.get('/marks-entry-subjects', authenticateToken, async (req, res) => {
+  try {
+    console.log(`GET /api/teachers/marks-entry-subjects - Fetching subjects for marks entry`);
+
+    // Get the teacher ID from the authenticated user
+    const teacherId = req.user.teacherId;
+    const { classId } = req.query;
+
+    if (!teacherId) {
+      console.log('No teacher ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    if (!classId) {
+      console.log('No class ID provided');
+      return res.status(400).json({ message: 'Class ID is required' });
+    }
+
+    // Use the teacherSubjectService to get subjects
+    const teacherSubjectService = require('../services/teacherSubjectService');
+    const subjects = await teacherSubjectService.getTeacherSubjects(teacherId, classId, false, false);
+
+    console.log(`Found ${subjects.length} subjects for teacher ${teacherId} in class ${classId}`);
+
+    res.json(subjects);
+  } catch (error) {
+    console.error('Error fetching subjects for marks entry:', error);
+    res.status(500).json({ message: 'Failed to fetch subjects for marks entry' });
+  }
+});
+
 // Simple endpoint to get subjects for a teacher in a class (more reliable)
 router.get('/:id/classes/:classId/simple-subjects', authenticateToken, async (req, res) => {
   try {
@@ -448,6 +563,108 @@ router.get('/:id/classes/:classId/simple-subjects', authenticateToken, async (re
     console.error(`Error creating simple subjects for teacher ${req.params.id} and class ${req.params.classId}:`, error);
     // Return an empty array instead of an error
     return res.json([]);
+  }
+});
+
+// Get subjects for the current teacher in a specific class
+router.get('/classes/:classId/subjects', authenticateToken, async (req, res) => {
+  try {
+    console.log(`GET /api/teachers/classes/${req.params.classId}/subjects - Fetching subjects for current teacher in class`);
+
+    // Get the teacher ID from the authenticated user
+    const teacherId = req.user.teacherId;
+    const classId = req.params.classId;
+
+    if (!teacherId) {
+      console.log('No teacher ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    if (!classId) {
+      console.log('No class ID provided');
+      return res.status(400).json({ message: 'Class ID is required' });
+    }
+
+    // Find the teacher profile
+    const teacher = await Teacher.findById(teacherId);
+    if (!teacher) {
+      console.log(`Teacher profile not found for ID ${teacherId}`);
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    console.log(`Found teacher profile: ${teacher._id}`);
+
+    // Find the class
+    const classItem = await Class.findById(classId)
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject',
+        select: 'name code type description educationLevel'
+      });
+
+    if (!classItem) {
+      console.log(`Class not found for ID ${classId}`);
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    console.log(`Found class: ${classItem.name}`);
+
+    // Extract subjects that this teacher teaches in this class
+    const teacherSubjects = [];
+
+    if (classItem.subjects && Array.isArray(classItem.subjects)) {
+      for (const subjectItem of classItem.subjects) {
+        if (!subjectItem.teacher || subjectItem.teacher.toString() !== teacher._id.toString()) continue;
+        if (!subjectItem.subject) continue;
+
+        // Get the subject details
+        const subject = await Subject.findById(subjectItem.subject);
+        if (!subject) continue;
+
+        teacherSubjects.push({
+          _id: subject._id,
+          name: subject.name,
+          code: subject.code,
+          type: subject.type,
+          description: subject.description,
+          educationLevel: subject.educationLevel
+        });
+      }
+    }
+
+    console.log(`Found ${teacherSubjects.length} subjects for teacher ${teacher._id} in class ${classItem.name}`);
+
+    // If no subjects found, try to get subjects from teacher assignments
+    if (teacherSubjects.length === 0) {
+      console.log('No subjects found in class, trying teacher assignments');
+
+      const TeacherAssignment = require('../models/TeacherAssignment');
+      const assignments = await TeacherAssignment.find({
+        teacher: teacher._id,
+        class: classId
+      }).populate('subject');
+
+      console.log(`Found ${assignments.length} assignments for teacher ${teacher._id} in class ${classId}`);
+
+      for (const assignment of assignments) {
+        if (!assignment.subject) continue;
+
+        teacherSubjects.push({
+          _id: assignment.subject._id,
+          name: assignment.subject.name,
+          code: assignment.subject.code,
+          type: assignment.subject.type,
+          description: assignment.subject.description,
+          educationLevel: assignment.subject.educationLevel
+        });
+      }
+    }
+
+    // Return the subjects
+    res.json(teacherSubjects);
+  } catch (error) {
+    console.error('Error fetching subjects for teacher in class:', error);
+    res.status(500).json({ message: 'Failed to fetch subjects for teacher in class' });
   }
 });
 

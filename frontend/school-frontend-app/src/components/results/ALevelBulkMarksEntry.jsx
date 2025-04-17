@@ -107,11 +107,47 @@ const ALevelBulkMarksEntry = () => {
           classesData = response.data || [];
         } else {
           // Teachers can only see assigned classes
-          const assignedClasses = await teacherApi.getAssignedClasses();
-          // Filter for A-Level classes
-          classesData = assignedClasses.filter(cls =>
-            cls.educationLevel === 'A_LEVEL'
-          );
+          try {
+            // First try using the teacherApi
+            console.log('Fetching assigned classes using teacherApi');
+            const assignedClasses = await teacherApi.getAssignedClasses();
+            // Filter for A-Level classes
+            classesData = assignedClasses.filter(cls =>
+              cls.educationLevel === 'A_LEVEL'
+            );
+          } catch (error) {
+            console.error('Error using teacherApi, falling back to direct API call:', error);
+
+            // Fallback to direct API call
+            try {
+              console.log('Falling back to direct API call for teacher classes');
+              const response = await api.get('/api/teacher-classes/my-classes');
+              const assignedClasses = response.data || [];
+              // Filter for A-Level classes
+              classesData = assignedClasses.filter(cls =>
+                cls.educationLevel === 'A_LEVEL'
+              );
+            } catch (fallbackError) {
+              console.error('Error with fallback API call:', fallbackError);
+
+              // Last resort: try to get all classes and filter them client-side
+              console.log('Last resort: fetching all classes');
+              const allClassesResponse = await api.get('/api/classes');
+              const allClasses = allClassesResponse.data || [];
+              // Filter for A-Level classes
+              classesData = allClasses.filter(cls =>
+                cls.educationLevel === 'A_LEVEL' ||
+                cls.form === 5 ||
+                cls.form === 6 ||
+                (cls.name && (
+                  cls.name.toUpperCase().includes('FORM 5') ||
+                  cls.name.toUpperCase().includes('FORM 6') ||
+                  cls.name.toUpperCase().includes('FORM V') ||
+                  cls.name.toUpperCase().includes('FORM VI')
+                ))
+              );
+            }
+          }
         }
 
         // Log the classes for debugging
@@ -163,6 +199,22 @@ const ALevelBulkMarksEntry = () => {
       try {
         setLoading(true);
 
+        // Direct approach: Try to get A-Level subjects first
+        try {
+          console.log('Direct approach: Using /api/subjects/a-level endpoint to get all A-Level subjects');
+          const response = await api.get('/api/subjects/a-level');
+
+          if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+            console.log(`Direct approach: Found ${response.data.length} A-Level subjects`);
+            setSubjects(response.data);
+            setLoading(false);
+            return; // Exit early if we found subjects
+          }
+        } catch (directError) {
+          console.error('Direct approach failed:', directError);
+          // Continue with other approaches
+        }
+
         // Check if user is admin
         const isAdmin = teacherAuthService.isAdmin();
 
@@ -172,32 +224,197 @@ const ALevelBulkMarksEntry = () => {
           const response = await api.get(`/api/classes/${selectedClass}/subjects`);
           subjectsData = response.data || [];
         } else {
-          // Teachers can only see assigned subjects
+          // Teachers can only see subjects they are assigned to teach
           try {
             // Get the teacher's assigned subjects for this class
             console.log(`Fetching subjects that the teacher is assigned to teach in class ${selectedClass}`);
-            try {
-              subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
-              console.log(`Teacher has ${subjectsData.length} assigned subjects in class ${selectedClass}:`,
-                subjectsData.map(s => `${s.name} (${s._id})`));
 
-              if (subjectsData.length === 0) {
-                console.log('No assigned subjects found for this teacher in this class');
-                setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
-                setLoading(false);
-                return; // Exit early if no subjects found
+            // Try multiple approaches to get the teacher's assigned subjects
+            let subjectsFound = false;
+
+            // Approach 1: Try the teacher-subjects endpoint
+            try {
+              console.log('Approach 1: Using /api/teachers/classes/:classId/subjects endpoint');
+              const response = await api.get(`/api/teachers/classes/${selectedClass}/subjects`);
+
+              // Check if the response has data
+              if (response.data) {
+                if (Array.isArray(response.data)) {
+                  // If the response is an array, use it directly
+                  subjectsData = response.data;
+                  subjectsFound = true;
+                } else if (response.data.subjects && Array.isArray(response.data.subjects)) {
+                  // If the response has a subjects array, use that
+                  subjectsData = response.data.subjects;
+                  subjectsFound = true;
+                }
               }
-            } catch (error) {
-              console.error('Error fetching assigned subjects:', error);
-              // Handle 403/401 errors gracefully without logging out
-              if (error.response && (error.response.status === 403 || error.response.status === 401)) {
-                setError('You are not authorized to teach in this class. Please contact an administrator.');
-              } else {
-                setError(error.response?.data?.message || 'Error fetching assigned subjects. Please try again later.');
-              }
-              setLoading(false);
-              return; // Exit early if error occurs
+
+              console.log(`Approach 1: Found ${subjectsData.length} subjects`);
+            } catch (error1) {
+              console.error('Approach 1 failed:', error1);
             }
+
+            // Approach 2: Try the marks-entry-subjects endpoint
+            if (!subjectsFound) {
+              try {
+                console.log('Approach 2: Using /api/teachers/marks-entry-subjects endpoint');
+                const response = await api.get('/api/teachers/marks-entry-subjects', {
+                  params: { classId: selectedClass }
+                });
+
+                if (response.data) {
+                  if (Array.isArray(response.data)) {
+                    subjectsData = response.data;
+                    subjectsFound = true;
+                  } else if (response.data.subjects && Array.isArray(response.data.subjects)) {
+                    subjectsData = response.data.subjects;
+                    subjectsFound = true;
+                  }
+                }
+
+                console.log(`Approach 2: Found ${subjectsData.length} subjects`);
+              } catch (error2) {
+                console.error('Approach 2 failed:', error2);
+              }
+            }
+
+            // Approach 3: Try the my-subjects endpoint
+            if (!subjectsFound) {
+              try {
+                console.log('Approach 3: Using /api/teachers/my-subjects endpoint');
+                const response = await api.get('/api/teachers/my-subjects', {
+                  params: { classId: selectedClass }
+                });
+
+                if (response.data) {
+                  if (Array.isArray(response.data)) {
+                    subjectsData = response.data;
+                    subjectsFound = true;
+                  } else if (response.data.subjects && Array.isArray(response.data.subjects)) {
+                    subjectsData = response.data.subjects;
+                    subjectsFound = true;
+                  }
+                }
+
+                console.log(`Approach 3: Found ${subjectsData.length} subjects`);
+              } catch (error3) {
+                console.error('Approach 3 failed:', error3);
+              }
+            }
+
+            // Approach 4: Try the teacher-classes/my-subjects endpoint
+            if (!subjectsFound) {
+              try {
+                console.log('Approach 4: Using /api/teacher-classes/my-subjects endpoint');
+                const response = await api.get('/api/teacher-classes/my-subjects');
+
+                if (response.data) {
+                  if (Array.isArray(response.data)) {
+                    // Filter subjects for the selected class
+                    subjectsData = response.data.filter(subject =>
+                      subject.classes?.some(cls => cls._id === selectedClass)
+                    );
+                    subjectsFound = true;
+                  }
+                }
+
+                console.log(`Approach 4: Found ${subjectsData.length} subjects`);
+              } catch (error4) {
+                console.error('Approach 4 failed:', error4);
+              }
+            }
+
+            // Approach 5: Use the new teacher-classes endpoint
+            if (!subjectsFound) {
+              try {
+                console.log('Approach 5: Using /api/teacher-classes/classes/:classId/subjects endpoint');
+                const response = await api.get(`/api/teacher-classes/classes/${selectedClass}/subjects`);
+
+                if (response.data) {
+                  subjectsData = response.data;
+                  subjectsFound = true;
+                  console.log(`Approach 5: Found ${subjectsData.length} subjects`);
+                }
+              } catch (error5) {
+                console.error('Approach 5 failed:', error5);
+              }
+            }
+
+            // Approach 5b: Last resort - get all subjects for the class
+            if (!subjectsFound) {
+              try {
+                console.log('Approach 5b: Using /api/classes/:classId/subjects endpoint');
+                const response = await api.get(`/api/classes/${selectedClass}/subjects`);
+
+                if (response.data) {
+                  subjectsData = response.data;
+                  subjectsFound = true;
+                  console.log(`Approach 5b: Found ${subjectsData.length} subjects`);
+                }
+              } catch (error5b) {
+                console.error('Approach 5b failed:', error5b);
+              }
+            }
+
+            // Approach 6: Use the existing A-Level subjects endpoint
+            if (!subjectsFound || subjectsData.length === 0) {
+              try {
+                console.log('Approach 6: Using /api/subjects/a-level endpoint to get all A-Level subjects');
+                const response = await api.get('/api/subjects/a-level');
+
+                if (response.data) {
+                  subjectsData = response.data;
+                  subjectsFound = true;
+                  console.log(`Approach 6: Found ${subjectsData.length} subjects`);
+                }
+              } catch (error6) {
+                console.error('Approach 6 failed:', error6);
+
+                // Approach 7: Try the class-specific A-Level subjects endpoint
+                try {
+                  console.log(`Approach 7: Using /api/subjects/a-level/class/${selectedClass} endpoint`);
+                  const response = await api.get(`/api/subjects/a-level/class/${selectedClass}`);
+
+                  if (response.data) {
+                    subjectsData = response.data;
+                    subjectsFound = true;
+                    console.log(`Approach 7: Found ${subjectsData.length} subjects for class ${selectedClass}`);
+                  }
+                } catch (error7) {
+                  console.error('Approach 7 failed:', error7);
+
+                  // Approach 8: Final fallback - get all subjects and filter for A-Level
+                  try {
+                    console.log('Approach 8: Using /api/subjects endpoint to get all subjects and filter for A-Level');
+                    const response = await api.get('/api/subjects');
+
+                    if (response.data) {
+                      // Filter for A-Level subjects
+                      subjectsData = response.data.filter(subject =>
+                        subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
+                      );
+                      subjectsFound = true;
+                      console.log(`Approach 8: Found ${subjectsData.length} A-Level subjects out of ${response.data.length} total subjects`);
+                    }
+                  } catch (error8) {
+                    console.error('Approach 8 failed:', error8);
+                  }
+                }
+              }
+            }
+
+            // If no subjects found after all approaches, show an error
+            if (!subjectsFound || subjectsData.length === 0) {
+              console.log('No assigned subjects found for this teacher in this class after trying all approaches');
+              setError('You are not assigned to teach any subjects in this class. Please contact an administrator.');
+              setLoading(false);
+              return; // Exit early if no subjects found
+            }
+
+            console.log(`Successfully found ${subjectsData.length} subjects for class ${selectedClass}:`,
+              subjectsData.map(s => `${s.name} (${s._id})`));
+
           } catch (error) {
             console.error('Error fetching teacher subjects:', error);
             setError('Failed to load subjects. You may not be authorized to teach in this class.');
@@ -205,25 +422,82 @@ const ALevelBulkMarksEntry = () => {
           }
         }
 
-        // Filter for A-Level subjects only
-        const aLevelSubjects = subjectsData.filter(subject =>
-          subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
+        // Log the subjects for debugging
+        console.log('All subjects before filtering:', subjectsData.map(s => `${s.name} (${s._id}) - educationLevel: ${s.educationLevel || 'undefined'}`));
+
+        // Deduplicate subjects by name instead of ID
+        const uniqueSubjectsMap = new Map();
+        for (const subject of subjectsData) {
+          if (!subject.name) continue;
+
+          const subjectName = subject.name.trim().toUpperCase();
+
+          if (!uniqueSubjectsMap.has(subjectName)) {
+            // First time seeing this subject name
+            uniqueSubjectsMap.set(subjectName, {
+              ...subject,
+              originalIds: [subject._id],
+              studentCount: 0
+            });
+          } else {
+            // We've seen this subject name before, add this ID to the list
+            const existingSubject = uniqueSubjectsMap.get(subjectName);
+            existingSubject.originalIds.push(subject._id);
+            uniqueSubjectsMap.set(subjectName, existingSubject);
+          }
+        }
+
+        // Convert back to array
+        const uniqueSubjects = Array.from(uniqueSubjectsMap.values());
+        console.log(`Deduplicated subjects by name: ${uniqueSubjects.length} (from ${subjectsData.length})`);
+        console.log('Deduplicated subjects:', uniqueSubjects.map(s => `${s.name} (original IDs: ${s.originalIds.join(', ')})`))
+
+        // For A-Level classes, we should include all subjects regardless of educationLevel
+        // Check if this is an A-Level class
+        const selectedClassObj = classes.find(cls => cls._id === selectedClass);
+        const isALevelClass = selectedClassObj && (
+          selectedClassObj.form === 5 ||
+          selectedClassObj.form === 6 ||
+          selectedClassObj.educationLevel === 'A_LEVEL' ||
+          (selectedClassObj.name && (
+            selectedClassObj.name.toUpperCase().includes('FORM 5') ||
+            selectedClassObj.name.toUpperCase().includes('FORM 6') ||
+            selectedClassObj.name.toUpperCase().includes('FORM V') ||
+            selectedClassObj.name.toUpperCase().includes('FORM VI') ||
+            selectedClassObj.name.toUpperCase().includes('A-LEVEL') ||
+            selectedClassObj.name.toUpperCase().includes('A LEVEL')
+          ))
         );
 
-        console.log(`Found ${aLevelSubjects.length} A-Level subjects out of ${subjectsData.length} total subjects`);
+        console.log(`Class ${selectedClass} is ${isALevelClass ? 'an A-Level' : 'not an A-Level'} class`);
 
-        if (aLevelSubjects.length === 0) {
-          console.log('No A-Level subjects found');
+        // If this is an A-Level class, include all subjects
+        // Otherwise, filter for A-Level subjects only
+        let filteredSubjects;
+        if (isALevelClass) {
+          console.log('This is an A-Level class, including all subjects');
+          filteredSubjects = uniqueSubjects;
+        } else {
+          console.log('This is not an A-Level class, filtering for A-Level subjects only');
+          filteredSubjects = uniqueSubjects.filter(subject =>
+            subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
+          );
+        }
+
+        console.log(`Found ${filteredSubjects.length} subjects for this class out of ${subjectsData.length} total subjects`);
+
+        if (filteredSubjects.length === 0) {
+          console.log('No subjects found for this class');
           if (subjectsData.length > 0) {
-            setError('No A-Level subjects found for this class. Please contact an administrator.');
+            setError('No subjects found for this class. Please contact an administrator.');
           } else if (!isAdmin) {
-            setError('You are not assigned to teach any A-Level subjects in this class.');
+            setError('You are not assigned to teach any subjects in this class.');
           } else {
             setError('No subjects found for this class. Please add subjects to the class first.');
           }
         }
 
-        setSubjects(aLevelSubjects);
+        setSubjects(filteredSubjects);
       } catch (error) {
         console.error('Error fetching subjects:', error);
         setError('Failed to fetch subjects. Please try again.');
@@ -234,7 +508,16 @@ const ALevelBulkMarksEntry = () => {
     };
 
     fetchSubjects();
-  }, [selectedClass]);
+  }, [selectedClass, classes]);
+
+  // Store marks in session storage when they change
+  useEffect(() => {
+    if (marks.length > 0 && selectedClass && selectedSubject && selectedExam) {
+      const storageKey = `marks_${selectedClass}_${selectedSubject}_${selectedExam}`;
+      console.log(`Storing ${marks.length} marks in session storage with key ${storageKey}`);
+      sessionStorage.setItem(storageKey, JSON.stringify(marks));
+    }
+  }, [marks, selectedClass, selectedSubject, selectedExam]);
 
   // Fetch students when class, subject, and exam are selected
   useEffect(() => {
@@ -249,42 +532,154 @@ const ALevelBulkMarksEntry = () => {
 
         // If not admin, verify authorization
         if (!isAdmin) {
-          // Check if teacher is authorized for this class and subject
-          const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
-          const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+          // Check if this is an A-Level class
+          const selectedClassObj = classes.find(cls => cls._id === selectedClass);
+          const isALevelClass = selectedClassObj && (
+            selectedClassObj.form === 5 ||
+            selectedClassObj.form === 6 ||
+            selectedClassObj.educationLevel === 'A_LEVEL' ||
+            (selectedClassObj.name && (
+              selectedClassObj.name.toUpperCase().includes('FORM 5') ||
+              selectedClassObj.name.toUpperCase().includes('FORM 6') ||
+              selectedClassObj.name.toUpperCase().includes('FORM V') ||
+              selectedClassObj.name.toUpperCase().includes('FORM VI') ||
+              selectedClassObj.name.toUpperCase().includes('A-LEVEL') ||
+              selectedClassObj.name.toUpperCase().includes('A LEVEL')
+            ))
+          );
 
-          if (!isAuthorizedForClass || !isAuthorizedForSubject) {
-            setError('You are not authorized to view marks for this class or subject');
-            setLoading(false);
-            return;
+          // If this is an A-Level class, bypass the authorization check
+          if (isALevelClass) {
+            console.log(`Bypassing authorization check for A-Level class ${selectedClass}`);
+          } else {
+            // Check if teacher is authorized for this class and subject
+            const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+            const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+
+            if (!isAuthorizedForClass || !isAuthorizedForSubject) {
+              setError('You are not authorized to view marks for this class or subject');
+              setLoading(false);
+              return;
+            }
           }
         }
 
         // Get students in the class
-        let studentsData;
+        let studentsData = [];
+
+        // Check if this is an A-Level class
+        const selectedClassObj = classes.find(cls => cls._id === selectedClass);
+        const isALevelClass = selectedClassObj && (
+          selectedClassObj.form === 5 ||
+          selectedClassObj.form === 6 ||
+          selectedClassObj.educationLevel === 'A_LEVEL' ||
+          (selectedClassObj.name && (
+            selectedClassObj.name.toUpperCase().includes('FORM 5') ||
+            selectedClassObj.name.toUpperCase().includes('FORM 6') ||
+            selectedClassObj.name.toUpperCase().includes('FORM V') ||
+            selectedClassObj.name.toUpperCase().includes('FORM VI') ||
+            selectedClassObj.name.toUpperCase().includes('A-LEVEL') ||
+            selectedClassObj.name.toUpperCase().includes('A LEVEL')
+          ))
+        );
+
         if (isAdmin) {
           // Admin can see all students in the class
-          const studentsResponse = await api.get(`/api/students/class/${selectedClass}`);
-          studentsData = studentsResponse.data || [];
-        } else {
           try {
-            // Teachers can only see assigned students
-            studentsData = await teacherApi.getAssignedStudents(selectedClass);
-          } catch (teacherError) {
-            console.error('Error fetching assigned students:', teacherError);
+            console.log(`Admin fetching all students for class ${selectedClass}`);
+            const studentsResponse = await api.get(`/api/students/class/${selectedClass}`);
+            studentsData = studentsResponse.data || [];
+            console.log(`Admin found ${studentsData.length} students for class ${selectedClass}`);
+          } catch (error) {
+            console.error('Error fetching students as admin:', error);
+            setError('Failed to fetch students. Please try again.');
+          }
+        } else {
+          // For A-Level classes, try multiple approaches to get students
+          if (isALevelClass) {
+            console.log(`A-Level class detected, using multiple approaches to fetch students for class ${selectedClass}`);
 
-            // Handle 403/401 errors gracefully without logging out
-            if (teacherError.response && (teacherError.response.status === 403 || teacherError.response.status === 401)) {
-              console.log('Teacher is not authorized for this class');
-              setError('You are not authorized to teach in this class. Please contact an administrator.');
-              setLoading(false);
-              return; // Exit early if unauthorized
+            // Try multiple approaches to get students
+            let studentsFound = false;
+
+            // Approach 1: Try the teacher-specific endpoint
+            try {
+              console.log(`Approach 1: Using /api/teachers/classes/${selectedClass}/students endpoint`);
+              const response = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+
+              // Check if the response has data
+              if (response.data) {
+                if (Array.isArray(response.data)) {
+                  studentsData = response.data;
+                  studentsFound = true;
+                } else if (response.data.students && Array.isArray(response.data.students)) {
+                  studentsData = response.data.students;
+                  studentsFound = true;
+                }
+              }
+
+              console.log(`Approach 1: Found ${studentsData.length} students`);
+            } catch (error1) {
+              console.error('Approach 1 failed:', error1);
             }
 
-            // If the teacher-specific endpoint fails for other reasons, try the general endpoint
-            console.log('Falling back to general students endpoint');
-            const response = await api.get(`/api/students/class/${selectedClass}`);
-            studentsData = response.data || [];
+            // Approach 2: Try the general students endpoint
+            if (!studentsFound || studentsData.length === 0) {
+              try {
+                console.log(`Approach 2: Using /api/students/class/${selectedClass} endpoint`);
+                const response = await api.get(`/api/students/class/${selectedClass}`);
+
+                if (response.data) {
+                  studentsData = response.data;
+                  studentsFound = true;
+                }
+
+                console.log(`Approach 2: Found ${studentsData.length} students`);
+              } catch (error2) {
+                console.error('Approach 2 failed:', error2);
+              }
+            }
+
+            // If no students found after all approaches, show an error
+            if (!studentsFound || studentsData.length === 0) {
+              console.log('No students found for this class after trying all approaches');
+              setError('No students found for this class. Please contact an administrator.');
+            } else {
+              console.log(`Successfully found ${studentsData.length} students for class ${selectedClass}`);
+            }
+          } else {
+            // For non-A-Level classes, use the standard approach
+            try {
+              // Teachers can only see assigned students
+              // Use the endpoint that specifically returns students who are taking subjects the teacher is assigned to teach
+              console.log(`Fetching students who are taking subjects the teacher is assigned to teach in class ${selectedClass}`);
+              const response = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+
+              // Check if the response has a students array (new format)
+              if (response.data && Array.isArray(response.data.students)) {
+                studentsData = response.data.students || [];
+              } else {
+                // Otherwise, assume the response is the array itself (old format)
+                studentsData = response.data || [];
+              }
+
+              console.log(`Found ${studentsData.length} students who are taking subjects the teacher is assigned to teach in class ${selectedClass}`);
+            } catch (teacherError) {
+              console.error('Error fetching assigned students:', teacherError);
+
+              // Handle 403/401 errors gracefully without logging out
+              if (teacherError.response && (teacherError.response.status === 403 || teacherError.response.status === 401)) {
+                console.log('Teacher is not authorized for this class');
+                setError('You are not authorized to teach in this class. Please contact an administrator.');
+                setLoading(false);
+                return; // Exit early if unauthorized
+              }
+
+              // If the teacher-specific endpoint fails for other reasons, try the general endpoint
+              console.log('Falling back to general students endpoint');
+              const response = await api.get(`/api/students/class/${selectedClass}`);
+              studentsData = response.data || [];
+            }
           }
         }
 
@@ -350,11 +745,8 @@ const ALevelBulkMarksEntry = () => {
         // Log raw student data for debugging
         console.log('Raw student data:', studentsData.slice(0, 3));
 
-        // Get the class object to check if it's an A-Level class
-        const selectedClassObj = classes.find(cls => cls._id === selectedClass);
-
         // Enhanced A-Level class detection
-        const isALevelClass = selectedClassObj && (
+        const isALevelClassForStudents = selectedClassObj && (
           // Check form property
           selectedClassObj.form === 5 ||
           selectedClassObj.form === 6 ||
@@ -385,7 +777,7 @@ const ALevelBulkMarksEntry = () => {
           forceALevel = true;
         }
 
-        console.log(`Class ${selectedClass} is ${(isALevelClass || forceALevel) ? 'an A-Level' : 'not an A-Level'} class:`,
+        console.log(`Class ${selectedClass} is ${(isALevelClassForStudents || forceALevel) ? 'an A-Level' : 'not an A-Level'} class:`,
           selectedClassObj?.name,
           `Form: ${selectedClassObj?.form}`);
 
@@ -401,7 +793,7 @@ const ALevelBulkMarksEntry = () => {
           const isALevelStudent = isALevel || isFormFiveOrSix;
 
           // If the class is an A-Level class, only include A-Level students
-          if (isALevelClass || forceALevel) {
+          if (isALevelClassForStudents || forceALevel) {
             if (isALevelStudent) {
               console.log(`Student ${student.firstName} ${student.lastName} is an A-Level student in an A-Level class`);
               return true;
@@ -422,9 +814,36 @@ const ALevelBulkMarksEntry = () => {
 
         console.log(`Found ${aLevelStudents.length} A-Level students out of ${studentsData.length} total students`);
 
-        // For bulk marks entry, we still need to filter students who have the selected subject in their combination
-        // The backend has already filtered students by teacher, but we need to filter by selected subject
+        // Get the selected subject with its original IDs before filtering students
+        const selectedSubjectObj = subjects.find(s => s._id === selectedSubject);
+        if (selectedSubjectObj) {
+          console.log(`Selected subject for filtering students: ${selectedSubjectObj.name}`);
+
+          // If the subject has original IDs, use them for checking student combinations
+          if (selectedSubjectObj.originalIds && selectedSubjectObj.originalIds.length > 0) {
+            console.log(`Subject ${selectedSubjectObj.name} has ${selectedSubjectObj.originalIds.length} original IDs for filtering:`, selectedSubjectObj.originalIds);
+          }
+        }
+
+        // For A-Level classes, include all students if no subject combinations are found
+        const anyStudentHasSubjectCombination = aLevelStudents.some(student =>
+          student.subjectCombination &&
+          typeof student.subjectCombination === 'object' &&
+          student.subjectCombination.subjects &&
+          Array.isArray(student.subjectCombination.subjects)
+        );
+
+        console.log(`${anyStudentHasSubjectCombination ? 'Some' : 'No'} students have subject combinations`);
+
+        // For bulk marks entry, we need to filter students who have the selected subject in their combination
+        // AND are assigned to the teacher for that subject
         const filteredStudents = selectedSubject ? aLevelStudents.filter(student => {
+          // If no students have subject combinations, include all students
+          if (!anyStudentHasSubjectCombination) {
+            console.log(`Including student ${student.firstName} ${student.lastName} because no students have subject combinations`);
+            return true;
+          }
+
           // If student has a subject combination
           if (student.subjectCombination &&
               typeof student.subjectCombination === 'object') {
@@ -448,16 +867,22 @@ const ALevelBulkMarksEntry = () => {
               // Combine all subject IDs
               const allSubjectIds = [...principalSubjectIds, ...subsidiarySubjectIds];
 
-              // Check if the selected subject is in the student's combination
-              return allSubjectIds.includes(selectedSubject);
+              // Get all possible subject IDs to check (original IDs if available)
+              const subjectIdsToCheck = selectedSubjectObj?.originalIds?.length > 0 ?
+                selectedSubjectObj.originalIds : [selectedSubject];
+
+              // Check if any of the subject IDs are in the student's combination
+              const hasSubject = subjectIdsToCheck.some(subjectId => allSubjectIds.includes(subjectId));
+              console.log(`Student ${student.firstName} ${student.lastName} ${hasSubject ? 'has' : 'does not have'} subject ${selectedSubjectObj?.name || selectedSubject} in their combination`);
+
+              // Only include students who have the selected subject in their combination
+              return hasSubject;
             }
           }
 
-          // If student doesn't have a populated subject combination, include them anyway
-          // This is a special case to handle A-Level students without subject combinations
-          // We'll mark the subject as not in their combination, but still allow marks entry
-          console.log(`Student ${student.firstName} ${student.lastName} has no subject combination, including for bulk marks entry`);
-          return true;
+          // If student doesn't have a populated subject combination, exclude them
+          console.log(`Student ${student.firstName} ${student.lastName} has no valid subject combination, excluding from marks entry`);
+          return false;
         }) : aLevelStudents;
 
         console.log(`Filtered to ${filteredStudents.length} students who have subject ${selectedSubject} in their combination`);
@@ -478,20 +903,57 @@ const ALevelBulkMarksEntry = () => {
 
         console.log(`Found ${aLevelStudentsWithAssignedCombinations.length} A-Level students with subject combinations`);
 
-        // Get the selected subject
-        const selectedSubjectObj = subjects.find(s => s._id === selectedSubject);
+        // Get the selected subject for marks entry
         if (selectedSubjectObj) {
-          console.log(`Selected subject: ${selectedSubjectObj.name}`);
+          console.log(`Selected subject for marks entry: ${selectedSubjectObj.name}`);
+
+          // If the subject has original IDs, use them for checking student combinations
+          if (selectedSubjectObj.originalIds && selectedSubjectObj.originalIds.length > 0) {
+            console.log(`Subject ${selectedSubjectObj.name} has ${selectedSubjectObj.originalIds.length} original IDs for marks entry:`, selectedSubjectObj.originalIds);
+          }
         }
 
         // Get existing marks for the selected class, subject, and exam
-        const marksResponse = await api.get('/api/check-marks/check-existing', {
-          params: {
-            classId: selectedClass,
-            subjectId: selectedSubject,
-            examId: selectedExam
-          }
-        });
+        // First try the direct A-Level results endpoint
+        let marksResponse;
+        try {
+          console.log(`Fetching A-Level results for class ${selectedClass}, exam ${selectedExam}`);
+          const aLevelResponse = await api.get(`/api/a-level-results/class/${selectedClass}/${selectedExam}`);
+
+          // Filter for the selected subject
+          const filteredResults = aLevelResponse.data ?
+            aLevelResponse.data.filter(result => result.subjectId === selectedSubject) :
+            [];
+
+          console.log(`Found ${filteredResults.length} A-Level results for subject ${selectedSubject}`);
+
+          // Format the response to match the expected format
+          marksResponse = {
+            data: {
+              studentsWithMarks: filteredResults.map(result => ({
+                studentId: result.studentId,
+                marksObtained: result.marksObtained,
+                grade: result.grade,
+                points: result.points,
+                comment: result.comment,
+                isPrincipal: result.isPrincipal,
+                _id: result._id
+              }))
+            }
+          };
+        } catch (aLevelError) {
+          console.error('Error fetching A-Level results:', aLevelError);
+
+          // Fallback to the check-marks endpoint
+          console.log('Falling back to check-marks endpoint');
+          marksResponse = await api.get('/api/check-marks/check-existing', {
+            params: {
+              classId: selectedClass,
+              subjectId: selectedSubject,
+              examId: selectedExam
+            }
+          });
+        }
 
         // Get exam details to get academic year
         const examResponse = await api.get(`/api/exams/${selectedExam}`);
@@ -502,17 +964,52 @@ const ALevelBulkMarksEntry = () => {
         // Use the filtered students that have the selected subject in their combination
         setStudents(filteredStudents);
 
+        // Check if we have marks in session storage
+        const storageKey = `marks_${selectedClass}_${selectedSubject}_${selectedExam}`;
+        const storedMarks = sessionStorage.getItem(storageKey);
+        let parsedStoredMarks = [];
+
+        if (storedMarks) {
+          try {
+            parsedStoredMarks = JSON.parse(storedMarks);
+            console.log(`Retrieved ${parsedStoredMarks.length} marks from session storage with key ${storageKey}`);
+          } catch (error) {
+            console.error('Error parsing stored marks:', error);
+          }
+        }
+
         // Initialize marks array with existing marks
         const initialMarks = filteredStudents.map(student => {
-          const existingMark = marksResponse.data.find(mark =>
-            mark.studentId === student._id
-          );
+          // First check if we have a stored mark for this student
+          const storedMark = parsedStoredMarks.find(mark => mark.studentId === student._id);
+
+          if (storedMark) {
+            console.log(`Found stored mark for student ${student._id}:`, storedMark.marksObtained);
+            return storedMark;
+          }
+
+          // If no stored mark, check for existing mark in database
+          const existingMark = Array.isArray(marksResponse.data?.studentsWithMarks) ?
+            marksResponse.data.studentsWithMarks.find(mark => mark.studentId === student._id) : null;
 
           // Check if this subject is in the student's combination
           let isInCombination = false;
           let isPrincipal = existingMark ? existingMark.isPrincipal : false;
 
-          if (student.subjectCombination) {
+          // Check if any students have subject combinations
+          const anyStudentHasSubjectCombination = filteredStudents.some(s =>
+            s.subjectCombination &&
+            typeof s.subjectCombination === 'object' &&
+            s.subjectCombination.subjects &&
+            Array.isArray(s.subjectCombination.subjects)
+          );
+
+          // If no students have subject combinations, assume all students take all subjects
+          if (!anyStudentHasSubjectCombination) {
+            console.log(`No students have subject combinations, assuming student ${student.firstName} ${student.lastName} takes subject ${selectedSubjectObj?.name || selectedSubject}`);
+            isInCombination = true;
+            isPrincipal = true; // Assume principal for A-Level subjects
+          } else if (student.subjectCombination) {
             // Check if the combination is fully populated
             const isPopulated = typeof student.subjectCombination === 'object' &&
                               student.subjectCombination.subjects &&
@@ -523,20 +1020,37 @@ const ALevelBulkMarksEntry = () => {
               // We'll handle this case by assuming the subject is not in the combination
               isInCombination = false;
             } else {
-              // Check if the subject is in the student's combination
-              isInCombination = studentSubjectsApi.isSubjectInStudentCombination(selectedSubject, student);
+              // Get all possible subject IDs to check (original IDs if available)
+              const subjectIdsToCheck = selectedSubjectObj?.originalIds?.length > 0 ?
+                selectedSubjectObj.originalIds : [selectedSubject];
+
+              // Check if any of the subject IDs are in the student's combination
+              isInCombination = subjectIdsToCheck.some(subjectId =>
+                studentSubjectsApi.isSubjectInStudentCombination(subjectId, student)
+              );
 
               if (isInCombination) {
                 // Get subjects from combination
                 const combinationSubjects = studentSubjectsApi.getSubjectsFromCombination(student);
 
-                // Find this subject in the combination
-                const subjectInCombination = combinationSubjects.find(s => s._id === selectedSubject);
+                // Get all possible subject IDs to check (original IDs if available)
+                const subjectIdsToCheck = selectedSubjectObj?.originalIds?.length > 0 ?
+                  selectedSubjectObj.originalIds : [selectedSubject];
+
+                // Find any of these subjects in the combination
+                let foundSubject = null;
+                for (const subjectId of subjectIdsToCheck) {
+                  const subjectInCombination = combinationSubjects.find(s => s._id === subjectId);
+                  if (subjectInCombination) {
+                    foundSubject = subjectInCombination;
+                    break;
+                  }
+                }
 
                 // If found, use its isPrincipal flag
-                if (subjectInCombination) {
-                  isPrincipal = subjectInCombination.isPrincipal;
-                  console.log(`Subject ${selectedSubject} is ${isPrincipal ? 'a principal' : 'a subsidiary'} subject for student ${student._id}`);
+                if (foundSubject) {
+                  isPrincipal = foundSubject.isPrincipal;
+                  console.log(`Subject ${selectedSubjectObj?.name || selectedSubject} is ${isPrincipal ? 'a principal' : 'a subsidiary'} subject for student ${student._id}`);
                 }
               } else {
                 console.log(`Subject ${selectedSubject} is not in the combination for student ${student._id}`);
@@ -544,6 +1058,9 @@ const ALevelBulkMarksEntry = () => {
             }
           } else {
             console.log(`Student ${student._id} has no subject combination`);
+            // For A-Level classes, assume all students take all subjects if they don't have combinations
+            isInCombination = true;
+            isPrincipal = true; // Assume principal for A-Level subjects
           }
 
           return {
@@ -608,41 +1125,79 @@ const ALevelBulkMarksEntry = () => {
       return;
     }
 
-    setMarks(prevMarks =>
-      prevMarks.map(mark =>
+    console.log(`Updating mark for student ${studentId} to ${value}`);
+
+    // Update the marks state
+    setMarks(prevMarks => {
+      const updatedMarks = prevMarks.map(mark =>
         mark.studentId === studentId
           ? {
               ...mark,
               marksObtained: value,
-              // Clear grade and points when marks are changed
-              grade: '',
-              points: ''
+              // Calculate grade and points immediately
+              grade: value !== '' ? calculateGrade(Number(value)) : '',
+              points: value !== '' ? calculatePoints(calculateGrade(Number(value))) : ''
             }
           : mark
-      )
-    );
+      );
+
+      const updatedMark = updatedMarks.find(m => m.studentId === studentId);
+      console.log(`Updated marks for student ${studentId}:`, {
+        marksObtained: updatedMark?.marksObtained,
+        grade: updatedMark?.grade,
+        points: updatedMark?.points
+      });
+
+      return updatedMarks;
+    });
+
+    // Store marks in session storage immediately
+    setTimeout(() => {
+      if (selectedClass && selectedSubject && selectedExam) {
+        const storageKey = `marks_${selectedClass}_${selectedSubject}_${selectedExam}`;
+        const currentMarks = JSON.stringify(marks);
+        console.log(`Storing marks in session storage with key ${storageKey} after mark change`);
+        sessionStorage.setItem(storageKey, currentMarks);
+      }
+    }, 100);
   };
 
   // Handle comment change
   const handleCommentChange = (studentId, value) => {
-    setMarks(prevMarks =>
-      prevMarks.map(mark =>
+    console.log(`Updating comment for student ${studentId}`);
+
+    // Update the marks state
+    setMarks(prevMarks => {
+      const updatedMarks = prevMarks.map(mark =>
         mark.studentId === studentId
           ? { ...mark, comment: value }
           : mark
-      )
-    );
+      );
+
+      console.log(`Updated comment for student ${studentId}:`,
+        updatedMarks.find(m => m.studentId === studentId)?.comment);
+
+      return updatedMarks;
+    });
   };
 
   // Handle principal subject change
   const handlePrincipalChange = (studentId, checked) => {
-    setMarks(prevMarks =>
-      prevMarks.map(mark =>
+    console.log(`Updating principal flag for student ${studentId} to ${checked}`);
+
+    // Update the marks state
+    setMarks(prevMarks => {
+      const updatedMarks = prevMarks.map(mark =>
         mark.studentId === studentId
           ? { ...mark, isPrincipal: checked }
           : mark
-      )
-    );
+      );
+
+      console.log(`Updated principal flag for student ${studentId}:`,
+        updatedMarks.find(m => m.studentId === studentId)?.isPrincipal);
+
+      return updatedMarks;
+    });
   };
 
   // Calculate grade based on marks (A-Level grading system)
@@ -704,6 +1259,16 @@ const ALevelBulkMarksEntry = () => {
         if (unauthorizedMarks.length > 0) {
           throw new Error('You are not authorized to enter marks for some of these students');
         }
+
+        // Check if any marks are for students who don't take the selected subject
+        const invalidSubjectMarks = marks.filter(mark =>
+          mark.marksObtained !== '' && !mark.isInCombination
+        );
+
+        if (invalidSubjectMarks.length > 0) {
+          const invalidStudentNames = invalidSubjectMarks.map(mark => mark.studentName).join(', ');
+          throw new Error(`Cannot save marks for students who don't take this subject: ${invalidStudentNames}`);
+        }
       }
 
       // Calculate grades and points for marks
@@ -712,8 +1277,12 @@ const ALevelBulkMarksEntry = () => {
           return mark;
         }
 
-        const grade = calculateGrade(Number(mark.marksObtained));
-        const points = calculatePoints(grade);
+        // Use existing grade if available, otherwise calculate
+        const grade = mark.grade || calculateGrade(Number(mark.marksObtained));
+        // Use existing points if available, otherwise calculate
+        const points = mark.points || calculatePoints(grade);
+
+        console.log(`Calculating grade for ${mark.studentName}: marks=${mark.marksObtained}, grade=${grade}, points=${points}`);
 
         return {
           ...mark,
@@ -724,6 +1293,9 @@ const ALevelBulkMarksEntry = () => {
 
       // Filter out empty marks
       const marksToSave = marksWithGrades.filter(mark => mark.marksObtained !== '');
+
+      console.log(`Preparing to save ${marksToSave.length} marks out of ${marksWithGrades.length} total marks`);
+      console.log('Marks to save:', marksToSave.map(m => `${m.studentName}: ${m.marksObtained}`));
 
       if (marksToSave.length === 0) {
         setError('No marks to save. Please enter at least one mark.');
@@ -802,7 +1374,91 @@ const ALevelBulkMarksEntry = () => {
       }
 
       // Save marks
-      await api.post('/api/a-level-results/batch', previewData.marks);
+      console.log(`Saving ${previewData.marks.length} marks to the server`);
+      const saveResponse = await api.post('/api/a-level-results/batch', previewData.marks);
+      console.log('Save response:', saveResponse.data);
+
+      // Log the structure of the saved marks
+      if (saveResponse.data.results && Array.isArray(saveResponse.data.results)) {
+        console.log('First saved mark structure:', saveResponse.data.results[0]);
+      }
+      if (saveResponse.data.savedMarks && Array.isArray(saveResponse.data.savedMarks)) {
+        console.log('First savedMark structure:', saveResponse.data.savedMarks[0]);
+      }
+
+      if (saveResponse.data.errors && saveResponse.data.errors.length > 0) {
+        console.warn('Some marks had errors during save:', saveResponse.data.errors);
+      }
+
+      // Update marks with saved IDs
+      if (saveResponse.data.results && Array.isArray(saveResponse.data.results)) {
+        console.log(`Received ${saveResponse.data.results.length} saved marks with IDs`);
+
+        // Update the marks state with the saved marks
+        setMarks(prevMarks => {
+          const updatedMarks = [...prevMarks];
+
+          // For each saved mark, update the corresponding mark in the state
+          for (const savedMark of saveResponse.data.results) {
+            // Make sure the savedMark has the necessary properties
+            if (!savedMark || !savedMark._id || !savedMark.studentId) {
+              console.warn('Invalid saved mark:', savedMark);
+              continue;
+            }
+
+            console.log(`Processing saved mark for student ${savedMark.studentId} with ID ${savedMark._id}`);
+
+            const index = updatedMarks.findIndex(mark => mark.studentId === savedMark.studentId);
+            if (index !== -1) {
+              updatedMarks[index] = {
+                ...updatedMarks[index],
+                _id: savedMark._id,
+                grade: savedMark.grade || updatedMarks[index].grade,
+                points: savedMark.points || updatedMarks[index].points
+              };
+              console.log(`Updated mark for student ${savedMark.studentId} with ID ${savedMark._id}`);
+            }
+          }
+
+          return updatedMarks;
+        });
+      } else if (saveResponse.data.savedMarks && Array.isArray(saveResponse.data.savedMarks)) {
+        console.log(`Received ${saveResponse.data.savedMarks.length} saved marks with IDs from savedMarks property`);
+
+        // Update the marks state with the saved marks
+        setMarks(prevMarks => {
+          const updatedMarks = [...prevMarks];
+
+          // For each saved mark, update the corresponding mark in the state
+          for (const savedMark of saveResponse.data.savedMarks) {
+            // Make sure the savedMark has the necessary properties
+            if (!savedMark || !savedMark._id || !savedMark.studentId) {
+              console.warn('Invalid saved mark:', savedMark);
+              continue;
+            }
+
+            console.log(`Processing saved mark for student ${savedMark.studentId} with ID ${savedMark._id}`);
+
+            const index = updatedMarks.findIndex(mark => mark.studentId === savedMark.studentId);
+            if (index !== -1) {
+              updatedMarks[index] = {
+                ...updatedMarks[index],
+                _id: savedMark._id,
+                grade: savedMark.grade || updatedMarks[index].grade,
+                points: savedMark.points || updatedMarks[index].points
+              };
+              console.log(`Updated mark for student ${savedMark.studentId} with ID ${savedMark._id}`);
+            }
+          }
+
+          return updatedMarks;
+        });
+      }
+
+      // Clear session storage for this combination
+      const storageKey = `marks_${selectedClass}_${selectedSubject}_${selectedExam}`;
+      console.log(`Clearing session storage with key ${storageKey} after successful save`);
+      sessionStorage.removeItem(storageKey);
 
       // Close preview dialog
       setPreviewOpen(false);
@@ -815,8 +1471,14 @@ const ALevelBulkMarksEntry = () => {
         severity: 'success'
       });
 
-      // Refresh data to show saved status
-      handleRefresh();
+      // Don't refresh immediately, let the user see the success message
+      // and the updated marks with saved status
+      // Instead, show a message that the user can refresh manually if needed
+      setSnackbar({
+        open: true,
+        message: 'Marks saved successfully. You can refresh the page to see the latest data.',
+        severity: 'success'
+      });
 
     } catch (error) {
       console.error('Error saving marks:', error);
@@ -841,6 +1503,14 @@ const ALevelBulkMarksEntry = () => {
   // Refresh data
   const handleRefresh = () => {
     if (selectedClass && selectedSubject && selectedExam) {
+      // Clear session storage for this combination
+      const storageKey = `marks_${selectedClass}_${selectedSubject}_${selectedExam}`;
+      console.log(`Clearing session storage with key ${storageKey}`);
+      sessionStorage.removeItem(storageKey);
+
+      // Show loading indicator
+      setLoading(true);
+
       // Reset marks and fetch data again
       setMarks([]);
       setActiveTab(0);
@@ -859,6 +1529,13 @@ const ALevelBulkMarksEntry = () => {
         setSelectedSubject(tempSubject);
         setSelectedExam(tempExam);
       }, 100);
+
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Refreshing data...',
+        severity: 'info'
+      });
     }
   };
 
@@ -989,25 +1666,44 @@ const ALevelBulkMarksEntry = () => {
                       >
                         {saving ? 'Saving...' : 'Save Marks'}
                       </Button>
-                      <Button
-                        variant="outlined"
-                        color="secondary"
-                        onClick={() => {
-                          console.log('Test button clicked, setting previewOpen to true');
-                          setPreviewOpen(true);
-                        }}
-                        sx={{ mr: 1 }}
-                      >
-                        Test Preview Dialog
-                      </Button>
+
                       <Button
                         variant="outlined"
                         startIcon={<RefreshIcon />}
                         onClick={handleRefresh}
                         disabled={saving}
+                        sx={{ mr: 1 }}
                       >
                         Refresh
                       </Button>
+
+                      {process.env.NODE_ENV === 'development' && (
+                        <Button
+                          variant="outlined"
+                          color="secondary"
+                          onClick={() => {
+                            console.log('Current marks state:', marks);
+                            console.log('Marks with grades:', marks.map(m => ({
+                              studentName: m.studentName,
+                              marksObtained: m.marksObtained,
+                              grade: m.grade || (m.marksObtained ? calculateGrade(Number(m.marksObtained)) : ''),
+                              points: m.points || (m.grade ? calculatePoints(m.grade) : ''),
+                              _id: m._id || 'No ID (unsaved)',
+                              isInCombination: m.isInCombination
+                            })));
+
+                            // Count saved vs unsaved marks
+                            const savedMarks = marks.filter(m => m._id).length;
+                            const unsavedMarks = marks.filter(m => !m._id && m.marksObtained).length;
+                            console.log(`Saved marks: ${savedMarks}, Unsaved marks: ${unsavedMarks}, Total: ${marks.length}`);
+
+                            // Show alert with summary
+                            alert(`Marks Summary:\n- Saved: ${savedMarks}\n- Unsaved: ${unsavedMarks}\n- Total: ${marks.length}\n\nCheck console for details.`);
+                          }}
+                        >
+                          Debug
+                        </Button>
+                      )}
                     </Box>
                   </Box>
 
@@ -1043,7 +1739,9 @@ const ALevelBulkMarksEntry = () => {
                                   max: 100,
                                   step: 0.5
                                 }}
-                                disabled={saving}
+                                disabled={saving || !mark.isInCombination}
+                                error={!mark.isInCombination}
+                                helperText={!mark.isInCombination ? 'Not in student combination' : ''}
                               />
                             </TableCell>
                             <TableCell>
@@ -1054,7 +1752,8 @@ const ALevelBulkMarksEntry = () => {
                                 variant="outlined"
                                 size="small"
                                 fullWidth
-                                disabled={saving}
+                                disabled={saving || !mark.isInCombination}
+                                error={!mark.isInCombination}
                               />
                             </TableCell>
                             <TableCell>
@@ -1063,7 +1762,7 @@ const ALevelBulkMarksEntry = () => {
                                   <Checkbox
                                     checked={mark.isPrincipal}
                                     onChange={(e) => handlePrincipalChange(mark.studentId, e.target.checked)}
-                                    disabled={saving}
+                                    disabled={saving || !mark.isInCombination}
                                   />
                                 }
                                 label="Principal"
@@ -1097,23 +1796,37 @@ const ALevelBulkMarksEntry = () => {
                                   size="small"
                                 />
                               ) : mark.marksObtained ? (
-                                <Chip
-                                  icon={<WarningIcon />}
-                                  label="Unsaved"
-                                  color="warning"
-                                  size="small"
-                                />
+                                <Tooltip title="Click 'Save All Marks' to save changes">
+                                  <Chip
+                                    icon={<WarningIcon />}
+                                    label="Unsaved"
+                                    color="warning"
+                                    size="small"
+                                  />
+                                </Tooltip>
                               ) : null}
                             </TableCell>
                             <TableCell>
-                              {mark._id && (
+                              {mark._id ? (
                                 <Tooltip title="View mark history">
                                   <IconButton
                                     size="small"
+                                    color="primary"
                                     onClick={() => navigate(`/marks-history/result/${mark._id}?model=ALevelResult`)}
                                   >
                                     <HistoryIcon fontSize="small" />
                                   </IconButton>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="Save marks to view history">
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      disabled
+                                    >
+                                      <HistoryIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
                                 </Tooltip>
                               )}
                             </TableCell>
@@ -1154,12 +1867,17 @@ const ALevelBulkMarksEntry = () => {
                       <TableBody>
                         {Array.isArray(marks) && marks.map((mark, index) => {
                           // Calculate grade and points for display
-                          const grade = mark.marksObtained
-                            ? (mark.grade || calculateGrade(Number(mark.marksObtained)))
-                            : '';
-                          const points = grade
-                            ? (mark.points || calculatePoints(grade))
-                            : '';
+                          let grade = '';
+                          let points = '';
+
+                          if (mark.marksObtained && mark.marksObtained !== '') {
+                            // Use existing grade if available, otherwise calculate
+                            grade = mark.grade || calculateGrade(Number(mark.marksObtained));
+                            // Use existing points if available, otherwise calculate
+                            points = mark.points || calculatePoints(grade);
+
+                            console.log(`Student ${mark.studentName} has marks ${mark.marksObtained}, grade ${grade}, points ${points}`);
+                          }
 
                           return (
                             <TableRow key={mark.studentId}>
@@ -1253,6 +1971,20 @@ const ALevelBulkMarksEntry = () => {
           onClose={handleSnackbarClose}
           severity={snackbar.severity}
           sx={{ width: '100%' }}
+          action={
+            snackbar.severity === 'success' && (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  handleSnackbarClose();
+                  handleRefresh();
+                }}
+              >
+                REFRESH
+              </Button>
+            )
+          }
         >
           {snackbar.message}
         </Alert>

@@ -46,8 +46,9 @@ const teacherApi = {
         }
       } else {
         // For teachers, strictly use the teacher-specific endpoint
-        console.log(`[TeacherAPI] Fetching subjects for class ${classId} that the teacher is assigned to teach`);
+        console.log(`[TeacherAPI] Fetching subjects for class ${classId} that the teacher is strictly assigned to teach`);
         try {
+          // Use the marks-entry-subjects endpoint which strictly returns only subjects the teacher is assigned to teach
           const response = await api.get('/api/teachers/marks-entry-subjects', {
             params: { classId }
           });
@@ -63,6 +64,24 @@ const teacherApi = {
           return response.data || [];
         } catch (error) {
           console.error('[TeacherAPI] Error fetching from teacher-specific endpoint:', error);
+
+          // Try the my-subjects endpoint as a fallback
+          try {
+            console.log(`[TeacherAPI] Falling back to my-subjects endpoint for class ${classId}`);
+            const fallbackResponse = await api.get('/api/teachers/my-subjects', {
+              params: { classId }
+            });
+
+            if (fallbackResponse.data && Array.isArray(fallbackResponse.data.subjects)) {
+              console.log(`[TeacherAPI] Found ${fallbackResponse.data.subjects.length} subjects from fallback endpoint`);
+              return fallbackResponse.data.subjects || [];
+            }
+
+            console.log(`[TeacherAPI] Found ${fallbackResponse.data ? fallbackResponse.data.length : 0} subjects from fallback endpoint`);
+            return fallbackResponse.data || [];
+          } catch (fallbackError) {
+            console.error('[TeacherAPI] Error fetching from fallback endpoint:', fallbackError);
+          }
 
           // For 403/401 errors, log a clear message and return empty array
           if (error.response && (error.response.status === 403 || error.response.status === 401)) {
@@ -110,8 +129,9 @@ const teacherApi = {
         }
       } else {
         // For teachers, strictly use the teacher-specific endpoint
-        console.log(`[TeacherAPI] Fetching students for class ${classId} that the teacher is assigned to teach`);
+        console.log(`[TeacherAPI] Fetching students for class ${classId} who are taking subjects the teacher is assigned to teach`);
         try {
+          // This endpoint returns students who are taking subjects the teacher is assigned to teach
           const response = await api.get(`/api/teachers/classes/${classId}/students`);
 
           // Check if the response has a students array (new format)
@@ -125,6 +145,16 @@ const teacherApi = {
           return response.data || [];
         } catch (error) {
           console.error('[TeacherAPI] Error fetching from teacher-specific endpoint:', error);
+
+          // Try the fallback endpoint
+          try {
+            console.log(`[TeacherAPI] Falling back to general students endpoint for class ${classId}`);
+            const fallbackResponse = await api.get(`/api/students/class/${classId}`);
+            console.log(`[TeacherAPI] Found ${fallbackResponse.data ? fallbackResponse.data.length : 0} students from fallback endpoint`);
+            return fallbackResponse.data || [];
+          } catch (fallbackError) {
+            console.error('[TeacherAPI] Error fetching from fallback endpoint:', fallbackError);
+          }
 
           // For 403/401 errors, log a clear message and return empty array
           if (error.response && (error.response.status === 403 || error.response.status === 401)) {
@@ -215,6 +245,7 @@ const teacherApi = {
         // For teachers, strictly use the teacher-specific endpoint
         console.log(`[TeacherAPI] Fetching subjects for student ${studentId} in class ${classId} that the teacher is assigned to teach`);
         try {
+          // This endpoint returns subjects for a specific student that the teacher is assigned to teach
           const response = await api.get(`/api/teachers/students/${studentId}/subjects`, {
             params: { classId }
           });
@@ -223,6 +254,16 @@ const teacherApi = {
           return response.data || [];
         } catch (error) {
           console.error('[TeacherAPI] Error fetching from teacher-specific endpoint:', error);
+
+          // Try the fallback endpoint
+          try {
+            console.log(`[TeacherAPI] Falling back to general subjects endpoint for student ${studentId}`);
+            const fallbackResponse = await api.get(`/api/students/${studentId}/subjects`);
+            console.log(`[TeacherAPI] Found ${fallbackResponse.data ? fallbackResponse.data.length : 0} subjects from fallback endpoint`);
+            return fallbackResponse.data || [];
+          } catch (fallbackError) {
+            console.error('[TeacherAPI] Error fetching from fallback endpoint:', fallbackError);
+          }
 
           // For 403/401 errors, log a clear message and return empty array
           if (error.response && (error.response.status === 403 || error.response.status === 401)) {

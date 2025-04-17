@@ -194,6 +194,7 @@ router.post('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (
       success: true,
       message: `Successfully processed ${results.length} results`,
       results,
+      savedMarks: results,  // Include the saved marks with their IDs
       errors
     });
   } catch (error) {

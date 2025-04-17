@@ -168,6 +168,78 @@ router.get('/my-classes', authenticateToken, authorizeRole(['teacher']), async (
   }
 });
 
+// Get all subjects for a specific class
+router.get('/classes/:classId/subjects', authenticateToken, async (req, res) => {
+  try {
+    console.log(`GET /api/teacher-classes/classes/${req.params.classId}/subjects - Fetching subjects for class`);
+    const classId = req.params.classId;
+
+    // Find the class
+    const classItem = await Class.findById(classId)
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject',
+        select: 'name code type description educationLevel'
+      });
+
+    if (!classItem) {
+      console.log(`Class not found with ID: ${classId}`);
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    console.log(`Found class: ${classItem.name}`);
+
+    // Extract subjects from the class
+    const subjects = [];
+    if (classItem.subjects && Array.isArray(classItem.subjects)) {
+      for (const subjectItem of classItem.subjects) {
+        if (!subjectItem.subject) continue;
+
+        subjects.push(subjectItem.subject);
+      }
+    }
+
+    console.log(`Found ${subjects.length} subjects for class ${classId}`);
+
+    // If no subjects found, try to get all A-Level subjects
+    if (subjects.length === 0) {
+      console.log('No subjects found in class, fetching all A-Level subjects');
+
+      // Check if this is an A-Level class
+      const isALevelClass = classItem.form === 5 || classItem.form === 6 || classItem.educationLevel === 'A_LEVEL' ||
+        (classItem.name && (
+          classItem.name.toUpperCase().includes('FORM 5') ||
+          classItem.name.toUpperCase().includes('FORM 6') ||
+          classItem.name.toUpperCase().includes('FORM V') ||
+          classItem.name.toUpperCase().includes('FORM VI') ||
+          classItem.name.toUpperCase().includes('A-LEVEL') ||
+          classItem.name.toUpperCase().includes('A LEVEL')
+        ));
+
+      if (isALevelClass) {
+        console.log('This is an A-Level class, fetching all A-Level subjects');
+
+        // Find all A-Level subjects
+        const aLevelSubjects = await Subject.find({
+          educationLevel: { $in: ['A_LEVEL', 'BOTH'] }
+        });
+
+        console.log(`Found ${aLevelSubjects.length} A-Level subjects`);
+
+        return res.json(aLevelSubjects);
+      }
+    }
+
+    res.json(subjects);
+  } catch (error) {
+    console.error('Error fetching subjects for class:', error);
+    res.status(500).json({
+      message: 'Failed to fetch subjects for class',
+      error: error.message
+    });
+  }
+});
+
 // Get all subjects for the current teacher
 router.get('/my-subjects', authenticateToken, authorizeRole(['teacher']), async (req, res) => {
   try {

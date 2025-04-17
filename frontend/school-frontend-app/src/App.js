@@ -113,6 +113,7 @@ import MarksHistoryViewer from './components/marks/MarksHistoryViewer';
 import MarksHistoryDashboard from './components/marks/MarksHistoryDashboard';
 import MarksEntryDashboard from './components/results/MarksEntryDashboard';
 import ALevelBulkMarksEntry from './components/results/ALevelBulkMarksEntry';
+import SimplifiedALevelBulkMarksEntry from './components/results/SimplifiedALevelBulkMarksEntry';
 import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
 import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
 import ALevelComprehensiveReport from './components/results/ALevelComprehensiveReport';
