@@ -47,6 +47,11 @@ const examSchema = new mongoose.Schema({
     type: String,
     enum: ['DRAFT', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED'],
     default: 'DRAFT'
+  },
+  educationLevel: {
+    type: String,
+    enum: ['O_LEVEL', 'A_LEVEL'],
+    default: null
   }
 }, { timestamps: true });
 

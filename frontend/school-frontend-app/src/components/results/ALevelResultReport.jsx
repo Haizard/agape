@@ -1,62 +1,53 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import CharacterAssessmentComments from './CharacterAssessmentComments';
-import axios from 'axios';
+import React, { useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
   Paper,
   Divider,
   Button,
-  CircularProgress,
   Alert,
-  Card,
-  CardContent,
-  Snackbar
+  Snackbar,
+  Grid
 } from '@mui/material';
 import {
   Print as PrintIcon,
   Share as ShareIcon,
   Download as DownloadIcon
 } from '@mui/icons-material';
-import SubjectCombinationDisplay from '../common/SubjectCombinationDisplay';
 
-// Import services
-import { useALevelStudentReport } from '../../services/dataFetchingService';
-import { generateALevelStudentResultPDF } from '../../utils/aLevelPdfGenerator';
+// Import components
+import CharacterAssessmentComments from './CharacterAssessmentComments';
+import SubjectCombinationDisplay from '../common/SubjectCombinationDisplay';
+import ALevelReportSummary from './common/ALevelReportSummary';
+import LoadingIndicator from '../common/LoadingIndicator';
+import ErrorDisplay from '../common/ErrorDisplay';
 
 // Import utilities
-import { EducationLevels } from '../../utils/educationLevelUtils';
-import { handleApiError, getUserFriendlyErrorMessage } from '../../utils/errorHandler';
+import { generateALevelStudentResultPDF } from '../../utils/aLevelPdfGenerator';
+
+// Import HOCs
+import withCircuitBreaker from '../../hocs/withCircuitBreaker';
+
+// Import hooks
+import useTraceRender from '../../hooks/useTraceRender';
 
 // Import context
-import { useResultContext } from '../../contexts/ResultContext';
-
-// Import reusable components
-import {
-  ResultTable,
-  GradeChip,
-  DivisionChip,
-  ReportSummary,
-  StudentDetails,
-  withErrorHandling,
-  withEducationLevel
-} from '../../components/common';
-import ALevelReportSummary from './common/ALevelReportSummary';
+import { useReport } from '../../contexts/ReportContext';
 
 /**
  * A-Level Student Result Report Component
  * Displays a student's A-Level result report with options to print, download, and share
  */
-const ALevelStudentResultReport = () => {
-  const { studentId, examId } = useParams();
+const ALevelResultReport = () => {
+  // Use the report context
+  const { data: report, loading, error, isFromCache, isMockData, fetchReport } = useReport();
+
+  // Trace renders for debugging
+  useTraceRender('ALevelResultReport', { report, loading, error });
+
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [report, setReport] = useState(null);
-  const [gradeDistribution, setGradeDistribution] = useState({
-    A: 0, B: 0, C: 0, D: 0, E: 0, S: 0, F: 0
-  });
+
   const [smsSending, setSmsSending] = useState(false);
   const [smsSuccess, setSmsSuccess] = useState(false);
   const [smsError, setSmsError] = useState(null);
@@ -65,104 +56,36 @@ const ALevelStudentResultReport = () => {
     message: '',
     severity: 'info'
   });
-  const [updatingEducationLevel, setUpdatingEducationLevel] = useState(false);
 
-  // Use the useCachedData hook for fetching with cache support
-  const {
-    data: reportData,
-    loading: reportLoading,
-    error: reportError,
-    isFromCache,
-    isMockData,
-    refetch
-  } = useCachedData({
-    fetchFn: async () => {
-      const reportUrl = resultApi.getALevelStudentReportUrl(studentId, examId);
-      const response = await axios.get(reportUrl);
-      return response.data;
-    },
-    resourceType: 'result',
-    resourceId: `${studentId}_${examId}`,
-    params: { educationLevel: EducationLevels.A_LEVEL },
-    useMockOnError: true
-  });
+  // Memoize grade distribution calculation
+  const gradeDistribution = useMemo(() => {
+    if (!report || !report.subjectResults) {
+      return { A: 0, B: 0, C: 0, D: 0, E: 0, S: 0, F: 0 };
+    }
 
-  // Process report data when it changes
-  useEffect(() => {
-    if (!reportData) return;
-
-    // Validate education level
-    const { isValid, error } = validateEducationLevel(
-      reportData,
-      EducationLevels.A_LEVEL,
-      (err) => setError(err)
-    );
-
-    if (!isValid) return;
-
-    // Set report data
-    setReport(reportData);
-    setLoading(reportLoading);
-
-    // Calculate grade distribution
     const distribution = { A: 0, B: 0, C: 0, D: 0, E: 0, S: 0, F: 0 };
-    for (const result of reportData.subjectResults || []) {
+    for (const result of report.subjectResults) {
       if (distribution[result.grade] !== undefined) {
         distribution[result.grade]++;
       }
     }
-      setGradeDistribution(distribution);
 
-      // Log the report data for debugging
-      console.log('A-Level report data:', data);
-      console.log('Subject results:', data.subjectResults);
-    } catch (err) {
-      console.error('Error fetching report:', err);
-
-      // Check if this is a 400 error with detailed information
-      if (err.response && err.response.status === 400 && err.response.data) {
-        const errorData = err.response.data;
-
-        // If we have detailed error information, display it
-        if (errorData.message) {
-          let errorMessage = errorData.message;
-
-          // Add education level information if available
-          if (errorData.educationLevel) {
-            errorMessage += ` (Current education level: ${errorData.educationLevel})`;
-          }
-
-          // Add suggestion if available
-          if (errorData.suggestion) {
-            errorMessage += `\n\n${errorData.suggestion}`;
-          }
-
-          setError(errorMessage);
-        } else {
-          setError('This student cannot be processed as an A-Level student. Please use the O-Level report component.');
-        }
-      } else {
-        // Generic error
-        setError(err.message || 'Failed to load report');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [studentId, examId]);
-
-  useEffect(() => {
-    fetchReport();
-  }, [fetchReport]);
+    return distribution;
+  }, [report]);
 
   // Handle print
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     window.print();
-  };
+  }, []);
 
   // Handle download
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
     if (!report) {
-      setSnackbar({ open: true, message: 'No report data available to download' });
+      setSnackbar({
+        open: true,
+        message: 'No report data available to download',
+        severity: 'warning'
+      });
       return;
     }
 
@@ -171,27 +94,47 @@ const ALevelStudentResultReport = () => {
       const doc = generateALevelStudentResultPDF({ ...report, gradeDistribution });
 
       // Save the PDF
-      const fileName = `${report.student?.fullName || 'Student'}_${report.exam?.name || 'Exam'}_A_Level_Report.pdf`;
+      const fileName = `${report.studentDetails?.name || 'Student'}_${report.examName || 'Exam'}_A_Level_Report.pdf`;
       doc.save(fileName);
 
-      setSnackbar({ open: true, message: 'Report downloaded successfully' });
+      setSnackbar({
+        open: true,
+        message: 'Report downloaded successfully',
+        severity: 'success'
+      });
     } catch (err) {
       console.error('Error generating PDF:', err);
-      setSnackbar({ open: true, message: 'Failed to download report' });
+      setSnackbar({
+        open: true,
+        message: 'Failed to download report',
+        severity: 'error'
+      });
     }
-  };
+  }, [report, gradeDistribution]);
 
-  // Handle SMS sending
-  const handleSendSMS = async () => {
-    if (!report) {
-      setSnackbar({ open: true, message: 'No report data available to send' });
+  // Handle send SMS
+  const handleSendSMS = useCallback(async () => {
+    if (!report || !report.studentDetails) {
+      setSnackbar({
+        open: true,
+        message: 'No report data available to send',
+        severity: 'warning'
+      });
       return;
     }
 
+    setSmsSending(true);
+    setSmsError(null);
+    setSmsSuccess(false);
+
     try {
-      setSmsSending(true);
-      setSmsError(null);
-      setSmsSuccess(false);
+      // Get the student ID and exam ID from the report
+      const studentId = report.studentId || report.studentDetails?._id;
+      const examId = report.examId || report.exam?._id;
+
+      if (!studentId || !examId) {
+        throw new Error('Missing student ID or exam ID');
+      }
 
       // Get the A-Level SMS endpoint URL
       const smsUrl = `/api/a-level-results/send-sms/${studentId}/${examId}`;
@@ -210,88 +153,65 @@ const ALevelStudentResultReport = () => {
       }
 
       setSmsSuccess(true);
-      setSnackbar({ open: true, message: 'SMS sent successfully' });
-    } catch (err) {
-      console.error('Error sending SMS:', err);
-      setSmsError(err.message || 'Failed to send SMS');
-      setSnackbar({ open: true, message: err.message || 'Failed to send SMS' });
-    } finally {
-      setSmsSending(false);
-    }
-  };
-
-  // Handle snackbar close
-  const handleSnackbarClose = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
-
-  // Update student education level to A-Level
-  const updateStudentToALevel = async () => {
-    try {
-      setUpdatingEducationLevel(true);
-
-      // Call the API to update the student's education level
-      const response = await axios.put(`/api/student-education-level/${studentId}/education-level`, {
-        educationLevel: 'A_LEVEL'
-      });
-
-      // Show success message
       setSnackbar({
         open: true,
-        message: 'Student education level updated to A-Level. Refreshing report...',
+        message: 'SMS sent successfully',
         severity: 'success'
       });
-
-      // Refresh the report after a short delay
-      setTimeout(() => {
-        fetchReport();
-      }, 1500);
-    } catch (err) {
-      console.error('Error updating student education level:', err);
-
-      // Show error message
+    } catch (error) {
+      console.error('Error sending SMS:', error);
+      setSmsError(error.message || 'Failed to send SMS');
       setSnackbar({
         open: true,
-        message: `Failed to update education level: ${err.message || 'Unknown error'}`,
+        message: error.message || 'Failed to send SMS',
         severity: 'error'
       });
     } finally {
-      setUpdatingEducationLevel(false);
+      setSmsSending(false);
     }
-  };
+  }, [report]);
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  // Handle snackbar close
+  const handleSnackbarClose = useCallback(() => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  }, []);
 
-  if (error) {
-    return (
-      <Alert
-        severity="error"
-        sx={{ m: 2 }}
-        action={
-          error.includes('not marked as an A-Level student') && (
-            <Button
-              color="inherit"
-              size="small"
-              onClick={updateStudentToALevel}
-              disabled={updatingEducationLevel}
-            >
-              {updatingEducationLevel ? 'Updating...' : 'Update to A-Level'}
-            </Button>
-          )
-        }
-      >
-        {error}
-      </Alert>
-    );
-  }
+  // Refresh data
+  const handleRefresh = useCallback(() => {
+    fetchReport('a-level-student', true);
+  }, [fetchReport]);
 
+  // Show data source indicator
+  const dataSourceIndicator = useMemo(() => {
+    if (isMockData) {
+      return (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Using demo data. Real data could not be loaded.
+        </Alert>
+      );
+    }
+
+    if (isFromCache) {
+      return (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Using cached data. <Button size="small" onClick={handleRefresh}>Refresh</Button>
+        </Alert>
+      );
+    }
+
+    return null;
+  }, [isMockData, isFromCache, handleRefresh]);
+
+  // If no report data, show loading or error
   if (!report) {
+    if (loading) {
+      return <LoadingIndicator message="Loading A-Level report..." />;
+    }
+
+    if (error) {
+      return <ErrorDisplay error={error} onRetry={handleRefresh} />;
+    }
+
     return (
       <Alert severity="warning" sx={{ m: 2 }}>
         No report data available
@@ -885,4 +805,8 @@ const ALevelStudentResultReport = () => {
   );
 };
 
-export default ALevelStudentResultReport;
+// Apply circuit breaker HOC
+export default withCircuitBreaker(ALevelResultReport, {
+  maxRenders: 30,  // Allow more renders for initial load
+  timeWindowMs: 2000  // Increase time window to 2 seconds
+});

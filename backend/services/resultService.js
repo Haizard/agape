@@ -92,8 +92,9 @@ class ResultService {
     }
 
     // Validate student exists
+    let student;
     if (resultData.studentId) {
-      const student = await Student.findById(resultData.studentId);
+      student = await Student.findById(resultData.studentId);
       if (!student) {
         const error = new Error(`Student not found with ID: ${resultData.studentId}`);
         logger.error(`Validation error: ${error.message}`);
@@ -112,8 +113,9 @@ class ResultService {
     }
 
     // Validate subject exists
+    let subject;
     if (resultData.subjectId) {
-      const subject = await Subject.findById(resultData.subjectId);
+      subject = await Subject.findById(resultData.subjectId);
       if (!subject) {
         const error = new Error(`Subject not found with ID: ${resultData.subjectId}`);
         logger.error(`Validation error: ${error.message}`);
@@ -143,6 +145,21 @@ class ResultService {
       const { grade, points } = ResultService.calculateGradeAndPoints(resultData.marksObtained, resultData.educationLevel);
       resultData.grade = grade;
       resultData.points = points;
+    }
+
+    // Handle isPrincipal flag for A-Level results
+    if (resultData.educationLevel === EDUCATION_LEVELS.A_LEVEL) {
+      // If isPrincipal is not explicitly set, check the subject's isPrincipal flag
+      if (resultData.isPrincipal === undefined && subject) {
+        resultData.isPrincipal = subject.isPrincipal === true;
+        logger.info(`Using subject's isPrincipal flag for ${subject.name}: ${resultData.isPrincipal}`);
+      }
+
+      // Ensure isPrincipal is a boolean
+      resultData.isPrincipal = resultData.isPrincipal === true;
+
+      // Log the isPrincipal flag
+      logger.info(`Subject ${resultData.subjectId} is ${resultData.isPrincipal ? 'a principal' : 'a subsidiary'} subject for student ${resultData.studentId}`);
     }
 
     return resultData;

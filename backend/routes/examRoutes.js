@@ -54,6 +54,12 @@ router.get('/', authenticateToken, async (req, res) => {
       query['classes.class'] = req.query.classId;
     }
 
+    // Filter by education level if provided
+    if (req.query.educationLevel) {
+      query.educationLevel = req.query.educationLevel;
+      console.log(`Filtering exams by education level: ${req.query.educationLevel}`);
+    }
+
     console.log('Query:', query);
 
     const exams = await Exam.find(query)

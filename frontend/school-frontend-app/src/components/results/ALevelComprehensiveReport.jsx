@@ -1,6 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -14,7 +12,6 @@ import {
   Grid,
   Divider,
   Button,
-  CircularProgress,
   Alert,
   Card,
   CardContent,
@@ -31,6 +28,21 @@ import {
   Person as PersonIcon
 } from '@mui/icons-material';
 import SubjectCombinationDisplay from '../common/SubjectCombinationDisplay';
+import { normalizeSubjectResult } from '../../utils/aLevelDataUtils';
+
+// Import HOCs
+import withCircuitBreaker from '../../hocs/withCircuitBreaker';
+
+// Import hooks
+import useTraceRender from '../../hooks/useTraceRender';
+import useDeepMemo from '../../hooks/useDeepMemo';
+
+// Import context
+import { useReport } from '../../contexts/ReportContext';
+
+// Import components
+import LoadingIndicator from '../common/LoadingIndicator';
+import ErrorDisplay from '../common/ErrorDisplay';
 
 /**
  * A-Level Comprehensive Report Component
@@ -38,11 +50,11 @@ import SubjectCombinationDisplay from '../common/SubjectCombinationDisplay';
  * showing both Principal and Subsidiary subjects with all performance metrics
  */
 const ALevelComprehensiveReport = () => {
-  const { studentId, examId } = useParams();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [report, setReport] = useState(null);
+  // Use the report context
+  const { data: report, loading, error, isFromCache, isMockData, fetchReport } = useReport();
+
+  // Trace renders for debugging
+  useTraceRender('ALevelComprehensiveReport', { report, loading, error });
   const [tabValue, setTabValue] = useState(0);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -50,289 +62,165 @@ const ALevelComprehensiveReport = () => {
     severity: 'info'
   });
 
-  // Generate demo data for Form 5 or Form 6
-  const generateDemoData = (formLevel) => {
-    const isForm5 = formLevel === 5 || studentId === 'demo-form5';
-
-    // Create demo principal subjects
-    const principalSubjects = [
-      {
-        subject: 'Physics',
-        code: 'PHY',
-        marks: isForm5 ? 78 : 82,
-        grade: isForm5 ? 'B' : 'A',
-        points: isForm5 ? 2 : 1,
-        isPrincipal: true,
-        remarks: isForm5 ? 'Very Good' : 'Excellent'
-      },
-      {
-        subject: 'Chemistry',
-        code: 'CHE',
-        marks: isForm5 ? 65 : 75,
-        grade: isForm5 ? 'C' : 'B',
-        points: isForm5 ? 3 : 2,
-        isPrincipal: true,
-        remarks: isForm5 ? 'Good' : 'Very Good'
-      },
-      {
-        subject: 'Mathematics',
-        code: 'MAT',
-        marks: isForm5 ? 72 : 80,
-        grade: isForm5 ? 'B' : 'A',
-        points: isForm5 ? 2 : 1,
-        isPrincipal: true,
-        remarks: isForm5 ? 'Very Good' : 'Excellent'
-      }
-    ];
-
-    // Create demo subsidiary subjects
-    const subsidiarySubjects = [
-      {
-        subject: 'General Studies',
-        code: 'GS',
-        marks: isForm5 ? 68 : 75,
-        grade: isForm5 ? 'C' : 'B',
-        points: isForm5 ? 3 : 2,
-        isPrincipal: false,
-        remarks: isForm5 ? 'Good' : 'Very Good'
-      },
-      {
-        subject: 'Basic Applied Mathematics',
-        code: 'BAM',
-        marks: isForm5 ? 55 : 65,
-        grade: isForm5 ? 'D' : 'C',
-        points: isForm5 ? 4 : 3,
-        isPrincipal: false,
-        remarks: isForm5 ? 'Satisfactory' : 'Good'
-      },
-      {
-        subject: 'English Language',
-        code: 'ENG',
-        marks: null,
-        grade: 'N/A',
-        points: null,
-        isPrincipal: false,
-        remarks: 'No result available'
-      }
-    ];
-
-    // Calculate grade distribution
-    const gradeDistribution = {
-      A: principalSubjects.filter(s => s.grade === 'A').length + subsidiarySubjects.filter(s => s.grade === 'A').length,
-      B: principalSubjects.filter(s => s.grade === 'B').length + subsidiarySubjects.filter(s => s.grade === 'B').length,
-      C: principalSubjects.filter(s => s.grade === 'C').length + subsidiarySubjects.filter(s => s.grade === 'C').length,
-      D: principalSubjects.filter(s => s.grade === 'D').length + subsidiarySubjects.filter(s => s.grade === 'D').length,
-      E: principalSubjects.filter(s => s.grade === 'E').length + subsidiarySubjects.filter(s => s.grade === 'E').length,
-      S: principalSubjects.filter(s => s.grade === 'S').length + subsidiarySubjects.filter(s => s.grade === 'S').length,
-      F: principalSubjects.filter(s => s.grade === 'F').length + subsidiarySubjects.filter(s => s.grade === 'F').length
-    };
-
-    // Calculate total marks and points
-    const subjectsWithMarks = [...principalSubjects, ...subsidiarySubjects].filter(s => s.marks !== null);
-    const totalMarks = subjectsWithMarks.reduce((sum, s) => sum + s.marks, 0);
-    const totalPoints = subjectsWithMarks.reduce((sum, s) => sum + s.points, 0);
-    const averageMarks = subjectsWithMarks.length > 0 ? totalMarks / subjectsWithMarks.length : 0;
-
-    // Calculate best three principal points
-    const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
-    const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
-
-    // Determine division
-    let division = 'N/A';
-    if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
-    else if (bestThreePoints >= 10 && bestThreePoints <= 12) division = 'II';
-    else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
-    else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
-    else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
-
-    // Create demo report
-    return {
-      reportTitle: `Mid-Term Examination Result Report`,
-      schoolName: 'AGAPE LUTHERAN JUNIOR SEMINARY',
-      academicYear: '2023-2024',
-      examName: 'Mid-Term Examination',
-      examDate: '2023-10-15 - 2023-10-25',
-      studentDetails: {
-        name: isForm5 ? 'John Doe' : 'Jane Smith',
-        rollNumber: isForm5 ? 'F5-001' : 'F6-001',
-        class: isForm5 ? 'Form 5 Science' : 'Form 6 Science',
-        gender: isForm5 ? 'Male' : 'Female',
-        form: isForm5 ? 'Form 5' : 'Form 6',
-        subjectCombination: 'PCM (Physics, Chemistry, Mathematics)'
-      },
-      principalSubjects,
-      subsidiarySubjects,
-      allSubjects: [...principalSubjects, ...subsidiarySubjects],
-      summary: {
-        totalMarks,
-        averageMarks: averageMarks.toFixed(2),
-        totalPoints,
-        bestThreePoints,
-        division,
-        rank: isForm5 ? '3' : '2',
-        totalStudents: '25',
-        gradeDistribution
-      },
-      characterAssessment: {
-        discipline: isForm5 ? 'Good' : 'Excellent',
-        attendance: isForm5 ? 'Regular' : 'Excellent',
-        attitude: isForm5 ? 'Positive' : 'Very Positive',
-        comments: isForm5 ?
-          'John is a dedicated student who shows great potential. He needs to improve his consistency in assignments.' :
-          'Jane is an exceptional student who consistently demonstrates leadership qualities and academic excellence.'
-      },
-      educationLevel: 'A_LEVEL',
-      formLevel: isForm5 ? 5 : 6
-    };
-  };
-
-  // Fetch report data
-  const fetchReport = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Check if this is a demo request
-      if (studentId === 'demo-form5' || studentId === 'demo-form6') {
-        const formLevel = studentId === 'demo-form5' ? 5 : 6;
-        console.log(`Generating demo data for Form ${formLevel}`);
-        const demoData = generateDemoData(formLevel);
-        setReport(demoData);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch the report data from the comprehensive A-Level endpoint
-      const reportUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
-      console.log('Fetching comprehensive A-Level report from:', reportUrl);
-
-      const response = await axios.get(reportUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      console.log('Comprehensive A-Level report response:', response.data);
-      const data = response.data;
-
-      // Ensure this is an A-Level report
-      if (!data.educationLevel || data.educationLevel !== 'A_LEVEL') {
-        throw new Error('This is not an A-Level report. Please use the O-Level report component.');
-      }
-
-      // If data is empty or doesn't have expected structure, show error message
-      if (!data || (!data.principalSubjects && !data.subsidiarySubjects)) {
-        console.log('No data from A-Level comprehensive endpoint');
-        // Set error message
-        setError('No results found for this student. Please check if marks have been entered for this exam.');
-        setLoading(false);
-        return;
-      }
-
-      // We have valid data, set it
-      setReport(data);
-    } catch (err) {
-      console.error('Error fetching comprehensive A-Level report:', err);
-      setError(`Failed to load report: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [studentId, examId]);
-
-  // Load report on component mount
-  useEffect(() => {
-    fetchReport();
-  }, [fetchReport]);
-
   // Handle tab change
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = useCallback((event, newValue) => {
     setTabValue(newValue);
-  };
+  }, []);
 
   // Print report
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     window.print();
-  };
+  }, []);
 
   // Download report as PDF
-  const handleDownload = () => {
-    // Open the PDF version in a new tab (backend will generate PDF)
-    const pdfUrl = `${process.env.REACT_APP_API_URL || ''}/api/a-level-comprehensive/student/${studentId}/${examId}`;
-    window.open(pdfUrl, '_blank');
-  };
-
-  // Share report
-  const handleShare = () => {
-    // Create a shareable link
-    const shareUrl = `${window.location.origin}/results/a-level-comprehensive/${studentId}/${examId}`;
-
-    // Copy to clipboard
-    navigator.clipboard.writeText(shareUrl)
-      .then(() => {
-        setSnackbar({
-          open: true,
-          message: 'Report link copied to clipboard',
-          severity: 'success'
-        });
-      })
-      .catch(err => {
-        console.error('Failed to copy link:', err);
-        setSnackbar({
-          open: true,
-          message: 'Failed to copy link to clipboard',
-          severity: 'error'
-        });
+  const handleDownload = useCallback(() => {
+    if (!report) {
+      setSnackbar({
+        open: true,
+        message: 'No report data available to download',
+        severity: 'warning'
       });
-  };
+      return;
+    }
 
-  // Close snackbar
-  const handleCloseSnackbar = () => {
+    try {
+      // Open the PDF version in a new tab (backend will generate PDF)
+      const studentId = report.studentId || report.studentDetails?._id;
+      const examId = report.examId || report.exam?._id;
+
+      if (!studentId || !examId) {
+        throw new Error('Missing student ID or exam ID');
+      }
+
+      const pdfUrl = `/api/a-level-comprehensive/student/${studentId}/${examId}`;
+      window.open(pdfUrl, '_blank');
+
+      setSnackbar({
+        open: true,
+        message: 'PDF opened in a new tab',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error opening PDF:', error);
+      setSnackbar({
+        open: true,
+        message: `Error opening PDF: ${error.message}`,
+        severity: 'error'
+      });
+    }
+  }, [report]);
+
+  // Handle share report
+  const handleShare = useCallback(() => {
+    if (!report) {
+      setSnackbar({
+        open: true,
+        message: 'No report data available to share',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    try {
+      // Create a shareable link
+      const studentId = report.studentId || report.studentDetails?._id;
+      const examId = report.examId || report.exam?._id;
+
+      if (!studentId || !examId) {
+        throw new Error('Missing student ID or exam ID');
+      }
+
+      const shareUrl = `${window.location.origin}/results/a-level-comprehensive/${studentId}/${examId}`;
+
+      // Copy to clipboard
+      navigator.clipboard.writeText(shareUrl)
+        .then(() => {
+          setSnackbar({
+            open: true,
+            message: 'Report link copied to clipboard',
+            severity: 'success'
+          });
+        })
+        .catch(err => {
+          console.error('Failed to copy link:', err);
+          setSnackbar({
+            open: true,
+            message: 'Failed to copy link to clipboard',
+            severity: 'error'
+          });
+        });
+    } catch (error) {
+      console.error('Error sharing report:', error);
+      setSnackbar({
+        open: true,
+        message: `Error sharing report: ${error.message}`,
+        severity: 'error'
+      });
+    }
+  }, [report]);
+
+  // Handle snackbar close
+  const handleSnackbarClose = useCallback(() => {
     setSnackbar(prev => ({ ...prev, open: false }));
-  };
+  }, []);
 
-  // If loading, show loading indicator
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <CircularProgress />
-        <Typography variant="h6" sx={{ ml: 2 }}>
-          Loading report...
-        </Typography>
-      </Box>
-    );
-  }
+  // Compute all subjects
+  const allSubjects = useMemo(() => {
+    if (!report) return [];
 
-  // If error, show error message
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+    const principalSubjects = report.principalSubjects || [];
+    const subsidiarySubjects = report.subsidiarySubjects || [];
+
+    return [...principalSubjects, ...subsidiarySubjects];
+  }, [report]);
+
+  // Refresh data
+  const handleRefresh = useCallback(() => {
+    fetchReport('a-level-comprehensive', true);
+  }, [fetchReport]);
+
+  // Show data source indicator
+  const dataSourceIndicator = useMemo(() => {
+    if (isMockData) {
+      return (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Using demo data. Real data could not be loaded.
         </Alert>
-        <Button variant="contained" onClick={() => navigate(-1)}>
-          Go Back
-        </Button>
-      </Box>
-    );
-  }
+      );
+    }
 
-  // If no report data, show empty state
-  if (!report) {
-    return (
-      <Box sx={{ p: 3 }}>
+    if (isFromCache) {
+      return (
         <Alert severity="info" sx={{ mb: 2 }}>
-          No report data available. Please check if the student has results for this exam.
+          Using cached data. <Button size="small" onClick={handleRefresh}>Refresh</Button>
         </Alert>
-        <Button variant="contained" onClick={() => navigate(-1)}>
-          Go Back
-        </Button>
-      </Box>
+      );
+    }
+
+    return null;
+  }, [isMockData, isFromCache, handleRefresh]);
+
+  // If no report data, show loading or error
+  if (!report) {
+    if (loading) {
+      return <LoadingIndicator message="Loading comprehensive A-Level report..." />;
+    }
+
+    if (error) {
+      return <ErrorDisplay error={error} onRetry={handleRefresh} />;
+    }
+
+    return (
+      <Alert severity="warning" sx={{ m: 2 }}>
+        No report data available
+      </Alert>
     );
   }
 
   return (
     <Box sx={{ p: 3 }} className="print-container">
+      {dataSourceIndicator}
+
       {/* Report Header */}
       <Paper sx={{ p: 2, mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Typography variant="h5" gutterBottom>
@@ -349,227 +237,316 @@ const ALevelComprehensiveReport = () => {
         </Typography>
       </Paper>
 
-      {/* Action Buttons - Hidden when printing */}
-      <Box sx={{ mb: 3, display: 'flex', gap: 2 }} className="no-print">
+      {/* Action Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }} className="no-print">
         <Button
           variant="contained"
           startIcon={<PrintIcon />}
           onClick={handlePrint}
+          sx={{ mr: 1 }}
         >
-          Print Report
+          Print
         </Button>
         <Button
           variant="contained"
-          color="secondary"
           startIcon={<DownloadIcon />}
           onClick={handleDownload}
+          sx={{ mr: 1 }}
         >
           Download PDF
         </Button>
         <Button
-          variant="outlined"
+          variant="contained"
           startIcon={<ShareIcon />}
           onClick={handleShare}
         >
-          Share Report
+          Share
         </Button>
       </Box>
 
-      {/* Student Information */}
+      {/* Student Details */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Student Information
-            </Typography>
+          <Paper sx={{ p: 2, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography variant="h6">
+                Student Information
+              </Typography>
+            </Box>
             <Divider sx={{ mb: 2 }} />
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Name:</strong> {report.studentDetails.name}
+            <Typography variant="body1" gutterBottom>
+              <strong>Name:</strong> {report.studentDetails?.name || 'N/A'}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Admission Number:</strong> {report.studentDetails?.admissionNumber || report.studentDetails?.rollNumber || 'N/A'}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Form:</strong> {report.formLevel || 'N/A'}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Gender:</strong> {report.studentDetails?.gender || 'N/A'}
+            </Typography>
+            {report.studentDetails?.combination && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body1" gutterBottom>
+                  <strong>Combination:</strong>
                 </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Roll Number:</strong> {report.studentDetails.rollNumber}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Class:</strong> {report.studentDetails.class}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Gender:</strong> {report.studentDetails.gender}
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="body1">
-                  <strong>Subject Combination:</strong> {report.studentDetails.subjectCombination}
-                </Typography>
-              </Grid>
-            </Grid>
+                <SubjectCombinationDisplay
+                  combination={report.studentDetails.combination}
+                  showCompulsory={false}
+                />
+              </Box>
+            )}
           </Paper>
         </Grid>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Exam Information
-            </Typography>
+          <Paper sx={{ p: 2, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <SchoolIcon sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography variant="h6">
+                Exam Information
+              </Typography>
+            </Box>
             <Divider sx={{ mb: 2 }} />
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="body1">
-                  <strong>Exam Name:</strong> {report.examName}
-                </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Exam:</strong> {report.examName || 'N/A'}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Academic Year:</strong> {report.academicYear || 'N/A'}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Term:</strong> {report.term || 'N/A'}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
+              <strong>Date:</strong> {report.examDate || 'N/A'}
+            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                <strong>Performance Summary:</strong>
+              </Typography>
+              <Grid container spacing={1}>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    Average Marks: {report.summary?.averageMarks || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    Total Points: {report.summary?.totalPoints || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    Best Three Points: {report.summary?.bestThreePoints || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    Division: {report.summary?.division || 'N/A'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2">
+                    Rank: {report.summary?.rank || 'N/A'}/{report.summary?.totalStudents || 'N/A'}
+                  </Typography>
+                </Grid>
               </Grid>
-              <Grid item xs={12}>
-                <Typography variant="body1">
-                  <strong>Academic Year:</strong> {report.academicYear}
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="body1">
-                  <strong>Exam Date:</strong> {report.examDate}
-                </Typography>
-              </Grid>
-            </Grid>
+            </Box>
           </Paper>
         </Grid>
       </Grid>
 
-      {/* Subject Results Tabs */}
+      {/* Tabs for Subject Results */}
       <Paper sx={{ mb: 3 }}>
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
-          centered
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          indicatorColor="primary"
+          textColor="primary"
+          variant="fullWidth"
+          className="no-print"
         >
-          <Tab icon={<SchoolIcon />} label="Principal Subjects" />
-          <Tab icon={<PersonIcon />} label="Subsidiary Subjects" />
+          <Tab label="Principal Subjects" />
+          <Tab label="Subsidiary Subjects" />
+          <Tab label="All Subjects" />
         </Tabs>
 
         {/* Principal Subjects Tab */}
-        {tabValue === 0 && (
-          <Box sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Principal Subjects
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
+        <Box sx={{ p: 2, display: tabValue === 0 ? 'block' : 'none' }}>
+          <Typography variant="h6" gutterBottom className="print-only">
+            Principal Subjects
+          </Typography>
+          <Divider sx={{ mb: 2 }} className="print-only" />
 
-            {report.principalSubjects && report.principalSubjects.length > 0 ? (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Code</TableCell>
-                      <TableCell>Subject</TableCell>
-                      <TableCell align="center">Marks</TableCell>
-                      <TableCell align="center">Grade</TableCell>
-                      <TableCell align="center">Points</TableCell>
-                      <TableCell>Remarks</TableCell>
+          {report.principalSubjects && report.principalSubjects.length > 0 ? (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Code</TableCell>
+                    <TableCell>Subject</TableCell>
+                    <TableCell align="center">Marks</TableCell>
+                    <TableCell align="center">Grade</TableCell>
+                    <TableCell align="center">Points</TableCell>
+                    <TableCell>Remarks</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {report.principalSubjects.map((subject, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{subject.code}</TableCell>
+                      <TableCell>{subject.subject}</TableCell>
+                      <TableCell align="center">
+                        {subject.marksObtained !== null ? subject.marksObtained : '-'}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={subject.grade}
+                          color={
+                            subject.grade === 'A' ? 'success' :
+                            subject.grade === 'B' ? 'primary' :
+                            subject.grade === 'C' ? 'info' :
+                            subject.grade === 'D' ? 'warning' :
+                            subject.grade === 'E' ? 'secondary' :
+                            subject.grade === 'S' ? 'default' : 'error'
+                          }
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="center">{subject.points}</TableCell>
+                      <TableCell>{subject.remarks || '-'}</TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {report.principalSubjects.map((subject, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{subject.code}</TableCell>
-                        <TableCell>{subject.subject}</TableCell>
-                        <TableCell align="center">
-                          {subject.marks !== null ? subject.marks : '-'}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip
-                            label={subject.grade}
-                            color={
-                              subject.grade === 'A' ? 'success' :
-                              subject.grade === 'B' ? 'primary' :
-                              subject.grade === 'C' ? 'info' :
-                              subject.grade === 'D' ? 'warning' :
-                              subject.grade === 'E' ? 'secondary' :
-                              subject.grade === 'S' ? 'default' : 'error'
-                            }
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell align="center">
-                          {subject.points !== null ? subject.points : '-'}
-                        </TableCell>
-                        <TableCell>{subject.remarks}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Alert severity="info">
-                No principal subjects found or no results available.
-              </Alert>
-            )}
-          </Box>
-        )}
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Typography variant="body1" color="text.secondary" align="center">
+              No principal subjects found
+            </Typography>
+          )}
+        </Box>
 
         {/* Subsidiary Subjects Tab */}
-        {tabValue === 1 && (
-          <Box sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Subsidiary Subjects
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
+        <Box sx={{ p: 2, display: tabValue === 1 ? 'block' : 'none' }}>
+          <Typography variant="h6" gutterBottom className="print-only">
+            Subsidiary Subjects
+          </Typography>
+          <Divider sx={{ mb: 2 }} className="print-only" />
 
-            {report.subsidiarySubjects && report.subsidiarySubjects.length > 0 ? (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Code</TableCell>
-                      <TableCell>Subject</TableCell>
-                      <TableCell align="center">Marks</TableCell>
-                      <TableCell align="center">Grade</TableCell>
-                      <TableCell align="center">Points</TableCell>
-                      <TableCell>Remarks</TableCell>
+          {report.subsidiarySubjects && report.subsidiarySubjects.length > 0 ? (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Code</TableCell>
+                    <TableCell>Subject</TableCell>
+                    <TableCell align="center">Marks</TableCell>
+                    <TableCell align="center">Grade</TableCell>
+                    <TableCell align="center">Points</TableCell>
+                    <TableCell>Remarks</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {report.subsidiarySubjects.map((subject, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{subject.code}</TableCell>
+                      <TableCell>{subject.subject}</TableCell>
+                      <TableCell align="center">
+                        {subject.marksObtained !== null ? subject.marksObtained : '-'}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={subject.grade}
+                          color={
+                            subject.grade === 'A' ? 'success' :
+                            subject.grade === 'B' ? 'primary' :
+                            subject.grade === 'C' ? 'info' :
+                            subject.grade === 'D' ? 'warning' :
+                            subject.grade === 'E' ? 'secondary' :
+                            subject.grade === 'S' ? 'default' : 'error'
+                          }
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="center">{subject.points}</TableCell>
+                      <TableCell>{subject.remarks || '-'}</TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {report.subsidiarySubjects.map((subject, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{subject.code}</TableCell>
-                        <TableCell>{subject.subject}</TableCell>
-                        <TableCell align="center">
-                          {subject.marks !== null ? subject.marks : '-'}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip
-                            label={subject.grade}
-                            color={
-                              subject.grade === 'A' ? 'success' :
-                              subject.grade === 'B' ? 'primary' :
-                              subject.grade === 'C' ? 'info' :
-                              subject.grade === 'D' ? 'warning' :
-                              subject.grade === 'E' ? 'secondary' :
-                              subject.grade === 'S' ? 'default' : 'error'
-                            }
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell align="center">
-                          {subject.points !== null ? subject.points : '-'}
-                        </TableCell>
-                        <TableCell>{subject.remarks}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Alert severity="info">
-                No subsidiary subjects found or no results available.
-              </Alert>
-            )}
-          </Box>
-        )}
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Typography variant="body1" color="text.secondary" align="center">
+              No subsidiary subjects found
+            </Typography>
+          )}
+        </Box>
+
+        {/* All Subjects Tab */}
+        <Box sx={{ p: 2, display: tabValue === 2 ? 'block' : 'none' }}>
+          <Typography variant="h6" gutterBottom className="print-only">
+            All Subjects
+          </Typography>
+          <Divider sx={{ mb: 2 }} className="print-only" />
+
+          {allSubjects.length > 0 ? (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Code</TableCell>
+                    <TableCell>Subject</TableCell>
+                    <TableCell align="center">Type</TableCell>
+                    <TableCell align="center">Marks</TableCell>
+                    <TableCell align="center">Grade</TableCell>
+                    <TableCell align="center">Points</TableCell>
+                    <TableCell>Remarks</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {allSubjects.map((subject, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{subject.code}</TableCell>
+                      <TableCell>{subject.subject}</TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={subject.isPrincipal ? 'Principal' : 'Subsidiary'}
+                          color={subject.isPrincipal ? 'primary' : 'secondary'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        {subject.marksObtained !== null ? subject.marksObtained : '-'}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip
+                          label={subject.grade}
+                          color={
+                            subject.grade === 'A' ? 'success' :
+                            subject.grade === 'B' ? 'primary' :
+                            subject.grade === 'C' ? 'info' :
+                            subject.grade === 'D' ? 'warning' :
+                            subject.grade === 'E' ? 'secondary' :
+                            subject.grade === 'S' ? 'default' : 'error'
+                          }
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="center">{subject.points}</TableCell>
+                      <TableCell>{subject.remarks || '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Typography variant="body1" color="text.secondary" align="center">
+              No subjects found
+            </Typography>
+          )}
+        </Box>
       </Paper>
 
       {/* Performance Summary */}
@@ -580,38 +557,42 @@ const ALevelComprehensiveReport = () => {
               Performance Summary
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Total Marks:</strong> {report.summary.totalMarks}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Average Marks:</strong> {report.summary.averageMarks}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Total Points:</strong> {report.summary.totalPoints !== null ? report.summary.totalPoints : 'N/A'}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Best 3 Principal Points:</strong> {report.summary.bestThreePoints !== null ? report.summary.bestThreePoints : 'N/A'}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Division:</strong> {report.summary.division}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Rank:</strong> {report.summary.rank} of {report.summary.totalStudents}
-                </Typography>
-              </Grid>
-            </Grid>
+            <TableContainer>
+              <Table>
+                <TableBody>
+                  <TableRow>
+                    <TableCell><strong>Average Marks</strong></TableCell>
+                    <TableCell align="right">{report.summary?.averageMarks || 'N/A'}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Total Points</strong></TableCell>
+                    <TableCell align="right">{report.summary?.totalPoints || 'N/A'}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Best Three Points</strong></TableCell>
+                    <TableCell align="right">{report.summary?.bestThreePoints || 'N/A'}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Division</strong></TableCell>
+                    <TableCell align="right">
+                      <Chip
+                        label={report.summary?.division || 'N/A'}
+                        color={
+                          report.summary?.division === 'I' ? 'success' :
+                          report.summary?.division === 'II' ? 'primary' :
+                          report.summary?.division === 'III' ? 'info' :
+                          report.summary?.division === 'IV' ? 'warning' : 'default'
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Rank</strong></TableCell>
+                    <TableCell align="right">{report.summary?.rank || 'N/A'} / {report.summary?.totalStudents || 'N/A'}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Paper>
         </Grid>
         <Grid item xs={12} md={6}>
@@ -621,7 +602,7 @@ const ALevelComprehensiveReport = () => {
             </Typography>
             <Divider sx={{ mb: 2 }} />
             <TableContainer>
-              <Table size="small">
+              <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>Grade</TableCell>
@@ -630,7 +611,7 @@ const ALevelComprehensiveReport = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {report.summary.gradeDistribution && Object.entries(report.summary.gradeDistribution).map(([grade, count]) => (
+                  {report.summary?.gradeDistribution && Object.entries(report.summary.gradeDistribution).map(([grade, count]) => (
                     <TableRow key={grade}>
                       <TableCell>
                         <Chip
@@ -648,8 +629,8 @@ const ALevelComprehensiveReport = () => {
                       </TableCell>
                       <TableCell align="center">{count}</TableCell>
                       <TableCell align="center">
-                        {report.allSubjects?.length
-                          ? `${Math.round((count / report.allSubjects.length) * 100)}%`
+                        {allSubjects.length
+                          ? `${Math.round((count / allSubjects.length) * 100)}%`
                           : '0%'
                         }
                       </TableCell>
@@ -663,37 +644,44 @@ const ALevelComprehensiveReport = () => {
       </Grid>
 
       {/* Character Assessment */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Character Assessment
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <Typography variant="body1">
-              <strong>Discipline:</strong> {report.characterAssessment?.discipline || 'Not assessed'}
-            </Typography>
+      {report.characterAssessment && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Character Assessment
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={3}>
+              <Typography variant="body1">
+                <strong>Discipline:</strong> {report.characterAssessment.discipline || 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="body1">
+                <strong>Attendance:</strong> {report.characterAssessment.attendance || 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="body1">
+                <strong>Attitude:</strong> {report.characterAssessment.attitude || 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Typography variant="body1">
+                <strong>Participation:</strong> {report.characterAssessment.participation || 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body1" sx={{ mt: 2 }}>
+                <strong>Comments:</strong>
+              </Typography>
+              <Typography variant="body2" paragraph sx={{ mt: 1, fontStyle: 'italic' }}>
+                {report.characterAssessment.comments || 'No comments provided.'}
+              </Typography>
+            </Grid>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Typography variant="body1">
-              <strong>Attendance:</strong> {report.characterAssessment?.attendance || 'Not assessed'}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Typography variant="body1">
-              <strong>Attitude:</strong> {report.characterAssessment?.attitude || 'Not assessed'}
-            </Typography>
-          </Grid>
-          <Grid item xs={12}>
-            <Typography variant="body1">
-              <strong>Comments:</strong>
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: 'background.paper', borderRadius: 1 }}>
-              {report.characterAssessment?.comments || 'No comments provided.'}
-            </Typography>
-          </Grid>
-        </Grid>
-      </Paper>
+        </Paper>
+      )}
 
       {/* A-Level Division Guide */}
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -740,42 +728,30 @@ const ALevelComprehensiveReport = () => {
           <Grid item xs={6} md={2.4}>
             <Card>
               <CardContent>
-                <Typography variant="h6" align="center">Division V</Typography>
-                <Typography variant="body2" align="center">20-21 points</Typography>
+                <Typography variant="h6" align="center">Division 0</Typography>
+                <Typography variant="body2" align="center">20+ points</Typography>
               </CardContent>
             </Card>
           </Grid>
         </Grid>
       </Paper>
 
-      {/* Signature Section */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Grid container spacing={4}>
-          <Grid item xs={6}>
-            <Box sx={{ borderTop: '1px solid #ccc', pt: 1, mt: 4, width: '80%' }}>
-              <Typography variant="body2">Class Teacher's Signature</Typography>
-            </Box>
-          </Grid>
-          <Grid item xs={6}>
-            <Box sx={{ borderTop: '1px solid #ccc', pt: 1, mt: 4, width: '80%' }}>
-              <Typography variant="body2">Principal's Signature</Typography>
-            </Box>
-          </Grid>
-        </Grid>
-        <Typography variant="body2" sx={{ mt: 4 }}>
-          Date: {new Date().toLocaleDateString()}
-        </Typography>
-      </Paper>
-
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        message={snackbar.message}
-      />
+        onClose={handleSnackbarClose}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
 
-export default ALevelComprehensiveReport;
+// Apply circuit breaker HOC
+export default withCircuitBreaker(ALevelComprehensiveReport, {
+  maxRenders: 30,  // Allow more renders for initial load
+  timeWindowMs: 2000  // Increase time window to 2 seconds
+});

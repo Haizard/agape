@@ -34,6 +34,7 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) {
+      console.log('Allowing request with no origin');
       return callback(null, true);
     }
 
@@ -57,6 +58,8 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
+  exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization'],
+  maxAge: 86400 // 24 hours
 };
 
 // Open CORS options for critical routes (like login)
@@ -75,11 +78,13 @@ const openCors = cors(openCorsOptions);
 
 // Middleware to handle CORS preflight requests
 const handlePreflight = (req, res, next) => {
-  // Set CORS headers for preflight requests
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  }
 
   // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {

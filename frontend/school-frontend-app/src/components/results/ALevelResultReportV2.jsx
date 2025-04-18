@@ -30,19 +30,20 @@ import { generateALevelStudentResultPDF } from '../../utils/aLevelPdfGenerator';
 import { EducationLevels } from '../../utils/educationLevelUtils';
 import { handleApiError, getUserFriendlyErrorMessage, getErrorRecoverySuggestion } from '../../utils/errorHandler';
 import { validateALevelStudentResultData } from '../../utils/dataValidator';
+import { normalizeSubjectResult } from '../../utils/aLevelDataUtils';
 
 // Import context
 import { useResultContext } from '../../contexts/ResultContext';
 
 // Import reusable components
-import { 
-  ResultTable, 
-  GradeChip, 
-  DivisionChip, 
-  ReportSummary, 
+import {
+  ResultTable,
+  GradeChip,
+  DivisionChip,
+  ReportSummary,
   StudentDetails,
   withErrorHandling,
-  withEducationLevel 
+  withEducationLevel
 } from '../../components/common';
 
 /**
@@ -109,7 +110,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
 
     try {
       generateALevelStudentResultPDF(report, `${report.studentDetails?.name}_A_Level_Report.pdf`);
-      
+
       setSnackbar({
         open: true,
         message: 'PDF downloaded successfully',
@@ -117,7 +118,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
       });
     } catch (err) {
       console.error('Error generating PDF:', err);
-      
+
       setSnackbar({
         open: true,
         message: `Failed to generate PDF: ${err.message}`,
@@ -136,7 +137,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
       setSmsSuccess(false);
 
       const response = await axios.post(`/api/a-level-results/send-sms/${studentId}/${examId}`);
-      
+
       setSmsSuccess(true);
       setSnackbar({
         open: true,
@@ -145,7 +146,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
       });
     } catch (err) {
       console.error('Error sending SMS:', err);
-      
+
       setSmsError(getUserFriendlyErrorMessage(err));
       setSnackbar({
         open: true,
@@ -178,7 +179,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
       refetch();
     } catch (err) {
       console.error('Error updating student:', err);
-      
+
       setSnackbar({
         open: true,
         message: `Failed to update student: ${getUserFriendlyErrorMessage(err)}`,
@@ -207,7 +208,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
   if (fetchError) {
     const errorMessage = getUserFriendlyErrorMessage(fetchError);
     const recoverySuggestion = getErrorRecoverySuggestion(fetchError);
-    
+
     return (
       <Alert
         severity="error"
@@ -261,41 +262,42 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
     );
   }
 
-  // Prepare data for the ResultTable component
-  const principalSubjects = report.subjectResults.filter(result => result.isPrincipal);
-  const subsidiarySubjects = report.subjectResults.filter(result => !result.isPrincipal);
+  // Normalize and prepare data for the ResultTable component
+  const normalizedResults = report.subjectResults.map(result => normalizeSubjectResult(result));
+  const principalSubjects = normalizedResults.filter(result => result.isPrincipal);
+  const subsidiarySubjects = normalizedResults.filter(result => !result.isPrincipal);
 
   // Define columns for the principal subjects table
   const principalColumns = [
-    { 
-      id: 'subject', 
-      label: 'Subject', 
+    {
+      id: 'subject',
+      label: 'Subject',
       render: (row) => (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography variant="body1">{row.subject}</Typography>
         </Box>
       )
     },
-    { 
-      id: 'marks', 
-      label: 'Marks', 
+    {
+      id: 'marks',
+      label: 'Marks',
       align: 'center',
-      render: (row) => row.marks || row.marksObtained || 0
+      render: (row) => row.marksObtained !== null ? row.marksObtained : '-'
     },
-    { 
-      id: 'grade', 
-      label: 'Grade', 
+    {
+      id: 'grade',
+      label: 'Grade',
       align: 'center',
       render: (row) => <GradeChip grade={row.grade} educationLevel="A_LEVEL" />
     },
-    { 
-      id: 'points', 
-      label: 'Points', 
+    {
+      id: 'points',
+      label: 'Points',
       align: 'center',
       render: (row) => row.points || 0
     },
-    { 
-      id: 'remarks', 
+    {
+      id: 'remarks',
       label: 'Remarks',
       render: (row) => row.remarks || 'N/A'
     }
@@ -363,7 +365,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
       {/* Student and Exam Information */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={6}>
-          <StudentDetails 
+          <StudentDetails
             studentDetails={report.studentDetails}
             examDetails={{
               name: report.examName,
@@ -374,7 +376,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
           />
         </Grid>
         <Grid item xs={12} md={6}>
-          <ReportSummary 
+          <ReportSummary
             summary={report.summary}
             educationLevel="A_LEVEL"
             title="Performance Summary"
@@ -407,7 +409,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
           </Typography>
           <Divider sx={{ mb: 2 }} />
         </Box>
-        <ResultTable 
+        <ResultTable
           data={principalSubjects}
           columns={principalColumns}
           getRowKey={(row) => `principal-${row.subject}`}
@@ -424,7 +426,7 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
           </Typography>
           <Divider sx={{ mb: 2 }} />
         </Box>
-        <ResultTable 
+        <ResultTable
           data={subsidiarySubjects}
           columns={principalColumns} // Reuse the same columns
           getRowKey={(row) => `subsidiary-${row.subject}`}
@@ -540,16 +542,16 @@ const ALevelStudentResultReportComponent = ({ setError }) => {
 
 // Apply Higher-Order Components
 const ALevelStudentResultReportWithEducationLevel = withEducationLevel(
-  ALevelStudentResultReportComponent, 
-  { 
+  ALevelStudentResultReportComponent,
+  {
     educationLevel: EducationLevels.A_LEVEL,
-    redirectOnMismatch: true 
+    redirectOnMismatch: true
   }
 );
 
 const ALevelStudentResultReport = withErrorHandling(
   ALevelStudentResultReportWithEducationLevel,
-  { 
+  {
     componentName: 'ALevelStudentResultReport',
     expectedEducationLevel: EducationLevels.A_LEVEL
   }

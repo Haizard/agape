@@ -50,8 +50,8 @@ export const useALevelClassReport = (classId, examId) => {
 export const useFormSpecificReport = (form, classId, examId) => {
   return useCachedData({
     fetchFn: async () => {
-      const formLevel = form === 5 || form === '5' ? 'form5' : 'form6';
-      const reportUrl = `/api/a-level-results/${formLevel}/class/${classId}/${examId}`;
+      const formLevel = form === 5 || form === '5' ? '5' : '6';
+      const reportUrl = `/api/a-level-reports/form${formLevel}/class/${classId}/${examId}`;
       const response = await axios.get(reportUrl);
       return response.data;
     },

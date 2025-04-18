@@ -120,13 +120,22 @@ const DirectResultsPage = () => {
         <Typography variant="h4">
           Result Reports
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => navigate('/admin/result-reports')}
-        >
-          A-Level & O-Level Reports
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => navigate('/admin/result-reports')}
+          >
+            A-Level & O-Level Reports
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() => navigate('/admin/a-level-class-reports')}
+          >
+            A-Level Class Reports
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -176,7 +185,7 @@ const DirectResultsPage = () => {
                 </Select>
               </FormControl>
             </CardContent>
-            <CardActions>
+            <CardActions sx={{ flexDirection: 'column', gap: 1 }}>
               <DirectPdfLink
                 type="class"
                 classId={selectedClass}
@@ -185,6 +194,22 @@ const DirectResultsPage = () => {
                 fullWidth
                 disabled={!selectedClass || !selectedExam}
               />
+              <Button
+                variant="contained"
+                color="secondary"
+                fullWidth
+                disabled={!selectedClass || !selectedExam}
+                onClick={() => {
+                  const classObj = classes.find(c => c._id === selectedClass);
+                  if (classObj && classObj.educationLevel === 'A_LEVEL') {
+                    navigate(`/results/a-level/class/${selectedClass}/${selectedExam}`);
+                  } else {
+                    navigate(`/results/class-report/${selectedClass}/${selectedExam}`);
+                  }
+                }}
+              >
+                View Interactive Class Report
+              </Button>
             </CardActions>
           </Card>
         </Grid>

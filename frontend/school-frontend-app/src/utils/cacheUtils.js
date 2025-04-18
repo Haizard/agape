@@ -29,12 +29,17 @@ const CACHE_PREFIX = 'agape_cache_';
  * @returns {string} Cache key
  */
 export const generateCacheKey = (resourceType, id, params = {}) => {
+  // Ensure params is an object
+  if (!params || typeof params !== 'object') {
+    return `${CACHE_PREFIX}${resourceType}_${id || 'unknown'}`;
+  }
+
   const paramsString = Object.entries(params)
     .filter(([_, value]) => value !== undefined && value !== null)
     .map(([key, value]) => `${key}=${value}`)
     .join('&');
-  
-  return `${CACHE_PREFIX}${resourceType}_${id}${paramsString ? `_${paramsString}` : ''}`;
+
+  return `${CACHE_PREFIX}${resourceType}_${id || 'unknown'}${paramsString ? `_${paramsString}` : ''}`;
 };
 
 /**
@@ -51,29 +56,29 @@ export const saveToCache = (key, data, expiration = DEFAULT_CACHE_EXPIRATION) =>
       console.warn('localStorage is not available for caching');
       return false;
     }
-    
+
     // Check if we have enough space
     if (!hasEnoughCacheSpace(key, data)) {
       console.warn('Not enough cache space, clearing old cache items');
       clearOldCacheItems();
-      
+
       // Check again after clearing
       if (!hasEnoughCacheSpace(key, data)) {
         console.error('Still not enough cache space after clearing old items');
         return false;
       }
     }
-    
+
     // Prepare cache item
     const cacheItem = {
       data,
       timestamp: Date.now(),
       expiration: Date.now() + expiration
     };
-    
+
     // Save to localStorage
     localStorage.setItem(key, JSON.stringify(cacheItem));
-    
+
     return true;
   } catch (error) {
     console.error('Error saving to cache:', error);
@@ -93,23 +98,23 @@ export const getFromCache = (key, ignoreExpiration = false) => {
     if (!isLocalStorageAvailable()) {
       return null;
     }
-    
+
     // Get from localStorage
     const cacheItemString = localStorage.getItem(key);
     if (!cacheItemString) {
       return null;
     }
-    
+
     // Parse cache item
     const cacheItem = JSON.parse(cacheItemString);
-    
+
     // Check expiration
     if (!ignoreExpiration && cacheItem.expiration < Date.now()) {
       console.log(`Cache item ${key} has expired`);
       localStorage.removeItem(key);
       return null;
     }
-    
+
     return cacheItem.data;
   } catch (error) {
     console.error('Error getting from cache:', error);
@@ -128,10 +133,10 @@ export const removeFromCache = (key) => {
     if (!isLocalStorageAvailable()) {
       return false;
     }
-    
+
     // Remove from localStorage
     localStorage.removeItem(key);
-    
+
     return true;
   } catch (error) {
     console.error('Error removing from cache:', error);
@@ -149,17 +154,17 @@ export const clearCache = () => {
     if (!isLocalStorageAvailable()) {
       return false;
     }
-    
+
     // Get all keys
     const keys = Object.keys(localStorage);
-    
+
     // Remove all cache items
     keys.forEach(key => {
       if (key.startsWith(CACHE_PREFIX)) {
         localStorage.removeItem(key);
       }
     });
-    
+
     return true;
   } catch (error) {
     console.error('Error clearing cache:', error);
@@ -178,16 +183,16 @@ export const clearOldCacheItems = (maxItems = 100) => {
     if (!isLocalStorageAvailable()) {
       return false;
     }
-    
+
     // Get all cache keys
     const keys = Object.keys(localStorage)
       .filter(key => key.startsWith(CACHE_PREFIX));
-    
+
     // If we have fewer items than the maximum, do nothing
     if (keys.length <= maxItems) {
       return true;
     }
-    
+
     // Get all cache items with their timestamps
     const cacheItems = keys.map(key => {
       try {
@@ -197,16 +202,16 @@ export const clearOldCacheItems = (maxItems = 100) => {
         return { key, timestamp: 0 };
       }
     });
-    
+
     // Sort by timestamp (oldest first)
     cacheItems.sort((a, b) => a.timestamp - b.timestamp);
-    
+
     // Remove oldest items
     const itemsToRemove = cacheItems.slice(0, cacheItems.length - maxItems);
     itemsToRemove.forEach(item => {
       localStorage.removeItem(item.key);
     });
-    
+
     return true;
   } catch (error) {
     console.error('Error clearing old cache items:', error);
@@ -241,11 +246,11 @@ export const hasEnoughCacheSpace = (key, data) => {
     if (!isLocalStorageAvailable()) {
       return false;
     }
-    
+
     // Calculate size of data
     const dataString = JSON.stringify({ data, timestamp: Date.now(), expiration: Date.now() });
     const dataSize = new Blob([dataString]).size;
-    
+
     // Calculate current cache size
     let currentSize = 0;
     Object.keys(localStorage).forEach(key => {
@@ -253,7 +258,7 @@ export const hasEnoughCacheSpace = (key, data) => {
         currentSize += new Blob([localStorage.getItem(key)]).size;
       }
     });
-    
+
     // Check if we have enough space
     return currentSize + dataSize <= MAX_CACHE_SIZE;
   } catch (error) {
@@ -272,7 +277,7 @@ export const getCacheSize = () => {
     if (!isLocalStorageAvailable()) {
       return 0;
     }
-    
+
     // Calculate current cache size
     let currentSize = 0;
     Object.keys(localStorage).forEach(key => {
@@ -280,7 +285,7 @@ export const getCacheSize = () => {
         currentSize += new Blob([localStorage.getItem(key)]).size;
       }
     });
-    
+
     return currentSize;
   } catch (error) {
     console.error('Error getting cache size:', error);
@@ -314,18 +319,18 @@ export const fetchWithCache = async (
         return cachedData;
       }
     }
-    
+
     // Fetch fresh data
     const data = await fetchFn();
-    
+
     // Save to cache
     saveToCache(cacheKey, data, expiration);
-    
+
     if (onSuccess) onSuccess(data, false);
     return data;
   } catch (error) {
     console.error(`Error fetching data for ${cacheKey}:`, error);
-    
+
     // Try to get from cache even if expired
     const cachedData = getFromCache(cacheKey, true);
     if (cachedData) {
@@ -333,7 +338,7 @@ export const fetchWithCache = async (
       if (onSuccess) onSuccess(cachedData, true);
       return cachedData;
     }
-    
+
     if (onError) onError(error);
     throw error;
   }
@@ -450,7 +455,7 @@ const generateMockResultData = ({ educationLevel = 'O_LEVEL', studentId = 'mock-
         { name: 'History', code: 'HIST' },
         { name: 'Geography', code: 'GEO' }
       ];
-  
+
   // Generate results for each subject
   const subjectResults = subjects.map(subject => {
     const marks = Math.floor(Math.random() * 40) + 60; // Random marks between 60 and 99
@@ -460,7 +465,7 @@ const generateMockResultData = ({ educationLevel = 'O_LEVEL', studentId = 'mock-
     const points = educationLevel === 'A_LEVEL'
       ? grade === 'A' ? 1 : grade === 'B' ? 2 : grade === 'C' ? 3 : grade === 'D' ? 4 : grade === 'E' ? 5 : grade === 'S' ? 6 : 7
       : grade === 'A' ? 1 : grade === 'B' ? 2 : grade === 'C' ? 3 : grade === 'D' ? 4 : 5;
-    
+
     return {
       subject: subject.name,
       subjectCode: subject.code,
@@ -470,14 +475,14 @@ const generateMockResultData = ({ educationLevel = 'O_LEVEL', studentId = 'mock-
       isPrincipal: subject.isPrincipal || false
     };
   });
-  
+
   // Calculate total and average marks
   const totalMarks = subjectResults.reduce((sum, result) => sum + result.marks, 0);
   const averageMarks = totalMarks / subjectResults.length;
-  
+
   // Calculate total points
   const totalPoints = subjectResults.reduce((sum, result) => sum + result.points, 0);
-  
+
   // Calculate best three principal subjects points (for A-Level)
   let bestThreePoints = 0;
   if (educationLevel === 'A_LEVEL') {
@@ -487,12 +492,12 @@ const generateMockResultData = ({ educationLevel = 'O_LEVEL', studentId = 'mock-
       .slice(0, 3);
     bestThreePoints = bestThree.reduce((sum, result) => sum + result.points, 0);
   }
-  
+
   // Calculate division
   const division = educationLevel === 'A_LEVEL'
     ? bestThreePoints <= 9 ? 'I' : bestThreePoints <= 12 ? 'II' : bestThreePoints <= 17 ? 'III' : bestThreePoints <= 19 ? 'IV' : '0'
     : totalPoints <= 16 ? 'I' : totalPoints <= 24 ? 'II' : totalPoints <= 32 ? 'III' : totalPoints <= 40 ? 'IV' : '0';
-  
+
   return {
     studentId,
     examId,

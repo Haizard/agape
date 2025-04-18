@@ -1,6 +1,6 @@
 /**
  * A-Level Data Utilities
- * 
+ *
  * These utilities help normalize and process A-Level result data
  * without changing existing component structure or logic.
  */
@@ -15,30 +15,33 @@ import { calculateGradeAndPoints, calculateBestThreeAndDivision } from './aLevel
  */
 export const normalizeSubjectResult = (result) => {
   if (!result) return null;
-  
+
   // Extract values with fallbacks
-  const marksObtained = result.marksObtained || result.marks || 0;
+  // Ensure we handle both marksObtained and marks properties consistently
+  const marksObtained = result.marksObtained ?? result.marks ?? null;
   let grade = result.grade || '';
   let points = result.points;
-  
+  let isPrincipal = result.isPrincipal ?? false; // Ensure isPrincipal is always defined
+
   // Calculate grade and points if not provided
-  if (!grade || points === undefined) {
+  if (marksObtained !== null && (!grade || points === undefined)) {
     const calculated = calculateGradeAndPoints(marksObtained);
     grade = grade || calculated.grade;
     points = points !== undefined ? points : calculated.points;
   }
-  
+
   // Format values
   const formattedGrade = formatGrade(grade);
   const formattedMarks = formatMarks(marksObtained);
   const formattedPoints = formatPoints(points);
-  
+
   return {
     ...result,
     marksObtained,
     marks: marksObtained, // For compatibility
     grade: formattedGrade,
-    points: points !== undefined ? points : (formattedGrade !== '-' ? parseInt(formattedPoints) : 7)
+    points: points !== undefined ? points : (formattedGrade !== '-' ? parseInt(formattedPoints) : 7),
+    isPrincipal // Ensure isPrincipal is included
   };
 };
 
@@ -49,7 +52,7 @@ export const normalizeSubjectResult = (result) => {
  */
 export const normalizeResultSummary = (summary) => {
   if (!summary) return {};
-  
+
   // Extract values with fallbacks
   const totalMarks = summary.totalMarks || 0;
   const averageMarks = summary.averageMarks || 0;
@@ -58,10 +61,10 @@ export const normalizeResultSummary = (summary) => {
   const division = summary.division || '0';
   const rank = summary.rank || '-';
   const totalStudents = summary.totalStudents || 0;
-  
+
   // Format values
   const formattedDivision = formatDivision(division, false);
-  
+
   return {
     ...summary,
     totalMarks,
@@ -93,29 +96,29 @@ export const processSubjectResults = (results) => {
       gradeDistribution: {}
     };
   }
-  
+
   // Normalize all results
   const normalizedResults = results.map(normalizeSubjectResult);
-  
+
   // Split into principal and subsidiary
   const principalResults = normalizedResults.filter(r => r.isPrincipal);
   const subsidiaryResults = normalizedResults.filter(r => !r.isPrincipal);
-  
+
   // Calculate totals
   const totalMarks = normalizedResults.reduce((sum, r) => sum + (r.marksObtained || 0), 0);
   const averageMarks = normalizedResults.length > 0 ? totalMarks / normalizedResults.length : 0;
   const totalPoints = normalizedResults.reduce((sum, r) => sum + (r.points || 7), 0);
-  
+
   // Calculate best three and division
   const { bestThreePoints, division } = calculateBestThreeAndDivision(principalResults);
-  
+
   // Calculate grade distribution
   const gradeDistribution = normalizedResults.reduce((dist, r) => {
     const grade = r.grade || '-';
     dist[grade] = (dist[grade] || 0) + 1;
     return dist;
   }, {});
-  
+
   return {
     normalizedResults,
     principalResults,

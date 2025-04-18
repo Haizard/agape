@@ -40,9 +40,9 @@ const ALevelFormStudentReport = () => {
 
       // Determine the correct endpoint based on form
       const formLevel = form === 'form5' ? 'form5' : 'form6';
-      
+
       // Fetch the report data from the form-specific A-Level endpoint
-      const reportUrl = `/api/a-level-results/${formLevel}/student/${studentId}/${examId}`;
+      const reportUrl = `/api/a-level-reports/form${formLevel === 'form5' ? '5' : '6'}/student/${studentId}/${examId}`;
       const response = await axios.get(reportUrl);
       const data = response.data;
 
@@ -83,9 +83,9 @@ const ALevelFormStudentReport = () => {
     try {
       // Determine the correct endpoint based on form
       const formLevel = form === 'form5' ? 'form5' : 'form6';
-      
+
       // Use the API endpoint to download the PDF
-      const pdfUrl = `/api/a-level-results/${formLevel}/student/${studentId}/${examId}/pdf`;
+      const pdfUrl = `/api/a-level-reports/${formLevel}/student/${studentId}/${examId}/pdf`;
       window.open(pdfUrl, '_blank');
     } catch (err) {
       console.error('Error downloading PDF:', err);
@@ -211,7 +211,7 @@ const ALevelFormStudentReport = () => {
             </TableHead>
             <TableBody>
               {report.subjectResults.map((result, index) => (
-                <TableRow key={index} sx={{ 
+                <TableRow key={index} sx={{
                   backgroundColor: result.isPrincipal ? 'rgba(144, 202, 249, 0.1)' : 'inherit'
                 }}>
                   <TableCell>
@@ -271,7 +271,7 @@ const ALevelFormStudentReport = () => {
               </CardContent>
             </Card>
           </Grid>
-          
+
           {/* Form 5 Results for Form 6 Students */}
           {form === 'form6' && report.form5Results && (
             <Grid item xs={12} md={6}>

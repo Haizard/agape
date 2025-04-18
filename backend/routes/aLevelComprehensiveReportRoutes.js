@@ -11,8 +11,10 @@ const CharacterAssessment = require('../models/CharacterAssessment');
 const SubjectCombination = require('../models/SubjectCombination');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const { generateALevelComprehensiveReportPDF } = require('../utils/aLevelComprehensiveReportGenerator');
-const fs = require('fs');
-const path = require('path');
+// Import necessary functions from the calculator utility
+const { getRemarks, calculateDivision, calculateBestThreeAndDivision } = require('../utils/aLevelGradeCalculator');
+const fs = require('node:fs'); // Use node: protocol
+const path = require('node:path'); // Use node: protocol
 
 // Setup logging
 const logDir = path.join(__dirname, '../logs');
@@ -27,54 +29,9 @@ const logToFile = (message) => {
   fs.appendFileSync(logFile, logMessage);
 };
 
-// Helper function to calculate grade
-function calculateGrade(marks) {
-  if (marks >= 80) return 'A';
-  if (marks >= 70) return 'B';
-  if (marks >= 60) return 'C';
-  if (marks >= 50) return 'D';
-  if (marks >= 40) return 'E';
-  if (marks >= 30) return 'S';
-  return 'F';
-}
+// Removed local helper functions (calculateGrade, calculatePoints, calculateDivision, getRemarks)
+// These are now imported or handled by the model/utility
 
-// Helper function to calculate points
-function calculatePoints(grade) {
-  switch (grade) {
-    case 'A': return 1;
-    case 'B': return 2;
-    case 'C': return 3;
-    case 'D': return 4;
-    case 'E': return 5;
-    case 'S': return 6;
-    case 'F': return 7;
-    default: return 7;
-  }
-}
-
-// Helper function to calculate division
-function calculateDivision(points) {
-  if (points >= 3 && points <= 9) return 'I';
-  if (points >= 10 && points <= 12) return 'II';
-  if (points >= 13 && points <= 17) return 'III';
-  if (points >= 18 && points <= 19) return 'IV';
-  if (points >= 20 && points <= 21) return 'V';
-  return '0';
-}
-
-// Helper function to get remarks
-function getRemarks(grade) {
-  switch (grade) {
-    case 'A': return 'Excellent';
-    case 'B': return 'Very Good';
-    case 'C': return 'Good';
-    case 'D': return 'Satisfactory';
-    case 'E': return 'Pass';
-    case 'S': return 'Subsidiary Pass';
-    case 'F': return 'Fail';
-    default: return 'N/A';
-  }
-}
 
 /**
  * Get comprehensive A-Level student report
@@ -141,22 +98,29 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
     // Add subjects from subject combination if available
     if (student.subjectCombination) {
       // Principal subjects
-      if (student.subjectCombination.subjects && student.subjectCombination.subjects.length > 0) {
-        allSubjects = [...allSubjects, ...student.subjectCombination.subjects.map(s => ({
+      if (student.subjectCombination.subjects?.length > 0) { // Use optional chaining for length check
+        // Ensure subjects are populated objects (using optional chaining)
+        const populatedPrincipalSubjects = student.subjectCombination.subjects?.filter(s => s && s._id) || []; // Re-add ?.filter and fallback
+        allSubjects = [...allSubjects, ...populatedPrincipalSubjects.map(s => ({
           subject: s,
           isPrincipal: true
         }))];
       }
-      
       // Subsidiary subjects
-      if (student.subjectCombination.compulsorySubjects && student.subjectCombination.compulsorySubjects.length > 0) {
-        allSubjects = [...allSubjects, ...student.subjectCombination.compulsorySubjects.map(s => ({
+      if (student.subjectCombination.compulsorySubjects?.length > 0) { // Use optional chaining for length check
+        // Ensure subjects are populated objects (using optional chaining)
+        const populatedSubsidiarySubjects = student.subjectCombination.compulsorySubjects?.filter(s => s && s._id) || []; // Re-add ?.filter and fallback
+        allSubjects = [...allSubjects, ...populatedSubsidiarySubjects.map(s => ({
           subject: s,
           isPrincipal: false
         }))];
       }
+    } else {
+      logToFile(`Warning: Student ${studentId} is A-Level but has no subjectCombination assigned.`);
+      // Decide how to handle this - perhaps return an error or an empty report?
+      // For now, we'll continue, but the report might be incomplete.
     }
-    
+
     // Add subjects from student's selectedSubjects if available
     if (student.selectedSubjects && student.selectedSubjects.length > 0) {
       // Fetch the subjects
@@ -172,6 +136,10 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
         
         if (existingIndex === -1) {
           // Determine if principal based on subject type
+          // Determine if principal based on subject type - add logging if type is missing
+          if (!subject.type) {
+            logToFile(`Warning: Subject ${subject._id} (${subject.name}) is missing 'type' field. Defaulting isPrincipal to false.`);
+          }
           const isPrincipal = subject.type === 'PRINCIPAL';
           allSubjects.push({
             subject,
@@ -186,41 +154,55 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
     
     // First, add results for subjects that have marks
     for (const result of results) {
+      // Ensure subjectId is populated
+      if (!result.subjectId || !result.subjectId._id) {
+          logToFile(`Warning: Result ${result._id} for student ${studentId} is missing populated subjectId. Skipping.`);
+          continue; // Skip this result if subject data is missing
+      }
       const subject = result.subjectId;
-      
-      // Determine if this is a principal subject
+
+      // Determine if this is a principal subject from the gathered list
       const subjectInfo = allSubjects.find(s => 
         s.subject._id.toString() === subject._id.toString()
       );
       
-      const isPrincipal = subjectInfo ? subjectInfo.isPrincipal : subject.type === 'PRINCIPAL';
-      
+      // Use the isPrincipal flag determined when building allSubjects list
+      const isPrincipal = subjectInfo ? subjectInfo.isPrincipal : (subject.type === 'PRINCIPAL');
+
+      // Use pre-calculated grade and points from the result object
       subjectResults.push({
+        subjectId: subject._id, // Store subjectId for accurate placeholder matching
         subject: subject.name,
         code: subject.code,
-        marks: result.marks,
-        grade: calculateGrade(result.marks),
-        points: calculatePoints(calculateGrade(result.marks)),
+        marksObtained: result.marksObtained, // Use consistent field name
+        grade: result.grade,         // Use existing grade
+        points: result.points,       // Use existing points
         isPrincipal,
-        remarks: getRemarks(calculateGrade(result.marks))
+        remarks: getRemarks(result.grade) // Use imported utility with existing grade
       });
     }
     
     // Then, add empty templates for subjects without results
     for (const subjectInfo of allSubjects) {
+      // Ensure subject object exists
+      if (!subjectInfo || !subjectInfo.subject || !subjectInfo.subject._id) {
+        logToFile('Warning: Invalid subjectInfo found in allSubjects loop. Skipping placeholder check.'); // Removed unnecessary template literal
+        continue;
+      }
       const subject = subjectInfo.subject;
-      
-      // Check if this subject already has a result
-      const existingResult = subjectResults.find(r => 
-        r.subject === subject.name || r.code === subject.code
+
+      // Check if this subject already has a result using subjectId
+      const existingResult = subjectResults.find(r =>
+        r.subjectId && r.subjectId.toString() === subject._id.toString()
       );
-      
+
       if (!existingResult) {
         // Add empty template
         subjectResults.push({
+          subjectId: subject._id, // Include subjectId in placeholder
           subject: subject.name,
           code: subject.code,
-          marks: null,
+          marksObtained: null, // Marks are null for placeholders
           grade: 'N/A',
           points: null,
           isPrincipal: subjectInfo.isPrincipal,
@@ -234,8 +216,9 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
     let totalSubjectsWithMarks = 0;
     
     for (const result of subjectResults) {
-      if (result.marks !== null) {
-        totalMarks += result.marks;
+      // Use marksObtained for calculations
+      if (result.marksObtained !== null && result.marksObtained !== undefined) { // Check marksObtained field from subjectResults
+        totalMarks += result.marksObtained; // Use the consistent field name
         totalSubjectsWithMarks++;
       }
     }
@@ -247,21 +230,14 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
       .filter(result => result.points !== null)
       .reduce((sum, result) => sum + result.points, 0);
     
-    // Calculate best three principal subjects and division
-    const principalSubjectsWithMarks = subjectResults
-      .filter(result => result.isPrincipal && result.points !== null);
-    
-    // Sort by points (ascending, since lower is better in A-Level)
-    principalSubjectsWithMarks.sort((a, b) => a.points - b.points);
-    
-    // Get best three (or fewer if not enough results)
-    const bestThreePrincipal = principalSubjectsWithMarks.slice(0, 3);
-    const bestThreePoints = bestThreePrincipal.reduce((sum, result) => sum + result.points, 0);
-    
-    // Calculate division only if we have at least one principal subject result
-    const division = principalSubjectsWithMarks.length > 0 
-      ? calculateDivision(bestThreePoints) 
-      : 'N/A';
+    // Calculate best three principal subjects and division using the imported utility
+    // Pass only the results that have actual marks/points
+    const resultsWithPoints = subjectResults.filter(r => r.points !== null);
+    const principalSubjectIdsForCalc = allSubjects
+        .filter(s => s.isPrincipal && s.subject && s.subject._id)
+        .map(s => s.subject._id);
+
+    const { bestThreePoints, division } = calculateBestThreeAndDivision(resultsWithPoints, principalSubjectIdsForCalc);
     
     // Calculate grade distribution
     const gradeDistribution = {
@@ -274,56 +250,78 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
       }
     }
     
-    // Get student rank if possible
+    // --- Optimized Rank Calculation ---
     let studentRank = 'N/A';
     let totalStudents = 0;
-    
     try {
-      // Get all students in the same class
-      const classStudents = await Student.find({ class: student.class });
-      totalStudents = classStudents.length;
-      
-      // Get results for all students in the class
-      const allStudentResults = await Promise.all(
-        classStudents.map(async (student) => {
-          const results = await ALevelResult.find({
-            studentId: student._id,
-            examId: examId
-          }).populate('subjectId');
-          
-          // Calculate average marks
-          let totalMarks = 0;
-          let count = 0;
-          
-          for (const result of results) {
-            totalMarks += result.marks;
-            count++;
-          }
-          
-          const avgMarks = count > 0 ? totalMarks / count : 0;
-          
-          return {
-            studentId: student._id,
-            averageMarks: avgMarks
-          };
-        })
-      );
-      
-      // Sort by average marks (descending)
-      allStudentResults.sort((a, b) => b.averageMarks - a.averageMarks);
-      
-      // Find this student's rank
-      const studentIndex = allStudentResults.findIndex(s => 
-        s.studentId.toString() === studentId
-      );
-      
-      if (studentIndex !== -1) {
-        studentRank = studentIndex + 1;
+      // 1. Fetch all results for the class and exam ONCE
+      const allClassResults = await ALevelResult.find({
+        classId: student.class, // Use classId from the student object
+        examId: examId
+      });
+      logToFile(`Fetched ${allClassResults.length} results for class ${student.class} and exam ${examId} for rank calculation.`);
+
+      // 2. Group results by studentId and calculate average marksObtained
+      const studentAverages = {};
+      for (const result of allClassResults) {
+        const sId = result.studentId.toString();
+        if (!studentAverages[sId]) {
+          studentAverages[sId] = { totalMarks: 0, count: 0, studentId: result.studentId };
+        }
+        // Ensure marksObtained is a number before adding
+        const marks = Number(result.marksObtained);
+        if (!Number.isNaN(marks)) { // Use Number.isNaN for type safety
+            studentAverages[sId].totalMarks += marks;
+            studentAverages[sId].count++;
+        }
       }
+
+      // 3. Calculate average for each student
+      const studentAverageList = Object.values(studentAverages).map(data => ({
+        studentId: data.studentId,
+        averageMarks: data.count > 0 ? data.totalMarks / data.count : 0
+      }));
+      totalStudents = studentAverageList.length; // Update total students based on those with results
+
+      // 4. Sort students by average marks (descending)
+      studentAverageList.sort((a, b) => b.averageMarks - a.averageMarks);
+
+      // 5. Assign ranks (handling ties)
+      let currentRank = 0;
+      let previousAvg = -1; // Use a value that marks cannot be
+      let studentsAtRank = 0;
+      const rankedStudents = studentAverageList.map((avgData, index) => {
+          if (avgData.averageMarks !== previousAvg) {
+              currentRank += (studentsAtRank); // Add the number of tied students from previous rank
+              studentsAtRank = 1; // Reset count for current rank
+              currentRank++; // Increment rank for the new score
+              previousAvg = avgData.averageMarks;
+          } else {
+              studentsAtRank++; // Increment tied students count
+          }
+          return { ...avgData, rank: currentRank };
+      });
+
+
+      // 6. Find the target student's rank
+      const targetStudentRankData = rankedStudents.find(s => s.studentId.toString() === studentId);
+      if (targetStudentRankData) {
+        studentRank = targetStudentRankData.rank;
+      } else {
+        logToFile(`Warning: Student ${studentId} not found in ranked list for class ${student.class}. Rank set to N/A.`);
+        // This might happen if the student had no results for this exam
+        studentRank = 'N/A';
+        // Ensure totalStudents reflects the count from Student.find if needed elsewhere,
+        // but for ranking, totalStudents should reflect those ranked.
+        const classStudentCount = await Student.countDocuments({ class: student.class });
+        totalStudents = classStudentCount; // Use actual class count for display if different
+      }
+
     } catch (error) {
-      logToFile(`Error calculating student rank: ${error.message}`);
-      // Continue without rank if there's an error
+      logToFile(`Error calculating student rank: ${error.message} ${error.stack}`);
+      studentRank = 'Error'; // Indicate error in rank calculation
     }
+    // --- End Optimized Rank Calculation ---
     
     // Format the report
     const report = {
@@ -370,8 +368,8 @@ router.get('/student/:studentId/:examId', authenticateToken, async (req, res) =>
       formLevel: student.form || (classObj.name.includes('5') ? 5 : 6)
     };
     
-    // Return JSON data for API requests
-    if (req.headers.accept && req.headers.accept.includes('application/json')) {
+    // Return JSON data for API requests (using optional chaining)
+    if (req.headers.accept?.includes('application/json')) {
       logToFile('Returning JSON data for API request');
       return res.json(report);
     }

@@ -7,16 +7,10 @@ const mongoose = require('mongoose'); // Add this line
 const User = require('../models/User');
 const Teacher = require('../models/Teacher');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { openCors } = require('../middleware/cors');
 
 // Special CORS middleware for login route
-const loginCors = cors({
-  origin: '*', // Allow all origins for login
-  methods: ['POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
-  credentials: true,
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-});
+const loginCors = openCors;
 
 // Handle OPTIONS requests for login route
 router.options('/login', loginCors, (req, res) => {
@@ -84,7 +78,12 @@ router.post('/login', loginCors, async (req, res) => {
     }
 
     // Get JWT secret from environment variables or use a default
-    const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret';
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!jwtSecret) {
+      console.error('JWT_SECRET is not defined in environment variables');
+      return res.status(500).json({ message: 'Server error: JWT_SECRET is not defined' });
+    }
 
     // Force normalize the role to lowercase for consistency
     const normalizedRole = user.role.toLowerCase();

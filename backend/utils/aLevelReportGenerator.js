@@ -89,19 +89,52 @@ const generateALevelStudentReportPDF = (report, res) => {
 
   for (const result of subjectResults) {
     // In A-Level, we need to identify principal subjects
-    // This is a placeholder - you would need to implement the actual logic
-    // based on how your system identifies principal subjects
-    const isPrincipal = result.isPrincipal || false;
+    // Use the isPrincipal flag from the result object
+    // This flag should be set during marks entry
+    const isPrincipal = result.isPrincipal === true;
 
+    // Add to the appropriate array based on isPrincipal flag
     if (isPrincipal) {
       principalSubjects.push(result);
     } else {
       subsidiarySubjects.push(result);
     }
+  }
+
+  // Ensure we have at least 3 principal subjects for proper division calculation
+  if (principalSubjects.length < 3 && subjectResults.length >= 3) {
+    console.warn(`Warning: Only ${principalSubjects.length} principal subjects found. A-Level requires at least 3 principal subjects for proper division calculation.`);
+
+    // If we don't have enough principal subjects, mark the top subjects as principal
+    // Sort by marks (descending)
+    const sortedResults = [...subjectResults].filter(r => !principalSubjects.includes(r))
+      .sort((a, b) =>
+        (b.marksObtained !== undefined ? b.marksObtained : (b.marks || 0)) -
+        (a.marksObtained !== undefined ? a.marksObtained : (a.marks || 0))
+      );
+
+    // Take enough subjects to reach 3 principal subjects
+    const neededSubjects = 3 - principalSubjects.length;
+    for (let i = 0; i < Math.min(neededSubjects, sortedResults.length); i++) {
+      sortedResults[i].isPrincipal = true;
+      principalSubjects.push(sortedResults[i]);
+      // Remove from subsidiary if it was there
+      const subIndex = subsidiarySubjects.findIndex(s => s === sortedResults[i]);
+      if (subIndex !== -1) {
+        subsidiarySubjects.splice(subIndex, 1);
+      }
+      console.log(`Marking subject ${sortedResults[i].subject} as principal (marks: ${sortedResults[i].marksObtained || sortedResults[i].marks || 0})`);
+    }
+  }
+
+  // Add to table data
+  for (const result of subjectResults) {
+    // Check if this result is now in the principal subjects array
+    const isPrincipal = principalSubjects.includes(result);
 
     tableData.push([
       result.subject + (isPrincipal ? ' (P)' : ' (S)'),
-      result.marks || result.marksObtained || 0,
+      result.marksObtained !== undefined ? result.marksObtained : (result.marks || 0),
       result.grade || '',
       result.points || 0,
       result.remarks || ''
@@ -517,7 +550,7 @@ const generateALevelClassReportPDF = (report, res) => {
 
         if (subjectName) {
           subjectMarks[subjectName] = {
-            marks: result.marks || result.marksObtained || 0,
+            marks: result.marksObtained !== undefined ? result.marksObtained : (result.marks || 0),
             grade: result.grade || ''
           };
         }

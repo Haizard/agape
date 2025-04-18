@@ -122,7 +122,7 @@ const resultApi = {
    * @returns {String} - The report URL
    */
   getALevelStudentReportUrl: (studentId, examId) => {
-    return `${api.defaults.baseURL}/api/a-level-results/student/${studentId}/${examId}`;
+    return `${api.defaults.baseURL}/api/a-level-reports/student/${studentId}/${examId}`;
   },
 
   /**
@@ -132,7 +132,7 @@ const resultApi = {
    * @returns {String} - The report URL
    */
   getALevelClassReportUrl: (classId, examId) => {
-    return `${api.defaults.baseURL}/api/a-level-results/class/${classId}/${examId}`;
+    return `${api.defaults.baseURL}/api/a-level-reports/class/${classId}/${examId}`;
   },
 
   /**

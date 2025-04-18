@@ -170,7 +170,7 @@ export const getClassResultReport = async (classId, examId, educationLevel = 'O_
     let endpoint = '';
     if (educationLevel === 'A_LEVEL') {
       // Try the API endpoint first
-      endpoint = constructApiUrl(`/a-level-results/class/${classId}/${examId}`);
+      endpoint = constructApiUrl(`/a-level-reports/class/${classId}/${examId}`);
     } else {
       endpoint = constructApiUrl(`/o-level-results/class/${classId}/${examId}`);
     }

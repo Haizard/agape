@@ -9,14 +9,14 @@ import noAuthApi from './noAuthApi';
 export const getPublicALevelReport = async (classId, examId) => {
   try {
     console.log(`Fetching public A-Level report for class ${classId} and exam ${examId}`);
-    
+
     // Try the public endpoint
-    const endpoint = `a-level-results/public/${classId}/${examId}`;
+    const endpoint = `a-level-reports/public/${classId}/${examId}`;
     const response = await noAuthApi.get(endpoint);
     return response.data;
   } catch (error) {
     console.error('Error fetching public A-Level report:', error);
-    
+
     // Return sample data if the API call fails
     return getSampleALevelReport();
   }

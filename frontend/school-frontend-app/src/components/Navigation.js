@@ -182,6 +182,7 @@ const Navigation = () => {
           { text: 'Parent Contacts', icon: <ContactPhoneIcon />, path: '/admin/parent-contacts', hidden: true },
           { text: 'SMS Settings', icon: <SmsIcon />, path: '/admin/sms-settings', hidden: true },
           { text: 'News', icon: <AnnouncementIcon />, path: '/admin/news', hidden: true },
+          { text: 'A-Level Class Reports', icon: <DescriptionIcon />, path: '/admin/a-level-class-reports', highlight: true, description: 'A-Level class reports with form-level filtering' },
           { text: 'A-Level Comprehensive Reports', icon: <DescriptionIcon />, path: '/results/a-level-comprehensive-selector', highlight: true, description: 'Comprehensive A-Level reports for Form 5 and Form 6' },
           { text: 'Academic Report Books', icon: <MenuBookIcon />, path: '/results/report-book-selector', highlight: true, description: 'Complete academic report books with all student performance data' },
         ];
@@ -193,6 +194,7 @@ const Navigation = () => {
           { text: 'Marks Entry Dashboard', icon: <GradeIcon />, path: '/results/marks-entry-dashboard', highlight: true },
           { text: 'Results', icon: <AssessmentIcon />, path: '/teacher/results' },
           { text: 'Class Reports', icon: <DescriptionIcon />, path: '/teacher/class-reports' },
+          { text: 'A-Level Class Reports', icon: <DescriptionIcon />, path: '/admin/a-level-class-reports', highlight: true },
           { text: 'A-Level Comprehensive Reports', icon: <DescriptionIcon />, path: '/results/a-level-comprehensive-selector', highlight: true },
           { text: 'Academic Report Books', icon: <MenuBookIcon />, path: '/results/report-book-selector', highlight: true },
           { text: 'SMS Notification', icon: <SmsIcon />, path: '/teacher/sms-notification' },

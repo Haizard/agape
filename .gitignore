@@ -21,3 +21,4 @@ yarn-error.log*
 
 # Explicitly don't ignore the build directory
 !frontend/school-frontend-app/build/
+.qodo

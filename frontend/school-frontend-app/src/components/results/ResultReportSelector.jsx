@@ -24,7 +24,7 @@ import {
   Assignment as AssignmentIcon,
   FilterList as FilterIcon
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 
 /**
@@ -33,7 +33,14 @@ import api from '../../services/api';
  */
 const ResultReportSelector = () => {
   const navigate = useNavigate();
-  const [tabValue, setTabValue] = useState(0);
+  const location = useLocation();
+
+  // Get query parameters from URL
+  const queryParams = new URLSearchParams(location.search);
+  const tabParam = queryParams.get('tab');
+  const educationLevelParam = queryParams.get('educationLevel');
+
+  const [tabValue, setTabValue] = useState(tabParam ? parseInt(tabParam) : 0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [students, setStudents] = useState([]);
@@ -46,7 +53,7 @@ const ResultReportSelector = () => {
   const [selectedExam, setSelectedExam] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('');
-  const [educationLevel, setEducationLevel] = useState('O_LEVEL');
+  const [educationLevel, setEducationLevel] = useState(educationLevelParam || 'O_LEVEL');
 
   // Fetch data on component mount
   useEffect(() => {
@@ -124,6 +131,11 @@ const ResultReportSelector = () => {
   // Handle tab change
   const handleTabChange = (_, newValue) => {
     setTabValue(newValue);
+
+    // Update URL with the new tab value
+    const newParams = new URLSearchParams(location.search);
+    newParams.set('tab', newValue.toString());
+    navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
   };
 
   // Handle student selection
@@ -144,7 +156,13 @@ const ResultReportSelector = () => {
 
   // Handle education level selection
   const handleEducationLevelChange = (event) => {
-    setEducationLevel(event.target.value);
+    const newEducationLevel = event.target.value;
+    setEducationLevel(newEducationLevel);
+
+    // Update URL with the new education level
+    const newParams = new URLSearchParams(location.search);
+    newParams.set('educationLevel', newEducationLevel);
+    navigate(`${location.pathname}?${newParams.toString()}`, { replace: true });
   };
 
   // Generate student report
@@ -426,7 +444,7 @@ const ResultReportSelector = () => {
                         size="small"
                         onClick={() => {
                           if (selectedClass && selectedExam) {
-                            navigate(`/results/a-level/form5/class/${selectedClass}/${selectedExam}`);
+                            navigate(`/results/a-level/class/${selectedClass}/${selectedExam}/form/5`);
                           } else {
                             setError('Please select a class and an exam first');
                           }
@@ -461,7 +479,7 @@ const ResultReportSelector = () => {
                         size="small"
                         onClick={() => {
                           if (selectedClass && selectedExam) {
-                            navigate(`/results/a-level/form6/class/${selectedClass}/${selectedExam}`);
+                            navigate(`/results/a-level/class/${selectedClass}/${selectedExam}/form/6`);
                           } else {
                             setError('Please select a class and an exam first');
                           }
@@ -712,14 +730,14 @@ const ResultReportSelector = () => {
                   color="secondary"
                   onClick={() => {
                     if (selectedClass && selectedExam) {
-                      navigate(`/admin/enhanced-a-level-report/${selectedClass}/${selectedExam}?educationLevel=A_LEVEL`);
+                      navigate(`/results/a-level/class/${selectedClass}/${selectedExam}`);
                     }
                   }}
                   disabled={!selectedClass || !selectedExam || loading || educationLevel !== 'A_LEVEL'}
                   startIcon={<AssignmentIcon />}
                   fullWidth
                 >
-                  Generate Enhanced A-Level Report
+                  Generate A-Level Class Report
                 </Button>
               </Grid>
 
@@ -871,7 +889,7 @@ const ResultReportSelector = () => {
                         color="secondary"
                         onClick={() => {
                           if (selectedClass && selectedExam) {
-                            navigate(`/admin/enhanced-a-level-report/${selectedClass}/${selectedExam}?educationLevel=A_LEVEL`);
+                            navigate(`/results/a-level/class/${selectedClass}/${selectedExam}`);
                           } else {
                             setError('Please select a class and exam first');
                           }
@@ -880,7 +898,7 @@ const ResultReportSelector = () => {
                         sx={{ mt: 2 }}
                         disabled={educationLevel !== 'A_LEVEL'}
                       >
-                        Try Enhanced A-Level Report
+                        Try A-Level Class Report
                       </Button>
                     </CardContent>
                   </Card>

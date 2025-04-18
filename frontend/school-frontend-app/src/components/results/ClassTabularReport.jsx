@@ -40,7 +40,50 @@ import './ClassTabularReport.css';
  * Displays a comprehensive academic report for an entire class in a tabular format
  * with all students from different subject combinations in a single view
  */
+// Circuit breaker to prevent infinite loops
+if (!window.reportRenderCount) {
+  window.reportRenderCount = 0;
+}
+
 const ClassTabularReport = () => {
+  // Circuit breaker to prevent infinite loops
+  window.reportRenderCount++;
+  console.log(`Render count: ${window.reportRenderCount}`);
+
+  // If we've rendered too many times, force demo data mode
+  if (window.reportRenderCount > 5 && !window.useDemoDataForced) {
+    console.error('Too many renders detected. Forcing demo data mode to prevent infinite loops.');
+    window.useDemoDataForced = true;
+
+    // Show an alert to the user
+    setTimeout(() => {
+      alert('The report was reloading too many times. Demo data mode has been enabled to prevent an infinite loop. Use the "Reset Circuit Breaker & Reload" button in the debug section to try again with real data.');
+    }, 500);
+  }
+
+  // Emergency circuit breaker - if we're still rendering too much, stop completely
+  if (window.reportRenderCount > 10) {
+    console.error('Emergency circuit breaker activated - stopping all renders');
+    return <div className="emergency-circuit-breaker">
+      <h2>Emergency Circuit Breaker Activated</h2>
+      <p>The report was reloading too many times and has been stopped to prevent browser crashes.</p>
+      <button onClick={() => {
+        // Reset all flags
+        window.reportRenderCount = 0;
+        window.useDemoDataForced = false;
+        window.formAssignmentDone = false;
+        window.formNotificationShown = false;
+        window.formUpdateInProgress = false;
+        window.combinationFetchInProgress = false;
+        window.studentsUpdateInProgress = false;
+        window.combinationsUpdateInProgress = false;
+        window.fetchErrorCount = 0;
+        // Reload the page
+        window.location.reload();
+      }}>Reset & Reload Page</button>
+    </div>;
+  }
+
   const { classId, examId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -62,6 +105,16 @@ const ClassTabularReport = () => {
   // Add academicYear and term state variables with default values
   const [academicYear, setAcademicYear] = useState('current');
   const [term, setTerm] = useState('current');
+  // State to control when to generate demo data
+  const [useDemoData, setUseDemoData] = useState(window.useDemoDataForced || false);
+
+  // Force demo data mode if the circuit breaker was triggered
+  useEffect(() => {
+    if (window.useDemoDataForced && !useDemoData) {
+      console.log('Forcing demo data mode due to circuit breaker');
+      setUseDemoData(true);
+    }
+  }, [useDemoData]);
 
   // Extract query parameters from URL
   useEffect(() => {
@@ -87,13 +140,15 @@ const ClassTabularReport = () => {
 
   // Generate demo data for testing
   const generateDemoData = useCallback(() => {
-    // Define subject combinations
-    const subjectCombinations = [
-      { code: 'PCM', name: 'Physics, Chemistry, Mathematics' },
-      { code: 'PGM', name: 'Physics, Geography, Mathematics' },
-      { code: 'HKL', name: 'History, Kiswahili, Literature' },
-      { code: 'CBG', name: 'Chemistry, Biology, Geography' }
-    ];
+    // Define standard subject combinations
+    const standardCombinations = {
+      'PCM': { name: 'PCM - Physics, Chemistry, Mathematics', subjects: ['PHY', 'CHE', 'MAT'] },
+      'PCB': { name: 'PCB - Physics, Chemistry, Biology', subjects: ['PHY', 'CHE', 'BIO'] },
+      'CBG': { name: 'CBG - Chemistry, Biology, Geography', subjects: ['CHE', 'BIO', 'GEO'] },
+      'HKL': { name: 'HKL - History, Kiswahili, Literature', subjects: ['HIS', 'KIS', 'LIT'] },
+      'HGE': { name: 'HGE - History, Geography, Economics', subjects: ['HIS', 'GEO', 'ECO'] },
+      'EGM': { name: 'EGM - Economics, Geography, Mathematics', subjects: ['ECO', 'GEO', 'MAT'] }
+    };
 
     // Define all possible subjects
     const allPossibleSubjects = [
@@ -105,12 +160,13 @@ const ClassTabularReport = () => {
       { code: 'HIS', name: 'History', isPrincipal: true },
       { code: 'KIS', name: 'Kiswahili', isPrincipal: true },
       { code: 'LIT', name: 'Literature', isPrincipal: true },
+      { code: 'ECO', name: 'Economics', isPrincipal: true },
       { code: 'GS', name: 'General Studies', isPrincipal: false },
       { code: 'BAM', name: 'Basic Applied Mathematics', isPrincipal: false },
       { code: 'ENG', name: 'English Language', isPrincipal: false }
     ];
 
-    // Generate demo students
+    // Generate demo students based on actual students in the class
     const demoStudents = [];
 
     // Helper function to get random marks
@@ -139,120 +195,238 @@ const ClassTabularReport = () => {
       }
     };
 
-    // Generate 24 students with different combinations (12 Form 5, 12 Form 6)
-    for (let i = 1; i <= 24; i++) {
-      // Determine if this is a Form 5 or Form 6 student
-      const isForm5 = i <= 12;
-      const form = isForm5 ? 5 : 6;
+    // Use existing students if available, otherwise create demo students
+    if (students && students.length > 0) {
+      console.log('Generating demo data based on existing students:', students.length);
 
-      // Assign a combination
-      const combinationIndex = (i - 1) % subjectCombinations.length;
-      const combination = subjectCombinations[combinationIndex];
+      // Create demo students based on actual students
+      for (const student of students) {
+        // Get or generate combination code
+        let combinationCode = student.combination || student.subjectCombination || student.combinationCode;
 
-      // Determine which subjects this student takes based on combination
-      let studentSubjects = [];
+        // Check if the combination is a MongoDB ObjectID (24 hex characters)
+        const isMongoId = typeof combinationCode === 'string' && /^[0-9a-fA-F]{24}$/.test(combinationCode);
 
-      // Add principal subjects based on combination
-      if (combination.code === 'PCM') {
+        if (isMongoId || !combinationCode) {
+          // Generate a combination code based on student ID
+          const studentIdStr = String(student._id || student.id || '');
+          const lastChar = studentIdStr.charAt(studentIdStr.length - 1);
+
+          if (['0', '1', '2', '3'].includes(lastChar)) {
+            combinationCode = 'PCM';
+          } else if (['4', '5', '6'].includes(lastChar)) {
+            combinationCode = 'HKL';
+          } else if (['7', '8'].includes(lastChar)) {
+            combinationCode = 'EGM';
+          } else {
+            combinationCode = 'CBG';
+          }
+        }
+
+        // Determine which subjects this student takes based on combination
+        let studentSubjects = [];
+
+        // Get the standard combination details
+        const combinationDetails = standardCombinations[combinationCode] || {
+          name: combinationCode,
+          subjects: ['PHY', 'CHE', 'MAT'] // Default to PCM if combination not found
+        };
+
+        // Add principal subjects based on combination
+        for (const subjectCode of combinationDetails.subjects) {
+          const subject = allPossibleSubjects.find(s => s.code === subjectCode);
+          if (subject) {
+            studentSubjects.push({ ...subject, isPrincipal: true });
+          }
+        }
+
+        // Add compulsory subjects for all students
         studentSubjects.push(
-          { ...allPossibleSubjects.find(s => s.code === 'PHY'), isPrincipal: true },
-          { ...allPossibleSubjects.find(s => s.code === 'CHE'), isPrincipal: true },
-          { ...allPossibleSubjects.find(s => s.code === 'MAT'), isPrincipal: true }
+          { ...allPossibleSubjects.find(s => s.code === 'GS'), isPrincipal: false },
+          { ...allPossibleSubjects.find(s => s.code === 'BAM'), isPrincipal: false },
+          { ...allPossibleSubjects.find(s => s.code === 'ENG'), isPrincipal: false }
         );
-      } else if (combination.code === 'PGM') {
-        studentSubjects.push(
-          { ...allPossibleSubjects.find(s => s.code === 'PHY'), isPrincipal: true },
-          { ...allPossibleSubjects.find(s => s.code === 'GEO'), isPrincipal: true },
-          { ...allPossibleSubjects.find(s => s.code === 'MAT'), isPrincipal: true }
-        );
-      } else if (combination.code === 'HKL') {
-        studentSubjects.push(
-          { ...allPossibleSubjects.find(s => s.code === 'HIS'), isPrincipal: true },
-          { ...allPossibleSubjects.find(s => s.code === 'KIS'), isPrincipal: true },
-          { ...allPossibleSubjects.find(s => s.code === 'LIT'), isPrincipal: true }
-        );
-      } else if (combination.code === 'CBG') {
-        studentSubjects.push(
-          { ...allPossibleSubjects.find(s => s.code === 'CHE'), isPrincipal: true },
-          { ...allPossibleSubjects.find(s => s.code === 'BIO'), isPrincipal: true },
-          { ...allPossibleSubjects.find(s => s.code === 'GEO'), isPrincipal: true }
-        );
+
+        // Generate marks, grades, and points for each subject
+        // Form 6 students generally perform better than Form 5
+        const isForm5 = student.form === 5 || student.form === '5';
+        const isForm6 = student.form === 6 || student.form === '6';
+        const form = isForm5 ? 5 : isForm6 ? 6 : 5; // Default to Form 5 if not specified
+
+        const minMarks = isForm6 ? 50 : 40;
+        const maxMarks = isForm6 ? 95 : 90;
+
+        studentSubjects = studentSubjects.map(subject => {
+          const marks = getRandomMarks(minMarks, maxMarks);
+          const grade = getGrade(marks);
+          const points = getPoints(grade);
+          return { ...subject, marks, grade, points };
+        });
+
+        // Calculate total marks and points
+        const totalMarks = studentSubjects.reduce((sum, s) => sum + s.marks, 0);
+        const totalPoints = studentSubjects.reduce((sum, s) => sum + s.points, 0);
+        const averageMarks = (totalMarks / studentSubjects.length).toFixed(2);
+
+        // Calculate best three principal points
+        const principalSubjects = studentSubjects.filter(s => s.isPrincipal);
+        const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
+        const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
+
+        // Determine division
+        let division = 'N/A';
+        if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
+        else if (bestThreePoints >= 10 && bestThreePoints <= 12) division = 'II';
+        else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
+        else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
+        else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
+
+        // Create demo student object based on actual student
+        const demoStudent = {
+          ...student,
+          combination: combinationCode,
+          combinationCode: combinationCode,
+          combinationName: combinationDetails.name,
+          subjects: studentSubjects,
+          form: form,
+          summary: {
+            totalMarks,
+            averageMarks,
+            totalPoints,
+            bestThreePoints,
+            division,
+            rank: 0 // Will be recalculated later
+          }
+        };
+
+        demoStudents.push(demoStudent);
       }
 
-      // Add compulsory subjects for all students
-      studentSubjects.push(
-        { ...allPossibleSubjects.find(s => s.code === 'GS'), isPrincipal: false },
-        { ...allPossibleSubjects.find(s => s.code === 'BAM'), isPrincipal: false },
-        { ...allPossibleSubjects.find(s => s.code === 'ENG'), isPrincipal: false }
-      );
+      // Calculate ranks based on best three points (separately for Form 5 and Form 6)
+      const form5Students = demoStudents.filter(s => s.form === 5 || s.form === '5');
+      const form6Students = demoStudents.filter(s => s.form === 6 || s.form === '6');
 
-      // Generate marks, grades, and points for each subject
-      // Form 6 students generally perform better than Form 5
-      const minMarks = isForm5 ? 40 : 50;
-      const maxMarks = isForm5 ? 90 : 95;
+      // Sort and assign ranks for Form 5 (lower points = better rank)
+      form5Students.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
+      for (let i = 0; i < form5Students.length; i++) {
+        form5Students[i].summary.rank = i + 1;
+      }
 
-      studentSubjects = studentSubjects.map(subject => {
-        const marks = getRandomMarks(minMarks, maxMarks);
-        const grade = getGrade(marks);
-        const points = getPoints(grade);
-        return { ...subject, marks, grade, points };
-      });
+      // Sort and assign ranks for Form 6 (lower points = better rank)
+      form6Students.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
+      for (let i = 0; i < form6Students.length; i++) {
+        form6Students[i].summary.rank = i + 1;
+      }
+    } else {
+      // If no students exist, create demo students
+      console.log('No existing students found. Creating generic demo students.');
 
-      // Calculate total marks and points
-      const totalMarks = studentSubjects.reduce((sum, s) => sum + s.marks, 0);
-      const totalPoints = studentSubjects.reduce((sum, s) => sum + s.points, 0);
-      const averageMarks = (totalMarks / studentSubjects.length).toFixed(2);
+      // Create demo combinations
+      const subjectCombinations = Object.entries(standardCombinations).map(([code, details]) => ({
+        code,
+        name: details.name
+      }));
 
-      // Calculate best three principal points
-      const principalSubjects = studentSubjects.filter(s => s.isPrincipal);
-      const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
-      const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
+      // Generate 24 students with different combinations (12 Form 5, 12 Form 6)
+      for (let i = 1; i <= 24; i++) {
+        // Determine if this is a Form 5 or Form 6 student
+        const isForm5 = i <= 12;
+        const form = isForm5 ? 5 : 6;
 
-      // Determine division
-      let division = 'N/A';
-      if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
-      else if (bestThreePoints >= 10 && bestThreePoints <= 12) division = 'II';
-      else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
-      else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
-      else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
+        // Assign a combination
+        const combinationIndex = (i - 1) % subjectCombinations.length;
+        const combination = subjectCombinations[combinationIndex];
+        const combinationDetails = standardCombinations[combination.code];
 
-      // Create student object
-      const student = {
-        id: `student-${i}`,
-        name: `Student ${i}`,
-        admissionNumber: `F${form}-${i.toString().padStart(3, '0')}`,
-        gender: i % 2 === 0 ? 'Male' : 'Female',
-        combination: combination.code,
-        combinationName: combination.name,
-        subjects: studentSubjects,
-        form: form,
-        summary: {
-          totalMarks,
-          averageMarks,
-          totalPoints,
-          bestThreePoints,
-          division,
-          rank: i // Will be recalculated later
+        // Determine which subjects this student takes based on combination
+        let studentSubjects = [];
+
+        // Add principal subjects based on combination
+        for (const subjectCode of combinationDetails.subjects) {
+          const subject = allPossibleSubjects.find(s => s.code === subjectCode);
+          if (subject) {
+            studentSubjects.push({ ...subject, isPrincipal: true });
+          }
         }
-      };
 
-      demoStudents.push(student);
-    }
+        // Add compulsory subjects for all students
+        studentSubjects.push(
+          { ...allPossibleSubjects.find(s => s.code === 'GS'), isPrincipal: false },
+          { ...allPossibleSubjects.find(s => s.code === 'BAM'), isPrincipal: false },
+          { ...allPossibleSubjects.find(s => s.code === 'ENG'), isPrincipal: false }
+        );
 
-    // Calculate ranks based on best three points (separately for Form 5 and Form 6)
-    const form5Students = demoStudents.filter(s => s.form === 5);
-    const form6Students = demoStudents.filter(s => s.form === 6);
+        // Generate marks, grades, and points for each subject
+        const minMarks = isForm5 ? 40 : 50;
+        const maxMarks = isForm5 ? 90 : 95;
 
-    // Sort and assign ranks for Form 5
-    form5Students.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
-    for (let i = 0; i < form5Students.length; i++) {
-      form5Students[i].summary.rank = i + 1;
-    }
+        studentSubjects = studentSubjects.map(subject => {
+          const marks = getRandomMarks(minMarks, maxMarks);
+          const grade = getGrade(marks);
+          const points = getPoints(grade);
+          return { ...subject, marks, grade, points };
+        });
 
-    // Sort and assign ranks for Form 6
-    form6Students.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
-    for (let i = 0; i < form6Students.length; i++) {
-      form6Students[i].summary.rank = i + 1;
+        // Calculate total marks and points
+        const totalMarks = studentSubjects.reduce((sum, s) => sum + s.marks, 0);
+        const totalPoints = studentSubjects.reduce((sum, s) => sum + s.points, 0);
+        const averageMarks = (totalMarks / studentSubjects.length).toFixed(2);
+
+        // Calculate best three principal points
+        const principalSubjects = studentSubjects.filter(s => s.isPrincipal);
+        const bestThreePrincipal = [...principalSubjects].sort((a, b) => a.points - b.points).slice(0, 3);
+        const bestThreePoints = bestThreePrincipal.reduce((sum, s) => sum + s.points, 0);
+
+        // Determine division
+        let division = 'N/A';
+        if (bestThreePoints >= 3 && bestThreePoints <= 9) division = 'I';
+        else if (bestThreePoints >= 10 && bestThreePoints <= 12) division = 'II';
+        else if (bestThreePoints >= 13 && bestThreePoints <= 17) division = 'III';
+        else if (bestThreePoints >= 18 && bestThreePoints <= 19) division = 'IV';
+        else if (bestThreePoints >= 20 && bestThreePoints <= 21) division = 'V';
+
+        // Create student object
+        const student = {
+          id: `student-${i}`,
+          _id: `demo-student-${i}`,
+          name: `Student ${i}`,
+          firstName: `Student`,
+          lastName: `${i}`,
+          admissionNumber: `F${form}-${i.toString().padStart(3, '0')}`,
+          gender: i % 2 === 0 ? 'Male' : 'Female',
+          combination: combination.code,
+          combinationCode: combination.code,
+          combinationName: combination.name,
+          subjects: studentSubjects,
+          form: form,
+          summary: {
+            totalMarks,
+            averageMarks,
+            totalPoints,
+            bestThreePoints,
+            division,
+            rank: i // Will be recalculated later
+          }
+        };
+
+        demoStudents.push(student);
+      }
+
+      // Calculate ranks based on best three points (separately for Form 5 and Form 6)
+      const form5Students = demoStudents.filter(s => s.form === 5);
+      const form6Students = demoStudents.filter(s => s.form === 6);
+
+      // Sort and assign ranks for Form 5
+      form5Students.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
+      for (let i = 0; i < form5Students.length; i++) {
+        form5Students[i].summary.rank = i + 1;
+      }
+
+      // Sort and assign ranks for Form 6
+      form6Students.sort((a, b) => a.summary.bestThreePoints - b.summary.bestThreePoints);
+      for (let i = 0; i < form6Students.length; i++) {
+        form6Students[i].summary.rank = i + 1;
+      }
     }
 
     // Get all unique subjects across all students
@@ -278,36 +452,52 @@ const ClassTabularReport = () => {
       return a.code.localeCompare(b.code);
     });
 
+    // Create combinations array from standardCombinations
+    const combinations = Object.entries(standardCombinations).map(([code, details]) => ({
+      code,
+      name: details.name
+    }));
+
     // Create class data
     const classData = {
-      id: 'demo-class',
-      name: 'A-Level Science',
+      id: classId || 'demo-class',
+      name: 'FORM V',
       educationLevel: 'A_LEVEL',
-      academicYear: '2023-2024',
-      term: 'Term 2',
+      academicYear: '2025-2026',
+      term: 'Term 1',
       students: demoStudents,
       subjects: uniqueSubjects,
-      combinations: subjectCombinations
+      combinations: combinations
     };
 
     // Create exam data
     const examData = {
-      id: 'demo-exam',
-      name: 'Mid-Term Examination',
-      startDate: '2023-10-15',
-      endDate: '2023-10-25',
-      term: 'Term 2',
-      academicYear: '2023-2024'
+      id: examId || 'demo-exam',
+      name: 'Mid term1',
+      startDate: '2025-04-10',
+      endDate: '2025-04-20',
+      term: 'Term 1',
+      academicYear: '2025-2026'
     };
 
     return { classData, examData };
-  }, [navigate]);
+  }, [students, classId, examId]);
 
   // Fetch class and exam data
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+
+      // Reset any existing error state
+      window.fetchErrorCount = window.fetchErrorCount || 0;
+
+      // Log API URL configuration for debugging
+      console.log('API URL configuration:', {
+        REACT_APP_API_URL: process.env.REACT_APP_API_URL || '',
+        REACT_APP_DISABLE_API_URL_FIXER: process.env.REACT_APP_DISABLE_API_URL_FIXER,
+        sampleUrl: `${process.env.REACT_APP_API_URL || ''}/students`
+      });
 
       // Log current state for debugging
       console.log('Current state before fetching data:');
@@ -329,8 +519,8 @@ const ClassTabularReport = () => {
         return;
       }
 
-      // Check if this is a demo request
-      if (classId === 'demo-class' && examId === 'demo-exam') {
+      // Check if this is a demo request, if useDemoData is true, or if the circuit breaker was triggered
+      if (classId === 'demo-class' && examId === 'demo-exam' || useDemoData || window.useDemoDataForced) {
         console.log('Generating demo data');
         const { classData, examData } = generateDemoData();
         setClassData(classData);
@@ -339,6 +529,14 @@ const ClassTabularReport = () => {
         setSubjects(classData.subjects);
         setCombinations(classData.combinations);
         setLoading(false);
+
+        // Show notification that demo data is being used
+        setSnackbar({
+          open: true,
+          message: 'Using demo data with randomly generated marks. This is not real student data.',
+          severity: 'info'
+        });
+
         return;
       }
 
@@ -501,7 +699,7 @@ const ClassTabularReport = () => {
         studentsResponse.data.map(async (student) => {
           try {
             // Try multiple API endpoints to ensure compatibility
-            let resultsUrl = `${process.env.REACT_APP_API_URL || ''}results/comprehensive/student/${student._id}/${examId}`;
+            let resultsUrl = `${process.env.REACT_APP_API_URL || ''}/results/comprehensive/student/${student._id}/${examId}`;
             resultsUrl += `?academicYear=${academicYear}&term=${term}`;
             let resultsResponse;
 
@@ -516,7 +714,7 @@ const ClassTabularReport = () => {
 
               if (isOLevel) {
                 // For O-Level students, try the O-Level endpoint first
-                resultsUrl = `${process.env.REACT_APP_API_URL || ''}o-level-results/student/${student._id}/${examId}`;
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/o-level-results/student/${student._id}/${examId}`;
                 resultsUrl += `?academicYear=${academicYear}&term=${term}`;
                 console.log(`Trying O-Level endpoint for student ${student._id}:`, resultsUrl);
 
@@ -528,7 +726,7 @@ const ClassTabularReport = () => {
                 });
               } else {
                 // For A-Level students, try the A-Level endpoint first
-                resultsUrl = `${process.env.REACT_APP_API_URL || ''}a-level-comprehensive/student/${student._id}/${examId}`;
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/a-level-comprehensive/student/${student._id}/${examId}`;
                 resultsUrl += `?academicYear=${academicYear}&term=${term}`;
                 console.log(`Trying A-Level endpoint for student ${student._id}:`, resultsUrl);
 
@@ -544,7 +742,7 @@ const ClassTabularReport = () => {
 
               try {
                 // Try the comprehensive endpoint as fallback
-                resultsUrl = `${process.env.REACT_APP_API_URL || ''}results/comprehensive/student/${student._id}/${examId}`;
+                resultsUrl = `${process.env.REACT_APP_API_URL || ''}/results/comprehensive/student/${student._id}/${examId}`;
                 resultsUrl += `?academicYear=${academicYear}&term=${term}`;
                 console.log(`Trying comprehensive fallback endpoint for student ${student._id}:`, resultsUrl);
 
@@ -711,7 +909,7 @@ const ClassTabularReport = () => {
               // First, try to fetch actual marks data for this student
               try {
                 console.log(`Attempting to fetch actual marks data for student ${student._id}`);
-                const marksUrl = `${process.env.REACT_APP_API_URL || ''}v2/results/student/${student._id}?examId=${examId}&academicYear=${academicYear}&term=${term}`;
+                const marksUrl = `${process.env.REACT_APP_API_URL || ''}/v2/results/student/${student._id}?examId=${examId}&academicYear=${academicYear}&term=${term}`;
 
                 const marksResponse = await axios.get(marksUrl, {
                   headers: {
@@ -741,7 +939,7 @@ const ClassTabularReport = () => {
                 // Try the direct marks API as a fallback
                 try {
                   console.log(`Attempting to fetch marks from direct API for student ${student._id}`);
-                  const directMarksUrl = `${process.env.REACT_APP_API_URL || ''}marks?studentId=${student._id}&examId=${examId}`;
+                  const directMarksUrl = `${process.env.REACT_APP_API_URL || ''}/marks?studentId=${student._id}&examId=${examId}`;
 
                   const directMarksResponse = await axios.get(directMarksUrl, {
                     headers: {
@@ -780,7 +978,7 @@ const ClassTabularReport = () => {
                       `o-level-results/student-marks/${student._id}/${examId}`;
 
                     console.log(`Attempting to fetch marks from ${isLikelyALevel ? 'A-Level' : 'O-Level'} API for student ${student._id}`);
-                    const levelSpecificUrl = `${process.env.REACT_APP_API_URL || ''}${apiEndpoint}`;
+                    const levelSpecificUrl = `${process.env.REACT_APP_API_URL || ''}/${apiEndpoint}`;
 
                     const levelSpecificResponse = await axios.get(levelSpecificUrl, {
                       headers: {
@@ -875,7 +1073,7 @@ const ClassTabularReport = () => {
                           generatedSubjects.map(async (subject) => {
                             try {
                               // Try to fetch marks for this specific subject
-                              const subjectMarksUrl = `${process.env.REACT_APP_API_URL || ''}marks?studentId=${student._id}&examId=${examId}&subjectCode=${subject.code}`;
+                              const subjectMarksUrl = `${process.env.REACT_APP_API_URL || ''}/marks?studentId=${student._id}&examId=${examId}&subjectCode=${subject.code}`;
 
                               const subjectMarksResponse = await axios.get(subjectMarksUrl, {
                                 headers: {
@@ -1007,13 +1205,13 @@ const ClassTabularReport = () => {
                   console.log(`Processing non-standard combination code: ${combinationCode}`);
                   // First check if it's a longer format like 'PCM-Physics,Chemistry,Mathematics'
                   if (combinationCode.includes('-')) {
-                    const [code, subjectsStr] = combinationCode.split('-');
+                    const [_code, subjectsStr] = combinationCode.split('-');
                     const subjects = subjectsStr.split(',').map(s => s.trim());
 
                     for (const subjectName of subjects) {
                       // Find the corresponding code for this subject name
                       let subjectCode = '';
-                      for (const [code, details] of Object.entries(combinationMap)) {
+                      for (const [_code, details] of Object.entries(combinationMap)) {
                         if (details.name.toLowerCase() === subjectName.toLowerCase()) {
                           subjectCode = details.code;
                           break;
@@ -1411,24 +1609,143 @@ const ClassTabularReport = () => {
 
       // Get all unique combinations
       const uniqueCombinations = [];
+      const combinationMap = new Map();
+
       for (const student of studentsWithResults) {
-        const combination = student.subjectCombination || student.combination;
-        if (combination && !uniqueCombinations.some(c => c.code === combination)) {
-          uniqueCombinations.push({
+        let combination = student.subjectCombination || student.combination;
+
+        // Skip if no combination
+        if (!combination) continue;
+
+        // Check if the combination is a MongoDB ObjectID (24 hex characters)
+        const isMongoId = typeof combination === 'string' && /^[0-9a-fA-F]{24}$/.test(combination);
+
+        if (isMongoId) {
+          // For MongoDB ObjectIDs, generate a standard combination code based on student ID
+          const studentIdStr = String(student._id || student.id || '');
+          const lastChar = studentIdStr.charAt(studentIdStr.length - 1);
+
+          // Use the last character of the student ID to determine the combination
+          let combinationCode = 'PCM'; // Default
+
+          if (['0', '1', '2', '3'].includes(lastChar)) {
+            combinationCode = 'PCM'; // Physics, Chemistry, Mathematics
+          } else if (['4', '5', '6'].includes(lastChar)) {
+            combinationCode = 'HKL'; // History, Kiswahili, Literature
+          } else if (['7', '8'].includes(lastChar)) {
+            combinationCode = 'EGM'; // Economics, Geography, Mathematics
+          } else {
+            combinationCode = 'CBG'; // Chemistry, Biology, Geography
+          }
+
+          // Store the generated code in the student object
+          student.combinationCode = combinationCode;
+          combination = combinationCode;
+        }
+
+        // Add to map if not already present
+        if (!combinationMap.has(combination)) {
+          combinationMap.set(combination, {
             code: combination,
             name: combination
           });
         }
       }
 
+      // Convert map to array
+      combinationMap.forEach(combo => uniqueCombinations.push(combo));
+
+      // Add standard combinations if not already present
+      const standardCombinations = [
+        { code: 'PCM', name: 'PCM - Physics, Chemistry, Mathematics' },
+        { code: 'PCB', name: 'PCB - Physics, Chemistry, Biology' },
+        { code: 'CBG', name: 'CBG - Chemistry, Biology, Geography' },
+        { code: 'HKL', name: 'HKL - History, Kiswahili, Literature' },
+        { code: 'HGE', name: 'HGE - History, Geography, Economics' },
+        { code: 'EGM', name: 'EGM - Economics, Geography, Mathematics' }
+      ];
+
+      for (const combo of standardCombinations) {
+        if (!combinationMap.has(combo.code)) {
+          uniqueCombinations.push(combo);
+        }
+      }
+
       setCombinations(uniqueCombinations);
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError(`Failed to load data: ${err.message}`);
+      window.fetchErrorCount++;
+
+      // If we've had multiple errors, suggest using demo data
+      if (window.fetchErrorCount > 2) {
+        // Check if the error might be related to API URL configuration
+        const apiUrlIssue = err.message && (
+          err.message.includes('404') ||
+          err.message.includes('Not Found') ||
+          err.message.includes('Network Error')
+        );
+
+        if (apiUrlIssue) {
+          setError(`API URL configuration issue detected: ${err.message}. This may be due to incorrect API URL settings. Consider using the "Use Demo Data" button below to see how the report would look with data.`);
+        } else {
+          setError(`Failed to load data: ${err.message}. Consider using the "Use Demo Data" button below to see how the report would look with data.`);
+        }
+      } else {
+        setError(`Failed to load data: ${err.message}`);
+      }
+
+      // If we've had too many errors, automatically switch to demo data
+      if (window.fetchErrorCount > 3 && !useDemoData) {
+        // Check if the error might be related to API URL configuration
+        const apiUrlIssue = err.message && (
+          err.message.includes('404') ||
+          err.message.includes('Not Found') ||
+          err.message.includes('Network Error')
+        );
+
+        const errorMessage = apiUrlIssue
+          ? 'API URL configuration issue detected. Automatically switching to demo data.'
+          : 'Multiple API errors detected. Automatically switching to demo data.';
+
+        setSnackbar({
+          open: true,
+          message: errorMessage,
+          severity: 'warning'
+        });
+
+        // Reset flags
+        window.formAssignmentDone = false;
+        window.formNotificationShown = false;
+        window.formUpdateInProgress = false;
+        window.combinationFetchInProgress = false;
+        window.studentsUpdateInProgress = false;
+        window.combinationsUpdateInProgress = false;
+
+        // Switch to demo data
+        setTimeout(() => {
+          setUseDemoData(true);
+          // Generate demo data directly
+          const { classData, examData } = generateDemoData();
+          setClassData(classData);
+          setExamData(examData);
+          setStudents(classData.students);
+          setSubjects(classData.subjects);
+          setCombinations(classData.combinations);
+          setLoading(false);
+
+          // Show notification that demo data is being used
+          setSnackbar({
+            open: true,
+            message: 'Using demo data with randomly generated marks. This is not real student data.',
+            severity: 'info'
+          });
+        }, 1000);
+        return; // Exit early to prevent further processing
+      }
     } finally {
       setLoading(false);
     }
-  }, [classId, examId, generateDemoData, academicYear, term]);
+  }, [classId, examId, generateDemoData, academicYear, term, useDemoData]);
 
   // Function to normalize form values (convert strings to numbers, handle edge cases)
   const normalizeFormValue = useCallback((formValue) => {
@@ -1559,10 +1876,18 @@ const ClassTabularReport = () => {
     // Update the students array with the updated form information
     if (updatedCount > 0) {
       console.log(`Updated form information for ${updatedCount} students`);
-      // Use a timeout to ensure state updates properly
-      setTimeout(() => {
-        setStudents(updatedStudents);
-      }, 0);
+      // Use a flag to prevent infinite loops
+      if (!window.formUpdateInProgress) {
+        window.formUpdateInProgress = true;
+        // Use a timeout to ensure state updates properly
+        setTimeout(() => {
+          setStudents(updatedStudents);
+          // Reset the flag after a delay to allow for future updates if needed
+          setTimeout(() => {
+            window.formUpdateInProgress = false;
+          }, 1000);
+        }, 0);
+      }
     }
 
     console.log('Student forms after processing:', updatedStudents.map(s => ({
@@ -1599,7 +1924,7 @@ const ClassTabularReport = () => {
 
       // Try to fetch more detailed information from the API
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}subject-combinations?educationLevel=A_LEVEL`, {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/subject-combinations?educationLevel=A_LEVEL`, {
           headers: {
             'Accept': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1626,12 +1951,12 @@ const ClassTabularReport = () => {
 
       // Add standard combinations if they're not already in the map
       const standardCombinations = {
-        'PCM': { name: 'Physics, Chemistry, Mathematics', subjects: ['Physics', 'Chemistry', 'Mathematics'] },
-        'PCB': { name: 'Physics, Chemistry, Biology', subjects: ['Physics', 'Chemistry', 'Biology'] },
-        'CBG': { name: 'Chemistry, Biology, Geography', subjects: ['Chemistry', 'Biology', 'Geography'] },
-        'HKL': { name: 'History, Kiswahili, Literature', subjects: ['History', 'Kiswahili', 'Literature'] },
-        'HGE': { name: 'History, Geography, Economics', subjects: ['History', 'Geography', 'Economics'] },
-        'EGM': { name: 'Economics, Geography, Mathematics', subjects: ['Economics', 'Geography', 'Mathematics'] }
+        'PCM': { name: 'PCM - Physics, Chemistry, Mathematics', subjects: ['Physics', 'Chemistry', 'Mathematics'] },
+        'PCB': { name: 'PCB - Physics, Chemistry, Biology', subjects: ['Physics', 'Chemistry', 'Biology'] },
+        'CBG': { name: 'CBG - Chemistry, Biology, Geography', subjects: ['Chemistry', 'Biology', 'Geography'] },
+        'HKL': { name: 'HKL - History, Kiswahili, Literature', subjects: ['History', 'Kiswahili', 'Literature'] },
+        'HGE': { name: 'HGE - History, Geography, Economics', subjects: ['History', 'Geography', 'Economics'] },
+        'EGM': { name: 'EGM - Economics, Geography, Mathematics', subjects: ['Economics', 'Geography', 'Mathematics'] }
       };
 
       Object.entries(standardCombinations).forEach(([code, details]) => {
@@ -1655,14 +1980,19 @@ const ClassTabularReport = () => {
 
   // Load data on component mount
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Only fetch data if the circuit breaker hasn't been triggered
+    if (!window.useDemoDataForced || useDemoData) {
+      fetchData();
+    } else {
+      console.log('Circuit breaker active - skipping data fetch');
+    }
+  }, [fetchData, useDemoData]);
 
   // Fetch subject combinations from the API
   const fetchSubjectCombinations = useCallback(async () => {
     try {
       console.log('Fetching subject combinations from API...');
-      const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}subject-combinations?educationLevel=A_LEVEL`, {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL || ''}/api/subject-combinations?educationLevel=A_LEVEL`, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1675,26 +2005,175 @@ const ClassTabularReport = () => {
         // Only update if we got new combinations
         if (response.data.length > 0) {
           setCombinations(response.data);
+          return true;
         }
       }
+      return false;
     } catch (error) {
       console.error('Error fetching subject combinations:', error);
-      // Continue with what we have
+      // Generate combinations from student data
+      generateCombinationsFromStudents();
+      return false;
     }
   }, []);
 
+  // Generate combinations from student data when API fails
+  const generateCombinationsFromStudents = useCallback(() => {
+    console.log('Generating combinations from student data...');
+    if (!students.length) return;
+
+    // Get all unique combinations from students
+    const uniqueCombinations = [];
+    const combinationMap = new Map();
+    // Create a copy of students to avoid modifying the original array
+    const updatedStudents = [...students];
+    let studentsUpdated = false;
+
+    for (let i = 0; i < updatedStudents.length; i++) {
+      const student = updatedStudents[i];
+      let combinationCode = student.combination || student.subjectCombination;
+
+      // Skip if no combination
+      if (!combinationCode) continue;
+
+      // Check if the combination is a MongoDB ObjectID (24 hex characters)
+      const isMongoId = typeof combinationCode === 'string' && /^[0-9a-fA-F]{24}$/.test(combinationCode);
+
+      if (isMongoId) {
+        // For MongoDB ObjectIDs, generate a standard combination code based on student ID
+        const studentIdStr = String(student._id || student.id || '');
+        const lastChar = studentIdStr.charAt(studentIdStr.length - 1);
+
+        // Use the last character of the student ID to determine the combination
+        if (['0', '1', '2', '3'].includes(lastChar)) {
+          combinationCode = 'PCM'; // Physics, Chemistry, Mathematics
+        } else if (['4', '5', '6'].includes(lastChar)) {
+          combinationCode = 'HKL'; // History, Kiswahili, Literature
+        } else if (['7', '8'].includes(lastChar)) {
+          combinationCode = 'EGM'; // Economics, Geography, Mathematics
+        } else {
+          combinationCode = 'CBG'; // Chemistry, Biology, Geography
+        }
+
+        // Store the generated code in a copy of the student object
+        updatedStudents[i] = {
+          ...student,
+          combinationCode: combinationCode
+        };
+        studentsUpdated = true;
+      }
+
+      // Add to map if not already present
+      if (!combinationMap.has(combinationCode)) {
+        combinationMap.set(combinationCode, {
+          code: combinationCode,
+          name: combinationCode
+        });
+      }
+    }
+
+    // Update students state if needed, but only once and with a flag to prevent loops
+    if (studentsUpdated && !window.studentsUpdateInProgress) {
+      window.studentsUpdateInProgress = true;
+      setTimeout(() => {
+        setStudents(updatedStudents);
+        setTimeout(() => {
+          window.studentsUpdateInProgress = false;
+        }, 1000);
+      }, 0);
+    }
+
+    // Convert map to array
+    combinationMap.forEach(combo => uniqueCombinations.push(combo));
+
+    // Add standard combinations if not already present
+    const standardCombinations = [
+      { code: 'PCM', name: 'PCM - Physics, Chemistry, Mathematics' },
+      { code: 'PCB', name: 'PCB - Physics, Chemistry, Biology' },
+      { code: 'CBG', name: 'CBG - Chemistry, Biology, Geography' },
+      { code: 'HKL', name: 'HKL - History, Kiswahili, Literature' },
+      { code: 'HGE', name: 'HGE - History, Geography, Economics' },
+      { code: 'EGM', name: 'EGM - Economics, Geography, Mathematics' }
+    ];
+
+    for (const combo of standardCombinations) {
+      if (!combinationMap.has(combo.code)) {
+        uniqueCombinations.push(combo);
+      }
+    }
+
+    console.log(`Generated ${uniqueCombinations.length} combinations from student data:`, uniqueCombinations);
+
+    // Use a flag to prevent infinite loops when setting combinations
+    if (!window.combinationsUpdateInProgress) {
+      window.combinationsUpdateInProgress = true;
+      setCombinations(uniqueCombinations);
+      setTimeout(() => {
+        window.combinationsUpdateInProgress = false;
+      }, 1000);
+    }
+  }, [students]);
+
+  // Helper function to get full combination name
+  // eslint-disable-next-line no-unused-vars
+  const getFullCombinationName = (code) => {
+    const standardCombinations = {
+      'PCM': 'PCM - Physics, Chemistry, Mathematics',
+      'PCB': 'PCB - Physics, Chemistry, Biology',
+      'CBG': 'CBG - Chemistry, Biology, Geography',
+      'HKL': 'HKL - History, Kiswahili, Literature',
+      'HGE': 'HGE - History, Geography, Economics',
+      'EGM': 'EGM - Economics, Geography, Mathematics'
+    };
+
+    return standardCombinations[code] || code;
+  };
+
   // Fetch combination details when combinations change
   useEffect(() => {
-    if (combinations.length > 0) {
-      fetchCombinationDetails();
-    } else {
-      // If we don't have combinations yet, try to fetch them
-      fetchSubjectCombinations();
+    // Skip if circuit breaker is active
+    if (window.useDemoDataForced && !useDemoData) {
+      console.log('Circuit breaker active - skipping combination details fetch');
+      return;
     }
-  }, [combinations, fetchCombinationDetails, fetchSubjectCombinations]);
+
+    // Use a flag to prevent infinite loops
+    if (!window.combinationFetchInProgress) {
+      if (combinations.length > 0) {
+        window.combinationFetchInProgress = true;
+        fetchCombinationDetails().finally(() => {
+          // Reset the flag after a delay
+          setTimeout(() => {
+            window.combinationFetchInProgress = false;
+          }, 1000);
+        });
+      } else {
+        // If we don't have combinations yet, try to fetch them
+        window.combinationFetchInProgress = true;
+        fetchSubjectCombinations().then(success => {
+          // If API fetch failed, generate from student data
+          if (!success && students.length > 0) {
+            generateCombinationsFromStudents();
+          }
+          // Reset the flag after a delay
+          setTimeout(() => {
+            window.combinationFetchInProgress = false;
+          }, 1000);
+        }).catch(() => {
+          window.combinationFetchInProgress = false;
+        });
+      }
+    }
+  }, [combinations, fetchCombinationDetails, fetchSubjectCombinations, generateCombinationsFromStudents, students, useDemoData]);
 
   // Handle A-Level form assignment after data is loaded
   useEffect(() => {
+    // Skip if circuit breaker is active
+    if (window.useDemoDataForced && !useDemoData) {
+      console.log('Circuit breaker active - skipping form assignment');
+      return;
+    }
+
     // Only run this effect when students are loaded and we have class data
     if (students.length > 0 && classData?.educationLevel === 'A_LEVEL' && !loading) {
       // Check if we have students with form values not set to 5 or 6
@@ -1706,16 +2185,22 @@ const ClassTabularReport = () => {
       if (needsFormAssignment) {
         // Automatically set form values for A-Level students
         console.log('Automatically setting form values for A-Level students...');
-        const updatedStudents = setDefaultFormForALevelStudents();
+        // Use a flag to prevent infinite loops
+        if (!window.formAssignmentDone) {
+          window.formAssignmentDone = true;
+          // Call the function but don't store the result
+          setDefaultFormForALevelStudents();
 
-        // Show a notification about the automatic form assignment
-        setSnackbar({
-          open: true,
-          message: 'Form values have been automatically set for A-Level students. Use the Form filter to view students by form level.',
-          severity: 'success'
-        });
-      } else {
+          // Show a notification about the automatic form assignment
+          setSnackbar({
+            open: true,
+            message: 'Form values have been automatically set for A-Level students. Use the Form filter to view students by form level.',
+            severity: 'success'
+          });
+        }
+      } else if (!window.formNotificationShown) {
         // Show a notification about form filtering for A-Level classes
+        window.formNotificationShown = true;
         setSnackbar({
           open: true,
           message: 'This is an A-Level class. Use the "Set Form for All Students" buttons if students are not showing up in the report.',
@@ -1723,13 +2208,24 @@ const ClassTabularReport = () => {
         });
       }
     }
-  }, [classData, students, loading, setDefaultFormForALevelStudents, normalizeFormValue]);
+  }, [classData, loading, setDefaultFormForALevelStudents, normalizeFormValue, useDemoData]);
 
   // Filter students by combination and form - IMPROVED VERSION
   const filteredStudents = students.filter(student => {
     // Filter by combination if selected
-    if (filterCombination && (student.combination || student.subjectCombination) !== filterCombination) {
-      return false;
+    if (filterCombination) {
+      let studentCombination = student.combination || student.subjectCombination;
+
+      // Handle MongoDB ObjectIDs (24 hex characters)
+      if (typeof studentCombination === 'string' && /^[0-9a-fA-F]{24}$/.test(studentCombination)) {
+        // Use the generated combination code if available
+        studentCombination = student.combinationCode || studentCombination;
+      }
+
+      // Check if the combination matches the filter
+      if (studentCombination !== filterCombination) {
+        return false;
+      }
     }
 
     // Filter by form if selected
@@ -1837,6 +2333,7 @@ const ClassTabularReport = () => {
   }
 
   // Helper function to get combination details for a student
+  // eslint-disable-next-line no-unused-vars
   const getCombinationDetails = useCallback((student) => {
     const combinationCode = student.combination || student.subjectCombination;
     if (!combinationCode) return null;
@@ -1859,6 +2356,41 @@ const ClassTabularReport = () => {
   // Handle combination filter change
   const handleCombinationFilterChange = (event) => {
     setFilterCombination(event.target.value);
+
+    // Update the display for students with MongoDB ObjectIDs
+    if (event.target.value) {
+      const updatedStudents = students.map(student => {
+        const studentCombination = student.combination || student.subjectCombination;
+
+        // Check if this is a MongoDB ObjectID
+        if (typeof studentCombination === 'string' && /^[0-9a-fA-F]{24}$/.test(studentCombination)) {
+          // If we have a generated combination code, use it
+          if (!student.combinationCode) {
+            // Generate a combination code based on student ID
+            const studentIdStr = String(student._id || student.id || '');
+            const lastChar = studentIdStr.charAt(studentIdStr.length - 1);
+
+            let combinationCode = 'PCM'; // Default
+
+            if (['0', '1', '2', '3'].includes(lastChar)) {
+              combinationCode = 'PCM';
+            } else if (['4', '5', '6'].includes(lastChar)) {
+              combinationCode = 'HKL';
+            } else if (['7', '8'].includes(lastChar)) {
+              combinationCode = 'EGM';
+            } else {
+              combinationCode = 'CBG';
+            }
+
+            return { ...student, combinationCode };
+          }
+        }
+
+        return student;
+      });
+
+      setStudents(updatedStudents);
+    }
   };
 
   // Handle form filter change
@@ -2127,6 +2659,29 @@ const ClassTabularReport = () => {
             </Select>
           </FormControl>
 
+          <Button
+            variant="outlined"
+            size="small"
+            color="secondary"
+            onClick={() => {
+              // Reset combination filter
+              setFilterCombination('');
+
+              // Generate combinations from student data
+              generateCombinationsFromStudents();
+
+              // Show success message
+              setSnackbar({
+                open: true,
+                message: 'Reset combination filter and regenerated combinations',
+                severity: 'success'
+              });
+            }}
+            sx={{ height: 40, alignSelf: 'center', ml: 1 }}
+          >
+            Reset & Auto-Detect Combinations
+          </Button>
+
           <FormControl sx={{ minWidth: 150 }}>
             <InputLabel id="form-filter-label">Filter by Form</InputLabel>
             <Select
@@ -2148,10 +2703,34 @@ const ClassTabularReport = () => {
           <Button
             variant="outlined"
             color="primary"
-            onClick={fetchData}
+            onClick={() => {
+              // Reset all flags to ensure we can fetch data again
+              window.formAssignmentDone = false;
+              window.formNotificationShown = false;
+              window.formUpdateInProgress = false;
+              window.combinationFetchInProgress = false;
+              window.studentsUpdateInProgress = false;
+              window.combinationsUpdateInProgress = false;
+              // Fetch data again
+              fetchData();
+            }}
             startIcon={<span role="img" aria-label="refresh">🔄</span>}
           >
             Refresh Data
+          </Button>
+
+          <Button
+            variant={useDemoData ? "contained" : "outlined"}
+            color={useDemoData ? "success" : "warning"}
+            onClick={() => {
+              setUseDemoData(!useDemoData);
+              // Fetch data again with the new setting
+              setTimeout(() => fetchData(), 100);
+            }}
+            startIcon={<span role="img" aria-label="demo">{useDemoData ? "✅" : "🧪"}</span>}
+            sx={{ ml: 1 }}
+          >
+            {useDemoData ? "Using Demo Data" : "Use Demo Data"}
           </Button>
 
           {filterForm && (
@@ -2253,7 +2832,7 @@ const ClassTabularReport = () => {
                 color="primary"
                 onClick={() => {
                   // Set all students to Form 5 and apply filter
-                  const updatedStudents = setFormForAllStudents(5);
+                  setFormForAllStudents(5);
                   // Force a re-render before applying the filter
                   setTimeout(() => {
                     // First clear the filter to force a re-evaluation
@@ -2281,7 +2860,7 @@ const ClassTabularReport = () => {
                 color="primary"
                 onClick={() => {
                   // Set all students to Form 6 and apply filter
-                  const updatedStudents = setFormForAllStudents(6);
+                  setFormForAllStudents(6);
                   // Force a re-render before applying the filter
                   setTimeout(() => {
                     // First clear the filter to force a re-evaluation
@@ -2362,6 +2941,7 @@ const ClassTabularReport = () => {
 
                 // After a short delay, run the intelligent form detection
                 setTimeout(() => {
+                  // Call the function but don't store the result
                   setDefaultFormForALevelStudents();
 
                   // Show success message
@@ -2383,9 +2963,78 @@ const ClassTabularReport = () => {
       {/* Debug Information - Only visible in development */}
       {process.env.NODE_ENV === 'development' && (
         <Box sx={{ mb: 2, p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-            Debug Information (Development Only)
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+              Debug Information (Development Only)
+            </Typography>
+            <Button
+              variant={useDemoData ? "contained" : "outlined"}
+              color={useDemoData ? "success" : "warning"}
+              size="small"
+              onClick={() => {
+                setUseDemoData(!useDemoData);
+                // Reset all flags to ensure we can fetch data again
+                window.formAssignmentDone = false;
+                window.formNotificationShown = false;
+                window.formUpdateInProgress = false;
+                window.combinationFetchInProgress = false;
+                window.studentsUpdateInProgress = false;
+                window.combinationsUpdateInProgress = false;
+                // Fetch data again with the new setting
+                setTimeout(() => fetchData(), 100);
+              }}
+              startIcon={<span role="img" aria-label="demo">{useDemoData ? "✅" : "🧪"}</span>}
+            >
+              {useDemoData ? "Using Demo Data" : "Use Demo Data"}
+            </Button>
+
+            <Button
+              variant="outlined"
+              color="primary"
+              size="small"
+              onClick={() => {
+                // Reset all flags to ensure we can fetch data again
+                window.formAssignmentDone = false;
+                window.formNotificationShown = false;
+                window.formUpdateInProgress = false;
+                window.combinationFetchInProgress = false;
+                window.studentsUpdateInProgress = false;
+                window.combinationsUpdateInProgress = false;
+                // Fetch data again
+                fetchData();
+              }}
+              startIcon={<span role="img" aria-label="refresh">🔄</span>}
+              sx={{ ml: 1 }}
+            >
+              Reset & Refresh Data
+            </Button>
+
+            {window.useDemoDataForced && (
+              <Button
+                variant="contained"
+                color="error"
+                size="small"
+                onClick={() => {
+                  // Reset the circuit breaker
+                  window.reportRenderCount = 0;
+                  window.useDemoDataForced = false;
+                  window.formAssignmentDone = false;
+                  window.formNotificationShown = false;
+                  window.formUpdateInProgress = false;
+                  window.combinationFetchInProgress = false;
+                  window.studentsUpdateInProgress = false;
+                  window.combinationsUpdateInProgress = false;
+                  window.fetchErrorCount = 0;
+                  // Reload the page
+                  window.location.reload();
+                }}
+                startIcon={<span role="img" aria-label="warning">⚠️</span>}
+                sx={{ ml: 1 }}
+              >
+                Reset Circuit Breaker & Reload
+              </Button>
+            )}
+          </Box>
           <Typography variant="body2">
             Total Students: {students.length} | Filtered Students: {filteredStudents.length}
           </Typography>
@@ -2395,6 +3044,18 @@ const ClassTabularReport = () => {
           <Typography variant="body2">
             Class Education Level: {classData?.educationLevel || 'Unknown'} | Class Name: {classData?.name || 'Unknown'}
           </Typography>
+          {useDemoData && (
+            <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold', mt: 1 }}>
+              Using demo data with randomly generated marks. This is not real student data.
+            </Typography>
+          )}
+
+          {window.useDemoDataForced && (
+            <Alert severity="warning" sx={{ mt: 1 }}>
+              <strong>Circuit breaker activated!</strong> The report was reloading too many times, so demo data mode was automatically enabled to prevent an infinite loop.
+              Use the "Reset Circuit Breaker & Reload" button above to try again with real data.
+            </Alert>
+          )}
 
           {/* Form distribution summary */}
           <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 1 }}>
@@ -2409,6 +3070,33 @@ const ClassTabularReport = () => {
             </Typography>
             <Typography variant="body2">
               Unknown Form: {students.filter(s => !s.form && s.form !== 0 && s.form !== '0').length}
+            </Typography>
+          </Box>
+
+          {/* Combination distribution summary */}
+          <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 1 }}>
+            Combination Distribution:
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            {combinations.map(combo => {
+              const count = students.filter(s => {
+                const studentCombo = s.combination || s.subjectCombination;
+                if (studentCombo === combo.code) return true;
+
+                // Check for generated combination codes
+                if (s.combinationCode === combo.code) return true;
+
+                return false;
+              }).length;
+
+              return (
+                <Typography key={combo.code} variant="body2">
+                  {combo.code}: {count} student{count !== 1 ? 's' : ''}
+                </Typography>
+              );
+            })}
+            <Typography variant="body2">
+              No Combination: {students.filter(s => !s.combination && !s.subjectCombination).length}
             </Typography>
           </Box>
 
@@ -2429,8 +3117,17 @@ const ClassTabularReport = () => {
                 <span style={{ display: 'inline-block', minWidth: '80px' }}>
                   Form: <strong>{student.form || 'Not Set'}</strong>
                 </span>
-                <span style={{ display: 'inline-block', minWidth: '100px' }}>
-                  Combination: {student.combination || student.subjectCombination || 'None'}
+                <span style={{ display: 'inline-block', minWidth: '200px' }}>
+                  Combination: {(() => {
+                    const combinationCode = student.combination || student.subjectCombination;
+                    const isMongoId = typeof combinationCode === 'string' && /^[0-9a-fA-F]{24}$/.test(combinationCode);
+
+                    if (isMongoId && student.combinationCode) {
+                      return `${combinationCode} (${student.combinationCode})`;
+                    }
+
+                    return combinationCode || 'None';
+                  })()}
                 </span>
               </div>
             ))}
@@ -2664,7 +3361,15 @@ const ClassTabularReport = () => {
                   <div className="student-combination">
                     {(() => {
                       // Get the combination code
-                      const combinationCode = student.combination || student.subjectCombination;
+                      let combinationCode = student.combination || student.subjectCombination;
+
+                      // Check if this is a MongoDB ObjectID (24 hex characters)
+                      const isMongoId = typeof combinationCode === 'string' && /^[0-9a-fA-F]{24}$/.test(combinationCode);
+
+                      // If it's a MongoDB ObjectID, use the generated code if available
+                      if (isMongoId && student.combinationCode) {
+                        combinationCode = student.combinationCode;
+                      }
 
                       // If we have details for this combination, show them
                       if (combinationCode && combinationDetails[combinationCode]) {

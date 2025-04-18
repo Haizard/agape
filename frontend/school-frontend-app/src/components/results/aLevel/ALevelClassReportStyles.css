@@ -1,0 +1,258 @@
+/* A-Level Class Report Styling */
+
+/* Main container styling */
+.report-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Header styling */
+.report-header {
+  background-color: #1a237e;
+  color: white;
+  padding: 20px;
+  text-align: center;
+  border-bottom: 4px solid #ffc107;
+}
+
+.report-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.report-subtitle {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+/* Section styling */
+.report-section {
+  margin-bottom: 24px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.section-header {
+  background-color: #f5f5f5;
+  padding: 12px 16px;
+  border-bottom: 2px solid #1a237e;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #1a237e;
+  margin: 0;
+}
+
+.section-content {
+  padding: 16px;
+}
+
+/* Table styling */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.report-table th {
+  background-color: #1a237e;
+  color: white;
+  padding: 10px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid #ddd;
+}
+
+.report-table td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.report-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.report-table tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Student row styling */
+.student-row {
+  font-weight: 500;
+}
+
+.student-name {
+  text-align: left;
+  font-weight: bold;
+}
+
+/* Grade styling */
+.grade-a {
+  color: #388e3c;
+  font-weight: bold;
+}
+
+.grade-b {
+  color: #0288d1;
+  font-weight: bold;
+}
+
+.grade-c {
+  color: #7b1fa2;
+  font-weight: bold;
+}
+
+.grade-d {
+  color: #f57c00;
+  font-weight: bold;
+}
+
+.grade-e, .grade-s {
+  color: #fbc02d;
+  font-weight: bold;
+}
+
+.grade-f {
+  color: #d32f2f;
+  font-weight: bold;
+}
+
+/* Division styling */
+.division-chip {
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-weight: bold;
+  display: inline-block;
+  min-width: 60px;
+}
+
+.division-1 {
+  background-color: #4caf50;
+  color: white;
+}
+
+.division-2 {
+  background-color: #2196f3;
+  color: white;
+}
+
+.division-3 {
+  background-color: #ff9800;
+  color: white;
+}
+
+.division-4 {
+  background-color: #ff5722;
+  color: white;
+}
+
+.division-0 {
+  background-color: #f44336;
+  color: white;
+}
+
+/* Summary section styling */
+.summary-section {
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  padding: 16px;
+  margin-top: 24px;
+}
+
+.summary-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #1a237e;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #ffc107;
+  padding-bottom: 8px;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.summary-table th {
+  background-color: #1a237e;
+  color: white;
+  padding: 8px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid #ddd;
+}
+
+.summary-table td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+/* School logo and header */
+.school-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.school-logo {
+  width: 80px;
+  height: 80px;
+  margin-right: 20px;
+}
+
+.school-info {
+  text-align: center;
+}
+
+.school-name {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: #1a237e;
+}
+
+.school-address {
+  font-size: 14px;
+  color: #616161;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .report-container {
+    box-shadow: none;
+    border: none;
+  }
+  
+  .report-header {
+    background-color: #1a237e !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .report-table th {
+    background-color: #1a237e !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .division-chip {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

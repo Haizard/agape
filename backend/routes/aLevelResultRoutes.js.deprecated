@@ -1,0 +1,9 @@
+/**
+ * DEPRECATED: This file contains the old A-Level result routes that have been replaced by the new standardized routes.
+ * Please use the new routes in aLevelReportRoutes.js instead.
+ * 
+ * The new routes are:
+ * - /api/a-level-reports/student/:studentId/:examId - For student reports
+ * - /api/a-level-reports/class/:classId/:examId - For class reports
+ * - /api/a-level-reports/class/:classId/:examId/form/:formLevel - For form-specific class reports
+ */

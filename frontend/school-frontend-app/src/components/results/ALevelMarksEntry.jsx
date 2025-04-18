@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import PreviewDialog from '../common/PreviewDialog';
 import {
   Box,
@@ -39,6 +40,9 @@ import studentSubjectsApi from '../../services/studentSubjectsApi';
  * A simple component for entering A-Level marks for testing purposes
  */
 const ALevelMarksEntry = () => {
+  // Navigation hook
+  const navigate = useNavigate();
+
   // State variables
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -1045,6 +1049,43 @@ const ALevelMarksEntry = () => {
               >
                 {loading ? <CircularProgress size={24} /> : 'Save Marks'}
               </Button>
+
+              {selectedStudent && selectedExam && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => navigate(`/results/a-level/student-clean/${selectedStudent}/${selectedExam}`)}
+                  sx={{ mt: 2, mr: 1 }}
+                >
+                  View Student Report
+                </Button>
+              )}
+
+              {selectedClass && selectedExam && (
+                <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    color="info"
+                    onClick={() => navigate(`/results/a-level/class/${selectedClass}/${selectedExam}`)}
+                  >
+                    View Class Report
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={() => navigate(`/results/a-level/class/${selectedClass}/${selectedExam}/form/5`)}
+                  >
+                    Form 5 Report
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={() => navigate(`/results/a-level/class/${selectedClass}/${selectedExam}/form/6`)}
+                  >
+                    Form 6 Report
+                  </Button>
+                </Box>
+              )}
             </Box>
           </Grid>
         </Grid>

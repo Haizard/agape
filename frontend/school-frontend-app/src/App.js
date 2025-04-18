@@ -96,9 +96,10 @@ import BulkReportDownloader from './components/results/BulkReportDownloader';
 import PrintableClassReport from './components/results/PrintableClassReport';
 import ALevelMarksEntry from './components/results/ALevelMarksEntry';
 import OLevelMarksEntry from './components/results/OLevelMarksEntry';
-import ALevelFormSpecificReport from './components/results/ALevelFormSpecificReport';
+import LegacyReportRedirect from './components/results/aLevel/LegacyReportRedirect';
 import ALevelFormStudentReport from './components/results/ALevelFormStudentReport';
-import ALevelStudentReportRouter from './components/results/ALevelStudentReportRouter';
+import ALevelStudentReportRouter from './components/results/aLevel/ALevelStudentReportRouter';
+import ALevelClassReportRouter from './components/results/aLevel/ALevelClassReportRouter';
 import DemoDataNavigator from './components/demo/DemoDataNavigator';
 import UnifiedMarksEntry from './components/results/UnifiedMarksEntry';
 import CharacterAssessmentEntry from './components/results/CharacterAssessmentEntry';
@@ -106,8 +107,6 @@ import ResultManagementWorkflow from './components/workflows/ResultManagementWor
 import UnifiedAcademicManagement from './components/academic/UnifiedAcademicManagement';
 import ResultReportSelector from './components/results/ResultReportSelector';
 import EnhancedOLevelClassReportContainer from './components/results/EnhancedOLevelClassReportContainer';
-import EnhancedALevelClassReportContainer from './components/results/EnhancedALevelClassReportContainer';
-import SimpleALevelClassReportContainer from './components/results/SimpleALevelClassReportContainer';
 import ALevelSampleReportContainer from './components/results/ALevelSampleReportContainer';
 import PublicALevelReportContainer from './components/results/PublicALevelReportContainer';
 import MarksHistoryViewer from './components/marks/MarksHistoryViewer';
@@ -117,7 +116,8 @@ import ALevelBulkMarksEntry from './components/results/ALevelBulkMarksEntry';
 import SimplifiedALevelBulkMarksEntry from './components/results/SimplifiedALevelBulkMarksEntry';
 import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
 import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
-import ALevelComprehensiveReport from './components/results/ALevelComprehensiveReport';
+import ALevelComprehensiveReportRouter from './components/results/ALevelComprehensiveReportRouter';
+import ALevelClassReportSelector from './components/results/aLevel/ALevelClassReportSelector';
 import EnterSampleMarks from './components/results/EnterSampleMarks';
 import DirectMarksEntry from './components/results/DirectMarksEntry';
 import RoleFixButton from './components/common/RoleFixButton';
@@ -195,9 +195,28 @@ function App() {
                           <Route path="results" element={<DirectResultsPage />} />
                           <Route path="result-reports" element={<ResultReportSelector />} />
                           <Route path="enhanced-o-level-report/:classId/:examId" element={<EnhancedOLevelClassReportContainer />} />
-                          <Route path="enhanced-a-level-report/:classId/:examId" element={<EnhancedALevelClassReportContainer />} />
-                          <Route path="simple-a-level-report/:classId/:examId" element={<SimpleALevelClassReportContainer />} />
+                          <Route path="enhanced-a-level-report/:classId/:examId" element={<LegacyReportRedirect type="class" />} />
+                          <Route path="simple-a-level-report/:classId/:examId" element={<LegacyReportRedirect type="class" />} />
                           <Route path="a-level-sample-report" element={<ALevelSampleReportContainer />} />
+                          <Route path="a-level-class-reports" element={
+                            <Box sx={{ p: 3 }}>
+                              <Typography variant="h4" gutterBottom>A-Level Class Reports</Typography>
+                              <Typography variant="body1" paragraph>
+                                Select a class and exam to view the A-Level Class Report.
+                              </Typography>
+                              <ALevelClassReportSelector />
+                            </Box>
+                          } />
+                          <Route path="a-level-class-reports/results/a-level/class/:classId/:examId" element={<ALevelClassReportRouter />} />
+                          <Route path="a-level-class-reports/results/a-level/class/:classId/:examId/form/:formLevel" element={<ALevelClassReportRouter />} />
+                          <Route path="results/a-level/class/:classId/:examId" element={<ALevelClassReportRouter />} />
+                          <Route path="results/a-level/class/:classId/:examId/form/:formLevel" element={<ALevelClassReportRouter />} />
+                          <Route path="assessment-management/a-level-class-reports" element={
+                            <Navigate to="/admin/a-level-class-reports" replace />
+                          } />
+                          <Route path="assessment-management/results/a-level-class-reports" element={
+                            <Navigate to="/admin/a-level-class-reports" replace />
+                          } />
 
                           {/* Keep individual routes for direct access */}
                           <Route path="education-levels" element={<EducationLevelManagement />} />
@@ -268,6 +287,11 @@ function App() {
                         <ResultReportSelector />
                       </ProtectedRoute>
                     } />
+                    <Route path="/results/result-reports" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ResultReportSelector />
+                      </ProtectedRoute>
+                    } />
                     {/* Only keep the new report routes */}
                     <Route path="/results/class-report/:classId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
@@ -291,8 +315,31 @@ function App() {
                         <ALevelStudentReportRouter />
                       </ProtectedRoute>
                     } />
+                    {/* A-Level Clean Student Report Route */}
+                    <Route path="/results/a-level/student-clean/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <ALevelStudentReportRouter />
+                      </ProtectedRoute>
+                    } />
+                    {/* A-Level Class Report Routes */}
+                    <Route path="results/a-level/class/:classId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelClassReportRouter />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="results/a-level/class/:classId/:examId/form/:formLevel" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelClassReportRouter />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="admin/assessment-management/results/a-level/class/:classId/:examId/form/:formLevel"
+                      element={<ALevelClassReportRouter />}
+                    />
+                    <Route path="admin/assessment-management/results/a-level/class/:classId/:examId"
+                      element={<ALevelClassReportRouter />}
+                    />
                     {/* Generic Student Report Route (for backward compatibility) */}
-                    <Route path="/results/student-report/:studentId/:examId" element={
+                    <Route path="results/student-report/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
                         <SingleStudentReport />
                       </ProtectedRoute>
@@ -309,18 +356,18 @@ function App() {
                     } />
                     <Route path="/results/a-level-comprehensive/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <ALevelComprehensiveReport />
+                        <ALevelComprehensiveReportRouter />
                       </ProtectedRoute>
                     } />
-                    {/* A-Level Form-Specific Routes */}
+                    {/* A-Level Form-Specific Routes - Redirected to new unified class report */}
                     <Route path="/results/a-level/form5/class/:classId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <ALevelFormSpecificReport />
+                        <LegacyReportRedirect type="class" formLevel="5" />
                       </ProtectedRoute>
                     } />
                     <Route path="/results/a-level/form6/class/:classId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <ALevelFormSpecificReport />
+                        <LegacyReportRedirect type="class" formLevel="6" />
                       </ProtectedRoute>
                     } />
                     {/* Demo Routes */}

@@ -31,7 +31,9 @@ const validateALevelResult = (result) => {
   }
 
   // Validate isPrincipal flag (crucial for A-Level report generation)
-  if (result.isPrincipal !== undefined && typeof result.isPrincipal !== 'boolean') {
+  if (result.isPrincipal === undefined) {
+    errors.push('isPrincipal flag is required for A-Level results');
+  } else if (typeof result.isPrincipal !== 'boolean') {
     errors.push('isPrincipal must be a boolean value');
   }
 

@@ -12,6 +12,9 @@ const api = axios.create({
   },
 });
 
+// Log the baseURL for debugging
+console.log('Axios instance created with baseURL:', api.defaults.baseURL);
+
 // Add a request interceptor to add the token to all requests
 api.interceptors.request.use(
   (config) => {

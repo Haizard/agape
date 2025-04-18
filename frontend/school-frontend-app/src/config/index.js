@@ -19,6 +19,12 @@ if (apiUrl.includes('/api')) {
   console.log('Removed /api/ from API_URL:', apiUrl);
 }
 
+// Force a specific API URL for debugging
+apiUrl = 'http://localhost:5000';
+
+// Log the final API URL for debugging
+console.log('Final API URL configuration:', apiUrl);
+
 // Force the API_URL to be the render.com URL in production
 if (process.env.NODE_ENV === 'production') {
   apiUrl = 'https://agape-render.onrender.com/';

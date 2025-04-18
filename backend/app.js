@@ -23,6 +23,7 @@ const unifiedComprehensiveReportRoutes = require('./routes/unifiedComprehensiveR
 const marksHistoryRoutes = require('./routes/marksHistoryRoutes');
 const demoDataRoutes = require('./routes/demoDataRoutes');
 const publicReportRoutes = require('./routes/publicReportRoutes');
+const aLevelReportRoutes = require('./routes/aLevelReportRoutes');
 
 const app = express();
 
@@ -31,9 +32,6 @@ const { standardCors, openCors, handlePreflight } = require('./middleware/cors')
 
 // Apply CORS middleware
 app.use(standardCors);
-
-// Handle preflight requests
-app.options('*', openCors);
 
 // Apply preflight handler to all routes
 app.use(handlePreflight);
@@ -107,6 +105,13 @@ app.use('/api/marks-history', marksHistoryRoutes);
 app.use('/api/results/comprehensive', unifiedComprehensiveReportRoutes);
 // Keep old route for backward compatibility
 app.use('/api/results/comprehensive-old', comprehensiveReportRoutes);
+// New standardized A-Level report routes
+app.use('/api/a-level-reports', aLevelReportRoutes);
+console.log('A-Level report routes registered at /api/a-level-reports');
+
+// Old A-Level result routes have been removed
+// All A-Level report functionality is now handled by /api/a-level-reports
+
 // Demo data routes for testing
 app.use('/api/demo', demoDataRoutes);
 
@@ -115,25 +120,25 @@ app.use('/api/debug', require('./routes/debugRoutes'));
 
 // Proxy specific routes to demo data for testing
 // This allows using the real frontend components with demo data
-const USE_DEMO_DATA = process.env.USE_DEMO_DATA === 'true';
+const USE_DEMO_DATA = process.env.USE_DEMO_DATA === 'true' && process.env.NODE_ENV !== 'production';
 if (USE_DEMO_DATA) {
-  logger.info('Using demo data for specific routes');
+  logger.info('Using demo data for specific routes in development mode');
 
-  // Proxy A-Level Form 5 class report requests to demo data
-  app.use('/api/a-level-results/form5/class/:classId/:examId', (req, res, next) => {
+  // Proxy A-Level class report requests to demo data
+  app.use('/api/a-level-reports/class/:classId/:examId', (req, res, next) => {
     if (req.params.classId === 'CLS001' && req.params.examId === 'EXAM001') {
-      logger.info(`Proxying A-Level Form 5 class report request to demo data: ${req.originalUrl}`);
-      req.url = `/demo/a-level-results/form5/class/${req.params.classId}/${req.params.examId}`;
+      logger.info(`Proxying A-Level class report request to demo data: ${req.originalUrl}`);
+      req.url = `/demo/a-level-reports/class/${req.params.classId}/${req.params.examId}`;
       return demoDataRoutes(req, res, next);
     }
     next();
   });
 
-  // Proxy A-Level Form 5 student report requests to demo data
-  app.use('/api/a-level-results/form5/student/:studentId/:examId', (req, res, next) => {
+  // Proxy A-Level student report requests to demo data
+  app.use('/api/a-level-reports/student/:studentId/:examId', (req, res, next) => {
     if (req.params.examId === 'EXAM001' && req.params.studentId.startsWith('STU')) {
-      logger.info(`Proxying A-Level Form 5 student report request to demo data: ${req.originalUrl}`);
-      req.url = `/demo/a-level-results/form5/student/${req.params.studentId}/${req.params.examId}`;
+      logger.info(`Proxying A-Level student report request to demo data: ${req.originalUrl}`);
+      req.url = `/demo/a-level-reports/student/${req.params.studentId}/${req.params.examId}`;
       return demoDataRoutes(req, res, next);
     }
     next();
@@ -191,7 +196,16 @@ if (USE_DEMO_DATA) {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  const errorCode = logger.error(`Unhandled error: ${err.message}`, err);
+  const errorCode = logger.error(`Unhandled error: ${err.message}`, {
+    error: err,
+    stack: err.stack,
+    req: {
+      method: req.method,
+      url: req.originalUrl,
+      headers: req.headers,
+      body: req.body
+    }
+  });
   res.status(500).json({
     message: err.message || 'Something went wrong!',
     errorCode,

@@ -269,6 +269,44 @@
   font-weight: bold;
 }
 
+/* Emergency circuit breaker styles */
+.emergency-circuit-breaker {
+  max-width: 600px;
+  margin: 50px auto;
+  padding: 30px;
+  background-color: #fff3cd;
+  border: 2px solid #ffeeba;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.emergency-circuit-breaker h2 {
+  color: #856404;
+  margin-bottom: 20px;
+}
+
+.emergency-circuit-breaker p {
+  margin-bottom: 25px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.emergency-circuit-breaker button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.emergency-circuit-breaker button:hover {
+  background-color: #0056b3;
+}
+
 /* Print styles */
 @media print {
   .no-print {

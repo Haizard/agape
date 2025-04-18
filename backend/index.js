@@ -36,12 +36,13 @@ const resultRoutes = require('./routes/resultRoutes');
 const fixedResultRoutes = require('./routes/fixedResultRoutes');
 const directTestRoutes = require('./routes/directTestRoutes');
 const resultReportRoutes = require('./routes/resultReportRoutes');
-const aLevelResultRoutes = require('./routes/aLevelResultRoutes');
+// const aLevelResultRoutes = require('./routes/aLevelResultRoutes');
 const oLevelResultRoutes = require('./routes/oLevelResultRoutes');
 const aLevelResultBatchRoutes = require('./routes/aLevelResultBatchRoutes');
 const oLevelResultBatchRoutes = require('./routes/oLevelResultBatchRoutes');
 const aLevelComprehensiveReportRoutes = require('./routes/aLevelComprehensiveReportRoutes');
 const unifiedComprehensiveReportRoutes = require('./routes/unifiedComprehensiveReportRoutes');
+const aLevelReportRoutes = require('./routes/aLevelReportRoutes');
 const characterAssessmentRoutes = require('./routes/characterAssessmentRoutes');
 const studentEducationLevelRoutes = require('./routes/studentEducationLevelRoutes');
 const checkMarksRoutes = require('./routes/checkMarksRoutes');
@@ -74,72 +75,13 @@ const publicReportRoutes = require('./routes/publicReportRoutes');
 
 const app = express();
 
-// Define allowed origins for CORS
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://st-john-vianey-frontend.onrender.com',
-  'https://agape-seminary-school-system.onrender.com',
-  'https://agape-seminary-school.onrender.com',
-  'https://agape-seminary-school-frontend.onrender.com',
-  'https://agape-seminary-school-system.netlify.app',
-  'https://agape-seminary-school-backend.koyeb.app',
-  'https://misty-roby-haizard-17a53e2a.koyeb.app',
-  'https://agape-school-system.onrender.com',
-  'https://agape-render.onrender.com',
-  'https://agape-seminary-school.onrender.com',
-  // Add any additional origins here
-];
-
-// Add any origins from environment variable
-if (process.env.CORS_ALLOWED_ORIGINS) {
-  try {
-    const envOrigins = process.env.CORS_ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
-    console.log('Adding origins from environment variable:', envOrigins);
-    allowedOrigins.push(...envOrigins);
-  } catch (error) {
-    console.error('Error parsing CORS_ALLOWED_ORIGINS:', error);
-  }
-}
-
-// Always include these critical domains
-allowedOrigins.push('https://agape-school-system.onrender.com');
-allowedOrigins.push('https://agape-render.onrender.com');
-
-// Configure CORS options
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) {
-      return callback(null, true);
-    }
-
-    // Check if the origin is allowed
-    if (allowedOrigins.indexOf(origin) === -1) {
-      // For development, allow all origins
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Development mode: Allowing origin:', origin);
-        return callback(null, true);
-      }
-
-      console.log('Blocked origin:', origin);
-      console.log('Allowed origins:', allowedOrigins);
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-
-    console.log('Allowed origin:', origin);
-    return callback(null, true);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
-};
+const { standardCors, openCors, allowedOrigins } = require('./middleware/cors');
 
 // Apply CORS middleware
-app.use(cors(corsOptions));
+app.use(standardCors);
 
 // Handle preflight requests
-app.options('*', cors());
+app.options('*', standardCors);
 
 // Health check endpoints
 app.get('/api/health', (req, res) => {
@@ -227,11 +169,12 @@ app.use('/api/results/enter-marks/batch', fixedResultRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/results/report', resultReportRoutes);
 app.use('/api/results/comprehensive', unifiedComprehensiveReportRoutes);
-app.use('/api/a-level-results', aLevelResultRoutes);
+// app.use('/api/a-level-results', aLevelResultRoutes);
 app.use('/api/o-level-results', oLevelResultRoutes);
 app.use('/api/a-level-results/batch', criticalRoutesCors, aLevelResultBatchRoutes);
 app.use('/api/o-level-results/batch', criticalRoutesCors, oLevelResultBatchRoutes);
 app.use('/api/a-level-comprehensive', aLevelComprehensiveReportRoutes);
+app.use('/api/a-level-reports', criticalRoutesCors, aLevelReportRoutes);
 app.use('/api/character-assessments', characterAssessmentRoutes);
 app.use('/api/student-education-level', studentEducationLevelRoutes);
 app.use('/api/check-marks', checkMarksRoutes);
@@ -241,78 +184,6 @@ app.use('/api/v2/results', v2ResultRoutes);
 // Apply special CORS for critical routes
 app.use('/api/exams', criticalRoutesCors, examRoutes);
 app.use('/api/classes', criticalRoutesCors, classRoutes);
-
-// Direct route handlers for critical endpoints with CORS issues
-app.get('/api/exams-direct', criticalRoutesCors, async (req, res) => {
-  try {
-    console.log('Direct exams endpoint called');
-    // Set CORS headers explicitly
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    // Forward to the exam routes
-    req.url = '/api/exams';
-    return examRoutes(req, res);
-  } catch (error) {
-    console.error('Error in direct exams endpoint:', error);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-// Direct login endpoint to bypass CORS issues
-app.options('/api/login-direct', criticalRoutesCors, (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  console.log('OPTIONS request for /api/login-direct received');
-  res.sendStatus(204);
-});
-
-// Direct login endpoint for all origins
-app.options('/api/users/login', criticalRoutesCors, (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  console.log('OPTIONS request for /api/users/login received');
-  res.sendStatus(204);
-});
-
-app.post('/api/login-direct', criticalRoutesCors, async (req, res) => {
-  try {
-    console.log('Direct login endpoint called');
-    // Set CORS headers explicitly
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    // Forward to the user routes login handler
-    req.url = '/api/users/login';
-    return userRoutes(req, res);
-  } catch (error) {
-    console.error('Error in direct login endpoint:', error);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/classes-direct', criticalRoutesCors, async (req, res) => {
-  try {
-    console.log('Direct classes endpoint called');
-    // Set CORS headers explicitly
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    // Forward to the class routes
-    req.url = '/api/classes';
-    return classRoutes(req, res);
-  } catch (error) {
-    console.error('Error in direct classes endpoint:', error);
-    return res.status(500).json({ error: error.message });
-  }
-});
 
 app.use('/api/news', newsRoutes);
 app.use('/api/exam-types', examTypeRoutes);
