@@ -612,20 +612,53 @@ exports.getClassReport = async (req, res) => {
         // Get the student's results for this exam with retry logic
         const results = await executeWithRetry(
           () => ALevelResult.find({
-            student: student._id,
-            exam: examId
+            $and: [
+              { $or: [
+                // Check both student and studentId fields
+                { student: student._id },
+                { studentId: student._id }
+              ]},
+              { $or: [
+                // Check both exam and examId fields
+                { exam: examId },
+                { examId: examId }
+              ]}
+            ]
           }).populate('subject'),
           `Error fetching results for student ${student._id} in exam ${examId}`
         );
 
+        // Log the query for debugging
+        console.log(`Query for student ${student._id} in exam ${examId}:`, {
+          $and: [
+            { $or: [
+              { student: student._id },
+              { studentId: student._id }
+            ]},
+            { $or: [
+              { exam: examId },
+              { examId: examId }
+            ]}
+          ]
+        });
+
         console.log(`Found ${results.length} results for student ${student._id} in exam ${examId}`);
         if (results.length > 0) {
-          console.log('Sample result:', {
-            subject: results[0].subject ? results[0].subject.name : 'Unknown',
-            marksObtained: results[0].marksObtained,
-            marks: results[0].marks, // Check if this field exists
-            grade: results[0].grade,
-            points: results[0].points
+          // Log all results for debugging
+          results.forEach((result, index) => {
+            console.log(`Result ${index + 1}:`, {
+              id: result._id,
+              subject: result.subject ? result.subject.name : 'Unknown',
+              subjectId: result.subject ? result.subject._id : 'Unknown',
+              marksObtained: result.marksObtained,
+              marks: result.marks, // Check if this field exists
+              grade: result.grade,
+              points: result.points,
+              studentId: result.studentId,
+              student: result.student,
+              examId: result.examId,
+              exam: result.exam
+            });
           });
         }
 

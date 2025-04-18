@@ -58,19 +58,22 @@
 .report-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.85rem; /* Smaller font size */
 }
 
 .report-table th {
   background-color: #1a237e;
   color: white;
-  padding: 10px;
+  padding: 6px 4px; /* Reduced padding */
   text-align: center;
   font-weight: bold;
   border: 1px solid #ddd;
+  white-space: nowrap; /* Prevent wrapping */
+  font-size: 0.8rem; /* Even smaller font for headers */
 }
 
 .report-table td {
-  padding: 8px;
+  padding: 4px 2px; /* Reduced padding */
   border: 1px solid #ddd;
   text-align: center;
 }
@@ -81,6 +84,27 @@
 
 .report-table tr:hover {
   background-color: #f1f1f1;
+}
+
+/* Compact table styles */
+.compact-table th {
+  padding: 4px 2px;
+  font-size: 0.75rem;
+}
+
+.compact-table td {
+  padding: 3px 2px;
+  font-size: 0.75rem;
+}
+
+/* Subject column styles */
+.subject-column {
+  min-width: 70px !important;
+  max-width: 70px !important;
+  width: 70px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Student row styling */
@@ -126,11 +150,12 @@
 
 /* Division styling */
 .division-chip {
-  padding: 4px 8px;
-  border-radius: 16px;
+  padding: 2px 4px;
+  border-radius: 10px;
   font-weight: bold;
   display: inline-block;
-  min-width: 60px;
+  min-width: 40px;
+  font-size: 0.7rem;
 }
 
 .division-1 {
@@ -231,28 +256,57 @@
   .no-print {
     display: none !important;
   }
-  
+
   .report-container {
     box-shadow: none;
     border: none;
   }
-  
+
   .report-header {
     background-color: #1a237e !important;
     color: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  
+
+  .report-table {
+    font-size: 7pt !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
   .report-table th {
     background-color: #1a237e !important;
     color: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    padding: 2px !important;
+    font-size: 6pt !important;
   }
-  
+
+  .report-table td {
+    padding: 1px !important;
+    font-size: 6pt !important;
+  }
+
   .division-chip {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    font-size: 6pt !important;
+    padding: 1px 2px !important;
+    min-width: 30px !important;
+  }
+
+  .subject-column {
+    min-width: 50px !important;
+    max-width: 50px !important;
+    width: 50px !important;
+  }
+
+  /* Ensure the table fits on the page */
+  .TableContainer {
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow: visible !important;
   }
 }

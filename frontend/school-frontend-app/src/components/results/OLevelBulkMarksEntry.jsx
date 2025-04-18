@@ -210,6 +210,9 @@ const OLevelBulkMarksEntry = () => {
           }
         });
 
+        console.log('Marks response:', marksResponse.data);
+        console.log('Students with marks:', marksResponse.data.studentsWithMarks || []);
+
         // Get exam details to get academic year
         const examResponse = await api.get(`/api/exams/${selectedExam}`);
 
@@ -225,7 +228,9 @@ const OLevelBulkMarksEntry = () => {
 
         // Initialize marks array with existing marks
         const initialMarks = oLevelStudents.map(student => {
-          const existingMark = marksResponse.data.find(mark =>
+          // Check if studentsWithMarks exists in the response
+          const studentsWithMarks = marksResponse.data.studentsWithMarks || [];
+          const existingMark = studentsWithMarks.find(mark =>
             mark.studentId === student._id
           );
 
@@ -241,7 +246,7 @@ const OLevelBulkMarksEntry = () => {
             grade: existingMark ? existingMark.grade : '',
             points: existingMark ? existingMark.points : '',
             comment: existingMark ? existingMark.comment : '',
-            _id: existingMark ? existingMark._id : null
+            _id: existingMark ? (existingMark._id || existingMark.resultId) : null
           };
         });
 
@@ -400,8 +405,8 @@ const OLevelBulkMarksEntry = () => {
       // Save marks
       await api.post('/api/o-level-results/batch', marksToSave);
 
-      // Update marks state with calculated grades and points
-      setMarks(marksWithGrades);
+      // Refresh marks to get the latest data including IDs
+      await handleRefresh();
 
       // Show success message
       setSuccess('Marks saved successfully.');
@@ -424,26 +429,80 @@ const OLevelBulkMarksEntry = () => {
   };
 
   // Refresh data
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     if (selectedClass && selectedSubject && selectedExam) {
-      // Reset marks and fetch data again
-      setMarks([]);
-      setActiveTab(0);
+      try {
+        setLoading(true);
+        setError('');
 
-      // Trigger useEffect to fetch data
-      const tempClass = selectedClass;
-      const tempSubject = selectedSubject;
-      const tempExam = selectedExam;
+        // Get students in the class
+        let studentsData;
+        if (isAdmin) {
+          // Admin can see all students in the class
+          const studentsResponse = await api.get(`/api/classes/${selectedClass}/students`);
+          studentsData = studentsResponse.data || [];
+        } else {
+          // Teachers can only see assigned students
+          studentsData = await teacherApi.getAssignedStudents(selectedClass);
+        }
 
-      setSelectedClass('');
-      setSelectedSubject('');
-      setSelectedExam('');
+        // Get existing marks for the selected class, subject, and exam
+        const marksResponse = await api.get('/api/check-marks/check-existing', {
+          params: {
+            classId: selectedClass,
+            subjectId: selectedSubject,
+            examId: selectedExam
+          }
+        });
 
-      setTimeout(() => {
-        setSelectedClass(tempClass);
-        setSelectedSubject(tempSubject);
-        setSelectedExam(tempExam);
-      }, 100);
+        console.log('Refresh - Marks response:', marksResponse.data);
+        console.log('Refresh - Students with marks:', marksResponse.data.studentsWithMarks || []);
+
+        // Get exam details to get academic year
+        const examResponse = await api.get(`/api/exams/${selectedExam}`);
+
+        const academicYearId = examResponse.data.academicYear;
+        const examTypeId = examResponse.data.examType;
+
+        // Filter for O-Level students only
+        const oLevelStudents = studentsData.filter(student =>
+          student.educationLevel === 'O_LEVEL' || !student.educationLevel
+        );
+
+        setStudents(oLevelStudents);
+
+        // Initialize marks array with existing marks
+        const initialMarks = oLevelStudents.map(student => {
+          // Check if studentsWithMarks exists in the response
+          const studentsWithMarks = marksResponse.data.studentsWithMarks || [];
+          const existingMark = studentsWithMarks.find(mark =>
+            mark.studentId === student._id
+          );
+
+          return {
+            studentId: student._id,
+            studentName: `${student.firstName} ${student.lastName}`,
+            examId: selectedExam,
+            academicYearId,
+            examTypeId,
+            subjectId: selectedSubject,
+            classId: selectedClass,
+            marksObtained: existingMark ? existingMark.marksObtained : '',
+            grade: existingMark ? existingMark.grade : '',
+            points: existingMark ? existingMark.points : '',
+            comment: existingMark ? existingMark.comment : '',
+            _id: existingMark ? (existingMark._id || existingMark.resultId) : null
+          };
+        });
+
+        setMarks(initialMarks);
+        setActiveTab(0);
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+        setError('Failed to refresh data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
