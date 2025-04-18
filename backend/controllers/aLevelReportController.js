@@ -581,9 +581,34 @@ exports.getClassReport = async (req, res) => {
       });
     }
 
+    // Get the subject combination for this class with retry logic
+    let subjectCombination = await executeWithRetry(
+      () => SubjectCombination.findOne({ class: classId }).populate('subjects'),
+      `Error fetching subject combination for class ${classId}`
+    );
+
+    // Get all subjects for this class
+    let allSubjects = subjectCombination ? subjectCombination.subjects : [];
+    console.log(`Found ${allSubjects.length} subjects in combination for class ${classId}:`,
+      allSubjects.map(s => s ? { name: s.name, code: s.code, isPrincipal: s.isPrincipal } : 'undefined'));
+
+    // If no subjects found in combination, fetch all A-Level subjects as a fallback
+    if (allSubjects.length === 0) {
+      console.log('No subjects found in combination, fetching all A-Level subjects as fallback');
+      const allALevelSubjects = await executeWithRetry(
+        () => Subject.find({ educationLevel: { $in: ['A_LEVEL', 'BOTH'] } }),
+        'Error fetching all A-Level subjects'
+      );
+      allSubjects = allALevelSubjects;
+      console.log(`Found ${allSubjects.length} A-Level subjects as fallback:`,
+        allSubjects.map(s => s ? { name: s.name, code: s.code, isPrincipal: s.isPrincipal } : 'undefined'));
+    }
+
     // Get results for each student
     const studentsWithResults = await Promise.all(
       students.map(async (student) => {
+        console.log(`Processing student: ${student.firstName} ${student.lastName} (${student._id})`);
+
         // Get the student's results for this exam with retry logic
         const results = await executeWithRetry(
           () => ALevelResult.find({
@@ -593,15 +618,82 @@ exports.getClassReport = async (req, res) => {
           `Error fetching results for student ${student._id} in exam ${examId}`
         );
 
+        console.log(`Found ${results.length} results for student ${student._id} in exam ${examId}`);
+        if (results.length > 0) {
+          console.log('Sample result:', {
+            subject: results[0].subject ? results[0].subject.name : 'Unknown',
+            marksObtained: results[0].marksObtained,
+            marks: results[0].marks, // Check if this field exists
+            grade: results[0].grade,
+            points: results[0].points
+          });
+        }
+
+        // Create a map of subject ID to result for quick lookup
+        const resultsBySubjectId = {};
+        const subjectsWithResults = new Set(); // Track subjects that have results
+
+        results.forEach(result => {
+          if (result.subject && result.subject._id) {
+            resultsBySubjectId[result.subject._id.toString()] = result;
+            subjectsWithResults.add(result.subject._id.toString());
+          }
+        });
+
+        // Create a map of subject ID to subject for quick lookup
+        const subjectsById = {};
+        allSubjects.forEach(subject => {
+          if (subject && subject._id) {
+            subjectsById[subject._id.toString()] = subject;
+          }
+        });
+
+        // Create formatted results for all subjects in the combination
+        let formattedResults = allSubjects.map(subject => {
+          if (!subject || !subject._id) return null;
+
+          const subjectId = subject._id.toString();
+          const result = resultsBySubjectId[subjectId];
+
+          return {
+            subject: subject.name,
+            code: subject.code,
+            marks: result ? (result.marksObtained || 0) : 0, // Use marksObtained instead of marks
+            grade: result ? (result.grade || 'F') : 'F',
+            points: result ? (result.points || 0) : 0,
+            remarks: result ? aLevelGradeCalculator.getRemarks(result.grade) : 'No Result',
+            isPrincipal: subject.isPrincipal
+          };
+        }).filter(Boolean); // Remove null entries
+
+        // Add subjects that have results but aren't in the combination
+        results.forEach(result => {
+          if (result.subject && result.subject._id) {
+            const subjectId = result.subject._id.toString();
+            if (!subjectsById[subjectId]) {
+              // This subject has results but isn't in the combination
+              formattedResults.push({
+                subject: result.subject.name,
+                code: result.subject.code,
+                marks: result.marksObtained || 0,
+                grade: result.grade || 'F',
+                points: result.points || 0,
+                remarks: aLevelGradeCalculator.getRemarks(result.grade),
+                isPrincipal: result.subject.isPrincipal
+              });
+            }
+          }
+        });
+
         // Calculate total marks and average
-        const totalMarks = results.reduce((sum, result) => sum + (result.marks || 0), 0);
-        const averageMarks = results.length > 0 ? (totalMarks / results.length).toFixed(2) : '0.00';
+        const totalMarks = formattedResults.reduce((sum, result) => sum + (result.marks || 0), 0);
+        const averageMarks = formattedResults.length > 0 ? (totalMarks / formattedResults.length).toFixed(2) : '0.00';
 
         // Calculate points and best three points
-        const points = results.reduce((sum, result) => sum + (result.points || 0), 0);
+        const points = formattedResults.reduce((sum, result) => sum + (result.points || 0), 0);
 
         // Get principal subjects results
-        const principalResults = results.filter(result => result.subject && result.subject.isPrincipal);
+        const principalResults = formattedResults.filter(result => result.isPrincipal);
 
         // Sort principal results by points (ascending, since lower points are better)
         principalResults.sort((a, b) => (a.points || 0) - (b.points || 0));
@@ -612,17 +704,6 @@ exports.getClassReport = async (req, res) => {
 
         // Determine division based on best three points
         const division = aLevelGradeCalculator.calculateDivision(bestThreePoints);
-
-        // Format results for the response
-        const formattedResults = results.map(result => ({
-          subject: result.subject ? result.subject.name : 'Unknown Subject',
-          code: result.subject ? result.subject.code : 'UNK',
-          marks: result.marks || 0,
-          grade: result.grade || 'F',
-          points: result.points || 0,
-          remarks: aLevelGradeCalculator.getRemarks(result.grade),
-          isPrincipal: result.subject ? result.subject.isPrincipal : false
-        }));
 
         return {
           id: student._id,
@@ -656,12 +737,6 @@ exports.getClassReport = async (req, res) => {
     // Calculate class average
     const totalAverage = studentsWithResults.reduce((sum, student) => sum + parseFloat(student.averageMarks), 0);
     const classAverage = studentsWithResults.length > 0 ? (totalAverage / studentsWithResults.length).toFixed(2) : '0.00';
-
-    // Get the subject combination for this class with retry logic
-    const subjectCombination = await executeWithRetry(
-      () => SubjectCombination.findOne({ class: classId }).populate('subjects'),
-      `Error fetching subject combination for class ${classId}`
-    );
 
     // Format the subject combination
     const formattedSubjectCombination = subjectCombination ? {
