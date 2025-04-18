@@ -14,8 +14,19 @@ const logger = require('./logger');
  */
 const determineFormLevel = (student, classObj = null) => {
   // Method 1: Use explicit form field if available
-  if (student.form === 5 || student.form === 6) {
+  if (student.form === 5 || student.form === 6 || student.form === 1 || student.form === 2) {
     logger.debug(`Determined form level from student.form: ${student.form}`);
+    // Map form 1 to 5 and form 2 to 6 for A-Level students
+    if (student.educationLevel === 'A_LEVEL') {
+      if (student.form === 1) {
+        logger.debug(`Mapping form 1 to form 5 for A-Level student`);
+        return 5;
+      }
+      if (student.form === 2) {
+        logger.debug(`Mapping form 2 to form 6 for A-Level student`);
+        return 6;
+      }
+    }
     return student.form;
   }
 

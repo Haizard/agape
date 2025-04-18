@@ -165,16 +165,29 @@ const fetchALevelClassReport = async (classId, examId, options = {}) => {
   const { forceRefresh = false, formLevel = null, signal } = options;
 
   try {
-    // Add cache-busting parameter if forcing refresh
-    const params = forceRefresh ? { _t: Date.now() } : {};
+    // Create a more robust params object with explicit types
+    const params = {
+      // Always add cache-busting parameter
+      _t: Date.now(),
 
-    // Add form level filter if provided
-    if (formLevel && (formLevel === '5' || formLevel === '6' || formLevel === 5 || formLevel === 6)) {
-      params.formLevel = formLevel.toString();
+      // Add form level filter if provided (with explicit string conversion)
+      formLevel: formLevel ? formLevel.toString() : undefined,
+
+      // Add forceRefresh and useMock parameters if forcing refresh
+      forceRefresh: forceRefresh ? 'true' : undefined,
+      useMock: 'false' // Always set useMock to false to ensure we get real data
+    };
+
+    // Log the parameters for debugging
+    console.log('Request parameters:', JSON.stringify(params, null, 2));
+    console.log(`Adding formLevel parameter: ${params.formLevel || 'none'}`);
+
+    if (forceRefresh) {
+      console.log('Adding forceRefresh=true and useMock=false parameters');
     }
 
     // Determine the endpoint based on whether form level is provided
-    let endpoint = `/api/a-level-reports/class/${classId}/${examId}`;
+    let endpoint = `api/a-level-reports/class/${classId}/${examId}`;
 
     // Log the full URL for debugging
     console.log('Full API URL:', api.defaults.baseURL + endpoint);
@@ -184,6 +197,13 @@ const fetchALevelClassReport = async (classId, examId, options = {}) => {
     try {
       // Make the API request with cancellation support
       console.log(`Fetching A-Level class report from: ${endpoint}`, params);
+      console.log('Request parameters:', {
+        classId,
+        examId,
+        formLevel,
+        forceRefresh,
+        params
+      });
       // Get the authentication token
       const token = getAuthToken();
 
@@ -194,7 +214,9 @@ const fetchALevelClassReport = async (classId, examId, options = {}) => {
 
       console.log('Making API request to full URL:', fullUrl);
 
-      // Use fetch directly for debugging
+      // We used to use fetch directly for debugging, but this was causing issues with request cancellation
+      // Now we'll rely solely on the axios request below
+      /*
       try {
         const fetchResponse = await fetch(fullUrl, {
           method: 'GET',
@@ -213,6 +235,7 @@ const fetchALevelClassReport = async (classId, examId, options = {}) => {
       } catch (fetchError) {
         console.error('Fetch error:', fetchError);
       }
+      */
 
       const response = await api.get(
         endpoint,
@@ -283,12 +306,15 @@ const fetchALevelClassReport = async (classId, examId, options = {}) => {
         return normalizeALevelClassReport(mockData);
       }
 
-      // For development purposes, always fall back to mock data if there's any error
+      // For development purposes, we used to fall back to mock data if there's any error
+      // This is now permanently disabled to ensure we see real errors
+      /*
       if (process.env.NODE_ENV === 'development') {
         console.log('Development environment detected, falling back to mock data');
         const mockData = getMockClassReport(classId, examId, formLevel);
         return normalizeALevelClassReport(mockData);
       }
+      */
 
       // Re-throw other errors
       throw apiError;

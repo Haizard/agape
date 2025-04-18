@@ -20,7 +20,7 @@ if (apiUrl.includes('/api')) {
 }
 
 // Force a specific API URL for debugging
-apiUrl = 'http://localhost:5000';
+apiUrl = 'http://localhost:5000/';
 
 // Log the final API URL for debugging
 console.log('Final API URL configuration:', apiUrl);

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { debounce } from '../../../utils/debounceUtils';
 import {
   Box,
   Typography,
@@ -92,8 +93,8 @@ const ALevelClassReportSelector = () => {
     setFormLevel(event.target.value);
   };
 
-  // Generate class report
-  const handleGenerateReport = () => {
+  // Generate class report - wrapped in useCallback to maintain reference stability
+  const generateReport = useCallback(() => {
     if (!selectedClass || !selectedExam) {
       setError('Please select a class and an exam');
       return;
@@ -104,21 +105,44 @@ const ALevelClassReportSelector = () => {
 
     // Navigate to the appropriate report based on form level
     if (formLevel === 'all') {
-      // Use the correct path structure
+      // Use the correct path structure that matches the route definition
       url = `results/a-level/class/${selectedClass}/${selectedExam}`;
     } else {
-      // Use the correct path structure
+      // Use the correct path structure that matches the route definition
       url = `results/a-level/class/${selectedClass}/${selectedExam}/form/${formLevel}`;
     }
 
+    // Build query parameters as an object for better consistency
+    const queryParams = new URLSearchParams();
+
+    // Always add timestamp to prevent caching
+    queryParams.append('_t', Date.now());
+
     // Add forceRefresh parameter if forceRealData is true
     if (forceRealData) {
-      url += `?forceRefresh=true&useMock=false&_t=${Date.now()}`;
+      queryParams.append('forceRefresh', 'true');
+      queryParams.append('useMock', 'false');
+      console.log('Force real data enabled, adding forceRefresh=true and useMock=false');
     }
+
+    // Add the query parameters to the URL
+    url += `?${queryParams.toString()}`;
+    console.log(`Final URL with parameters: ${url}`);
+
+    console.log(`Navigating to A-Level class report: ${url}`);
 
     // Navigate to the report
     navigate(url);
-  };
+  }, [selectedClass, selectedExam, formLevel, forceRealData, navigate, setError]);
+
+  // Debounced version of the generate report function to prevent multiple rapid clicks
+  const handleGenerateReport = useCallback(
+    debounce(() => {
+      console.log('Debounced generate report called');
+      generateReport();
+    }, 300),
+    [generateReport]
+  );
 
   return (
     <Paper sx={{ p: 3 }}>

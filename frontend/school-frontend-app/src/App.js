@@ -207,6 +207,7 @@ function App() {
                               <ALevelClassReportSelector />
                             </Box>
                           } />
+                          {/* Routes for A-Level class reports with different path patterns */}
                           <Route path="a-level-class-reports/results/a-level/class/:classId/:examId" element={<ALevelClassReportRouter />} />
                           <Route path="a-level-class-reports/results/a-level/class/:classId/:examId/form/:formLevel" element={<ALevelClassReportRouter />} />
                           <Route path="results/a-level/class/:classId/:examId" element={<ALevelClassReportRouter />} />
@@ -215,6 +216,14 @@ function App() {
                             <Navigate to="/admin/a-level-class-reports" replace />
                           } />
                           <Route path="assessment-management/results/a-level-class-reports" element={
+                            <Navigate to="/admin/a-level-class-reports" replace />
+                          } />
+                          <Route path="a-level-class-reports/results/a-level-comprehensive-selector" element={
+                            <Navigate to="/results/a-level-comprehensive-selector" replace />
+                          } />
+
+                          {/* Add a catch-all route for A-Level class reports with query parameters */}
+                          <Route path="a-level-class-reports/*" element={
                             <Navigate to="/admin/a-level-class-reports" replace />
                           } />
 

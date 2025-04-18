@@ -21,33 +21,33 @@ import {
 
 /**
  * ClassActionButtons Component
- * 
+ *
  * Displays action buttons for printing, downloading, and filtering the A-Level class result report.
  */
-const ClassActionButtons = ({ 
-  report, 
+const ClassActionButtons = ({
+  report,
   onGeneratePdf,
   onFormLevelChange,
   currentFormLevel,
   backUrl = '/results/a-level/enter-marks'
 }) => {
   const navigate = useNavigate();
-  
+
   // State for PDF generation
   const [pdfGenerating, setPdfGenerating] = useState(false);
-  
+
   // State for snackbar
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'info'
   });
-  
+
   // Handle print
   const handlePrint = () => {
     window.print();
   };
-  
+
   // Handle download PDF
   const handleDownload = async () => {
     if (!report) {
@@ -58,13 +58,13 @@ const ClassActionButtons = ({
       });
       return;
     }
-    
+
     try {
       setPdfGenerating(true);
-      
+
       // Call the provided PDF generation function
       await onGeneratePdf(report);
-      
+
       setSnackbar({
         open: true,
         message: 'Report downloaded successfully',
@@ -81,7 +81,7 @@ const ClassActionButtons = ({
       setPdfGenerating(false);
     }
   };
-  
+
   // Handle form level change
   const handleFormLevelChange = (event) => {
     const formLevel = event.target.value;
@@ -89,12 +89,12 @@ const ClassActionButtons = ({
       onFormLevelChange(formLevel);
     }
   };
-  
+
   // Handle snackbar close
   const handleSnackbarClose = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
-  
+
   return (
     <>
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }} className="no-print">
@@ -105,7 +105,7 @@ const ClassActionButtons = ({
         >
           Back
         </Button>
-        
+
         <FormControl sx={{ minWidth: 120 }}>
           <InputLabel id="form-level-select-label">Form Level</InputLabel>
           <Select
@@ -117,11 +117,13 @@ const ClassActionButtons = ({
             startIcon={<FilterIcon />}
           >
             <MenuItem value="">All Forms</MenuItem>
-            <MenuItem value="5">Form 5</MenuItem>
-            <MenuItem value="6">Form 6</MenuItem>
+            <MenuItem value="1">Form 5 (Database Form 1)</MenuItem>
+            <MenuItem value="2">Form 6 (Database Form 2)</MenuItem>
+            <MenuItem value="5">Form 5 (Legacy)</MenuItem>
+            <MenuItem value="6">Form 6 (Legacy)</MenuItem>
           </Select>
         </FormControl>
-        
+
         <Button
           variant="contained"
           startIcon={<PrintIcon />}
@@ -129,7 +131,7 @@ const ClassActionButtons = ({
         >
           Print Report
         </Button>
-        
+
         <Button
           variant="contained"
           color="secondary"
@@ -140,7 +142,7 @@ const ClassActionButtons = ({
           {pdfGenerating ? 'Generating...' : 'Download PDF'}
         </Button>
       </Box>
-      
+
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
