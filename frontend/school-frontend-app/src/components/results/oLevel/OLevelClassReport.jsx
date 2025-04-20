@@ -118,6 +118,58 @@ const OLevelClassReport = (props) => {
       doc.save(`O-Level-Class-Report-${report.className}-${report.examName}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
+      // Fallback to direct HTML to PDF conversion if the standard method fails
+      handleDirectPDFDownload();
+    }
+  };
+
+  // Direct HTML to PDF conversion as a fallback
+  const handleDirectPDFDownload = async () => {
+    if (!reportRef.current) return;
+
+    try {
+      // Show a loading message
+      alert('Generating PDF, please wait...');
+
+      // Create a new jsPDF instance
+      const pdf = new jsPDF('landscape', 'mm', 'a4');
+
+      // Get the report element
+      const element = reportRef.current;
+
+      // Convert the element to canvas
+      const canvas = await html2canvas(element, {
+        scale: 2, // Higher scale for better quality
+        useCORS: true,
+        logging: false,
+        allowTaint: true
+      });
+
+      // Get the canvas dimensions
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 280; // A4 landscape width (210mm) with margins
+      const pageHeight = 190; // A4 landscape height (297mm) with margins
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      // Add the image to the PDF
+      let heightLeft = imgHeight;
+      let position = 10; // Initial position
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add new pages if the content is larger than one page
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Save the PDF
+      pdf.save(`O-Level-Class-Report-${report.className}-${report.examName}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF directly:', error);
+      alert('Failed to generate PDF. Please try again or use the Print option.');
     }
   };
 
