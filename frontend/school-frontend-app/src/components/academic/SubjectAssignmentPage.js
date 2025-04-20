@@ -233,10 +233,39 @@ const SubjectAssignmentPage = () => {
         teacher: subjectTeachers[subject._id] || null
       }));
 
-      // Update the class with the new subjects array
-      await api.put(`/api/classes/${selectedClass}/subjects`, {
-        subjects: subjectsArray
-      });
+      // Get the current user's role
+      const userRole = localStorage.getItem('userRole');
+      console.log('Current user role:', userRole);
+
+      if (userRole === 'admin') {
+        // Admin users use the original endpoint
+        console.log('Using admin endpoint to update all subjects');
+        await api.put(`/api/classes/${selectedClass}/subjects`, {
+          subjects: subjectsArray
+        });
+      } else {
+        // Teachers use the self-assignment endpoint
+        console.log('Using teacher self-assignment endpoint');
+
+        // Collect only the subjects this teacher is assigning themselves to
+        const selfAssignedSubjectIds = [];
+        for (const [subjectId, teacherId] of Object.entries(subjectTeachers)) {
+          if (teacherId) {
+            selfAssignedSubjectIds.push(subjectId);
+          }
+        }
+
+        if (selfAssignedSubjectIds.length === 0) {
+          setError('Please select at least one subject to assign yourself to');
+          setLoading(false);
+          return;
+        }
+
+        await api.post('/api/teachers/self-assign-subjects', {
+          classId: selectedClass,
+          subjectIds: selfAssignedSubjectIds
+        });
+      }
 
       // Group subjects by teacher
       const teacherSubjectsMap = {};

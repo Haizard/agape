@@ -138,52 +138,57 @@ const teacherAuthService = {
         return false;
       }
 
-      // Check if this is an O-Level or A-Level class
-      try {
-        const response = await api.get(`/api/classes/${classId}`);
-        const classData = response.data;
-
-        // Check if this is an O-Level class
-        const isOLevelClass = classData && (
-          classData.educationLevel === 'O_LEVEL' ||
-          (classData.name && (
-            classData.name.toUpperCase().includes('O-LEVEL') ||
-            classData.name.toUpperCase().includes('O LEVEL')
-          ))
-        );
-
-        // Check if this is an A-Level class
-        const isALevelClass = classData && (
-          classData.form === 5 ||
-          classData.form === 6 ||
-          classData.educationLevel === 'A_LEVEL' ||
-          (classData.name && (
-            classData.name.toUpperCase().includes('FORM 5') ||
-            classData.name.toUpperCase().includes('FORM 6') ||
-            classData.name.toUpperCase().includes('FORM V') ||
-            classData.name.toUpperCase().includes('FORM VI') ||
-            classData.name.toUpperCase().includes('A-LEVEL') ||
-            classData.name.toUpperCase().includes('A LEVEL')
-          ))
-        );
-
-        // If this is an O-Level or A-Level class, bypass the authorization check
-        if (isOLevelClass) {
-          console.log(`[TeacherAuthService] Bypassing authorization check for O-Level class ${classId}`);
-          return true;
-        }
-        if (isALevelClass) {
-          console.log(`[TeacherAuthService] Bypassing authorization check for A-Level class ${classId}`);
-          return true;
-        }
-      } catch (error) {
-        console.error('[TeacherAuthService] Error checking class education level:', error);
-        // Continue with normal authorization check
+      // Check if user is admin
+      if (this.isAdmin()) {
+        console.log(`[TeacherAuthService] User is admin, authorized for subject ${subjectId} in class ${classId}`);
+        return true;
       }
 
-      // Normal authorization check
-      const assignedSubjects = await this.getAssignedSubjects(classId);
-      return assignedSubjects.some(subject => subject._id === subjectId);
+      // Use the enhanced teacher API to check authorization
+      try {
+        console.log(`[TeacherAuthService] Checking authorization for subject ${subjectId} in class ${classId} using enhanced API`);
+        const response = await api.get(`/api/enhanced-teacher/check-subject-authorization`, {
+          params: { classId, subjectId }
+        });
+
+        console.log(`[TeacherAuthService] Authorization check result:`, response.data);
+        return response.data.authorized === true;
+      } catch (error) {
+        // If the enhanced API fails, fall back to the old method
+        console.error('[TeacherAuthService] Error using enhanced API for authorization check:', error);
+
+        // Check if this is an O-Level class
+        try {
+          const response = await api.get(`/api/classes/${classId}`);
+          const classData = response.data;
+
+          // Check if this is an O-Level class
+          const isOLevelClass = classData && (
+            classData.educationLevel === 'O_LEVEL' ||
+            (classData.name && (
+              classData.name.toUpperCase().includes('O-LEVEL') ||
+              classData.name.toUpperCase().includes('O LEVEL')
+            ))
+          );
+
+          // For O-Level classes, check if the teacher is assigned to any subject in the class
+          if (isOLevelClass) {
+            console.log(`[TeacherAuthService] Class ${classId} is an O-Level class, checking class authorization`);
+            const isAuthorizedForClass = await this.isAuthorizedForClass(classId);
+            if (isAuthorizedForClass) {
+              console.log(`[TeacherAuthService] Teacher is authorized for O-Level class ${classId}, authorizing for subject ${subjectId}`);
+              return true;
+            }
+          }
+        } catch (classError) {
+          console.error('[TeacherAuthService] Error checking if class is O-Level:', classError);
+        }
+
+        // Normal authorization check
+        console.log(`[TeacherAuthService] Falling back to normal authorization check for subject ${subjectId} in class ${classId}`);
+        const assignedSubjects = await this.getAssignedSubjects(classId);
+        return assignedSubjects.some(subject => subject._id === subjectId);
+      }
     } catch (error) {
       console.error('Error checking subject authorization:', error);
       return false;

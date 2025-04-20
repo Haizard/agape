@@ -253,6 +253,92 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // --- Teacher Assignment Routes ---
 
+// Assign teacher to subjects in a class (self-assignment for teachers)
+router.post('/self-assign-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log('POST /api/teachers/self-assign-subjects - Teacher assigning themselves to subjects');
+    console.log('Request body:', req.body);
+
+    const { classId, subjectIds } = req.body;
+
+    if (!classId || !subjectIds || !Array.isArray(subjectIds)) {
+      return res.status(400).json({ message: 'Class ID and subject IDs array are required' });
+    }
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+    if (!userId) {
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Get the class to verify it exists
+    const classObj = await Class.findById(classId);
+    if (!classObj) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    // Initialize subjects array if it doesn't exist
+    if (!classObj.subjects) {
+      classObj.subjects = [];
+    }
+
+    // Update the class subjects with the teacher assignment
+    const updatedSubjects = [...classObj.subjects];
+    let assignedCount = 0;
+
+    for (const subjectId of subjectIds) {
+      // Find if this subject is already in the class
+      const existingIndex = updatedSubjects.findIndex(
+        s => (s.subject?._id?.toString() || s.subject?.toString()) === subjectId
+      );
+
+      if (existingIndex >= 0) {
+        // Update existing subject assignment
+        updatedSubjects[existingIndex].teacher = teacher._id;
+        assignedCount++;
+      } else {
+        // Add new subject assignment
+        updatedSubjects.push({
+          subject: subjectId,
+          teacher: teacher._id
+        });
+        assignedCount++;
+      }
+
+      // Also add the subject to the teacher's subjects if not already there
+      if (!teacher.subjects.some(s => s.toString() === subjectId)) {
+        teacher.subjects.push(subjectId);
+      }
+    }
+
+    // Save the updated class
+    classObj.subjects = updatedSubjects;
+    await classObj.save();
+
+    // Save the updated teacher
+    await teacher.save();
+
+    console.log(`Teacher ${teacher._id} assigned to ${assignedCount} subjects in class ${classId}`);
+
+    res.json({
+      success: true,
+      message: `Successfully assigned to ${assignedCount} subjects`,
+      teacherId: teacher._id,
+      classId,
+      subjectIds
+    });
+  } catch (error) {
+    console.error('Error assigning teacher to subjects:', error);
+    res.status(500).json({ message: 'Failed to assign teacher to subjects', error: error.message });
+  }
+});
+
 // Get all assignments (compatible with both components)
 router.get('/assignments', authenticateToken, async (req, res) => {
   try {

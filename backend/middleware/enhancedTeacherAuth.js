@@ -538,10 +538,125 @@ const getEnhancedTeacherSubjects = async (req, res, next) => {
   }
 };
 
+/**
+ * Middleware to strictly enforce subject-level access control for teachers
+ * This ensures teachers can only access subjects they are specifically assigned to teach
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const strictSubjectAccessControl = async (req, res, next) => {
+  try {
+    // Skip for admin users
+    if (req.user.role === 'admin') {
+      console.log('[EnhancedTeacherAuth] Admin user, bypassing strict subject access control');
+      return next();
+    }
+
+    // Make sure we have a teacher profile
+    if (!req.teacher) {
+      return res.status(500).json({
+        message: 'Teacher profile not attached to request. Make sure to use ensureTeacherProfile middleware first.',
+        error: 'MIDDLEWARE_SEQUENCE_ERROR'
+      });
+    }
+
+    // Get class ID and subject ID from params, query, or body
+    const classId = req.params.classId || req.query.classId || req.body.classId;
+    const subjectId = req.params.subjectId || req.query.subjectId || req.body.subjectId;
+
+    if (!subjectId) {
+      console.log('[EnhancedTeacherAuth] No subjectId provided in request');
+      return res.status(400).json({
+        message: 'Subject ID is required',
+        error: 'MISSING_SUBJECT_ID'
+      });
+    }
+
+    // Use the enhanced teacher subject service to check if the teacher is specifically assigned to this subject
+    const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
+
+    // If classId is provided, check specific assignment in that class
+    if (classId) {
+      console.log(`[EnhancedTeacherAuth] Checking if teacher ${req.teacher._id} is assigned to subject ${subjectId} in class ${classId}`);
+
+      // Use the isTeacherAuthorizedForSubject method which now has strict subject-level access control
+      const isAuthorized = await enhancedTeacherSubjectService.isTeacherAuthorizedForSubject(
+        req.teacher._id,
+        classId,
+        subjectId
+      );
+
+      if (isAuthorized) {
+        console.log(`[EnhancedTeacherAuth] Teacher ${req.teacher._id} is authorized for subject ${subjectId} in class ${classId}`);
+        return next();
+      }
+    } else {
+      // If no classId is provided, check if the teacher is assigned to this subject in any class
+      console.log(`[EnhancedTeacherAuth] Checking if teacher ${req.teacher._id} is assigned to subject ${subjectId} in any class`);
+
+      const TeacherAssignment = require('../models/TeacherAssignment');
+      const TeacherSubject = require('../models/TeacherSubject');
+      const Class = require('../models/Class');
+
+      // Method 1: Check TeacherAssignment model
+      const assignment = await TeacherAssignment.findOne({
+        teacher: req.teacher._id,
+        subject: subjectId
+      });
+
+      if (assignment) {
+        console.log(`[EnhancedTeacherAuth] Teacher ${req.teacher._id} is assigned to subject ${subjectId} via TeacherAssignment model`);
+        return next();
+      }
+
+      // Method 2: Check TeacherSubject model
+      const teacherSubject = await TeacherSubject.findOne({
+        teacherId: req.teacher._id,
+        subjectId: subjectId,
+        status: 'active'
+      });
+
+      if (teacherSubject) {
+        console.log(`[EnhancedTeacherAuth] Teacher ${req.teacher._id} is assigned to subject ${subjectId} via TeacherSubject model`);
+        return next();
+      }
+
+      // Method 3: Check Class model's subjects array
+      const classes = await Class.find({
+        'subjects.subject': subjectId,
+        'subjects.teacher': req.teacher._id
+      });
+
+      if (classes.length > 0) {
+        console.log(`[EnhancedTeacherAuth] Teacher ${req.teacher._id} is assigned to subject ${subjectId} in ${classes.length} classes via Class model`);
+        return next();
+      }
+    }
+
+    // If we get here, the teacher is not assigned to this subject
+    console.log(`[EnhancedTeacherAuth] Teacher ${req.teacher._id} is NOT assigned to subject ${subjectId}${classId ? ` in class ${classId}` : ''}`);
+    return res.status(403).json({
+      message: 'You are not assigned to teach this subject. Please contact an administrator.',
+      error: 'NOT_ASSIGNED_TO_SUBJECT',
+      teacherId: req.teacher._id,
+      subjectId,
+      ...(classId ? { classId } : {})
+    });
+  } catch (error) {
+    console.error('[EnhancedTeacherAuth] Error in strictSubjectAccessControl middleware:', error);
+    res.status(500).json({
+      message: 'Server error while checking teacher subject assignment',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   ensureTeacherProfile,
   ensureTeacherClassAssignment,
   ensureTeacherSubjectAssignment,
   diagnoseAndFixTeacherAssignments,
-  getEnhancedTeacherSubjects
+  getEnhancedTeacherSubjects,
+  strictSubjectAccessControl
 };

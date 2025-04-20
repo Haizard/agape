@@ -12,6 +12,74 @@ const enhancedTeacherAuth = require('../middleware/enhancedTeacherAuth');
 const teacherAssignmentService = require('../services/teacherAssignmentService');
 const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
 
+// Check if a teacher is authorized to access a subject in a class
+router.get('/check-subject-authorization',
+  authenticateToken,
+  authorizeRole(['teacher', 'admin']),
+  enhancedTeacherAuth.ensureTeacherProfile,
+  async (req, res) => {
+    try {
+      const { classId, subjectId } = req.query;
+      const teacherId = req.teacher._id;
+
+      if (!classId || !subjectId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Class ID and Subject ID are required',
+          authorized: false
+        });
+      }
+
+      // For admin users, always authorize
+      if (req.user.role === 'admin') {
+        return res.json({
+          success: true,
+          message: 'Admin user is authorized for all subjects',
+          authorized: true
+        });
+      }
+
+      // Check if the class is an O-Level class
+      const Class = require('../models/Class');
+      const classObj = await Class.findById(classId);
+      const isOLevelClass = classObj && classObj.educationLevel === 'O_LEVEL';
+
+      // Use the appropriate authorization check based on class type
+      let isAuthorized = false;
+
+      if (isOLevelClass) {
+        // For O-Level classes, use the more lenient check
+        isAuthorized = await enhancedTeacherSubjectService.isTeacherAuthorizedForSubject(
+          teacherId,
+          classId,
+          subjectId
+        );
+      } else {
+        // For A-Level classes, use the stricter check
+        isAuthorized = await enhancedTeacherSubjectService.isTeacherSpecificallyAssignedToSubject(
+          teacherId,
+          classId,
+          subjectId
+        );
+      }
+
+      return res.json({
+        success: true,
+        message: isAuthorized ? 'Teacher is authorized for this subject' : 'Teacher is not authorized for this subject',
+        authorized: isAuthorized
+      });
+    } catch (error) {
+      console.error('Error checking subject authorization:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error checking subject authorization',
+        error: error.message,
+        authorized: false
+      });
+    }
+  }
+);
+
 // Get the current teacher's profile
 router.get('/profile',
   authenticateToken,
@@ -158,6 +226,7 @@ router.get('/classes/:classId/subjects/:subjectId/students',
   authenticateToken,
   authorizeRole(['teacher', 'admin']),
   enhancedTeacherAuth.ensureTeacherProfile,
+  enhancedTeacherAuth.strictSubjectAccessControl,
   async (req, res) => {
     try {
       const { classId, subjectId } = req.params;
@@ -374,6 +443,7 @@ router.post('/classes/:classId/subjects/:subjectId/marks',
   authenticateToken,
   authorizeRole(['teacher', 'admin']),
   enhancedTeacherAuth.ensureTeacherProfile,
+  enhancedTeacherAuth.strictSubjectAccessControl,
   async (req, res) => {
     try {
       const { classId, subjectId } = req.params;
@@ -544,21 +614,163 @@ router.get('/o-level/classes/:classId/subjects',
   authenticateToken,
   authorizeRole(['teacher', 'admin']),
   enhancedTeacherAuth.ensureTeacherProfile,
-  enhancedTeacherAuth.getEnhancedTeacherSubjects, // Use the enhanced middleware
   async (req, res) => {
     try {
-      // The teacher's subjects are already attached to the request by the middleware
-      res.json({
+      const { classId } = req.params;
+      const { studentId } = req.query;
+
+      console.log(`GET /api/enhanced-teachers/o-level/classes/${classId}/subjects - Getting subjects for class`);
+
+      // Get the class to verify it exists and is O-Level
+      const Class = require('../models/Class');
+      const classObj = await Class.findById(classId);
+      if (!classObj) {
+        return res.status(404).json({
+          success: false,
+          message: 'Class not found'
+        });
+      }
+
+      // Verify this is an O-Level class
+      if (classObj.educationLevel !== 'O_LEVEL') {
+        console.log(`Class ${classId} is not an O-Level class (${classObj.educationLevel})`);
+        return res.status(400).json({
+          success: false,
+          message: 'This endpoint is only for O-Level classes'
+        });
+      }
+
+      console.log(`Class ${classId} confirmed as O-Level class`);
+
+      // For admin users, return all subjects in the class
+      if (req.user.role === 'admin') {
+        console.log(`User is admin, returning all subjects for class ${classId}`);
+
+        const subjects = [];
+
+        if (classObj.subjects && Array.isArray(classObj.subjects)) {
+          for (const subjectAssignment of classObj.subjects) {
+            if (subjectAssignment.subject) {
+              // Get the subject details
+              const Subject = require('../models/Subject');
+              const subject = await Subject.findById(subjectAssignment.subject);
+
+              if (subject) {
+                subjects.push({
+                  _id: subject._id,
+                  name: subject.name,
+                  code: subject.code,
+                  type: subject.type,
+                  description: subject.description,
+                  educationLevel: subject.educationLevel || 'O_LEVEL',
+                  isPrincipal: subject.isPrincipal || false,
+                  isCompulsory: subject.isCompulsory || false
+                });
+              }
+            }
+          }
+        }
+
+        console.log(`Admin found ${subjects.length} subjects in O-Level class ${classId}`);
+
+        return res.json({
+          success: true,
+          classId,
+          subjects
+        });
+      }
+
+      // For teachers, only return subjects they are assigned to teach
+      console.log(`User is teacher, returning only assigned subjects for class ${classId}`);
+
+      // Get the teacher ID from the authenticated user
+      const teacherId = req.teacher._id;
+
+      // Use the enhanced teacher subject service to get subjects
+      const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
+      const subjects = await enhancedTeacherSubjectService.getTeacherSubjects(
+        teacherId,
+        classId,
+        false // Don't use cache
+      );
+
+      console.log(`Found ${subjects.length} subjects assigned to teacher ${teacherId} in class ${classId}`);
+
+      // If studentId is provided, filter subjects to only those the student takes
+      if (studentId) {
+        console.log(`Filtering subjects for student ${studentId}`);
+
+        // Get the student to verify they exist and are in this class
+        const Student = require('../models/Student');
+        const student = await Student.findOne({ _id: studentId, class: classId });
+        if (!student) {
+          return res.status(404).json({
+            success: false,
+            message: 'Student not found in this class'
+          });
+        }
+
+        // For O-Level, we need to check which subjects the student takes
+        const mongoose = require('mongoose');
+        const Subject = mongoose.model('Subject');
+        const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+
+        // Create a set of subject IDs the student takes
+        const studentSubjectIds = new Set();
+
+        // Method 1: Check the Student model's selectedSubjects field
+        if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+          for (const subjectId of student.selectedSubjects) {
+            studentSubjectIds.add(subjectId.toString());
+          }
+        }
+
+        // Method 2: Check the StudentSubjectSelection model
+        const selection = await StudentSubjectSelection.findOne({ student: studentId });
+        if (selection) {
+          if (selection.coreSubjects && Array.isArray(selection.coreSubjects)) {
+            for (const subjectId of selection.coreSubjects) {
+              studentSubjectIds.add(subjectId.toString());
+            }
+          }
+          if (selection.optionalSubjects && Array.isArray(selection.optionalSubjects)) {
+            for (const subjectId of selection.optionalSubjects) {
+              studentSubjectIds.add(subjectId.toString());
+            }
+          }
+        }
+
+        // Method 3: Add all core subjects
+        for (const subject of subjects) {
+          if (subject.type === 'CORE') {
+            studentSubjectIds.add(subject._id.toString());
+          }
+        }
+
+        // Filter subjects to only those the student takes
+        const filteredSubjects = subjects.filter(subject =>
+          studentSubjectIds.has(subject._id.toString()));
+
+        console.log(`Found ${filteredSubjects.length} subjects for student ${studentId} out of ${subjects.length} assigned to teacher ${teacherId}`);
+
+        return res.json({
+          success: true,
+          classId,
+          studentId,
+          subjects: filteredSubjects
+        });
+      }
+
+      return res.json({
         success: true,
-        classId: req.params.classId,
-        subjects: req.teacherSubjects,
-        educationLevel: 'O_LEVEL'
+        classId,
+        subjects
       });
     } catch (error) {
-      console.error('Error fetching O-Level teacher subjects:', error);
+      console.error('Error getting subjects for class:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to fetch O-Level teacher subjects',
+        message: 'Error getting subjects for class',
         error: error.message
       });
     }
@@ -570,6 +782,7 @@ router.get('/o-level/classes/:classId/subject/:subjectId/students',
   authenticateToken,
   authorizeRole(['teacher', 'admin']),
   enhancedTeacherAuth.ensureTeacherProfile,
+  enhancedTeacherAuth.strictSubjectAccessControl,
   async (req, res) => {
     try {
       const { classId, subjectId } = req.params;
@@ -891,6 +1104,7 @@ router.get('/o-level/classes/:classId/subjects/:subjectId/students',
   authenticateToken,
   authorizeRole(['teacher', 'admin']),
   enhancedTeacherAuth.ensureTeacherProfile,
+  enhancedTeacherAuth.strictSubjectAccessControl,
   async (req, res) => {
     try {
       const { classId, subjectId } = req.params;
@@ -919,15 +1133,100 @@ router.get('/o-level/classes/:classId/subjects/:subjectId/students',
 
       console.log(`Class ${classId} confirmed as O-Level class`);
 
-      // Get all students in the class - for O-Level we don't check subject assignments
-      const Student = require('../models/Student');
-      const students = await Student.find({ class: classId })
-        .select('firstName lastName rollNumber gender educationLevel')
-        .sort({ firstName: 1, lastName: 1 });
+      // For admin users, we'll return all students in the class who take this subject
+      if (req.user.role === 'admin') {
+        console.log(`User is admin, returning all students in class ${classId} who take subject ${subjectId}`);
 
-      console.log(`Found ${students.length} students in O-Level class ${classId} using direct O-Level endpoint`);
+        // For O-Level, we need to filter students based on subject selection
+        const Student = require('../models/Student');
+        const mongoose = require('mongoose');
+        const Subject = mongoose.model('Subject');
+        const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
 
-      res.json({
+        // Get all students in the class
+        const students = await Student.find({ class: classId })
+          .select('firstName lastName rollNumber gender educationLevel selectedSubjects')
+          .sort({ firstName: 1, lastName: 1 });
+
+        console.log(`Found ${students.length} students in O-Level class ${classId}`);
+
+        // Check if this is a core subject
+        const subject = await Subject.findById(subjectId);
+        const isCoreSubject = subject && subject.type === 'CORE';
+
+        let filteredStudents = [];
+
+        if (isCoreSubject) {
+          // If it's a core subject, all students take it
+          console.log(`Subject ${subjectId} is a core subject, all students take it`);
+          filteredStudents = students;
+        } else {
+          // If it's an optional subject, filter students who have selected it
+          console.log(`Subject ${subjectId} is an optional subject, filtering students`);
+
+          // Create a set of student IDs who take this subject
+          const studentIdSet = new Set();
+
+          // Method 1: Check the Student model's selectedSubjects field
+          for (const student of students) {
+            if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+              const selectedSubjects = student.selectedSubjects.map(s => s.toString());
+              if (selectedSubjects.includes(subjectId)) {
+                studentIdSet.add(student._id.toString());
+                console.log(`Student ${student._id} takes subject ${subjectId} (from Student model)`);
+              }
+            }
+          }
+
+          // Method 2: Check the StudentSubjectSelection model
+          const studentIds = students.map(s => s._id);
+          const selections = await StudentSubjectSelection.find({ student: { $in: studentIds } });
+
+          for (const selection of selections) {
+            const studentId = selection.student.toString();
+            const coreSubjects = selection.coreSubjects.map(s => s.toString());
+            const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
+
+            if (coreSubjects.includes(subjectId) || optionalSubjects.includes(subjectId)) {
+              studentIdSet.add(studentId);
+              console.log(`Student ${studentId} takes subject ${subjectId} (from StudentSubjectSelection model)`);
+            }
+          }
+
+          // Filter students who take this subject
+          filteredStudents = students.filter(student =>
+            studentIdSet.has(student._id.toString()));
+        }
+
+        console.log(`Returning ${filteredStudents.length} students who take subject ${subjectId} in class ${classId}`);
+
+        return res.json({
+          success: true,
+          classId,
+          subjectId,
+          students: filteredStudents.map(student => ({
+            _id: student._id,
+            name: `${student.firstName} ${student.lastName}`,
+            firstName: student.firstName, // Add firstName for compatibility
+            lastName: student.lastName, // Add lastName for compatibility
+            studentName: `${student.firstName} ${student.lastName}`, // Add studentName for compatibility
+            rollNumber: student.rollNumber,
+            gender: student.gender,
+            educationLevel: student.educationLevel
+          }))
+        });
+      }
+
+      // For teachers, we'll return only students they are authorized to see
+      console.log(`User is teacher, returning students in class ${classId} who take subject ${subjectId} and are assigned to this teacher`);
+
+      // Use the enhanced teacher subject service to get students for this specific subject
+      const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
+      const students = await enhancedTeacherSubjectService.getTeacherStudents(teacherId, classId, subjectId);
+
+      console.log(`Found ${students.length} students assigned to teacher ${teacherId} for subject ${subjectId} in class ${classId}`);
+
+      return res.json({
         success: true,
         classId,
         subjectId,
@@ -938,8 +1237,8 @@ router.get('/o-level/classes/:classId/subjects/:subjectId/students',
           lastName: student.lastName, // Add lastName for compatibility
           studentName: `${student.firstName} ${student.lastName}`, // Add studentName for compatibility
           rollNumber: student.rollNumber,
-          gender: student.gender,
-          educationLevel: student.educationLevel
+          gender: student.gender || 'unknown',
+          educationLevel: student.educationLevel || 'O_LEVEL'
         }))
       });
     } catch (error) {

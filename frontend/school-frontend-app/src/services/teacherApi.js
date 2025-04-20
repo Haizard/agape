@@ -48,10 +48,8 @@ const teacherApi = {
         // For teachers, strictly use the teacher-specific endpoint
         console.log(`[TeacherAPI] Fetching subjects for class ${classId} that the teacher is strictly assigned to teach`);
         try {
-          // Use the marks-entry-subjects endpoint which strictly returns only subjects the teacher is assigned to teach
-          const response = await api.get('/api/teachers/marks-entry-subjects', {
-            params: { classId }
-          });
+          // Use the enhanced-teachers endpoint which strictly returns only subjects the teacher is assigned to teach
+          const response = await api.get('/api/enhanced-teachers/o-level/classes/' + classId + '/subjects');
 
           // Check if the response has a subjects array (new format)
           if (response.data && Array.isArray(response.data.subjects)) {

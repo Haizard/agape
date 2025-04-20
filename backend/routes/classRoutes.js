@@ -111,7 +111,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Update subjects for a class
+// Update subjects for a class (admin only)
 router.put('/:id/subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
   try {
     console.log(`PUT /api/classes/${req.params.id}/subjects - Updating subjects for class`);
