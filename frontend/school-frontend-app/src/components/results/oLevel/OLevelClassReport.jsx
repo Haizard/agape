@@ -33,6 +33,9 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import EditIcon from '@mui/icons-material/Edit';
+// PDF generation libraries
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import useOLevelClassReport from '../../../hooks/useOLevelClassReport';
 import { generateClassResultPDF } from '../../../utils/pdfGenerator';
 
