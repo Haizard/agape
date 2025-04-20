@@ -20,6 +20,7 @@ import {
   Divider
 } from '@mui/material';
 import api from '../../services/api';
+import FixAssignmentsButton from '../admin/FixAssignmentsButton';
 
 const SubjectAssignmentPage = () => {
   const [loading, setLoading] = useState(false);
@@ -267,34 +268,13 @@ const SubjectAssignmentPage = () => {
         });
       }
 
-      // Group subjects by teacher
-      const teacherSubjectsMap = {};
+      // NOTE: We no longer need to update the teacher's subjects array
+      // This was causing confusion because the teacher.subjects array should represent
+      // the subjects a teacher is qualified to teach, not the subjects they're currently
+      // assigned to teach in specific classes
+      // The assignments are already recorded in the Class.subjects array and TeacherSubject model
 
-      // Collect all subjects for each teacher
-      for (const subject of classSubjects) {
-        const teacherId = subjectTeachers[subject._id];
-
-        if (teacherId) {
-          if (!teacherSubjectsMap[teacherId]) {
-            teacherSubjectsMap[teacherId] = [];
-          }
-          teacherSubjectsMap[teacherId].push(subject._id);
-        }
-      }
-
-      // Update each teacher's subjects in a single API call per teacher
-      for (const [teacherId, subjectIds] of Object.entries(teacherSubjectsMap)) {
-        try {
-          // Add these subjects to the teacher's subjects array
-          await api.put(`/api/teachers/${teacherId}/subjects`, {
-            subjects: subjectIds
-          });
-          console.log(`Updated subjects for teacher ${teacherId}:`, subjectIds);
-        } catch (teacherError) {
-          console.error(`Error updating teacher ${teacherId} subjects:`, teacherError);
-          // Continue with other teachers even if one fails
-        }
-      }
+      // If you want to update the teacher's qualifications, use the teacher profile page instead
 
       setSuccess('Subject-teacher assignments saved successfully');
       fetchClassDetails(); // Refresh the data
@@ -309,6 +289,13 @@ const SubjectAssignmentPage = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom>Subject-Teacher Assignment</Typography>
+
+      {/* Admin tools - always show for now */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="body1" paragraph>
+          Having issues with teacher-subject assignments? Visit the <a href="/admin/fix-assignments" style={{ textDecoration: 'underline' }}>Fix Assignments Page</a> to fix all assignments at once.
+        </Typography>
+      </Box>
 
       <Paper sx={{ p: 3, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">

@@ -100,16 +100,27 @@ async function getTeacherSubjects(teacherId, classId = null, useCache = true, in
 
     // Method 2: Check TeacherSubject assignments
     if (classId) {
+      console.log(`\n\n[DEBUG] [EnhancedTeacherSubjectService] Checking TeacherSubject assignments for teacher ${teacherId} in class ${classId}`);
       const teacherSubjectAssignments = await TeacherSubject.find({
         teacherId: teacherId,
         classId: classId,
         status: 'active'
       }).populate('subjectId');
 
+      console.log(`[DEBUG] [EnhancedTeacherSubjectService] Found ${teacherSubjectAssignments.length} TeacherSubject assignments`);
+
+      // Log the first assignment for debugging
+      if (teacherSubjectAssignments.length > 0) {
+        console.log('[DEBUG] First TeacherSubject assignment:', JSON.stringify(teacherSubjectAssignments[0], null, 2));
+      } else {
+        console.log('[DEBUG] WARNING: No TeacherSubject assignments found');
+      }
+
       // Add only the specific subjects the teacher is assigned to teach
       for (const assignment of teacherSubjectAssignments) {
         if (assignment.subjectId) {
           const subjectId = assignment.subjectId._id.toString();
+          console.log(`[DEBUG] Processing TeacherSubject assignment for subject ${subjectId} (${assignment.subjectId.name})`);
 
           // If this subject is not in the map yet, add it
           if (!subjectMap[subjectId]) {
@@ -124,8 +135,12 @@ async function getTeacherSubjects(teacherId, classId = null, useCache = true, in
               isCompulsory: assignment.subjectId.isCompulsory || false,
               assignmentType: 'teacherSubject' // Assigned via TeacherSubject model
             };
-            console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is assigned to teach ${assignment.subjectId.name} in class ${classId} via TeacherSubject model`);
+            console.log(`[DEBUG] [EnhancedTeacherSubjectService] Teacher ${teacherId} is assigned to teach ${assignment.subjectId.name} in class ${classId} via TeacherSubject model`);
+          } else {
+            console.log(`[DEBUG] Subject ${subjectId} already in map with assignment type: ${subjectMap[subjectId].assignmentType}`);
           }
+        } else {
+          console.log(`[DEBUG] WARNING: TeacherSubject assignment has no subjectId:`, JSON.stringify(assignment, null, 2));
         }
       }
     }
@@ -847,6 +862,9 @@ async function isTeacherAssignedToSubject(teacherId, classId, subjectId) {
  */
 async function isTeacherSpecificallyAssignedToSubject(teacherId, classId, subjectId) {
   console.log(`\n\n[DEBUG] [EnhancedTeacherSubjectService] Checking if teacher ${teacherId} is specifically assigned to subject ${subjectId} in class ${classId}`);
+  console.log('[DEBUG] Teacher ID type:', typeof teacherId, teacherId instanceof mongoose.Types.ObjectId ? 'ObjectId' : 'Not ObjectId');
+  console.log('[DEBUG] Class ID type:', typeof classId, classId instanceof mongoose.Types.ObjectId ? 'ObjectId' : 'Not ObjectId');
+  console.log('[DEBUG] Subject ID type:', typeof subjectId, subjectId instanceof mongoose.Types.ObjectId ? 'ObjectId' : 'Not ObjectId');
 
   try {
     // Validate parameters
@@ -879,13 +897,24 @@ async function isTeacherSpecificallyAssignedToSubject(teacherId, classId, subjec
     }
 
     // Method 2: Check TeacherSubject assignments
-    console.log(`[EnhancedTeacherSubjectService] Method 2: Checking TeacherSubject model for teacher ${teacherIdStr} and subject ${subjectIdStr}`);
-    const teacherSubjectAssignment = await TeacherSubject.findOne({
+    console.log(`[DEBUG] [EnhancedTeacherSubjectService] Method 2: Checking TeacherSubject model for teacher ${teacherIdStr} and subject ${subjectIdStr}`);
+
+    // Create the query object
+    const query = {
       teacherId: teacherIdStr,
       classId: classIdStr,
       subjectId: subjectIdStr,
       status: 'active'
-    });
+    };
+
+    console.log('[DEBUG] TeacherSubject query:', JSON.stringify(query, null, 2));
+
+    // First, count how many matching documents exist
+    const count = await TeacherSubject.countDocuments(query);
+    console.log(`[DEBUG] TeacherSubject count for query: ${count}`);
+
+    // Then find the actual document
+    const teacherSubjectAssignment = await TeacherSubject.findOne(query);
 
     if (teacherSubjectAssignment) {
       console.log(`[EnhancedTeacherSubjectService] AUTHORIZED: Teacher ${teacherIdStr} has a TeacherSubject assignment for subject ${subjectIdStr} in class ${classIdStr}`);

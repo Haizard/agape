@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const TeacherAssignment = require('../models/TeacherAssignment');
+const TeacherSubject = require('../models/TeacherSubject');
 const Teacher = require('../models/Teacher');
 const Subject = require('../models/Subject');
 const Class = require('../models/Class');
@@ -311,18 +312,18 @@ router.post('/self-assign-subjects', authenticateToken, authorizeRole(['teacher'
         assignedCount++;
       }
 
-      // Also add the subject to the teacher's subjects if not already there
-      if (!teacher.subjects.some(s => s.toString() === subjectId)) {
-        teacher.subjects.push(subjectId);
-      }
+      // NOTE: We're no longer adding the subject to the teacher's subjects array
+      // This was causing confusion because the teacher.subjects array should represent
+      // the subjects a teacher is qualified to teach, not the subjects they're currently
+      // assigned to teach in specific classes
+      // The assignment is already recorded in the Class.subjects array
     }
 
     // Save the updated class
     classObj.subjects = updatedSubjects;
     await classObj.save();
 
-    // Save the updated teacher
-    await teacher.save();
+    // We no longer need to save the teacher since we're not modifying it
 
     console.log(`Teacher ${teacher._id} assigned to ${assignedCount} subjects in class ${classId}`);
 
@@ -2323,6 +2324,98 @@ router.get('/my-subjects-old', authenticateToken, authorizeRole(['teacher', 'adm
     console.error('Error fetching subjects for teacher:', error);
     res.status(500).json({
       message: 'Failed to fetch subjects',
+      error: error.message
+    });
+  }
+});
+
+// Fix teacher-subject assignments
+router.post('/fix-assignments', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+  try {
+    console.log('POST /api/teachers/fix-assignments - Fixing teacher-subject assignments');
+
+    // Get all classes
+    const classes = await Class.find()
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject',
+        select: 'name code'
+      })
+      .populate({
+        path: 'subjects.teacher',
+        model: 'Teacher',
+        select: 'firstName lastName'
+      });
+
+    console.log(`Found ${classes.length} classes`);
+
+    // Process each class
+    const results = [];
+
+    for (const classObj of classes) {
+      console.log(`Processing class: ${classObj.name}`);
+
+      // Get all subject assignments in this class
+      const subjectAssignments = classObj.subjects || [];
+
+      // Process each subject assignment
+      for (const assignment of subjectAssignments) {
+        if (!assignment.subject || !assignment.teacher) continue;
+
+        const subjectId = assignment.subject._id;
+        const teacherId = assignment.teacher._id;
+        const subjectName = assignment.subject.name;
+        const teacherName = `${assignment.teacher.firstName} ${assignment.teacher.lastName}`;
+
+        console.log(`Found assignment: ${teacherName} -> ${subjectName}`);
+
+        // Create a TeacherSubject record if it doesn't exist
+        const existingAssignment = await TeacherSubject.findOne({
+          teacherId,
+          subjectId,
+          classId: classObj._id,
+          status: 'active'
+        });
+
+        if (!existingAssignment) {
+          console.log(`Creating TeacherSubject record for ${teacherName} -> ${subjectName} in class ${classObj.name}`);
+
+          const newAssignment = new TeacherSubject({
+            teacherId,
+            subjectId,
+            classId: classObj._id,
+            status: 'active'
+          });
+
+          await newAssignment.save();
+
+          results.push({
+            class: classObj.name,
+            subject: subjectName,
+            teacher: teacherName,
+            action: 'created'
+          });
+        } else {
+          console.log(`TeacherSubject record already exists for ${teacherName} -> ${subjectName} in class ${classObj.name}`);
+
+          results.push({
+            class: classObj.name,
+            subject: subjectName,
+            teacher: teacherName,
+            action: 'exists'
+          });
+        }
+      }
+    }
+
+    res.json({
+      message: 'Teacher-subject assignments fixed',
+      results
+    });
+  } catch (error) {
+    console.error('Error fixing teacher-subject assignments:', error);
+    res.status(500).json({
+      message: 'Failed to fix teacher-subject assignments',
       error: error.message
     });
   }

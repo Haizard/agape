@@ -64,6 +64,7 @@ import StudentSubjectSelection from './components/academic/StudentSubjectSelecti
 import ALevelSubjectAssignment from './components/academic/ALevelSubjectAssignment';
 import CoreSubjectManagement from './components/admin/CoreSubjectManagement';
 import OptionalSubjectManagement from './components/admin/OptionalSubjectManagement';
+import FixAssignmentsPage from './pages/FixAssignmentsPage';
 
 // Department Layout Components
 import AcademicManagement from './components/departments/AcademicManagement';
@@ -262,6 +263,7 @@ function App() {
                           <Route path="academic-years" element={<NewAcademicYearManagement />} />
                           <Route path="subject-class-assignment" element={<FixedSubjectClassAssignment />} />
                           <Route path="subject-teacher-assignment" element={<SubjectAssignmentPage />} />
+                          <Route path="fix-assignments" element={<FixAssignmentsPage />} />
                           <Route path="compulsory-subject-assignment" element={<CompulsorySubjectAssignment />} />
                           <Route path="student-subject-selection" element={<StudentSubjectSelection />} />
                           <Route path="a-level-subject-assignment" element={<ALevelSubjectAssignment />} />

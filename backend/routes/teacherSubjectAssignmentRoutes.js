@@ -6,8 +6,8 @@
 
 const express = require('express');
 const router = express.Router();
+// Import from the correct middleware file
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
-// Note: authorizeRole is the correct name, not authorizeRoles
 const TeacherSubject = require('../models/TeacherSubject');
 const TeacherAssignment = require('../models/TeacherAssignment');
 const TeacherClass = require('../models/TeacherClass');
@@ -22,7 +22,23 @@ const Subject = require('../models/Subject');
  */
 router.get('/',
   authenticateToken,
-  authorizeRole(['teacher', 'admin']),
+  (req, res, next) => {
+    // Custom middleware to authorize multiple roles
+    console.log('Authorizing roles: teacher, admin');
+    console.log('User role:', req.user?.role);
+
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+      return res.status(403).json({
+        message: `Access denied. Required roles: teacher, admin. User role: ${req.user.role}`
+      });
+    }
+
+    next();
+  },
   async (req, res) => {
     console.log('\n\n[DEBUG] GET /api/teacher-subject-assignments - Request received');
     console.log('[DEBUG] Query params:', req.query);
@@ -184,7 +200,23 @@ router.get('/',
  */
 router.post('/',
   authenticateToken,
-  authorizeRole(['admin']),
+  (req, res, next) => {
+    // Custom middleware to authorize admin role
+    console.log('Authorizing role: admin');
+    console.log('User role:', req.user?.role);
+
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        message: `Access denied. Required role: admin. User role: ${req.user.role}`
+      });
+    }
+
+    next();
+  },
   async (req, res) => {
     try {
       const { teacherId, subjectId, classId, assignmentType } = req.body;
@@ -296,7 +328,23 @@ router.post('/',
  */
 router.delete('/:id',
   authenticateToken,
-  authorizeRole(['admin']),
+  (req, res, next) => {
+    // Custom middleware to authorize admin role
+    console.log('Authorizing role: admin');
+    console.log('User role:', req.user?.role);
+
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        message: `Access denied. Required role: admin. User role: ${req.user.role}`
+      });
+    }
+
+    next();
+  },
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -397,6 +445,67 @@ router.delete('/:id',
       }
     } catch (error) {
       console.error('Error deleting teacher-subject assignment:', error);
+      res.status(500).json({
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  }
+);
+
+/**
+ * @route POST /api/teacher-subject-assignments/direct
+ * @desc Create a teacher-subject assignment directly (for debugging)
+ * @access Private (Admin)
+ */
+router.post('/direct',
+  authenticateToken,
+  (req, res, next) => {
+    // Custom middleware to authorize admin role
+    console.log('Authorizing role: admin');
+    console.log('User role:', req.user?.role);
+
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        message: `Access denied. Required role: admin. User role: ${req.user.role}`
+      });
+    }
+
+    next();
+  },
+  async (req, res) => {
+    try {
+      const { teacherId, subjectId, classId } = req.body;
+
+      // Validate required fields
+      if (!teacherId || !subjectId || !classId) {
+        return res.status(400).json({
+          message: 'Teacher ID, Subject ID, and Class ID are required'
+        });
+      }
+
+      console.log(`Creating direct TeacherSubject assignment: teacherId=${teacherId}, subjectId=${subjectId}, classId=${classId}`);
+
+      // Create new assignment directly in TeacherSubject model
+      const newAssignment = new TeacherSubject({
+        teacherId,
+        subjectId,
+        classId,
+        status: 'active'
+      });
+
+      await newAssignment.save();
+
+      res.status(201).json({
+        message: 'Teacher-subject assignment created directly',
+        assignment: newAssignment
+      });
+    } catch (error) {
+      console.error('Error creating direct teacher-subject assignment:', error);
       res.status(500).json({
         message: 'Server error',
         error: error.message
