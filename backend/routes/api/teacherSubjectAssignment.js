@@ -4,6 +4,7 @@ const Teacher = require('../../models/Teacher');
 const Subject = require('../../models/Subject');
 const Class = require('../../models/Class');
 const { authenticateJWT, authorizeRole } = require('../../middleware/auth');
+const unifiedTeacherAssignmentService = require('../../services/unifiedTeacherAssignmentService');
 
 // @route   POST /api/teacher-subject-assignment
 // @desc    Assign subjects to a teacher
@@ -17,43 +18,56 @@ router.post('/', authenticateJWT, authorizeRole(['admin']), async (req, res) => 
       return res.status(400).json({ message: 'Invalid input. Please provide teacherId, subjectIds array, and classId.' });
     }
 
-    // Find teacher
-    const teacher = await Teacher.findById(teacherId);
-    if (!teacher) {
-      return res.status(404).json({ message: 'Teacher not found' });
+    console.log(`POST /api/teacher-subject-assignment - Assigning teacher ${teacherId} to ${subjectIds.length} subjects in class ${classId}`);
+
+    // Process each subject assignment using the unified service
+    const results = [];
+    for (const subjectId of subjectIds) {
+      const result = await unifiedTeacherAssignmentService.assignTeacherToSubject({
+        classId,
+        subjectId,
+        teacherId,
+        assignedBy: req.user.userId,
+        allowAdminFallback: false, // Never allow admin fallback
+        updateAllModels: true // Update all related models
+      });
+
+      results.push({
+        subjectId,
+        success: result.success,
+        message: result.message,
+        details: result.details
+      });
     }
 
-    // Find class
-    const classObj = await Class.findById(classId);
-    if (!classObj) {
-      return res.status(404).json({ message: 'Class not found' });
+    // Check if any assignments failed
+    const failures = results.filter(r => !r.success);
+    if (failures.length > 0) {
+      console.error(`${failures.length} subject assignments failed:`, failures);
+      return res.status(400).json({
+        message: 'Some subject assignments failed',
+        failures,
+        successes: results.filter(r => r.success)
+      });
     }
 
-    // Find subjects
-    const subjects = await Subject.find({ _id: { $in: subjectIds } });
-    if (subjects.length !== subjectIds.length) {
-      return res.status(404).json({ message: 'One or more subjects not found' });
-    }
+    // Get the updated teacher and class data
+    const [teacher, classObj] = await Promise.all([
+      Teacher.findById(teacherId).populate('subjects', 'name code'),
+      Class.findById(classId)
+        .populate({
+          path: 'subjects.subject',
+          model: 'Subject',
+          select: 'name code'
+        })
+        .populate({
+          path: 'subjects.teacher',
+          model: 'Teacher',
+          select: 'firstName lastName'
+        })
+    ]);
 
-    // Update teacher's subjects
-    teacher.subjects = [...new Set([...teacher.subjects.map(s => s.toString()), ...subjectIds])];
-    await teacher.save();
-
-    // Update class's subject-teacher assignments
-    const updatedSubjects = classObj.subjects.map(s => {
-      if (subjectIds.includes(s.subject.toString())) {
-        return {
-          ...s.toObject(),
-          teacher: teacherId
-        };
-      }
-      return s;
-    });
-
-    classObj.subjects = updatedSubjects;
-    await classObj.save();
-
-    return res.json({ 
+    return res.json({
       message: 'Teacher assigned to subjects successfully',
       teacher: {
         _id: teacher._id,
@@ -68,7 +82,7 @@ router.post('/', authenticateJWT, authorizeRole(['admin']), async (req, res) => 
     });
   } catch (error) {
     console.error('Error assigning subjects to teacher:', error);
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

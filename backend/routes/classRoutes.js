@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const router = express.Router();
 const Class = require('../models/Class');
+const unifiedTeacherAssignmentService = require('../services/unifiedTeacherAssignmentService');
 
 // Get all classes
 router.get('/', authenticateToken, async (req, res) => {
@@ -124,44 +125,71 @@ router.put('/:id/subjects', authenticateToken, authorizeRole(['admin']), async (
       return res.status(404).json({ message: 'Class not found' });
     }
 
-    // Get the current subjects to compare with new ones
-    const currentSubjects = classItem.subjects || [];
+    // Get the subjects from the request body
     const newSubjects = req.body.subjects || [];
 
-    // Update the subjects array
-    classItem.subjects = newSubjects;
-
-    // Save the updated class
-    const updatedClass = await classItem.save();
-    console.log(`Updated subjects for class ${req.params.id}`);
-
-    // Now ensure that all teachers have these subjects in their profiles
-    const Teacher = require('../models/Teacher');
-
-    // Process each subject assignment
-    for (const subjectAssignment of newSubjects) {
-      if (!subjectAssignment.teacher || !subjectAssignment.subject) continue;
-
-      // Get the teacher
-      const teacher = await Teacher.findById(subjectAssignment.teacher);
-      if (!teacher) continue;
-
-      // Check if this subject is already in the teacher's subjects
+    // Format the assignments for the unified service
+    const assignments = newSubjects.map(subjectAssignment => {
       const subjectId = typeof subjectAssignment.subject === 'object' ?
         subjectAssignment.subject._id.toString() :
         subjectAssignment.subject.toString();
 
-      const hasSubject = teacher.subjects.some(s => s.toString() === subjectId);
-
-      // If not, add it
-      if (!hasSubject) {
-        teacher.subjects.push(subjectAssignment.subject);
-        await teacher.save();
-        console.log(`Added subject ${subjectId} to teacher ${teacher._id}`);
+      // Ensure teacherId is properly extracted and not undefined
+      let teacherId = null;
+      if (subjectAssignment.teacher) {
+        teacherId = typeof subjectAssignment.teacher === 'object' ?
+          subjectAssignment.teacher._id.toString() :
+          subjectAssignment.teacher.toString();
       }
+
+      // Log the assignment for debugging
+      console.log(`Assignment for subject ${subjectId}: teacher=${teacherId || 'null'}`);
+
+      // Validate that teacherId is not empty string (which could be interpreted as falsy)
+      if (teacherId === '') {
+        console.warn(`Empty string teacherId detected for subject ${subjectId}, setting to null`);
+        teacherId = null;
+      }
+
+      return {
+        subjectId,
+        teacherId
+      };
+    });
+
+    // Use the unified service to update all assignments
+    const result = await unifiedTeacherAssignmentService.updateClassSubjectAssignments({
+      classId: req.params.id,
+      assignments,
+      assignedBy: req.user.userId,
+      allowAdminFallback: false, // Never allow admin fallback
+      updateAllModels: true // Update all related models
+    });
+
+    if (!result.success) {
+      console.error(`Error updating class subjects: ${result.message}`);
+      return res.status(400).json({
+        message: 'Failed to update class subjects',
+        error: result.message,
+        details: result.results
+      });
     }
 
-    // Return the updated class
+    // Return the updated class with populated data
+    const updatedClass = await Class.findById(req.params.id)
+      .populate('academicYear', 'name year')
+      .populate('classTeacher', 'firstName lastName')
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subject',
+        select: 'name code type description'
+      })
+      .populate({
+        path: 'subjects.teacher',
+        model: 'Teacher',
+        select: 'firstName lastName'
+      });
+
     res.json(updatedClass);
   } catch (error) {
     console.error(`Error updating subjects for class ${req.params.id}:`, error);
@@ -408,38 +436,6 @@ router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res
   }
 });
 
-// Update class subjects (for assigning teachers to subjects)
-router.put('/:id/subjects', authenticateToken, authorizeRole(['admin']), async (req, res) => {
-  try {
-    console.log(`PUT /api/classes/${req.params.id}/subjects - Updating class subjects`);
-
-    // First check if the class exists
-    const classItem = await Class.findById(req.params.id);
-    if (!classItem) {
-      console.log(`Class not found with ID: ${req.params.id}`);
-      return res.status(404).json({ message: 'Class not found' });
-    }
-
-    // Get the updated subjects array from the request body
-    const { subjects } = req.body;
-    if (!subjects || !Array.isArray(subjects)) {
-      return res.status(400).json({ message: 'Subjects array is required' });
-    }
-
-    console.log(`Updating ${subjects.length} subject assignments for class ${classItem.name}`);
-
-    // Update the class subjects
-    classItem.subjects = subjects;
-    await classItem.save();
-
-    res.json({
-      message: 'Class subjects updated successfully',
-      class: classItem
-    });
-  } catch (error) {
-    console.error(`Error updating subjects for class ${req.params.id}:`, error);
-    res.status(500).json({ message: error.message });
-  }
-});
+// This route is now handled by the first PUT /:id/subjects route above
 
 module.exports = router;

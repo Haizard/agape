@@ -20,6 +20,8 @@ import {
   Divider
 } from '@mui/material';
 import api from '../../services/api';
+import unifiedTeacherAssignmentService from '../../services/unifiedTeacherAssignmentService';
+import { getUserRole } from '../../utils/authUtils';
 import FixAssignmentsButton from '../admin/FixAssignmentsButton';
 
 const SubjectAssignmentPage = () => {
@@ -228,45 +230,52 @@ const SubjectAssignmentPage = () => {
       setError('');
       setSuccess('');
 
-      // Format the subjects array with subject and teacher IDs
-      const subjectsArray = classSubjects.map(subject => ({
-        subject: subject._id,
-        teacher: subjectTeachers[subject._id] || null
-      }));
+      // Check if we have a selected class
+      if (!selectedClass) {
+        setError('Please select a class first');
+        setLoading(false);
+        return;
+      }
 
-      // Get the current user's role
-      const userRole = localStorage.getItem('userRole');
+      // Check for any admin assignments
+      const adminTeachers = teachers.filter(t => t.isAdmin || (t.user && t.user.role === 'admin'));
+      const adminTeacherIds = adminTeachers.map(t => t._id);
+      console.log('Admin teacher IDs:', adminTeacherIds);
+
+      // Check if any subjects are assigned to admin
+      const adminAssignments = Object.entries(subjectTeachers)
+        .filter(([_, teacherId]) => adminTeacherIds.includes(teacherId))
+        .map(([subjectId]) => subjectId);
+
+      if (adminAssignments.length > 0) {
+        console.warn('WARNING: Assigning admin users as teachers for subjects:', adminAssignments);
+      }
+
+      // Get the current user's role using the robust method
+      const userRole = getUserRole();
       console.log('Current user role:', userRole);
 
-      if (userRole === 'admin') {
-        // Admin users use the original endpoint
-        console.log('Using admin endpoint to update all subjects');
-        await api.put(`/api/classes/${selectedClass}/subjects`, {
-          subjects: subjectsArray
-        });
-      } else {
-        // Teachers use the self-assignment endpoint
-        console.log('Using teacher self-assignment endpoint');
+      try {
+        // Use the unified teacher assignment service
+        const result = await unifiedTeacherAssignmentService.assignTeachersToSubjects(
+          selectedClass,
+          subjectTeachers,
+          userRole === 'admin' // Force admin endpoint if user is admin
+        );
 
-        // Collect only the subjects this teacher is assigning themselves to
-        const selfAssignedSubjectIds = [];
-        for (const [subjectId, teacherId] of Object.entries(subjectTeachers)) {
-          if (teacherId) {
-            selfAssignedSubjectIds.push(subjectId);
-          }
-        }
+        console.log('Assignment result:', result);
+        setSuccess('Subject-teacher assignments saved successfully');
 
-        if (selfAssignedSubjectIds.length === 0) {
-          setError('Please select at least one subject to assign yourself to');
-          setLoading(false);
-          return;
-        }
-
-        await api.post('/api/teachers/self-assign-subjects', {
-          classId: selectedClass,
-          subjectIds: selfAssignedSubjectIds
-        });
+        // Refresh the data to show updated assignments
+        await fetchClassDetails();
+      } catch (serviceError) {
+        console.error('Error in teacher assignment service:', serviceError);
+        setError(`Failed to save assignments: ${serviceError.message}`);
+        setLoading(false);
+        return;
       }
+
+      setLoading(false);
 
       // NOTE: We no longer need to update the teacher's subjects array
       // This was causing confusion because the teacher.subjects array should represent

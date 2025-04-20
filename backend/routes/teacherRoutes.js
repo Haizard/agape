@@ -293,6 +293,12 @@ router.post('/self-assign-subjects', authenticateToken, authorizeRole(['teacher'
     const updatedSubjects = [...classObj.subjects];
     let assignedCount = 0;
 
+    console.log(`Processing ${subjectIds.length} subject assignments for teacher ${teacher._id} in class ${classId}`);
+    console.log('Current class subjects:', JSON.stringify(updatedSubjects.map(s => ({
+      subject: s.subject?._id?.toString() || s.subject?.toString(),
+      teacher: s.teacher?._id?.toString() || s.teacher?.toString()
+    })), null, 2));
+
     for (const subjectId of subjectIds) {
       // Find if this subject is already in the class
       const existingIndex = updatedSubjects.findIndex(
@@ -301,16 +307,19 @@ router.post('/self-assign-subjects', authenticateToken, authorizeRole(['teacher'
 
       if (existingIndex >= 0) {
         // Update existing subject assignment
+        console.log(`Updating existing assignment for subject ${subjectId}: teacher=${updatedSubjects[existingIndex].teacher} -> ${teacher._id}`);
         updatedSubjects[existingIndex].teacher = teacher._id;
         assignedCount++;
       } else {
         // Add new subject assignment
+        console.log(`Adding new assignment for subject ${subjectId}: teacher=${teacher._id}`);
         updatedSubjects.push({
           subject: subjectId,
           teacher: teacher._id
         });
         assignedCount++;
       }
+    }
 
       // NOTE: We're no longer adding the subject to the teacher's subjects array
       // This was causing confusion because the teacher.subjects array should represent

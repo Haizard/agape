@@ -18,6 +18,8 @@ import {
   Alert
 } from '@mui/material';
 import api from '../../services/api';
+import unifiedTeacherAssignmentService from '../../services/unifiedTeacherAssignmentService';
+import { getUserRole } from '../../utils/authUtils';
 
 const TeacherSubjectAssignmentDialog = ({ open, onClose, classId, className, subjects = [] }) => {
   const [loading, setLoading] = useState(false);
@@ -62,13 +64,23 @@ const TeacherSubjectAssignmentDialog = ({ open, onClose, classId, className, sub
       if (classData.subjects?.length > 0) {
         for (const subjectAssignment of classData.subjects) {
           const subjectId = subjectAssignment.subject?._id || subjectAssignment.subject;
-          const teacherId = subjectAssignment.teacher?._id || subjectAssignment.teacher;
+
+          // Ensure we get a valid teacher ID or null (never empty string or undefined)
+          let teacherId = null;
+          if (subjectAssignment.teacher) {
+            teacherId = subjectAssignment.teacher?._id || subjectAssignment.teacher;
+            // Ensure it's a string
+            teacherId = teacherId.toString();
+          }
+
           if (subjectId) {
-            assignments[subjectId] = teacherId || '';
+            console.log(`Initializing subject ${subjectId} with teacher ${teacherId || 'null'}`);
+            assignments[subjectId] = teacherId || null; // Use null instead of empty string
           }
         }
       }
 
+      console.log('Initialized subject-teacher assignments:', assignments);
       setSubjectTeachers(assignments);
       setLoading(false);
     } catch (error) {
@@ -80,10 +92,33 @@ const TeacherSubjectAssignmentDialog = ({ open, onClose, classId, className, sub
 
   // Handle teacher selection for a subject
   const handleTeacherChange = (subjectId, teacherId) => {
-    setSubjectTeachers(prev => ({
-      ...prev,
-      [subjectId]: teacherId
-    }));
+    console.log(`Changing teacher for subject ${subjectId} to ${teacherId}`);
+    // Log the previous value for debugging
+    console.log(`Previous teacher for subject ${subjectId}: ${subjectTeachers[subjectId] || 'none'}`);
+
+    // Check if this is an admin user
+    if (teacherId) {
+      const selectedTeacher = teachers.find(t => t._id === teacherId);
+      if (selectedTeacher) {
+        console.log(`Selected teacher:`, selectedTeacher);
+        // Check if teacher is admin by looking at user property or isAdmin flag
+        if (selectedTeacher.isAdmin || (selectedTeacher.user && selectedTeacher.user.role === 'admin')) {
+          console.warn(`WARNING: Assigning admin user ${selectedTeacher.firstName} ${selectedTeacher.lastName} as teacher for subject ${subjectId}`);
+        }
+      }
+    }
+
+    // Ensure teacherId is a valid string or null (never empty string or undefined)
+    const validTeacherId = teacherId ? teacherId.toString() : null;
+
+    setSubjectTeachers(prev => {
+      const updated = {
+        ...prev,
+        [subjectId]: validTeacherId
+      };
+      console.log('Updated subject-teacher assignments:', updated);
+      return updated;
+    });
   };
 
   // Save all teacher-subject assignments
@@ -93,51 +128,36 @@ const TeacherSubjectAssignmentDialog = ({ open, onClose, classId, className, sub
       setError('');
       setSuccess('');
 
-      // Format the subjects array with subject and teacher IDs
-      const subjectsArray = subjects.map(subject => {
-        const subjectId = subject._id || subject;
-        return {
-          subject: subjectId,
-          teacher: subjectTeachers[subjectId] || null
-        };
-      });
+      // Check for any admin assignments
+      const adminTeachers = teachers.filter(t => t.isAdmin || (t.user && t.user.role === 'admin'));
+      const adminTeacherIds = adminTeachers.map(t => t._id);
 
-      // Update the class with the new subjects array
-      await api.put(`/api/classes/${classId}/subjects`, {
-        subjects: subjectsArray
-      });
+      // Check if any subjects are assigned to admin
+      const adminAssignments = Object.entries(subjectTeachers)
+        .filter(([_, teacherId]) => adminTeacherIds.includes(teacherId))
+        .map(([subjectId]) => subjectId);
+
+      if (adminAssignments.length > 0) {
+        console.warn('WARNING: Assigning admin users as teachers for subjects:', adminAssignments);
+      }
+
+      // Get the current user's role using the robust method
+      const userRole = getUserRole();
+      console.log('Current user role:', userRole);
+
+      // Use the unified teacher assignment service
+      const result = await unifiedTeacherAssignmentService.assignTeachersToSubjects(
+        classId,
+        subjectTeachers,
+        true // Always use admin endpoint for this dialog
+      );
+
+      console.log('Assignment result:', result);
 
       setSuccess('Teacher assignments saved successfully');
 
-      // Group subjects by teacher
-      const teacherSubjectsMap = {};
-
-      // Collect all subjects for each teacher
-      for (const subject of subjects) {
-        const subjectId = subject._id || subject;
-        const teacherId = subjectTeachers[subjectId];
-
-        if (teacherId) {
-          if (!teacherSubjectsMap[teacherId]) {
-            teacherSubjectsMap[teacherId] = [];
-          }
-          teacherSubjectsMap[teacherId].push(subjectId);
-        }
-      }
-
-      // Update each teacher's subjects in a single API call per teacher
-      for (const [teacherId, subjectIds] of Object.entries(teacherSubjectsMap)) {
-        try {
-          // Add these subjects to the teacher's subjects array
-          await api.put(`/api/teachers/${teacherId}/subjects`, {
-            subjects: subjectIds
-          });
-          console.log(`Updated subjects for teacher ${teacherId}:`, subjectIds);
-        } catch (teacherError) {
-          console.error(`Error updating teacher ${teacherId} subjects:`, teacherError);
-          // Continue with other teachers even if one fails
-        }
-      }
+      // We no longer need to update each teacher's subjects array separately
+      // The unified service handles all the necessary updates
 
       setLoading(false);
 
@@ -198,7 +218,11 @@ const TeacherSubjectAssignmentDialog = ({ open, onClose, classId, className, sub
                             <InputLabel>Assign Teacher</InputLabel>
                             <Select
                               value={subjectTeachers[subjectId] || ''}
-                              onChange={(e) => handleTeacherChange(subjectId, e.target.value)}
+                              onChange={(e) => {
+                                // Handle the empty string case explicitly
+                                const newValue = e.target.value === '' ? null : e.target.value;
+                                handleTeacherChange(subjectId, newValue);
+                              }}
                               label="Assign Teacher"
                             >
                               <MenuItem value="">

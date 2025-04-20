@@ -126,6 +126,37 @@ export const getCurrentRole = () => {
 };
 
 /**
+ * Get the user's role from multiple sources for reliability
+ * @returns {string|null} The user's role or null if not found
+ */
+export const getUserRole = () => {
+  try {
+    // First try to get from JWT token (most reliable)
+    const tokenInfo = getUserFromToken();
+    if (tokenInfo && tokenInfo.role) {
+      return tokenInfo.role;
+    }
+
+    // Then try to get from current user in localStorage
+    const userRole = getCurrentRole();
+    if (userRole) {
+      return userRole;
+    }
+
+    // Finally try to get from userRole in localStorage (legacy)
+    const storedRole = localStorage.getItem('userRole');
+    if (storedRole) {
+      return storedRole;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error getting user role:', error);
+    return null;
+  }
+};
+
+/**
  * Check if the current user has a specific role
  * @param {string|Array} roles - The role or roles to check
  * @returns {boolean} True if the user has the role, false otherwise
@@ -275,6 +306,7 @@ export default {
   // User and role utilities
   getCurrentUser,
   getCurrentRole,
+  getUserRole,
   hasRole,
   isAdmin,
   isTeacher,

@@ -2,6 +2,7 @@
  * Teacher Subject Assignment Routes
  *
  * These routes handle the assignment of teachers to subjects in classes.
+ * Uses the unified teacher assignment service to ensure consistency across all models.
  */
 
 const express = require('express');
@@ -14,6 +15,7 @@ const TeacherClass = require('../models/TeacherClass');
 const Class = require('../models/Class');
 const Teacher = require('../models/Teacher');
 const Subject = require('../models/Subject');
+const unifiedTeacherAssignmentService = require('../services/unifiedTeacherAssignmentService');
 
 /**
  * @route GET /api/teacher-subject-assignments
@@ -219,7 +221,7 @@ router.post('/',
   },
   async (req, res) => {
     try {
-      const { teacherId, subjectId, classId, assignmentType } = req.body;
+      const { teacherId, subjectId, classId } = req.body;
 
       // Validate required fields
       if (!teacherId || !subjectId || !classId) {
@@ -228,89 +230,31 @@ router.post('/',
         });
       }
 
-      // Check if teacher, subject, and class exist
-      const [teacher, subject, classObj] = await Promise.all([
-        Teacher.findById(teacherId),
-        Subject.findById(subjectId),
-        Class.findById(classId)
-      ]);
+      console.log(`POST /api/teacher-subject-assignments - Assigning teacher ${teacherId} to subject ${subjectId} in class ${classId}`);
 
-      if (!teacher) {
-        return res.status(404).json({ message: 'Teacher not found' });
-      }
+      // Use the unified service to create the assignment
+      const result = await unifiedTeacherAssignmentService.assignTeacherToSubject({
+        classId,
+        subjectId,
+        teacherId,
+        assignedBy: req.user.userId,
+        allowAdminFallback: false, // Never allow admin fallback
+        updateAllModels: true // Update all related models
+      });
 
-      if (!subject) {
-        return res.status(404).json({ message: 'Subject not found' });
-      }
-
-      if (!classObj) {
-        return res.status(404).json({ message: 'Class not found' });
-      }
-
-      // Determine which model to use based on assignmentType
-      if (assignmentType === 'class') {
-        // Update Class.subjects
-        const subjectIndex = classObj.subjects.findIndex(s =>
-          s.subject && s.subject.toString() === subjectId
-        );
-
-        if (subjectIndex >= 0) {
-          // Update existing subject assignment
-          classObj.subjects[subjectIndex].teacher = teacherId;
-        } else {
-          // Add new subject assignment
-          classObj.subjects.push({
-            subject: subjectId,
-            teacher: teacherId
-          });
-        }
-
-        await classObj.save();
-
-        res.status(201).json({
-          message: 'Teacher assigned to subject in class',
-          assignment: {
-            teacherId,
-            subjectId,
-            classId,
-            source: 'Class.subjects'
-          }
+      if (!result.success) {
+        console.error(`Error assigning teacher to subject: ${result.message}`);
+        return res.status(400).json({
+          message: 'Failed to assign teacher to subject',
+          error: result.message
         });
-      } else {
-        // Use TeacherSubject model (default)
-        // Check if assignment already exists
-        const existingAssignment = await TeacherSubject.findOne({
-          teacherId,
-          subjectId,
-          classId
-        });
-
-        if (existingAssignment) {
-          // Update existing assignment
-          existingAssignment.status = 'active';
-          await existingAssignment.save();
-
-          res.json({
-            message: 'Teacher-subject assignment updated',
-            assignment: existingAssignment
-          });
-        } else {
-          // Create new assignment
-          const newAssignment = new TeacherSubject({
-            teacherId,
-            subjectId,
-            classId,
-            status: 'active'
-          });
-
-          await newAssignment.save();
-
-          res.status(201).json({
-            message: 'Teacher-subject assignment created',
-            assignment: newAssignment
-          });
-        }
       }
+
+      // Return success response
+      res.status(201).json({
+        message: 'Teacher assigned to subject successfully',
+        details: result.details
+      });
     } catch (error) {
       console.error('Error creating teacher-subject assignment:', error);
       res.status(500).json({
@@ -356,33 +300,30 @@ router.delete('/:id',
         const classId = parts[1];
         const subjectId = parts[3];
 
-        // Update the class to remove the teacher from this subject
-        const classObj = await Class.findById(classId);
+        console.log(`DELETE /api/teacher-subject-assignments/${id} - Removing teacher from subject ${subjectId} in class ${classId}`);
 
-        if (!classObj) {
-          return res.status(404).json({ message: 'Class not found' });
-        }
+        // Use the unified service to remove the teacher assignment
+        const result = await unifiedTeacherAssignmentService.assignTeacherToSubject({
+          classId,
+          subjectId,
+          teacherId: null, // Setting to null removes the assignment
+          assignedBy: req.user.userId,
+          allowAdminFallback: false,
+          updateAllModels: true
+        });
 
-        const subjectIndex = classObj.subjects.findIndex(s =>
-          s.subject && s.subject.toString() === subjectId
-        );
-
-        if (subjectIndex >= 0) {
-          // Remove teacher from this subject
-          classObj.subjects[subjectIndex].teacher = null;
-          await classObj.save();
-
-          res.json({
-            message: 'Teacher removed from subject in class',
-            assignment: {
-              classId,
-              subjectId,
-              source: 'Class.subjects'
-            }
+        if (!result.success) {
+          console.error(`Error removing teacher from subject: ${result.message}`);
+          return res.status(400).json({
+            message: 'Failed to remove teacher from subject',
+            error: result.message
           });
-        } else {
-          res.status(404).json({ message: 'Subject not found in class' });
         }
+
+        res.json({
+          message: 'Teacher removed from subject in class',
+          details: result.details
+        });
       } else if (id.startsWith('teacher-class-')) {
         // Handle TeacherClass assignments
         const parts = id.split('-');
@@ -395,33 +336,59 @@ router.delete('/:id',
           return res.status(404).json({ message: 'Teacher class not found' });
         }
 
-        // Remove the subject from the teacher's subjects
-        teacherClass.subjects = teacherClass.subjects.filter(s =>
-          s.toString() !== subjectId
-        );
+        // Get the class ID from the teacher class
+        const classId = teacherClass.classId;
 
-        await teacherClass.save();
+        // Use the unified service to remove the teacher assignment
+        const result = await unifiedTeacherAssignmentService.assignTeacherToSubject({
+          classId,
+          subjectId,
+          teacherId: null, // Setting to null removes the assignment
+          assignedBy: req.user.userId,
+          allowAdminFallback: false,
+          updateAllModels: true
+        });
+
+        if (!result.success) {
+          console.error(`Error removing teacher from subject: ${result.message}`);
+          return res.status(400).json({
+            message: 'Failed to remove teacher from subject',
+            error: result.message
+          });
+        }
 
         res.json({
-          message: 'Subject removed from teacher class',
-          assignment: {
-            teacherClassId,
-            subjectId,
-            source: 'TeacherClass'
-          }
+          message: 'Teacher removed from subject in class',
+          details: result.details
         });
       } else {
-        // Try to find in TeacherSubject model
+        // Try to find in TeacherSubject model to get the class and subject IDs
         const assignment = await TeacherSubject.findById(id);
 
         if (assignment) {
-          // Soft delete by setting status to 'inactive'
-          assignment.status = 'inactive';
-          await assignment.save();
+          const { classId, subjectId } = assignment;
+
+          // Use the unified service to remove the teacher assignment
+          const result = await unifiedTeacherAssignmentService.assignTeacherToSubject({
+            classId,
+            subjectId,
+            teacherId: null, // Setting to null removes the assignment
+            assignedBy: req.user.userId,
+            allowAdminFallback: false,
+            updateAllModels: true
+          });
+
+          if (!result.success) {
+            console.error(`Error removing teacher from subject: ${result.message}`);
+            return res.status(400).json({
+              message: 'Failed to remove teacher from subject',
+              error: result.message
+            });
+          }
 
           res.json({
-            message: 'Teacher-subject assignment deleted',
-            assignment
+            message: 'Teacher removed from subject in class',
+            details: result.details
           });
         } else {
           // Try to find in TeacherAssignment model
@@ -429,11 +396,29 @@ router.delete('/:id',
             const teacherAssignment = await TeacherAssignment.findById(id);
 
             if (teacherAssignment) {
-              await teacherAssignment.remove();
+              const { class: classId, subject: subjectId } = teacherAssignment;
+
+              // Use the unified service to remove the teacher assignment
+              const result = await unifiedTeacherAssignmentService.assignTeacherToSubject({
+                classId,
+                subjectId,
+                teacherId: null, // Setting to null removes the assignment
+                assignedBy: req.user.userId,
+                allowAdminFallback: false,
+                updateAllModels: true
+              });
+
+              if (!result.success) {
+                console.error(`Error removing teacher from subject: ${result.message}`);
+                return res.status(400).json({
+                  message: 'Failed to remove teacher from subject',
+                  error: result.message
+                });
+              }
 
               res.json({
-                message: 'Teacher assignment deleted',
-                assignment: teacherAssignment
+                message: 'Teacher removed from subject in class',
+                details: result.details
               });
             } else {
               res.status(404).json({ message: 'Assignment not found' });
@@ -490,19 +475,27 @@ router.post('/direct',
 
       console.log(`Creating direct TeacherSubject assignment: teacherId=${teacherId}, subjectId=${subjectId}, classId=${classId}`);
 
-      // Create new assignment directly in TeacherSubject model
-      const newAssignment = new TeacherSubject({
-        teacherId,
-        subjectId,
+      // Use the unified service but only update the TeacherSubject model
+      const result = await unifiedTeacherAssignmentService.assignTeacherToSubject({
         classId,
-        status: 'active'
+        subjectId,
+        teacherId,
+        assignedBy: req.user.userId,
+        allowAdminFallback: false,
+        updateAllModels: false // Only update the TeacherSubject model
       });
 
-      await newAssignment.save();
+      if (!result.success) {
+        console.error(`Error creating direct assignment: ${result.message}`);
+        return res.status(400).json({
+          message: 'Failed to create direct assignment',
+          error: result.message
+        });
+      }
 
       res.status(201).json({
         message: 'Teacher-subject assignment created directly',
-        assignment: newAssignment
+        details: result.details
       });
     } catch (error) {
       console.error('Error creating direct teacher-subject assignment:', error);
