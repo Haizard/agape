@@ -27,7 +27,7 @@ app.use(compression());
 
 // API proxy middleware
 const apiProxy = createProxyMiddleware('/api', {
-  target: 'https://agape-render.onrender.com',
+  target: 'http://localhost:5000',
   changeOrigin: true,
   pathRewrite: { '^/api': '/api' },
   logLevel: 'debug',

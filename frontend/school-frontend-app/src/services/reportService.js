@@ -142,6 +142,13 @@ const fetchALevelStudentReport = async (studentId, examId, options = {}) => {
 
       console.log('API response has expected structure');
 
+      // If the response data has a warning but no mock flag, explicitly set mock to false
+      // This ensures the frontend knows this is real data (even if empty)
+      if (response.data.data && response.data.data.warning && response.data.data.mock === undefined) {
+        console.log('Setting mock=false explicitly for data with warning');
+        response.data.data.mock = false;
+      }
+
       // Normalize the data
       const normalizedData = normalizeReportData(response.data.data);
 
@@ -786,8 +793,20 @@ const fetchOLevelClassReport = async (classId, examId, options = {}) => {
         statusText: apiError.response?.statusText,
         data: apiError.response?.data,
         url: apiError.config?.url,
-        method: apiError.config?.method
+        method: apiError.config?.method,
+        baseURL: api.defaults.baseURL,
+        fullURL: api.defaults.baseURL + (apiError.config?.url || '')
       });
+
+      // Log network error details
+      if (apiError.message === 'Network Error') {
+        console.error('NETWORK ERROR DETECTED: This usually indicates one of the following issues:');
+        console.error('1. The backend server is not running or not reachable');
+        console.error('2. CORS is not properly configured on the backend');
+        console.error('3. The API URL is incorrect');
+        console.error('Current API URL:', api.defaults.baseURL);
+        console.error('Attempted endpoint:', apiError.config?.url);
+      }
 
       // Check for authentication errors
       if (apiError.response && apiError.response.status === 401) {
@@ -821,23 +840,60 @@ const fetchOLevelClassReport = async (classId, examId, options = {}) => {
           return normalizeReportData(apiError.response.data.data);
         }
 
-        // If the API didn't return a usable response, use mock data as fallback
-        console.log('Using mock data as a fallback');
-        console.log('Reason for using mock data:', {
-          responseStatus: apiError.response?.status,
-          responseData: apiError.response?.data,
-          errorMessage: apiError.message
+        // Check if we have a 404 or other error that indicates no data exists yet
+        console.log('API error response:', {
+          status: apiError.response?.status,
+          data: apiError.response?.data,
+          message: apiError.message
         });
 
-        const mockData = getMockOLevelClassReport(classId, examId, formLevel);
+        // Create an empty report with a warning instead of using mock data
+        console.log('Creating empty report with warning instead of using mock data');
 
-        // Add a warning message and mock flag
-        mockData.warning = 'Showing sample data. Real data will be shown once marks are entered for this class and exam.';
-        mockData.mock = true; // Add a flag to indicate this is mock data
+        // Get class and exam details if possible
+        let className = 'Unknown Class';
+        let examName = 'Unknown Exam';
 
-        console.log('Created mock data with students:', mockData.students?.length || 0);
+        try {
+          // Try to get class name
+          const classResponse = await api.get(`/api/classes/${classId}`);
+          if (classResponse.data && classResponse.data.name) {
+            className = classResponse.data.name;
+          }
 
-        return normalizeReportData(mockData);
+          // Try to get exam name
+          const examResponse = await api.get(`/api/exams/${examId}`);
+          if (examResponse.data && examResponse.data.name) {
+            examName = examResponse.data.name;
+          }
+        } catch (detailsError) {
+          console.log('Error fetching class/exam details:', detailsError.message);
+        }
+
+        // Create a real (but empty) data structure
+        const emptyReport = {
+          reportTitle: `${examName} Class Result Report`,
+          schoolName: 'AGAPE LUTHERAN JUNIOR SEMINARY',
+          academicYear: 'Current Academic Year',
+          examName: examName,
+          examDate: new Date().toLocaleDateString(),
+          className: className,
+          section: '',
+          stream: '',
+          subjects: [],
+          students: [],
+          subjectAnalysis: [],
+          classAverage: '0.00',
+          divisionSummary: { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 },
+          passRate: 0,
+          totalStudents: 0,
+          educationLevel: 'O_LEVEL',
+          warning: 'No marks have been entered for this class and exam yet. The report will update automatically as marks are entered.',
+          mock: false // Important: This is NOT mock data, it's real (but empty) data
+        };
+
+        console.log('Created empty report with warning');
+        return normalizeReportData(emptyReport);
       }
 
       // Re-throw other errors
@@ -978,7 +1034,12 @@ const reportService = {
   fetchOLevelClassReport,
   sendALevelReportSMS,
   getMockOLevelClassReport,
-  normalizeReportData
+  normalizeReportData,
+
+  // Helper method to get the API URL for debugging
+  getApiUrl: () => {
+    return api.defaults.baseURL;
+  }
 };
 
 // Export the service

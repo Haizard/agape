@@ -111,6 +111,9 @@ const useOLevelClassReport = ({ classId, examId, formLevel = null, autoFetch = t
           timestamp: Date.now()
         });
 
+        // Log the API URL being used
+        console.log('API URL:', reportService.getApiUrl());
+
         data = await reportService.fetchOLevelClassReport(classId, examId, {
           forceRefresh: forceRefresh === true, // Ensure boolean
           formLevel: formLevel ? formLevel.toString() : null, // Ensure string or null
@@ -174,21 +177,41 @@ const useOLevelClassReport = ({ classId, examId, formLevel = null, autoFetch = t
             mock: data.mock === true
           });
         } else {
-          console.log('Using mock data as fallback due to error');
-          console.log('Error details:', {
+          console.log('Error fetching report data:', {
             status: error.response?.status,
             statusText: error.response?.statusText,
             message: error.message,
             responseData: error.response?.data
           });
 
-          // Use mock data as a fallback
-          data = reportService.getMockOLevelClassReport(classId, examId, formLevel);
-          data.warning = 'Error loading real data. Showing sample data as a fallback.';
-          data.mock = true; // Explicitly mark as mock data
-          data = reportService.normalizeReportData(data);
+          // Create an empty report with a warning instead of using mock data
+          console.log('Creating empty report with warning instead of using mock data');
 
-          console.log('Created mock data:', {
+          // Create a real (but empty) data structure
+          const emptyReport = {
+            reportTitle: `Class Result Report`,
+            schoolName: 'AGAPE LUTHERAN JUNIOR SEMINARY',
+            academicYear: 'Current Academic Year',
+            examName: 'Current Exam',
+            examDate: new Date().toLocaleDateString(),
+            className: 'Selected Class',
+            section: '',
+            stream: '',
+            subjects: [],
+            students: [],
+            subjectAnalysis: [],
+            classAverage: '0.00',
+            divisionSummary: { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 },
+            passRate: 0,
+            totalStudents: 0,
+            educationLevel: 'O_LEVEL',
+            warning: 'No marks have been entered for this class and exam yet. The report will update automatically as marks are entered.',
+            mock: false // Important: This is NOT mock data, it's real (but empty) data
+          };
+
+          data = reportService.normalizeReportData(emptyReport);
+
+          console.log('Created empty report with warning:', {
             hasStudents: !!data.students,
             studentCount: data.students?.length || 0,
             warning: data.warning,

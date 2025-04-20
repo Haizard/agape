@@ -4,6 +4,12 @@ import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 // Set the API URL to the backend server
 let baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
+// For local development, ensure we're using the correct URL
+if (process.env.NODE_ENV === 'development') {
+  baseURL = 'http://localhost:5000';
+  console.log('Development environment detected, using local API URL:', baseURL);
+}
+
 // Ensure the baseURL ends with a trailing slash
 if (!baseURL.endsWith('/')) {
   baseURL = `${baseURL}/`;

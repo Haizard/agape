@@ -320,8 +320,14 @@ const OLevelClassReport = (props) => {
   // Check if the report is using mock data
   const isMockData = report.mock === true || (report.warning && (
     report.warning.includes('sample data') ||
-    report.warning.includes('mock data')
+    report.warning.includes('mock data') ||
+    report.warning.includes('fallback')
   ));
+
+  // Explicitly override isMockData if mock is false
+  if (report.mock === false) {
+    console.log('Report explicitly marked as NOT mock data');
+  }
 
   // Check if we have real data but it's empty or partial
   const hasRealData = report.students && report.students.length > 0;
@@ -331,8 +337,13 @@ const OLevelClassReport = (props) => {
     report.warning.includes('partial data')
   );
 
+  // Check if any students have results
+  const studentsWithResults = report.students ? report.students.filter(student => student.hasResults) : [];
+  const hasAnyStudentWithResults = studentsWithResults.length > 0;
+  console.log(`Students with results: ${studentsWithResults.length} out of ${report.students?.length || 0}`);
+
   // Check if the report is completely empty
-  const isEmpty = report.isEmpty === true || (!hasRealData && !isMockData);
+  const isEmpty = report.isEmpty === true || (!hasRealData && !isMockData) || (hasRealData && !hasAnyStudentWithResults);
 
   // Determine if we should show the empty state message
   const showEmptyState = isEmpty;
@@ -449,15 +460,16 @@ const OLevelClassReport = (props) => {
         {hasWarning && (
           <FadeIn delay={0.2}>
             <Alert
-              severity="warning"
+              severity={isMockData ? "warning" : "info"}
               sx={{
                 mb: 2,
                 borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                backgroundColor: isMockData ? undefined : '#e8f5e9'
               }}
               className="no-print"
             >
-              <AlertTitle>Warning</AlertTitle>
+              <AlertTitle>{isMockData ? "Warning" : "Information"}</AlertTitle>
               {warningMessage}
               {isMockData && (
                 <Box sx={{ mt: 1 }}>
@@ -471,6 +483,13 @@ const OLevelClassReport = (props) => {
                       O-Level Bulk Marks Entry
                     </Link>
                     page.
+                  </Typography>
+                </Box>
+              )}
+              {!isMockData && report.warning && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2" fontWeight="bold" color="success.main">
+                    This report is showing real-time data from the database. It will automatically update as more marks are entered.
                   </Typography>
                 </Box>
               )}
@@ -547,6 +566,12 @@ const OLevelClassReport = (props) => {
                 <StyledChip label={`Exam: ${report.examName}`} color="secondary" />
                 <StyledChip label={`Total Students: ${report.totalStudents || 0}`} color="primary" />
                 <StyledChip label={`Class Average: ${report.classAverage || '0.00'}`} color="info" />
+                {report.mock === true && (
+                  <StyledChip label="SAMPLE DATA" color="error" />
+                )}
+                {report.mock !== true && report.warning && (
+                  <StyledChip label="REAL-TIME DATA" color="success" />
+                )}
               </Box>
             </Box>
 
@@ -591,15 +616,25 @@ const OLevelClassReport = (props) => {
                   sx={{
                     mb: 3,
                     borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                    backgroundColor: '#e8f5e9'
                   }}
                 >
                   <Typography variant="h6" gutterBottom>
-                    No Data Available
+                    No Marks Available
                   </Typography>
                   <Typography variant="body1">
-                    No student data is available for this class and exam. This could be because no marks have been entered yet.
+                    {report.students && report.students.length > 0 ? (
+                      <>Students are assigned to this class, but no marks have been entered yet. The report will update automatically as marks are entered.</>
+                    ) : (
+                      <>No student data is available for this class and exam. This could be because no marks have been entered yet.</>
+                    )}
                   </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" fontWeight="bold" color="success.main">
+                      This is showing real-time data from the database. The report will automatically update as marks are entered.
+                    </Typography>
+                  </Box>
                   <Button
                     component={RouterLink}
                     to="/results/o-level/bulk-marks-entry"
@@ -692,6 +727,12 @@ const OLevelClassReport = (props) => {
                             studentResults[result.code] = result;
                           });
 
+                          // Check if this student has any valid results
+                          const hasValidResults = student.hasResults === true ||
+                            (student.results && student.results.some(r => r.marks > 0 && r.grade !== 'N/A'));
+
+                          console.log(`Rendering student ${student.name}: hasValidResults=${hasValidResults}`);
+
                           return (
                             <StyledTableRow
                               key={student.id}
@@ -702,17 +743,33 @@ const OLevelClassReport = (props) => {
                                 },
                                 '&:hover': {
                                   backgroundColor: 'rgba(76, 175, 80, 0.08)',
-                                }
+                                },
+                                // Highlight students with no results
+                                ...(hasValidResults ? {} : {
+                                  backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                                  '&:hover': {
+                                    backgroundColor: 'rgba(255, 235, 235, 0.7)',
+                                  }
+                                })
                               }}
                             >
                               <TableCell>{index + 1}</TableCell>
-                              <TableCell sx={{ fontWeight: 500 }}>{student.name}</TableCell>
+                              <TableCell sx={{ fontWeight: 500 }}>
+                                {student.name}
+                                {!hasValidResults && (
+                                  <Typography variant="caption" color="error" sx={{ display: 'block' }}>
+                                    (No marks entered)
+                                  </Typography>
+                                )}
+                              </TableCell>
                               <TableCell sx={{ fontWeight: 500 }}>{student.gender || student.sex || '-'}</TableCell>
                               {allSubjects.map(subject => {
                                 const result = studentResults[subject.code];
+                                const hasValidResult = result && result.marks > 0 && result.grade !== 'N/A';
+
                                 return (
                                   <TableCell key={subject.code} align="center">
-                                    {result ? (
+                                    {hasValidResult ? (
                                       <Box>
                                         <Typography variant="body2" sx={{ fontWeight: 500 }}>{result.marks}</Typography>
                                         <Typography
@@ -731,13 +788,17 @@ const OLevelClassReport = (props) => {
                                         </Typography>
                                       </Box>
                                     ) : (
-                                      '-'
+                                      <Typography variant="body2" color="text.secondary">-</Typography>
                                     )}
                                   </TableCell>
                                 );
                               })}
-                              <TableCell align="center" sx={{ fontWeight: 'bold' }}>{student.totalMarks}</TableCell>
-                              <TableCell align="center" sx={{ fontWeight: 'bold' }}>{student.averageMarks}</TableCell>
+                              <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                                {hasValidResults ? student.totalMarks : '-'}
+                              </TableCell>
+                              <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                                {hasValidResults ? student.averageMarks : '-'}
+                              </TableCell>
                               <TableCell align="center" sx={{
                                 fontWeight: 'bold',
                                 color: student.division === 'I' ? '#4caf50' :
@@ -746,10 +807,14 @@ const OLevelClassReport = (props) => {
                                        student.division === 'IV' ? '#f44336' :
                                        'text.primary'
                               }}>
-                                {student.division}
+                                {hasValidResults ? student.division : '-'}
                               </TableCell>
-                              <TableCell align="center" sx={{ fontWeight: 'bold' }}>{student.bestSevenPoints || student.totalPoints || student.points || '-'}</TableCell>
-                              <TableCell align="center" sx={{ fontWeight: 'bold' }}>{student.rank}</TableCell>
+                              <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                                {hasValidResults ? (student.bestSevenPoints || student.totalPoints || student.points || '-') : '-'}
+                              </TableCell>
+                              <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                                {hasValidResults ? student.rank : '-'}
+                              </TableCell>
                             </StyledTableRow>
                           );
                         })}

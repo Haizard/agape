@@ -548,11 +548,40 @@ exports.getClassReport = async (req, res) => {
       });
     }
 
-    // Get all subjects for this class
+    // Get all results for this class and exam
+    console.log(`Fetching ALL results for class ${classId} and exam ${examId}`);
     const allResults = await executeWithRetry(
       () => OLevelResult.find({ classId, examId }).populate('subjectId', 'name code'),
       `Error fetching results for class ${classId} in exam ${examId}`
     );
+
+    console.log(`Found ${allResults.length} total results for class ${classId} in exam ${examId}`);
+    if (allResults.length > 0) {
+      console.log('First result example:', {
+        id: allResults[0]._id,
+        studentId: allResults[0].studentId,
+        subjectId: allResults[0].subjectId?._id || 'No subject ID',
+        subjectName: allResults[0].subjectId?.name || 'No subject name',
+        marks: allResults[0].marksObtained,
+        grade: allResults[0].grade,
+        points: allResults[0].points
+      });
+
+      // Group results by student to see distribution
+      const resultsByStudent = {};
+      allResults.forEach(result => {
+        const studentId = result.studentId.toString();
+        if (!resultsByStudent[studentId]) {
+          resultsByStudent[studentId] = [];
+        }
+        resultsByStudent[studentId].push(result);
+      });
+
+      console.log(`Results distribution by student: ${Object.keys(resultsByStudent).length} students have results`);
+      Object.keys(resultsByStudent).forEach(studentId => {
+        console.log(`Student ${studentId} has ${resultsByStudent[studentId].length} results`);
+      });
+    }
 
     // Check if we have any results at all
     if (allResults.length === 0) {
@@ -571,28 +600,33 @@ exports.getClassReport = async (req, res) => {
     }
 
     // Extract unique subjects
+    console.log('Extracting unique subjects from results and class data');
     const subjects = [];
     const subjectMap = new Map();
+
+    // First, try to extract subjects from results
     for (const result of allResults) {
       if (result.subjectId && !subjectMap.has(result.subjectId._id.toString())) {
         subjectMap.set(result.subjectId._id.toString(), true);
         subjects.push({
           id: result.subjectId._id,
           name: result.subjectId.name,
-          code: result.subjectId.code
+          code: result.subjectId.code || result.subjectId.name.substring(0, 4).toUpperCase()
         });
+        console.log(`Added subject from results: ${result.subjectId.name} (${result.subjectId._id})`);
       }
     }
 
     // If we have no subjects with results but we have students, get all subjects assigned to the class
     if (subjects.length === 0) {
-      logger.info(`No subjects with results found for class ${classId}, fetching all subjects assigned to the class`);
+      console.log(`No subjects found from results. Fetching all subjects assigned to class ${classId}`);
       const classWithSubjects = await executeWithRetry(
         () => Class.findById(classId).populate('subjects.subject'),
         `Error fetching subjects for class ${classId}`
       );
 
       if (classWithSubjects && classWithSubjects.subjects) {
+        console.log(`Class has ${classWithSubjects.subjects.length} subject entries in class object`);
         for (const subjectEntry of classWithSubjects.subjects) {
           if (subjectEntry.subject && !subjectMap.has(subjectEntry.subject._id.toString())) {
             subjectMap.set(subjectEntry.subject._id.toString(), true);
@@ -601,6 +635,31 @@ exports.getClassReport = async (req, res) => {
               name: subjectEntry.subject.name,
               code: subjectEntry.subject.code || subjectEntry.subject.name.substring(0, 4).toUpperCase()
             });
+            console.log(`Added subject from class: ${subjectEntry.subject.name} (${subjectEntry.subject._id})`);
+          }
+        }
+      }
+    }
+
+    // If we still have no subjects, try to get them directly from the database
+    if (subjects.length === 0) {
+      console.log('No subjects found from results or class. Fetching all O-Level subjects from database.');
+      const allSubjects = await executeWithRetry(
+        () => Subject.find({ educationLevel: 'O_LEVEL' }),
+        'Error fetching all O-Level subjects'
+      );
+
+      if (allSubjects && allSubjects.length > 0) {
+        console.log(`Found ${allSubjects.length} O-Level subjects in database`);
+        for (const subject of allSubjects) {
+          if (!subjectMap.has(subject._id.toString())) {
+            subjectMap.set(subject._id.toString(), true);
+            subjects.push({
+              id: subject._id,
+              name: subject.name,
+              code: subject.code || subject.name.substring(0, 4).toUpperCase()
+            });
+            console.log(`Added subject from database: ${subject.name} (${subject._id})`);
           }
         }
       }
@@ -642,14 +701,58 @@ exports.getClassReport = async (req, res) => {
     for (const student of students) {
       // Get results for this student
       const studentId = student._id;
+      console.log(`Processing student: ${studentId} (${student.firstName} ${student.lastName})`);
+
+      console.log(`Fetching results for student ${studentId} in exam ${examId}`);
       const results = await executeWithRetry(
-        () => OLevelResult.find({ studentId, examId }).populate('subjectId', 'name code'),
+        () => OLevelResult.find({
+          studentId,
+          examId,
+          classId // Important: Add classId to ensure we only get results for this class
+        }).populate('subjectId', 'name code'),
         `Error fetching results for student ${studentId} in exam ${examId}`
       );
+
+      // Log the raw results for debugging
+      console.log(`Raw results for student ${studentId}: ${JSON.stringify(results.map(r => ({
+        id: r._id,
+        subjectId: r.subjectId?._id,
+        subjectName: r.subjectId?.name,
+        marks: r.marksObtained,
+        grade: r.grade
+      })))}`);
+
+      // Check if the student has any results with the correct classId
+      const resultsWithCorrectClass = await OLevelResult.find({
+        studentId,
+        examId
+      });
+
+      console.log(`Student ${studentId} has ${resultsWithCorrectClass.length} results in total, but only ${results.length} for class ${classId}`);
+      if (resultsWithCorrectClass.length > 0 && results.length === 0) {
+        console.log(`WARNING: Student ${studentId} has results but none for class ${classId}. Check classId in results:`,
+          resultsWithCorrectClass.map(r => ({ id: r._id, classId: r.classId })));
+      }
+
+      console.log(`Found ${results.length} results for student ${studentId} in exam ${examId}`);
 
       // If this student has at least one result, set anyResultsFound to true
       if (results.length > 0) {
         anyResultsFound = true;
+        totalResultsFound += results.length;
+
+        // Log the first result as an example
+        if (results[0]) {
+          console.log('Example result:', {
+            subjectId: results[0].subjectId?._id || 'No subject ID',
+            subjectName: results[0].subjectId?.name || 'No subject name',
+            marks: results[0].marksObtained,
+            grade: results[0].grade,
+            points: results[0].points
+          });
+        }
+      } else {
+        console.log(`No results found for student ${studentId}, will use placeholder values`);
       }
 
       // Process results
@@ -657,11 +760,18 @@ exports.getClassReport = async (req, res) => {
       let totalMarks = 0;
       let totalPoints = 0;
       let resultCount = 0;
+      let hasAnyValidResult = false; // Track if this student has at least one valid result
 
       for (const subject of subjects) {
-        const result = results.find(r => r.subjectId && r.subjectId._id.toString() === subject.id.toString());
+        console.log(`Checking subject ${subject.name} (${subject.id}) for student ${studentId}`);
+
+        // Find result for this subject
+        const result = results.find(r => r.subjectId && r.subjectId._id && r.subjectId._id.toString() === subject.id.toString());
 
         if (result) {
+          console.log(`Found result for subject ${subject.name}: marks=${result.marksObtained}, grade=${result.grade}, points=${result.points}`);
+          hasAnyValidResult = true; // Student has at least one valid result
+
           subjectResults.push({
             subject: subject.name, // Use the original subject name
             code: subject.code,
@@ -686,6 +796,8 @@ exports.getClassReport = async (req, res) => {
             }
           }
         } else {
+          console.log(`No result found for subject ${subject.name}, using placeholder values`);
+
           subjectResults.push({
             subject: subject.name,
             code: subject.code,
@@ -696,31 +808,50 @@ exports.getClassReport = async (req, res) => {
         }
       }
 
+      // Log whether this student has any valid results
+      console.log(`Student ${studentId} has valid results: ${hasAnyValidResult}`);
+
+      // If the student has no valid results, we'll still include them in the report
+      // but with placeholder values for all subjects
+
       // Calculate average marks
       const averageMarks = resultCount > 0 ? totalMarks / resultCount : 0;
+      console.log(`Student ${studentId} summary: totalMarks=${totalMarks}, resultCount=${resultCount}, averageMarks=${averageMarks.toFixed(2)}`);
 
       // Calculate best seven subjects (lowest points = best grades)
       const { bestSevenPoints, division } = oLevelGradeCalculator.calculateBestSevenAndDivision(subjectResults);
+      console.log(`Student ${studentId} division calculation: bestSevenPoints=${bestSevenPoints}, division=${division}`);
 
       // Update division summary
       if (divisionSummary[division] !== undefined) {
         divisionSummary[division]++;
       }
 
-      studentResults.push({
-        id: studentId,
-        name: `${student.firstName} ${student.lastName}`,
-        rollNumber: student.rollNumber,
-        gender: student.gender || 'N/A',  // Include gender/sex field
-        sex: student.gender || 'N/A',     // Include both gender and sex fields for compatibility
-        results: subjectResults,
-        totalMarks,
-        averageMarks: averageMarks.toFixed(2),
-        totalPoints,
-        bestSevenPoints,
-        points: bestSevenPoints,         // Include points field as an alias for bestSevenPoints
-        division
-      });
+      // Only add the student to the results if they have at least one valid result
+      // or if we're including all students regardless of results
+      const includeAllStudents = true; // Set to true to include all students, even those with no results
+
+      if (hasAnyValidResult || includeAllStudents) {
+        studentResults.push({
+          id: studentId,
+          name: `${student.firstName} ${student.lastName}`,
+          rollNumber: student.rollNumber,
+          gender: student.gender || 'N/A',  // Include gender/sex field
+          sex: student.gender || 'N/A',     // Include both gender and sex fields for compatibility
+          results: subjectResults,
+          totalMarks,
+          averageMarks: averageMarks.toFixed(2),
+          totalPoints,
+          bestSevenPoints,
+          points: bestSevenPoints,         // Include points field as an alias for bestSevenPoints
+          division,
+          hasResults: hasAnyValidResult     // Flag to indicate if this student has any valid results
+        });
+
+        console.log(`Added student ${studentId} to report with ${resultCount} results`);
+      } else {
+        console.log(`Skipped student ${studentId} because they have no valid results`);
+      }
 
       classTotal += averageMarks;
       classCount++;
@@ -782,6 +913,10 @@ exports.getClassReport = async (req, res) => {
     if (!anyResultsFound) {
       report.warning = 'No marks have been entered for this class and exam yet. The report will update automatically as marks are entered.';
       console.log('Adding warning to report: No marks found');
+
+      // Important: Even though we have no results, this is still real data (just empty)
+      // Setting mock to false explicitly tells the frontend not to use mock data
+      report.mock = false;
     }
 
     // Check if we found any results at all

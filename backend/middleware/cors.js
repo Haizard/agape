@@ -57,16 +57,18 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma', 'Expires', 'expires'],
   exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 // Open CORS options for critical routes (like login)
 const openCorsOptions = {
   origin: '*', // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma', 'Expires', 'expires'],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 204
@@ -79,21 +81,37 @@ const openCors = cors(openCorsOptions);
 // Middleware to handle CORS preflight requests
 const handlePreflight = (req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-    res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  }
+  const requestHeaders = req.headers['access-control-request-headers'];
+
+  // Log detailed information about the request
+  console.log(`CORS Request: ${req.method} ${req.originalUrl}`);
+  console.log(`Origin: ${origin || 'No origin'}`);
+  console.log(`Requested Headers: ${requestHeaders || 'None'}`);
+
+  // Always set CORS headers for development
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, Expires, expires');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+
+  console.log('CORS headers set for request');
+  console.log('Allowed headers:', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, Expires, expires');
 
   // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {
-    console.log(`OPTIONS request for ${req.originalUrl} received`);
+    console.log(`OPTIONS preflight request for ${req.originalUrl} - responding with 204 No Content`);
     return res.sendStatus(204);
   }
 
   next();
 };
+
+// Log CORS configuration on module load
+console.log('✅ CORS middleware configuration loaded');
+console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
+console.log(`Allowed headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma, Expires, expires`);
 
 module.exports = {
   standardCors,
