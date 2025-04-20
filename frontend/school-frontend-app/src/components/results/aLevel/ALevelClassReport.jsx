@@ -8,7 +8,6 @@ import {
   Paper,
   CircularProgress,
   Alert,
-  Button,
   Tabs,
   Tab
 } from '@mui/material';
@@ -17,6 +16,15 @@ import useALevelClassReport from '../../../hooks/useALevelClassReport';
 import { generateALevelClassReportPdf } from '../../../utils/pdfGenerationUtils';
 import withCircuitBreaker from '../../../hocs/withCircuitBreaker';
 import './ALevelResultReport.css';
+
+// Import enhanced components from common
+import {
+  AnimatedContainer,
+  FadeIn,
+  GradientButton,
+  SectionContainer,
+  SectionHeader
+} from '../../common';
 
 // Import sub-components
 import ClassHeaderSection from './ClassHeaderSection';
@@ -156,35 +164,81 @@ const ALevelClassReport = ({ classId, examId, formLevel: propFormLevel, forceRef
   // If no class or exam ID is provided, show an error
   if (!resolvedClassId || !resolvedExamId) {
     return (
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        <Alert severity="error">
-          Class ID and Exam ID are required to view the report.
-        </Alert>
-        <Button
-          variant="contained"
-          sx={{ mt: 2 }}
-          onClick={() => navigate('/admin/a-level-class-reports')}
-        >
-          Go Back
-        </Button>
-      </Container>
+      <AnimatedContainer animation="fadeIn" duration={0.5}>
+        <Container maxWidth="md" sx={{ mt: 4 }}>
+          <SectionContainer>
+            <SectionHeader
+              title="Missing Information"
+              color="error"
+              icon={<ErrorOutlineIcon />}
+            />
+            <FadeIn delay={0.2}>
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 3,
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}
+              >
+                Class ID and Exam ID are required to view the report.
+              </Alert>
+            </FadeIn>
+            <FadeIn delay={0.3}>
+              <GradientButton
+                variant="contained"
+                color="primary"
+                sx={{ mt: 2 }}
+                onClick={() => navigate('/results/a-level/class-reports')}
+                startIcon={<ArrowBackIcon />}
+              >
+                Go Back to Reports
+              </GradientButton>
+            </FadeIn>
+          </SectionContainer>
+        </Container>
+      </AnimatedContainer>
     );
   }
 
   // Show loading state
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Paper sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '50vh', justifyContent: 'center' }}>
-          <CircularProgress size={60} thickness={4} sx={{ mb: 3 }} />
-          <Typography variant="h5" sx={{ mb: 1 }}>
-            Loading A-Level Class Report
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Please wait while we generate the report...
-          </Typography>
-        </Paper>
-      </Container>
+      <AnimatedContainer animation="fadeIn" duration={0.5}>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          <SectionContainer sx={{
+            p: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minHeight: '50vh',
+            justifyContent: 'center'
+          }}>
+            <FadeIn>
+              <CircularProgress
+                size={60}
+                thickness={4}
+                sx={{ mb: 3 }}
+                color="primary"
+              />
+            </FadeIn>
+            <FadeIn delay={0.2}>
+              <Typography
+                variant="h5"
+                sx={{ mb: 1 }}
+                className="gradient-text"
+              >
+                Loading A-Level Class Report
+              </Typography>
+            </FadeIn>
+            <FadeIn delay={0.3}>
+              <Typography variant="body1" color="text.secondary">
+                Please wait while we generate the report...
+              </Typography>
+            </FadeIn>
+          </SectionContainer>
+        </Container>
+      </AnimatedContainer>
     );
   }
 
@@ -192,33 +246,66 @@ const ALevelClassReport = ({ classId, examId, formLevel: propFormLevel, forceRef
   if (error) {
     console.log('Error in ALevelClassReport:', error);
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Paper sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '30vh', justifyContent: 'center' }}>
-          <ErrorOutlineIcon color="error" sx={{ fontSize: 60, mb: 2 }} />
-          <Typography variant="h5" sx={{ mb: 2 }} color="error">
-            Error Loading Report
-          </Typography>
-          <Alert severity="error" sx={{ mb: 3, width: '100%', maxWidth: 600 }}>
-            {error.message || 'Failed to load the report. Please try again.'}
-          </Alert>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="contained"
-              startIcon={<RefreshIcon />}
-              onClick={() => refreshReport()}
-            >
-              Retry Loading
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<ArrowBackIcon />}
-              onClick={() => navigate('/admin/a-level-class-reports')}
-            >
-              Go Back
-            </Button>
-          </Box>
-        </Paper>
-      </Container>
+      <AnimatedContainer animation="fadeIn" duration={0.5}>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          <SectionContainer sx={{
+            p: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minHeight: '30vh',
+            justifyContent: 'center'
+          }}>
+            <FadeIn>
+              <ErrorOutlineIcon color="error" sx={{ fontSize: 60, mb: 2 }} />
+            </FadeIn>
+            <FadeIn delay={0.1}>
+              <Typography
+                variant="h5"
+                sx={{ mb: 2 }}
+                color="error"
+                className="gradient-text"
+              >
+                Error Loading Report
+              </Typography>
+            </FadeIn>
+            <FadeIn delay={0.2}>
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 3,
+                  width: '100%',
+                  maxWidth: 600,
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}
+              >
+                {error.message || 'Failed to load the report. Please try again.'}
+              </Alert>
+            </FadeIn>
+            <FadeIn delay={0.3}>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <GradientButton
+                  variant="contained"
+                  color="primary"
+                  startIcon={<RefreshIcon />}
+                  onClick={() => refreshReport()}
+                >
+                  Retry Loading
+                </GradientButton>
+                <GradientButton
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<ArrowBackIcon />}
+                  onClick={() => navigate('/results/a-level/class-reports')}
+                >
+                  Go Back
+                </GradientButton>
+              </Box>
+            </FadeIn>
+          </SectionContainer>
+        </Container>
+      </AnimatedContainer>
     );
   }
 
@@ -226,59 +313,117 @@ const ALevelClassReport = ({ classId, examId, formLevel: propFormLevel, forceRef
   if (!report) {
     console.log('No report data in ALevelClassReport');
     return (
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        <Alert severity="warning">
-          No report data available for this class and exam.
-        </Alert>
-        <Button
-          variant="contained"
-          sx={{ mt: 2 }}
-          onClick={() => navigate('/admin/a-level-class-reports')}
-        >
-          Go Back
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          sx={{ mt: 2, ml: 2 }}
-          onClick={() => refreshReport()}
-        >
-          Retry Loading
-        </Button>
-      </Container>
+      <AnimatedContainer animation="fadeIn" duration={0.5}>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          <SectionContainer sx={{
+            p: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minHeight: '30vh',
+            justifyContent: 'center'
+          }}>
+            <FadeIn>
+              <Typography
+                variant="h5"
+                sx={{ mb: 2 }}
+                className="gradient-text"
+              >
+                No Report Data Available
+              </Typography>
+            </FadeIn>
+            <FadeIn delay={0.2}>
+              <Alert
+                severity="warning"
+                sx={{
+                  mb: 3,
+                  width: '100%',
+                  maxWidth: 600,
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}
+              >
+                No report data available for this class and exam. Please check if marks have been entered.
+              </Alert>
+            </FadeIn>
+            <FadeIn delay={0.3}>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <GradientButton
+                  variant="contained"
+                  color="primary"
+                  startIcon={<ArrowBackIcon />}
+                  onClick={() => navigate('/results/a-level/class-reports')}
+                >
+                  Go Back to Reports
+                </GradientButton>
+                <GradientButton
+                  variant="contained"
+                  color="secondary"
+                  startIcon={<RefreshIcon />}
+                  onClick={() => refreshReport()}
+                >
+                  Retry Loading
+                </GradientButton>
+              </Box>
+            </FadeIn>
+          </SectionContainer>
+        </Container>
+      </AnimatedContainer>
     );
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      {/* Cache notification */}
-      {isFromCache && (
-        <Alert severity="info" sx={{ mb: 2 }} className="no-print">
-          Showing cached report data.
-          <Button
-            size="small"
-            onClick={() => refreshReport()}
-            sx={{ ml: 2 }}
-            startIcon={<RefreshIcon />}
-          >
-            Refresh
-          </Button>
-        </Alert>
-      )}
+    <AnimatedContainer animation="fadeIn" duration={0.5}>
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+        {/* Cache notification */}
+        {isFromCache && (
+          <FadeIn>
+            <Alert
+              severity="info"
+              sx={{
+                mb: 2,
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+              }}
+              className="no-print"
+            >
+              Showing cached report data.
+              <GradientButton
+                size="small"
+                onClick={() => refreshReport()}
+                sx={{ ml: 2 }}
+                startIcon={<RefreshIcon />}
+              >
+                Refresh
+              </GradientButton>
+            </Alert>
+          </FadeIn>
+        )}
 
-      {/* Form level filter notification */}
-      {formLevel && (
-        <Alert severity="info" sx={{ mb: 2 }} className="no-print">
-          Showing results for Form {formLevel} students only.
-        </Alert>
-      )}
+        {/* Form level filter notification */}
+        {formLevel && (
+          <FadeIn delay={0.1}>
+            <Alert
+              severity="info"
+              sx={{
+                mb: 2,
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+              }}
+              className="no-print"
+            >
+              Showing results for Form {formLevel} students only.
+            </Alert>
+          </FadeIn>
+        )}
 
       {/* Main report container */}
-      <Paper
-        sx={{ p: 3 }}
-        id="a-level-class-report-container"
-        className="report-container print-container"
-      >
+      <FadeIn delay={0.2}>
+        <SectionContainer
+          sx={{ p: 3 }}
+          id="a-level-class-report-container"
+          className="report-container print-container"
+        >
         {/* Enhanced Header Section */}
         <EnhancedClassHeaderSection
           reportTitle="A-LEVEL CLASS RESULT REPORT"
@@ -337,17 +482,21 @@ const ALevelClassReport = ({ classId, examId, formLevel: propFormLevel, forceRef
             Generated on {new Date().toLocaleDateString()}
           </Typography>
         </Box>
-      </Paper>
+        </SectionContainer>
+      </FadeIn>
 
       {/* Action Buttons */}
-      <ClassActionButtons
-        report={report}
-        onGeneratePdf={handleGeneratePdf}
-        onFormLevelChange={handleFormLevelChange}
-        currentFormLevel={formLevel}
-        backUrl="/admin/a-level-class-reports"
-      />
+      <FadeIn delay={0.3}>
+        <ClassActionButtons
+          report={report}
+          onGeneratePdf={handleGeneratePdf}
+          onFormLevelChange={handleFormLevelChange}
+          currentFormLevel={formLevel}
+          backUrl="/results/a-level/class-reports"
+        />
+      </FadeIn>
     </Container>
+    </AnimatedContainer>
   );
 };
 
@@ -363,18 +512,53 @@ export default withCircuitBreaker(ALevelClassReport, {
   maxRenders: 30,
   timeWindowMs: 2000,
   fallback: () => (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Alert severity="error">
-        Too many renders detected. The report has been stopped to prevent browser freezing.
-        Please refresh the page and try again.
-      </Alert>
-      <Button
-        variant="contained"
-        sx={{ mt: 2 }}
-        onClick={() => window.location.reload()}
-      >
-        Refresh Page
-      </Button>
-    </Container>
+    <AnimatedContainer animation="fadeIn" duration={0.5}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <SectionContainer sx={{
+          p: 4,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          minHeight: '30vh',
+          justifyContent: 'center'
+        }}>
+          <FadeIn>
+            <Typography
+              variant="h5"
+              sx={{ mb: 2 }}
+              color="error"
+              className="gradient-text"
+            >
+              Report Processing Error
+            </Typography>
+          </FadeIn>
+          <FadeIn delay={0.2}>
+            <Alert
+              severity="error"
+              sx={{
+                mb: 3,
+                width: '100%',
+                maxWidth: 600,
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+              }}
+            >
+              Too many renders detected. The report has been stopped to prevent browser freezing.
+              Please refresh the page and try again.
+            </Alert>
+          </FadeIn>
+          <FadeIn delay={0.3}>
+            <GradientButton
+              variant="contained"
+              color="primary"
+              startIcon={<RefreshIcon />}
+              onClick={() => window.location.reload()}
+            >
+              Refresh Page
+            </GradientButton>
+          </FadeIn>
+        </SectionContainer>
+      </Container>
+    </AnimatedContainer>
   )
 });

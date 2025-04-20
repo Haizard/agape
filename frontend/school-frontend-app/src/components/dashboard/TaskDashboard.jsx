@@ -81,9 +81,9 @@ const TaskDashboard = () => {
           description: 'Create and manage exams'
         },
         {
-          name: 'Enter Marks',
+          name: 'Marks Entry Dashboard',
           path: '/results/marks-entry-dashboard',
-          description: 'Enter student marks for exams'
+          description: 'Enhanced interface for entering student marks'
         },
         {
           name: 'Generate Reports',

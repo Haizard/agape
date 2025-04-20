@@ -72,6 +72,27 @@ router.post('/direct-student-register', authenticateToken, authorizeRole(['admin
     // Generate admission number if not provided
     const finalAdmissionNumber = admissionNumber || username || `STU-${Date.now().toString().slice(-6)}`;
 
+    // Get class details to determine education level
+    const Class = require('../models/Class');
+    const classObj = await Class.findById(classId).session(session);
+
+    // Determine education level based on class
+    let educationLevel = 'O_LEVEL'; // Default to O-Level
+    if (classObj) {
+      // Use class education level if available
+      educationLevel = classObj.educationLevel || 'O_LEVEL';
+
+      // Special case for Form 5 and 6 (A-Level)
+      if (classObj.name && (
+        classObj.name.includes('Form 5') ||
+        classObj.name.includes('Form 6') ||
+        classObj.name.toUpperCase().includes('FORM V') ||
+        classObj.name.toUpperCase().includes('FORM VI')
+      )) {
+        educationLevel = 'A_LEVEL';
+      }
+    }
+
     // Create student profile
     const student = new Student({
       userId: savedUser._id,
@@ -82,6 +103,7 @@ router.post('/direct-student-register', authenticateToken, authorizeRole(['admin
       dateOfBirth: dateOfBirth || null,
       gender: gender || 'male',
       class: classId,
+      educationLevel, // Explicitly set education level
       admissionNumber: finalAdmissionNumber,
       status: 'active'
     });

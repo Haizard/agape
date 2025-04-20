@@ -293,8 +293,9 @@ const OLevelClassResultReport = () => {
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>#</TableCell>
-                  <TableCell>Name</TableCell>
+                  <TableCell>No.</TableCell>
+                  <TableCell>Student Name (3 NAMES)</TableCell>
+                  <TableCell>SEX</TableCell>
                   <TableCell>Roll Number</TableCell>
 
                   {/* Subject columns - dynamically generated */}
@@ -304,9 +305,8 @@ const OLevelClassResultReport = () => {
 
                   <TableCell align="center">Total</TableCell>
                   <TableCell align="center">Average</TableCell>
-                  <TableCell align="center">Points</TableCell>
-                  <TableCell align="center">Best 7</TableCell>
                   <TableCell align="center">Division</TableCell>
+                  <TableCell align="center">POINTS</TableCell>
                   <TableCell align="center">Rank</TableCell>
                 </TableRow>
               </TableHead>
@@ -315,6 +315,7 @@ const OLevelClassResultReport = () => {
                   <TableRow key={student.id || index}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{student.name}</TableCell>
+                    <TableCell>{student.gender || student.sex || '-'}</TableCell>
                     <TableCell>{student.rollNumber}</TableCell>
 
                     {/* Display results for each subject */}
@@ -327,15 +328,99 @@ const OLevelClassResultReport = () => {
                     {/* Summary columns */}
                     <TableCell align="center">{student.totalMarks}</TableCell>
                     <TableCell align="center">{student.averageMarks ? (typeof student.averageMarks === 'number' ? student.averageMarks.toFixed(2) : student.averageMarks) : '0.00'}</TableCell>
-                    <TableCell align="center">{student.totalPoints}</TableCell>
-                    <TableCell align="center">{student.bestSevenPoints}</TableCell>
                     <TableCell align="center">{student.division}</TableCell>
+                    <TableCell align="center">{student.bestSevenPoints || student.totalPoints || student.points || '-'}</TableCell>
                     <TableCell align="center">{student.rank}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Result Summary Card */}
+          <Paper sx={{ mt: 3, p: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#4caf50' }}>
+              RESULT SUMMARY
+            </Typography>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>SUBJECT NAME</TableCell>
+                    <TableCell align="center">NO OF STUDENTS</TableCell>
+                    <TableCell colSpan={6} align="center">PERFORMANCE</TableCell>
+                    <TableCell align="center">GPA</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell></TableCell>
+                    <TableCell></TableCell>
+                    <TableCell align="center">A</TableCell>
+                    <TableCell align="center">B</TableCell>
+                    <TableCell align="center">C</TableCell>
+                    <TableCell align="center">D</TableCell>
+                    <TableCell align="center">F</TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {report.subjectAnalysis?.map((subject, index) => {
+                    // Calculate GPA (1-5 scale, A=1, F=5)
+                    const grades = subject.grades || {};
+                    const totalStudents = Object.values(grades).reduce((sum, count) => sum + (count || 0), 0);
+                    const totalPoints = (grades.A || 0) * 1 + (grades.B || 0) * 2 + (grades.C || 0) * 3 +
+                                        (grades.D || 0) * 4 + (grades.F || 0) * 5;
+                    const gpa = totalStudents > 0 ? (totalPoints / totalStudents).toFixed(2) : '0.00';
+
+                    return (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                            {subject.name?.replace('PHYISCS', 'PHYSICS').toUpperCase()}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">{totalStudents}</TableCell>
+                        <TableCell align="center" sx={{ color: '#4caf50', fontWeight: 'bold' }}>{grades.A || 0}</TableCell>
+                        <TableCell align="center" sx={{ color: '#2196f3', fontWeight: 'bold' }}>{grades.B || 0}</TableCell>
+                        <TableCell align="center" sx={{ color: '#ff9800', fontWeight: 'bold' }}>{grades.C || 0}</TableCell>
+                        <TableCell align="center" sx={{ color: '#ff5722', fontWeight: 'bold' }}>{grades.D || 0}</TableCell>
+                        <TableCell align="center" sx={{ color: '#f44336', fontWeight: 'bold' }}>{grades.F || 0}</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold' }}>{gpa}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+
+          {/* Approval Section */}
+          <Paper sx={{ mt: 3, p: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', textAlign: 'center', borderBottom: '1px solid #e0e0e0', pb: 1 }}>
+              APPROVED BY
+            </Typography>
+            <Box sx={{ mt: 3 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>1. ACADEMIC TEACHER NAME:</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+                      <Typography variant="body2" sx={{ mr: 2 }}>SIGN:</Typography>
+                      <Box sx={{ borderBottom: '1px solid #000', width: '200px', height: '24px' }} />
+                    </Box>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>2. HEAD OF SCHOOL:</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
+                      <Typography variant="body2" sx={{ mr: 2 }}>SIGN:</Typography>
+                      <Box sx={{ borderBottom: '1px solid #000', width: '200px', height: '24px' }} />
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Box>
+          </Paper>
         </TabPanel>
 
         {/* Subject Analysis Tab */}

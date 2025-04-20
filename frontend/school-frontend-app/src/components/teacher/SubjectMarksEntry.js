@@ -413,9 +413,8 @@ const SubjectMarksEntry = () => {
     try {
       console.log('Submitting marks data:', marksData);
 
-      const response = await api.post('/api/results/enter-marks/batch', {
-        marksData: marksData
-      });
+      // Use the new standardized endpoint for O-Level marks entry
+      const response = await api.post('/api/o-level/marks/batch', marksData);
 
       console.log('Marks saved successfully:', response.data);
       setSuccess('Marks saved successfully');

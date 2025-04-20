@@ -24,6 +24,10 @@ const marksHistoryRoutes = require('./routes/marksHistoryRoutes');
 const demoDataRoutes = require('./routes/demoDataRoutes');
 const publicReportRoutes = require('./routes/publicReportRoutes');
 const aLevelReportRoutes = require('./routes/aLevelReportRoutes');
+const oLevelReportRoutes = require('./routes/oLevelReportRoutes');
+const standardizedOLevelRoutes = require('./routes/standardizedOLevelRoutes');
+const fixTeacherRoute = require('./routes/fixTeacherRoute');
+const enhancedTeacherRoutes = require('./routes/enhancedTeacherRoutes');
 
 const app = express();
 
@@ -109,8 +113,34 @@ app.use('/api/results/comprehensive-old', comprehensiveReportRoutes);
 app.use('/api/a-level-reports', aLevelReportRoutes);
 console.log('A-Level report routes registered at /api/a-level-reports');
 
+// New standardized O-Level report routes
+app.use('/api/o-level-reports', oLevelReportRoutes);
+console.log('O-Level report routes registered at /api/o-level-reports');
+
+// New consolidated O-Level routes (will eventually replace all other O-Level routes)
+app.use('/api/o-level', standardizedOLevelRoutes);
+console.log('Standardized O-Level routes registered at /api/o-level');
+
+// Fix teacher route
+app.use('/api/fix-teacher', fixTeacherRoute);
+console.log('Fix teacher route registered at /api/fix-teacher');
+
+// Enhanced teacher routes with improved authentication
+app.use('/api/enhanced-teachers', enhancedTeacherRoutes);
+console.log('Enhanced teacher routes registered at /api/enhanced-teachers');
+
+// Add deprecation notice for old routes
+app.use('/api/o-level-results', (req, res, next) => {
+  console.warn(`Deprecated route accessed: ${req.method} ${req.originalUrl}`);
+  logger.warn(`Deprecated route accessed: ${req.method} ${req.originalUrl}. Please use /api/o-level instead.`);
+  // Add deprecation header
+  res.setHeader('X-Deprecated', 'This route is deprecated. Please use /api/o-level instead.');
+  next();
+});
+
 // Old A-Level result routes have been removed
 // All A-Level report functionality is now handled by /api/a-level-reports
+// All O-Level report functionality is now handled by /api/o-level-reports
 
 // Demo data routes for testing
 app.use('/api/demo', demoDataRoutes);

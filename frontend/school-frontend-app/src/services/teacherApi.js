@@ -83,9 +83,9 @@ const teacherApi = {
             console.error('[TeacherAPI] Error fetching from fallback endpoint:', fallbackError);
           }
 
-          // For 403/401 errors, log a clear message and return empty array
-          if (error.response && (error.response.status === 403 || error.response.status === 401)) {
-            console.log('[TeacherAPI] Teacher is not authorized to access subjects in this class');
+          // For 403/401/404 errors, log a clear message and return empty array
+          if (error.response && (error.response.status === 403 || error.response.status === 401 || error.response.status === 404)) {
+            console.log('[TeacherAPI] Teacher is not authorized or not found:', error.response.data?.message || 'Unknown error');
             return [];
           }
 
@@ -131,7 +131,33 @@ const teacherApi = {
         // For teachers, strictly use the teacher-specific endpoint
         console.log(`[TeacherAPI] Fetching students for class ${classId} who are taking subjects the teacher is assigned to teach`);
         try {
+          // First try the O-Level specific endpoint for O-Level classes
+          try {
+            // Check if this is an O-Level class
+            const classResponse = await api.get(`/api/classes/${classId}`);
+            const isOLevel = classResponse.data && classResponse.data.educationLevel === 'O_LEVEL';
+
+            if (isOLevel) {
+              console.log(`[TeacherAPI] Class ${classId} is an O-Level class, using O-Level specific endpoint`);
+              try {
+                // Try the enhanced O-Level endpoint
+                const oLevelResponse = await api.get(`/api/enhanced-teachers/o-level/classes/${classId}/subjects/any/students`);
+                console.log(`[TeacherAPI] Found ${oLevelResponse.data.students ? oLevelResponse.data.students.length : 0} students using O-Level specific endpoint`);
+                if (oLevelResponse.data && Array.isArray(oLevelResponse.data.students)) {
+                  return oLevelResponse.data.students;
+                }
+              } catch (oLevelError) {
+                console.log(`[TeacherAPI] O-Level specific endpoint failed:`, oLevelError);
+                // Continue to regular endpoint
+              }
+            }
+          } catch (classError) {
+            console.log(`[TeacherAPI] Error checking class education level:`, classError);
+            // Continue to regular endpoint
+          }
+
           // This endpoint returns students who are taking subjects the teacher is assigned to teach
+          console.log(`[TeacherAPI] Using regular endpoint for class ${classId}`);
           const response = await api.get(`/api/teachers/classes/${classId}/students`);
 
           // Check if the response has a students array (new format)

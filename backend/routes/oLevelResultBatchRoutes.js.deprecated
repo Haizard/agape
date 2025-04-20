@@ -1,0 +1,36 @@
+/**
+ * DEPRECATED: This file contains the old O-Level batch result routes that have been replaced by the new standardized routes.
+ * Please use the new route in standardizedOLevelRoutes.js instead.
+ * 
+ * The new route is:
+ * - /api/o-level/marks/batch - For batch marks entry
+ */
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+const OLevelResult = require('../models/OLevelResult');
+const Student = require('../models/Student');
+const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { checkExistingMarks, preventDuplicateMarks } = require('../middleware/markEntryValidation');
+const oLevelGradeCalculator = require('../utils/oLevelGradeCalculator');
+const logger = require('../utils/logger');
+
+/**
+ * @route   POST /api/o-level-results/batch
+ * @desc    Enter batch marks for O-Level students
+ * @access  Private (Admin, Teacher)
+ * @deprecated Use /api/o-level/marks/batch instead
+ */
+router.post('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+  // Log deprecation warning
+  logger.warn(`DEPRECATED ROUTE USED: ${req.method} ${req.originalUrl} - Use /api/o-level/marks/batch instead`);
+  
+  // Forward to the new standardized route
+  return res.status(301).json({
+    success: false,
+    message: 'This route is deprecated. Please use /api/o-level/marks/batch instead.',
+    redirectTo: '/api/o-level/marks/batch'
+  });
+});
+
+module.exports = router;

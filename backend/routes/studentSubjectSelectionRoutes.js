@@ -387,6 +387,45 @@ router.get('/selection-rules', authenticateToken, async (req, res) => {
   res.json(rules);
 });
 
+// Get subject selections for a specific class
+router.get('/class/:classId', authenticateToken, authorizeRole(['admin', 'teacher']), async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    console.log(`Fetching subject selections for class ${classId}`);
+
+    // Find the class to verify it exists
+    const classObj = await Class.findById(classId);
+    if (!classObj) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    // Find all students in this class
+    const students = await Student.find({ class: classId });
+    const studentIds = students.map(student => student._id);
+
+    console.log(`Found ${studentIds.length} students in class ${classId}`);
+
+    // Find selections for these students
+    const selections = await StudentSubjectSelection.find({
+      student: { $in: studentIds }
+    })
+      .populate('student', 'firstName lastName admissionNumber')
+      .populate('selectionClass', 'name stream section')
+      .populate('academicYear', 'name')
+      .populate('coreSubjects', 'name code type')
+      .populate('optionalSubjects', 'name code type')
+      .populate('approvedBy', 'firstName lastName');
+
+    console.log(`Found ${selections.length} subject selections for class ${classId}`);
+
+    res.json(selections);
+  } catch (error) {
+    console.error(`Error fetching subject selections for class ${req.params.classId}:`, error);
+    res.status(500).json({ message: 'Failed to fetch subject selections for class' });
+  }
+});
+
 // Get subject selections for a specific student
 router.get('/student/:studentId', authenticateToken, async (req, res) => {
   try {

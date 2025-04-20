@@ -319,7 +319,7 @@ const WorkingTeacherSubjectsClasses = () => {
                           size="small"
                           color="primary"
                           component={Link}
-                          to={`/teacher/marks-entry?subject=${subject._id}`}
+                          to={`/results/marks-entry-dashboard?subject=${subject._id}`}
                           startIcon={<EditIcon />}
                         >
                           Enter Marks

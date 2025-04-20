@@ -50,7 +50,7 @@ const FixedSubjectMarksEntry = () => {
     try {
       setLoading(true);
       console.log('Fetching initial data...');
-      
+
       // Fetch academic years, exam types, and teacher profile in parallel
       const [academicYearsResponse, examTypesResponse, teacherProfileResponse] = await Promise.all([
         api.get('/api/academic-years'),
@@ -60,10 +60,10 @@ const FixedSubjectMarksEntry = () => {
           return { data: null };
         })
       ]);
-      
+
       // Set academic years
       setAcademicYears(academicYearsResponse.data);
-      
+
       // Set active academic year as default
       const activeYear = academicYearsResponse.data.find(year => year.isActive);
       if (activeYear) {
@@ -71,16 +71,16 @@ const FixedSubjectMarksEntry = () => {
       } else if (academicYearsResponse.data.length > 0) {
         setSelectedAcademicYear(academicYearsResponse.data[0]._id);
       }
-      
+
       // Set exam types
       setExamTypes(examTypesResponse.data);
-      
+
       // Set teacher profile if available
       if (teacherProfileResponse.data) {
         setTeacherProfile(teacherProfileResponse.data);
         console.log('Teacher profile found:', teacherProfileResponse.data);
       }
-      
+
       // Fetch teacher's classes using the new endpoint
       try {
         const classesResponse = await api.get('/api/teacher-classes/my-classes');
@@ -88,7 +88,7 @@ const FixedSubjectMarksEntry = () => {
         setTeacherClasses(classesResponse.data);
       } catch (classesError) {
         console.error('Error fetching teacher classes:', classesError);
-        
+
         // If user is admin, fetch all classes as fallback
         if (user && user.role === 'admin') {
           console.log('User is admin, fetching all classes...');
@@ -98,7 +98,7 @@ const FixedSubjectMarksEntry = () => {
           setError('Failed to fetch your assigned classes. Please contact the administrator.');
         }
       }
-      
+
       setInitialDataLoaded(true);
     } catch (err) {
       console.error('Error fetching initial data:', err);
@@ -114,23 +114,23 @@ const FixedSubjectMarksEntry = () => {
       console.log('No class selected, skipping subject fetch');
       return;
     }
-    
+
     try {
       setLoading(true);
       console.log('Fetching subjects for class:', selectedClass);
-      
+
       // Use the new endpoint to get teacher's subjects
       const subjectsResponse = await api.get('/api/teacher-classes/my-subjects');
       console.log('Teacher subjects:', subjectsResponse.data);
-      
+
       // Filter subjects that are taught in the selected class
-      const subjectsForClass = subjectsResponse.data.filter(subject => 
+      const subjectsForClass = subjectsResponse.data.filter(subject =>
         subject.classes && subject.classes.some(cls => cls._id === selectedClass)
       );
-      
+
       console.log('Subjects for selected class:', subjectsForClass);
       setTeacherSubjects(subjectsForClass);
-      
+
       // If no subjects found and user is admin, fetch all subjects for the class
       if (subjectsForClass.length === 0 && user && user.role === 'admin') {
         console.log('No subjects found for class, fetching all subjects as admin...');
@@ -139,7 +139,7 @@ const FixedSubjectMarksEntry = () => {
       }
     } catch (err) {
       console.error('Error fetching subjects for class:', err);
-      
+
       // If user is admin, try to fetch all subjects for the class
       if (user && user.role === 'admin') {
         try {
@@ -164,7 +164,7 @@ const FixedSubjectMarksEntry = () => {
       console.log('Missing required selections, skipping exam fetch');
       return;
     }
-    
+
     try {
       setLoading(true);
       console.log('Fetching exams for:', {
@@ -172,24 +172,24 @@ const FixedSubjectMarksEntry = () => {
         class: selectedClass,
         subject: selectedSubject
       });
-      
+
       // Build query parameters
       const params = {
         academicYearId: selectedAcademicYear,
         classId: selectedClass
       };
-      
+
       const response = await api.get('/api/exams', { params });
       console.log('Exams response:', response.data);
-      
+
       // Process the exams to include exam type information
       const processedExams = response.data.map(exam => ({
         ...exam,
         displayName: `${exam.name} (${exam.type})${exam.examType ? ` - ${exam.examType.name}` : ''}`
       }));
-      
+
       setExams(processedExams);
-      
+
       // If no exams found, create a default exam option
       if (processedExams.length === 0) {
         console.log('No exams found, creating default exam option');
@@ -204,7 +204,7 @@ const FixedSubjectMarksEntry = () => {
     } catch (err) {
       console.error('Error fetching exams:', err);
       setError('Failed to fetch exams');
-      
+
       // If error, create a default exam option
       console.log('Error fetching exams, creating default exam option');
       setExams([{
@@ -225,15 +225,15 @@ const FixedSubjectMarksEntry = () => {
       console.log('No class selected, skipping student fetch');
       return;
     }
-    
+
     try {
       setLoading(true);
       console.log('Fetching students for class:', selectedClass);
-      
+
       const response = await api.get(`/api/students/class/${selectedClass}`);
       console.log('Students response:', response.data);
       setStudents(response.data);
-      
+
       // Initialize marks object for all students
       const initialMarks = {};
       for (const student of response.data) {
@@ -254,7 +254,7 @@ const FixedSubjectMarksEntry = () => {
       console.log('Missing required selections, skipping results fetch');
       return;
     }
-    
+
     try {
       setLoading(true);
       console.log('Fetching existing results for:', {
@@ -262,11 +262,11 @@ const FixedSubjectMarksEntry = () => {
         subject: selectedSubject,
         exam: selectedExam
       });
-      
+
       // Get the selected exam to check if it has an exam type
       const selectedExamObj = exams.find(exam => exam._id === selectedExam);
       const examTypeFromExam = selectedExamObj?.examType?._id;
-      
+
       const response = await api.get(`/api/results/class/${selectedClass}`, {
         params: {
           examId: selectedExam,
@@ -274,10 +274,10 @@ const FixedSubjectMarksEntry = () => {
           examTypeId: examTypeFromExam
         }
       });
-      
+
       console.log('Existing results:', response.data);
       setExistingResults(response.data);
-      
+
       // Pre-fill marks with existing results
       const updatedMarks = { ...marks };
       for (const result of response.data) {
@@ -286,7 +286,7 @@ const FixedSubjectMarksEntry = () => {
         }
       }
       setMarks(updatedMarks);
-      
+
       // If results have an exam type, set it
       if (response.data.length > 0 && response.data[0].examTypeId) {
         console.log('Setting exam type from existing results:', response.data[0].examTypeId);
@@ -317,23 +317,23 @@ const FixedSubjectMarksEntry = () => {
     setLoading(true);
     setError('');
     setSuccess('');
-    
+
     try {
       // Get the selected exam to check if it has an exam type
       const selectedExamObj = exams.find(exam => exam._id === selectedExam);
       const examTypeFromExam = selectedExamObj?.examType?._id;
-      
+
       console.log('Selected exam:', selectedExamObj);
       console.log('Exam type from exam:', examTypeFromExam);
       console.log('Manually selected exam type:', selectedExamType);
-      
+
       // Filter out empty marks
       const validMarks = Object.entries(marks)
         .filter(([_, value]) => value !== '')
         .map(([studentId, marksObtained]) => {
           // If the exam is the default one created for admin users, we need to create a real exam
           const examId = selectedExam === 'default-exam' ? null : selectedExam;
-          
+
           // Use exam type in this priority:
           // 1. Exam's own exam type if available
           // 2. Manually selected exam type
@@ -341,7 +341,7 @@ const FixedSubjectMarksEntry = () => {
           const effectiveExamTypeId = examTypeFromExam ||
                                      selectedExamType ||
                                      (examTypes.length > 0 ? examTypes[0]._id : null);
-          
+
           return {
             studentId,
             examId,
@@ -354,17 +354,16 @@ const FixedSubjectMarksEntry = () => {
             examName: selectedExam === 'default-exam' ? 'Default Exam' : undefined
           };
         });
-      
+
       if (validMarks.length === 0) {
         setError('Please enter at least one mark');
         setLoading(false);
         return;
       }
-      
-      await api.post('/api/results/enter-marks/batch', {
-        marksData: validMarks
-      });
-      
+
+      // Use the new standardized endpoint for O-Level marks entry
+      await api.post('/api/o-level/marks/batch', validMarks);
+
       setSuccess('Marks saved successfully');
       fetchExistingResults(); // Refresh the results
     } catch (err) {
@@ -415,7 +414,7 @@ const FixedSubjectMarksEntry = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom>Enter Subject Marks</Typography>
-      
+
       {teacherProfile && (
         <Box sx={{ mb: 3 }}>
           <Paper sx={{ p: 2 }}>
@@ -428,7 +427,7 @@ const FixedSubjectMarksEntry = () => {
           </Paper>
         </Box>
       )}
-      
+
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
           <FormControl sx={{ minWidth: 200 }}>
@@ -445,7 +444,7 @@ const FixedSubjectMarksEntry = () => {
               ))}
             </Select>
           </FormControl>
-          
+
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>Class</InputLabel>
             <Select
@@ -465,7 +464,7 @@ const FixedSubjectMarksEntry = () => {
               ))}
             </Select>
           </FormControl>
-          
+
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>Subject</InputLabel>
             <Select
@@ -484,7 +483,7 @@ const FixedSubjectMarksEntry = () => {
               ))}
             </Select>
           </FormControl>
-          
+
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>Exam</InputLabel>
             <Select
@@ -500,7 +499,7 @@ const FixedSubjectMarksEntry = () => {
               ))}
             </Select>
           </FormControl>
-          
+
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>Exam Type</InputLabel>
             <Select
@@ -522,19 +521,19 @@ const FixedSubjectMarksEntry = () => {
             )}
           </FormControl>
         </Box>
-        
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
             {error}
           </Alert>
         )}
-        
+
         {success && (
           <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
             {success}
           </Alert>
         )}
-        
+
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress />
@@ -544,7 +543,7 @@ const FixedSubjectMarksEntry = () => {
             {students.length > 0 && selectedClass && selectedSubject && selectedExam ? (
               <>
                 <Divider sx={{ my: 2 }} />
-                
+
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="h6" gutterBottom>
                     Student Marks
@@ -553,7 +552,7 @@ const FixedSubjectMarksEntry = () => {
                     Enter marks for each student below. Marks should be between 0 and 100.
                   </Typography>
                 </Box>
-                
+
                 <TableContainer>
                   <Table>
                     <TableHead>
@@ -571,7 +570,7 @@ const FixedSubjectMarksEntry = () => {
                           r => r.studentId?._id === student._id
                         );
                         const hasExistingResult = !!existingResult;
-                        
+
                         return (
                           <TableRow key={student._id}>
                             <TableCell>
@@ -621,7 +620,7 @@ const FixedSubjectMarksEntry = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
-                
+
                 <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
                   <Button
                     variant="contained"

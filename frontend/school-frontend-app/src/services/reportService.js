@@ -15,41 +15,86 @@ import { getAuthToken } from '../utils/authUtils';
  * @returns {Object} - Normalized data
  */
 const normalizeReportData = (data) => {
-  if (!data) return null;
+  console.log('normalizeReportData called with:', {
+    hasData: !!data,
+    dataType: data ? typeof data : 'null',
+    isArray: Array.isArray(data),
+    keys: data ? Object.keys(data) : [],
+    mock: data?.mock,
+    warning: data?.warning
+  });
 
-  // Normalize student details
-  const studentDetails = data.studentDetails || {};
-
-  // Normalize subject results
-  const subjectResults = (data.subjectResults || []).map(result => ({
-    subject: result.subject,
-    code: result.code || '',
-    marks: result.marks || result.marksObtained || 0,
-    grade: result.grade || '-',
-    points: result.points || 0,
-    remarks: result.remarks || '',
-    isPrincipal: result.isPrincipal || false,
-    isCompulsory: result.isCompulsory || false
-  }));
-
-  // Normalize summary
-  const summary = data.summary || {};
-
-  // Ensure division is consistently formatted
-  if (summary.division && !summary.division.startsWith('Division')) {
-    summary.division = `Division ${summary.division}`;
+  if (!data) {
+    console.error('normalizeReportData received null or undefined data');
+    return null;
   }
 
-  // Return normalized data
-  return {
-    ...data,
-    studentDetails,
-    subjectResults,
-    summary,
-    // Ensure we have both principal and subsidiary subjects arrays
-    principalSubjects: data.principalSubjects || subjectResults.filter(r => r.isPrincipal),
-    subsidiarySubjects: data.subsidiarySubjects || subjectResults.filter(r => !r.isPrincipal)
-  };
+  try {
+    // Normalize student details
+    const studentDetails = data.studentDetails || {};
+
+    // Normalize subject results
+    const subjectResults = (data.subjectResults || []).map(result => ({
+      subject: result.subject,
+      code: result.code || '',
+      marks: result.marks || result.marksObtained || 0,
+      grade: result.grade || '-',
+      points: result.points || 0,
+      remarks: result.remarks || '',
+      isPrincipal: result.isPrincipal || false,
+      isCompulsory: result.isCompulsory || false
+    }));
+
+    // Normalize summary
+    const summary = data.summary || {};
+
+    // Ensure division is consistently formatted
+    if (summary.division && !summary.division.startsWith('Division')) {
+      summary.division = `Division ${summary.division}`;
+    }
+
+    // Ensure students array exists and is properly formatted
+    const students = data.students || [];
+    if (students.length > 0) {
+      // Ensure each student has a results array
+      for (const student of students) {
+        if (!student.results) {
+          student.results = [];
+        }
+      }
+    }
+
+    // Preserve mock flag and warning message
+    const mock = data.mock === true;
+    const warning = data.warning || '';
+
+    // Return normalized data
+    const normalizedData = {
+      ...data,
+      studentDetails,
+      subjectResults,
+      summary,
+      students,
+      mock,
+      warning,
+      // Ensure we have both principal and subsidiary subjects arrays
+      principalSubjects: data.principalSubjects || subjectResults.filter(r => r.isPrincipal),
+      subsidiarySubjects: data.subsidiarySubjects || subjectResults.filter(r => !r.isPrincipal)
+    };
+
+    console.log('normalizeReportData returning:', {
+      hasData: true,
+      studentCount: normalizedData.students?.length || 0,
+      mock: normalizedData.mock,
+      warning: normalizedData.warning
+    });
+
+    return normalizedData;
+  } catch (error) {
+    console.error('Error in normalizeReportData:', error);
+    // Return the original data if normalization fails
+    return data;
+  }
 };
 
 /**
@@ -91,8 +136,11 @@ const fetchALevelStudentReport = async (studentId, examId, options = {}) => {
 
       // Check if the response has the expected structure
       if (!response.data || !response.data.success) {
+        console.error('API response does not have expected structure:', response.data);
         throw new Error(response.data?.message || 'Failed to fetch report data');
       }
+
+      console.log('API response has expected structure');
 
       // Normalize the data
       const normalizedData = normalizeReportData(response.data.data);
@@ -290,16 +338,23 @@ const fetchALevelClassReport = async (classId, examId, options = {}) => {
           name: apiError.name,
           stack: apiError.stack
         });
+        console.log('Will attempt to use mock data due to CORS/network error');
       }
 
       // Check for network errors
       if (apiError.message === 'Network Error') {
         console.error('Network Error: Check if the backend server is running');
+        console.log('Will attempt to use mock data due to network error');
       }
 
       // If the API returns a 404, use mock data instead
       if (apiError.response && apiError.response.status === 404) {
         console.log('API returned 404, using mock data instead');
+        console.log('404 response details:', {
+          url: apiError.config?.url,
+          method: apiError.config?.method,
+          data: apiError.response?.data
+        });
 
         // Return normalized mock data
         const mockData = getMockClassReport(classId, examId, formLevel);
@@ -606,11 +661,324 @@ const sendALevelReportSMS = async (studentId, examId, options = {}) => {
   }
 };
 
+/**
+ * Fetch O-Level class report
+ * @param {string} classId - Class ID
+ * @param {string} examId - Exam ID
+ * @param {Object} options - Additional options
+ * @param {boolean} options.forceRefresh - Whether to bypass cache
+ * @param {string} options.formLevel - Form level filter
+ * @param {AbortSignal} options.signal - AbortController signal for cancellation
+ * @returns {Promise<Object>} - Normalized report data
+ */
+const fetchOLevelClassReport = async (classId, examId, options = {}) => {
+  const { forceRefresh = false, formLevel = null, signal } = options;
+
+  console.log('=== O-LEVEL CLASS REPORT DEBUGGING ===');
+  console.log(`fetchOLevelClassReport called with classId=${classId}, examId=${examId}`);
+  console.log('Options:', { forceRefresh, formLevel });
+
+  try {
+    // Create a more robust params object with explicit types
+    const params = {
+      // Always add cache-busting parameter
+      _t: Date.now(),
+
+      // Add form level filter if provided (with explicit string conversion)
+      formLevel: formLevel ? formLevel.toString() : undefined,
+
+      // Add forceRefresh and useMock parameters if forcing refresh
+      forceRefresh: forceRefresh ? 'true' : undefined,
+      useMock: 'false' // Always set useMock to false to ensure we get real data
+    };
+
+    // Log the parameters for debugging
+    console.log('Request parameters:', JSON.stringify(params, null, 2));
+    console.log(`Adding formLevel parameter: ${params.formLevel || 'none'}`);
+
+    if (forceRefresh) {
+      console.log('Adding forceRefresh=true and useMock=false parameters');
+    }
+
+    // Determine the endpoint - use the standardized API path
+    const endpoint = `api/o-level/reports/class/${classId}/${examId}`;
+    console.log('Using standardized O-Level API endpoint:', endpoint);
+    console.log('API base URL:', api.defaults.baseURL);
+
+    // Log the full URL for debugging
+    console.log('Full API URL:', api.defaults.baseURL + endpoint);
+
+    try {
+      // Make the API request with cancellation support
+      console.log(`Fetching O-Level class report from: ${endpoint}`, params);
+
+      // Get the authentication token
+      const token = getAuthToken();
+
+      // Log the token for debugging
+      console.log('Using auth token:', token ? `${token.substring(0, 10)}...` : 'No token');
+
+      // Ensure we're using the correct API instance
+      const response = await api.get(
+        endpoint,
+        {
+          params,
+          signal,
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
+      );
+
+      // Log the full response for debugging
+      console.log('O-Level class report API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        hasData: !!response.data,
+        success: response.data?.success
+      });
+
+      console.log('O-Level class report response:', response.data);
+
+      // Check if the response has the expected structure
+      if (!response.data) {
+        console.error('Empty response data');
+        throw new Error('No data received from server');
+      }
+
+      // Even if success is false, try to use the data if it exists
+      if (!response.data.success) {
+        console.warn('API returned success=false, but checking for usable data:', response.data);
+
+        // If there's data, try to use it anyway
+        if (response.data.data) {
+          console.log('Found usable data despite success=false, using it with warning');
+          const normalizedData = normalizeReportData(response.data.data);
+          normalizedData.warning = response.data.message || 'Showing partial data. Some information may be missing.';
+          return normalizedData;
+        }
+
+        console.error('Invalid response structure with no usable data:', response.data);
+        throw new Error(response.data?.message || 'Failed to fetch class report data');
+      }
+
+      // If we get here, we have valid data from the API
+      // Normalize the data before returning
+      const normalizedData = normalizeReportData(response.data.data);
+
+      // Add warning for empty or partial data
+      if (!normalizedData.students || normalizedData.students.length === 0) {
+        normalizedData.warning = 'No student data available. The report will update as marks are entered.';
+      } else if (normalizedData.students.some(student => !student.results || student.results.length === 0)) {
+        normalizedData.warning = 'Some students have no results data. Showing partial data where available.';
+      }
+
+      return normalizedData;
+    } catch (apiError) {
+      // Log detailed error information
+      console.error('API Error Details:', {
+        message: apiError.message,
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data,
+        url: apiError.config?.url,
+        method: apiError.config?.method
+      });
+
+      // Check for authentication errors
+      if (apiError.response && apiError.response.status === 401) {
+        console.error('Authentication error: Token missing or invalid');
+      }
+
+      // Check for CORS errors (typically no response)
+      if (!apiError.response) {
+        console.error('Possible CORS or network error - no response received');
+      }
+
+      // If the API returns a 404 or there's no data, check the specific error message
+      if (apiError.response && (
+        apiError.response.status === 404 ||
+        apiError.response.data?.message === 'No students found in this class' ||
+        apiError.response.data?.message?.includes('No marks data found') ||
+        apiError.response.data?.message?.includes('not found') ||
+        apiError.response.data?.message?.includes('Frontend build not found')
+      )) {
+        console.log('API returned error:', apiError.response?.status, apiError.response?.data);
+
+        // Check if the API returned an empty report with a warning
+        if (apiError.response?.data?.success === true && apiError.response?.data?.data) {
+          console.log('API returned empty report with warning, using it');
+          console.log('Empty report details:', {
+            hasStudents: !!apiError.response.data.data.students,
+            studentCount: apiError.response.data.data.students?.length || 0,
+            warning: apiError.response.data.data.warning,
+            mock: apiError.response.data.data.mock === true
+          });
+          return normalizeReportData(apiError.response.data.data);
+        }
+
+        // If the API didn't return a usable response, use mock data as fallback
+        console.log('Using mock data as a fallback');
+        console.log('Reason for using mock data:', {
+          responseStatus: apiError.response?.status,
+          responseData: apiError.response?.data,
+          errorMessage: apiError.message
+        });
+
+        const mockData = getMockOLevelClassReport(classId, examId, formLevel);
+
+        // Add a warning message and mock flag
+        mockData.warning = 'Showing sample data. Real data will be shown once marks are entered for this class and exam.';
+        mockData.mock = true; // Add a flag to indicate this is mock data
+
+        console.log('Created mock data with students:', mockData.students?.length || 0);
+
+        return normalizeReportData(mockData);
+      }
+
+      // Re-throw other errors
+      throw apiError;
+    }
+
+  } catch (error) {
+    // Handle request cancellation
+    if (axios.isCancel(error)) {
+      console.log('Request cancelled:', error.message);
+      throw new Error('Class report request was cancelled');
+    }
+
+    // Handle other errors
+    console.error('Error fetching O-Level class report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get mock data for O-Level class report
+ * @param {string} classId - Class ID
+ * @param {string} examId - Exam ID
+ * @param {string|number} formLevel - Form level
+ * @returns {Object} - Mock class report data
+ */
+const getMockOLevelClassReport = (classId, examId, formLevel) => {
+  console.log(`Generating mock O-Level class report for class ${classId}, exam ${examId}, formLevel ${formLevel || 'all'}`);
+
+  // Create a more comprehensive mock data set
+  const students = [
+    {
+      id: 'student1',
+      name: 'John Smith',
+      rollNumber: 'S001',
+      sex: 'M',
+      results: [
+        { subject: 'Mathematics', code: 'MATH', marks: 85, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'English', code: 'ENG', marks: 78, grade: 'B', points: 2, remarks: 'Good' },
+        { subject: 'Physics', code: 'PHY', marks: 92, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'Chemistry', code: 'CHEM', marks: 75, grade: 'B', points: 2, remarks: 'Good' },
+        { subject: 'Biology', code: 'BIO', marks: 88, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'Geography', code: 'GEO', marks: 82, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'History', code: 'HIST', marks: 79, grade: 'B', points: 2, remarks: 'Good' }
+      ],
+      totalMarks: 579,
+      averageMarks: '82.71',
+      totalPoints: 10,
+      division: 'I',
+      rank: 1
+    },
+    {
+      id: 'student2',
+      name: 'Jane Doe',
+      rollNumber: 'S002',
+      sex: 'F',
+      results: [
+        { subject: 'Mathematics', code: 'MATH', marks: 92, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'English', code: 'ENG', marks: 88, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'Physics', code: 'PHY', marks: 85, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'Chemistry', code: 'CHEM', marks: 82, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'Biology', code: 'BIO', marks: 90, grade: 'A', points: 1, remarks: 'Excellent' },
+        { subject: 'Geography', code: 'GEO', marks: 78, grade: 'B', points: 2, remarks: 'Good' },
+        { subject: 'History', code: 'HIST', marks: 85, grade: 'A', points: 1, remarks: 'Excellent' }
+      ],
+      totalMarks: 600,
+      averageMarks: '85.71',
+      totalPoints: 8,
+      division: 'I',
+      rank: 2
+    },
+    {
+      id: 'student3',
+      name: 'Michael Johnson',
+      rollNumber: 'S003',
+      sex: 'M',
+      results: [
+        { subject: 'Mathematics', code: 'MATH', marks: 65, grade: 'C', points: 3, remarks: 'Average' },
+        { subject: 'English', code: 'ENG', marks: 72, grade: 'B', points: 2, remarks: 'Good' },
+        { subject: 'Physics', code: 'PHY', marks: 68, grade: 'C', points: 3, remarks: 'Average' },
+        { subject: 'Chemistry', code: 'CHEM', marks: 70, grade: 'B', points: 2, remarks: 'Good' },
+        { subject: 'Biology', code: 'BIO', marks: 75, grade: 'B', points: 2, remarks: 'Good' },
+        { subject: 'Geography', code: 'GEO', marks: 68, grade: 'C', points: 3, remarks: 'Average' },
+        { subject: 'History', code: 'HIST', marks: 72, grade: 'B', points: 2, remarks: 'Good' }
+      ],
+      totalMarks: 490,
+      averageMarks: '70.00',
+      totalPoints: 17,
+      division: 'II',
+      rank: 3
+    }
+  ];
+
+  // Calculate class average
+  const totalAverage = students.reduce((sum, student) => sum + parseFloat(student.averageMarks), 0);
+  const classAverage = (totalAverage / students.length).toFixed(2);
+
+  // Calculate division distribution
+  const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 };
+  students.forEach(student => {
+    const divKey = student.division.toString().replace('Division ', '');
+    divisionDistribution[divKey] = (divisionDistribution[divKey] || 0) + 1;
+  });
+
+  return {
+    classId,
+    examId,
+    className: 'Form 3 Science',
+    examName: 'Mid-Term Exam 2023',
+    academicYear: '2023-2024',
+    formLevel: formLevel || 'all',
+    students,
+    divisionDistribution,
+    educationLevel: 'O_LEVEL',
+    classAverage,
+    totalStudents: students.length,
+    absentStudents: 1, // Mock data for absent students
+    subjectCombination: {
+      name: 'Science',
+      code: 'SCI',
+      subjects: [
+        { name: 'Mathematics', code: 'MATH' },
+        { name: 'English', code: 'ENG' },
+        { name: 'Physics', code: 'PHY' },
+        { name: 'Chemistry', code: 'CHEM' },
+        { name: 'Biology', code: 'BIO' },
+        { name: 'Geography', code: 'GEO' },
+        { name: 'History', code: 'HIST' }
+      ]
+    }
+  };
+};
+
 // Create the service object
 const reportService = {
   fetchALevelStudentReport,
   fetchALevelClassReport,
-  sendALevelReportSMS
+  fetchOLevelClassReport,
+  sendALevelReportSMS,
+  getMockOLevelClassReport,
+  normalizeReportData
 };
 
 // Export the service

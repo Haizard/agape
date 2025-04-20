@@ -3,14 +3,9 @@ import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Button,
   CircularProgress,
   Snackbar,
-  Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Alert
 } from '@mui/material';
 import {
   Print as PrintIcon,
@@ -18,6 +13,13 @@ import {
   ArrowBack as ArrowBackIcon,
   FilterAlt as FilterIcon
 } from '@mui/icons-material';
+
+// Import enhanced components
+import {
+  GradientButton,
+  EnhancedSelect,
+  AnimatedContainer
+} from '../../common';
 
 /**
  * ClassActionButtons Component
@@ -96,43 +98,55 @@ const ClassActionButtons = ({
   };
 
   return (
-    <>
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }} className="no-print">
-        <Button
+    <AnimatedContainer animation="fadeIn" duration={0.5}>
+      <Box
+        sx={{
+          mt: 3,
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+          p: 2,
+          borderRadius: '8px',
+          background: 'rgba(0, 0, 0, 0.02)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        }}
+        className="no-print"
+      >
+        <GradientButton
           variant="outlined"
+          color="primary"
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate(backUrl)}
         >
-          Back
-        </Button>
+          Back to Reports
+        </GradientButton>
 
-        <FormControl sx={{ minWidth: 120 }}>
-          <InputLabel id="form-level-select-label">Form Level</InputLabel>
-          <Select
-            labelId="form-level-select-label"
-            id="form-level-select"
-            value={currentFormLevel || ''}
-            label="Form Level"
-            onChange={handleFormLevelChange}
-            startIcon={<FilterIcon />}
-          >
-            <MenuItem value="">All Forms</MenuItem>
-            <MenuItem value="1">Form 5 (Database Form 1)</MenuItem>
-            <MenuItem value="2">Form 6 (Database Form 2)</MenuItem>
-            <MenuItem value="5">Form 5 (Legacy)</MenuItem>
-            <MenuItem value="6">Form 6 (Legacy)</MenuItem>
-          </Select>
-        </FormControl>
+        <EnhancedSelect
+          label="Form Level"
+          value={currentFormLevel || ''}
+          onChange={handleFormLevelChange}
+          color="primary"
+          options={[
+            { value: "", label: "All Forms" },
+            { value: "1", label: "Form 5 (Database Form 1)" },
+            { value: "2", label: "Form 6 (Database Form 2)" },
+            { value: "5", label: "Form 5 (Legacy)" },
+            { value: "6", label: "Form 6 (Legacy)" }
+          ]}
+          sx={{ minWidth: 200 }}
+        />
 
-        <Button
+        <GradientButton
           variant="contained"
+          color="primary"
           startIcon={<PrintIcon />}
           onClick={handlePrint}
         >
           Print Report
-        </Button>
+        </GradientButton>
 
-        <Button
+        <GradientButton
           variant="contained"
           color="secondary"
           startIcon={pdfGenerating ? <CircularProgress size={20} color="inherit" /> : <DownloadIcon />}
@@ -140,7 +154,7 @@ const ClassActionButtons = ({
           disabled={pdfGenerating || !report}
         >
           {pdfGenerating ? 'Generating...' : 'Download PDF'}
-        </Button>
+        </GradientButton>
       </Box>
 
       {/* Snackbar for notifications */}
@@ -150,11 +164,19 @@ const ClassActionButtons = ({
         onClose={handleSnackbarClose}
         className="no-print"
       >
-        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          sx={{
+            width: '100%',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </>
+    </AnimatedContainer>
   );
 };
 

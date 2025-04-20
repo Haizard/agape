@@ -194,42 +194,63 @@ const calculateStudentRankings = (students, rankBy = 'averageMarks') => {
 };
 
 /**
- * Calculate subject positions for students in a class for O-Level
- * @param {Array} results - Array of results for a specific subject
- * @returns {Array} - Array of results with subjectPosition property added
+ * Calculate subject positions for a class
+ * @param {Array} students - Array of students with results
+ * @returns {Object} - Object mapping subject IDs to arrays of student positions
  */
-const calculateSubjectPositions = (results) => {
-  // Sort results by marks (descending)
-  const sortedResults = [...results].sort((a, b) => {
-    const marksA = Number(a.marksObtained || a.marks || 0);
-    const marksB = Number(b.marksObtained || b.marks || 0);
-    return marksB - marksA;
+const calculateSubjectPositions = (students) => {
+  // Create a map of subject IDs to arrays of student results
+  const subjectMap = {};
+
+  // Populate the subject map
+  students.forEach(student => {
+    (student.results || []).forEach(result => {
+      const subjectId = result.subjectId || result.subject?._id || 'unknown';
+      if (!subjectMap[subjectId]) {
+        subjectMap[subjectId] = [];
+      }
+      subjectMap[subjectId].push({
+        studentId: student._id || student.id,
+        marks: result.marksObtained || result.marks || 0
+      });
+    });
   });
 
-  // Assign positions (handling ties)
-  let currentPosition = 1;
-  let previousMarks = null;
-  let skippedPositions = 0;
+  // Calculate positions for each subject
+  const subjectPositions = {};
 
-  return sortedResults.map((result, index) => {
-    const currentMarks = Number(result.marksObtained || result.marks || 0);
+  Object.entries(subjectMap).forEach(([subjectId, results]) => {
+    // Sort results by marks (descending)
+    const sortedResults = [...results].sort((a, b) => b.marks - a.marks);
 
-    // If this is the first result or the marks are different from the previous one
-    if (index === 0 || currentMarks !== previousMarks) {
-      currentPosition = index + 1;
-      skippedPositions = 0;
-    } else {
-      // This is a tie, so keep the same position but increment skipped positions
-      skippedPositions++;
-    }
+    // Assign positions
+    let currentPosition = 1;
+    let previousMarks = null;
+    let skipCount = 0;
 
-    previousMarks = currentMarks;
+    const positionsArray = sortedResults.map((result, index) => {
+      const currentMarks = result.marks;
 
-    return {
-      ...result,
-      subjectPosition: currentPosition
-    };
+      // If this is the first result or the marks are different from the previous one
+      if (index === 0 || currentMarks !== previousMarks) {
+        currentPosition = index + 1;
+        skipCount = 0;
+      } else {
+        skipCount++;
+      }
+
+      previousMarks = currentMarks;
+
+      return {
+        studentId: result.studentId,
+        position: currentPosition
+      };
+    });
+
+    subjectPositions[subjectId] = positionsArray;
   });
+
+  return subjectPositions;
 };
 
 /**
@@ -293,8 +314,54 @@ const calculateClassStatistics = (results) => {
   };
 };
 
+/**
+ * Calculate grade based on marks for O-Level
+ * @param {Number} marks - The marks obtained (0-100)
+ * @returns {String} - The grade (A, B, C, D, F)
+ */
+const calculateGrade = (marks) => {
+  // Validate inputs
+  if (marks === undefined || marks === null) {
+    return '-';
+  }
+
+  // Convert to number if string
+  const numMarks = Number(marks);
+
+  // Check for NaN
+  if (Number.isNaN(numMarks)) {
+    logger.warn(`Invalid marks value for O-Level grade calculation: ${marks}`);
+    return '-';
+  }
+
+  // O-LEVEL grading based on Tanzania's NECTA CSEE system
+  if (numMarks >= 75) return 'A';
+  if (numMarks >= 65) return 'B';
+  if (numMarks >= 45) return 'C';
+  if (numMarks >= 30) return 'D';
+  return 'F';
+};
+
+/**
+ * Calculate points based on grade for O-Level
+ * @param {String} grade - The grade (A, B, C, D, F)
+ * @returns {Number} - The points (1-5)
+ */
+const calculatePoints = (grade) => {
+  switch (grade) {
+    case 'A': return 1;
+    case 'B': return 2;
+    case 'C': return 3;
+    case 'D': return 4;
+    case 'F': return 5;
+    default: return 0;
+  }
+};
+
 module.exports = {
   calculateGradeAndPoints,
+  calculateGrade,
+  calculatePoints,
   calculateDivision,
   getRemarks,
   calculateBestSevenAndDivision,

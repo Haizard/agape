@@ -267,6 +267,9 @@ exports.getAssignedSubjects = async (req, res) => {
       return res.status(400).json({ message: 'Invalid user token' });
     }
 
+    // Log the full user object for debugging
+    console.log('Full user object from token:', req.user);
+
     // If user is admin, return all subjects
     if (req.user.role === 'admin') {
       console.log('User is admin, fetching all subjects');

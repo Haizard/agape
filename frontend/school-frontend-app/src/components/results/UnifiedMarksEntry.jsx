@@ -323,7 +323,7 @@ const UnifiedMarksEntry = () => {
       // Save marks
       const endpoint = educationLevel === 'A_LEVEL'
         ? '/a-level-results/batch'
-        : '/o-level-results/batch';
+        : '/o-level/marks/batch';
 
       await unifiedApi.post(endpoint, marksToSave);
 

@@ -1,72 +1,106 @@
 import React from 'react';
-import { Box, Typography, Grid, Paper, Button } from '@mui/material';
+import { Box, Typography, Grid, Paper, Button, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import DashboardGrid from './DashboardGrid';
 import axios from 'axios';
+import { motion } from 'framer-motion';
+
+// Import enhanced components
+import {
+  PageHeader,
+  SectionContainer,
+  AnimatedContainer,
+  FadeIn
+} from './common';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
 
   const dashboardItems = [
     {
-      title: 'Total Students',
-      description: '250 Students',
+      title: 'User Management',
+      description: 'Manage teachers and students',
+      link: '/admin/user-management'
     },
     {
-      title: 'Total Teachers',
-      description: '25 Teachers',
+      title: 'Academic Management',
+      description: 'Manage classes and subjects',
+      link: '/admin/academic-management'
     },
     {
-      title: 'Active Classes',
-      description: '12 Classes',
+      title: 'Academic Year',
+      description: 'Manage academic years and terms',
+      link: '/admin/academic-management#academic-years'
     },
     {
-      title: 'Recent Results',
-      description: '15 New Results',
+      title: 'Assessment Management',
+      description: 'Manage exams and results',
+      link: '/admin/assessment-management'
+    },
+    {
+      title: 'Reports',
+      description: 'Generate student reports',
+      link: '/admin/result-reports',
+      highlight: true
     },
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Admin Dashboard
-      </Typography>
-      <DashboardGrid items={dashboardItems} />
-      
-      <Grid container spacing={2} sx={{ mt: 3 }}>
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Teacher Management
-            </Typography>
-            <Button 
-              variant="contained" 
-              color="primary"
-              onClick={() => navigate('/admin/teachers')}
-              fullWidth
+    <AnimatedContainer animation="fadeIn" duration={0.8}>
+      <Box sx={{ p: 3 }}>
+        <PageHeader
+          title="Admin Dashboard"
+          subtitle="Manage all aspects of your school system"
+          color="primary"
+        />
+
+        <FadeIn delay={0.2}>
+          <DashboardGrid items={dashboardItems} />
+        </FadeIn>
+
+        <FadeIn delay={0.3}>
+          <SectionContainer sx={{ mt: 4, p: 3 }}>
+            <Typography
+              variant="h5"
+              gutterBottom
+              sx={{
+                fontWeight: 600,
+                color: 'primary.main',
+                position: 'relative',
+                pb: 1,
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  width: '40px',
+                  height: '3px',
+                  backgroundColor: 'primary.main',
+                  borderRadius: '2px'
+                }
+              }}
             >
-              Manage Teachers
-            </Button>
-          </Paper>
-        </Grid>
-        
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Academic Year
+              Welcome
             </Typography>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={() => navigate('/admin/academic-years')}
-              fullWidth
+            <Typography variant="body1" paragraph>
+              Welcome to the admin dashboard. Here you can manage all aspects of the school system.
+            </Typography>
+            <Alert
+              severity="info"
+              sx={{
+                mb: 2,
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+              }}
             >
-              Manage Academic Years
-            </Button>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Box>
+              <Typography variant="body1">
+                <strong>IMPORTANT:</strong> The system now has a unified interface for both O-Level and A-Level marks entry and reporting. Use the <Button variant="text" onClick={() => navigate('/admin/result-reports')} sx={{ color: 'inherit', textDecoration: 'underline', p: 0, minWidth: 'auto', fontWeight: 'bold' }}>Reports</Button> page to generate student reports.
+              </Typography>
+            </Alert>
+          </SectionContainer>
+        </FadeIn>
+      </Box>
+    </AnimatedContainer>
   );
 };
 

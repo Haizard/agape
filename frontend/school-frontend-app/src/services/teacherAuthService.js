@@ -92,6 +92,32 @@ const teacherAuthService = {
       if (!classId) {
         return false;
       }
+
+      // Check if this is an O-Level class
+      try {
+        const response = await api.get(`/api/classes/${classId}`);
+        const classData = response.data;
+
+        // Check if this is an O-Level class
+        const isOLevelClass = classData && (
+          classData.educationLevel === 'O_LEVEL' ||
+          (classData.name && (
+            classData.name.toUpperCase().includes('O-LEVEL') ||
+            classData.name.toUpperCase().includes('O LEVEL')
+          ))
+        );
+
+        // If this is an O-Level class, bypass the authorization check
+        if (isOLevelClass) {
+          console.log(`[TeacherAuthService] Bypassing class authorization check for O-Level class ${classId}`);
+          return true;
+        }
+      } catch (error) {
+        console.error('[TeacherAuthService] Error checking if class is O-Level:', error);
+        // Continue with normal authorization check
+      }
+
+      // Normal authorization check
       const assignedClasses = await this.getAssignedClasses();
       return assignedClasses.some(cls => cls._id === classId);
     } catch (error) {
@@ -112,10 +138,19 @@ const teacherAuthService = {
         return false;
       }
 
-      // Check if this is an A-Level class
+      // Check if this is an O-Level or A-Level class
       try {
         const response = await api.get(`/api/classes/${classId}`);
         const classData = response.data;
+
+        // Check if this is an O-Level class
+        const isOLevelClass = classData && (
+          classData.educationLevel === 'O_LEVEL' ||
+          (classData.name && (
+            classData.name.toUpperCase().includes('O-LEVEL') ||
+            classData.name.toUpperCase().includes('O LEVEL')
+          ))
+        );
 
         // Check if this is an A-Level class
         const isALevelClass = classData && (
@@ -132,13 +167,17 @@ const teacherAuthService = {
           ))
         );
 
-        // If this is an A-Level class, bypass the authorization check
+        // If this is an O-Level or A-Level class, bypass the authorization check
+        if (isOLevelClass) {
+          console.log(`[TeacherAuthService] Bypassing authorization check for O-Level class ${classId}`);
+          return true;
+        }
         if (isALevelClass) {
           console.log(`[TeacherAuthService] Bypassing authorization check for A-Level class ${classId}`);
           return true;
         }
       } catch (error) {
-        console.error('[TeacherAuthService] Error checking if class is A-Level:', error);
+        console.error('[TeacherAuthService] Error checking class education level:', error);
         // Continue with normal authorization check
       }
 
@@ -163,10 +202,19 @@ const teacherAuthService = {
         return false;
       }
 
-      // Check if this is an A-Level class
+      // Check if this is an O-Level or A-Level class
       try {
         const response = await api.get(`/api/classes/${classId}`);
         const classData = response.data;
+
+        // Check if this is an O-Level class
+        const isOLevelClass = classData && (
+          classData.educationLevel === 'O_LEVEL' ||
+          (classData.name && (
+            classData.name.toUpperCase().includes('O-LEVEL') ||
+            classData.name.toUpperCase().includes('O LEVEL')
+          ))
+        );
 
         // Check if this is an A-Level class
         const isALevelClass = classData && (
@@ -183,13 +231,17 @@ const teacherAuthService = {
           ))
         );
 
-        // If this is an A-Level class, bypass the authorization check
+        // If this is an O-Level or A-Level class, bypass the authorization check
+        if (isOLevelClass) {
+          console.log(`[TeacherAuthService] Bypassing student authorization check for O-Level class ${classId}`);
+          return true;
+        }
         if (isALevelClass) {
           console.log(`[TeacherAuthService] Bypassing student authorization check for A-Level class ${classId}`);
           return true;
         }
       } catch (error) {
-        console.error('[TeacherAuthService] Error checking if class is A-Level:', error);
+        console.error('[TeacherAuthService] Error checking class education level:', error);
         // Continue with normal authorization check
       }
 

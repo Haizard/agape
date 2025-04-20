@@ -3,50 +3,6 @@ const router = express.Router();
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const Subject = require('../models/Subject');
 
-// Get all A-Level subjects
-router.get('/a-level', authenticateToken, async (req, res) => {
-  try {
-    console.log('GET /api/subjects/a-level - Fetching all A-Level subjects');
-
-    // Find all subjects that are A_LEVEL or BOTH
-    const subjects = await Subject.find({
-      educationLevel: { $in: ['A_LEVEL', 'BOTH'] }
-    }).populate('subjectCombinations', 'name code');
-
-    console.log(`GET /api/subjects/a-level - Found ${subjects.length} A-Level subjects`);
-    res.json(subjects);
-  } catch (error) {
-    console.error('GET /api/subjects/a-level - Error:', error);
-    res.status(500).json({
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  }
-});
-
-// Get all A-Level subjects for a specific class
-router.get('/a-level/class/:classId', authenticateToken, async (req, res) => {
-  try {
-    const classId = req.params.classId;
-    console.log(`GET /api/subjects/a-level/class/${classId} - Fetching A-Level subjects for class`);
-
-    // Find all subjects that are A_LEVEL or BOTH
-    const subjects = await Subject.find({
-      educationLevel: { $in: ['A_LEVEL', 'BOTH'] }
-    }).populate('subjectCombinations', 'name code');
-
-    console.log(`GET /api/subjects/a-level/class/${classId} - Found ${subjects.length} A-Level subjects`);
-    res.json(subjects);
-  } catch (error) {
-    console.error(`GET /api/subjects/a-level/class/${req.params.classId} - Error:`, error);
-    res.status(500).json({
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  }
-});
-
-
 
 // Get all subjects
 router.get('/', authenticateToken, async (req, res) => {
@@ -226,6 +182,118 @@ router.patch('/:id/type', authenticateToken, authorizeRole(['admin']), async (re
       message: error.message,
       code: error.code,
       name: error.name
+    });
+  }
+});
+
+// Get all A-Level subjects
+router.get('/a-level', authenticateToken, async (req, res) => {
+  try {
+    console.log('GET /api/subjects/a-level - Fetching all A-Level subjects');
+
+    // Find all subjects that are A_LEVEL or BOTH
+    const subjects = await Subject.find({
+      educationLevel: { $in: ['A_LEVEL', 'BOTH'] }
+    }).populate('subjectCombinations', 'name code');
+
+    console.log(`GET /api/subjects/a-level - Found ${subjects.length} A-Level subjects`);
+    res.json(subjects);
+  } catch (error) {
+    console.error('GET /api/subjects/a-level - Error:', error);
+    res.status(500).json({
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Get all O-Level subjects
+router.get('/o-level', authenticateToken, async (req, res) => {
+  try {
+    console.log('GET /api/subjects/o-level - Fetching all O-Level subjects');
+
+    // Find all subjects that are O_LEVEL or BOTH
+    const subjects = await Subject.find({
+      educationLevel: { $in: ['O_LEVEL', 'BOTH'] }
+    }).populate('subjectCombinations', 'name code');
+
+    console.log(`GET /api/subjects/o-level - Found ${subjects.length} O-Level subjects`);
+    res.json(subjects);
+  } catch (error) {
+    console.error('GET /api/subjects/o-level - Error:', error);
+    res.status(500).json({
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Get all O-Level subjects for a specific class
+router.get('/o-level/class/:classId', authenticateToken, async (req, res) => {
+  try {
+    const classId = req.params.classId;
+    console.log(`GET /api/subjects/o-level/class/${classId} - Fetching O-Level subjects for class`);
+
+    // Find all subjects that are O_LEVEL or BOTH
+    const subjects = await Subject.find({
+      educationLevel: { $in: ['O_LEVEL', 'BOTH'] }
+    }).populate('subjectCombinations', 'name code');
+
+    console.log(`GET /api/subjects/o-level/class/${classId} - Found ${subjects.length} O-Level subjects`);
+    res.json(subjects);
+  } catch (error) {
+    console.error(`GET /api/subjects/o-level/class/${req.params.classId} - Error:`, error);
+    res.status(500).json({
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Get all A-Level subjects for a specific class
+router.get('/a-level/class/:classId', authenticateToken, async (req, res) => {
+  try {
+    const classId = req.params.classId;
+    console.log(`GET /api/subjects/a-level/class/${classId} - Fetching A-Level subjects for class`);
+
+    // Find all subjects that are A_LEVEL or BOTH
+    const subjects = await Subject.find({
+      educationLevel: { $in: ['A_LEVEL', 'BOTH'] }
+    }).populate('subjectCombinations', 'name code');
+
+    console.log(`GET /api/subjects/a-level/class/${classId} - Found ${subjects.length} A-Level subjects`);
+    res.json(subjects);
+  } catch (error) {
+    console.error(`GET /api/subjects/a-level/class/${req.params.classId} - Error:`, error);
+    res.status(500).json({
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Get subject by ID
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    console.log(`GET /api/subjects/${req.params.id} - Fetching subject by ID`);
+    const subject = await Subject.findById(req.params.id);
+
+    if (!subject) {
+      console.log(`Subject not found with ID: ${req.params.id}`);
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    console.log(`Found subject: ${subject.name} (${subject.code})`);
+
+    // Add a delay to ensure the response is sent
+    setTimeout(() => {
+      res.json(subject);
+    }, 100);
+  } catch (error) {
+    console.error(`GET /api/subjects/${req.params.id} - Error:`, error);
+    res.status(500).json({
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

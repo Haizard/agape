@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Box,
-  Button,
   Grid,
-  Paper,
   Typography,
   Alert,
   IconButton,
@@ -23,8 +21,23 @@ import {
   Delete as DeleteIcon,
   CheckCircle as CheckCircleIcon,
   Info as InfoIcon,
-  School as SchoolIcon
+  School as SchoolIcon,
+  Add as AddIcon,
+  CalendarMonth as CalendarIcon
 } from '@mui/icons-material';
+
+// Import enhanced components
+import {
+  PageHeader,
+  SectionContainer,
+  SectionHeader,
+  AnimatedContainer,
+  FadeIn,
+  GradientButton,
+  IconContainer,
+  StyledCard,
+  StyledChip
+} from '../common';
 import NewAcademicYearForm from './NewAcademicYearForm';
 import axios from 'axios';
 import { getAuthToken, isTokenValid } from '../../utils/authUtils';
@@ -143,158 +156,341 @@ const NewAcademicYearManagement = () => {
 
   if (loading && academicYears.length === 0) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-        <CircularProgress />
-      </Box>
+      <AnimatedContainer animation="fadeIn" duration={0.5}>
+        <Box sx={{ p: 3 }}>
+          <SectionContainer sx={{
+            p: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minHeight: '50vh',
+            justifyContent: 'center'
+          }}>
+            <FadeIn>
+              <CircularProgress
+                size={60}
+                thickness={4}
+                sx={{ mb: 3 }}
+                color="primary"
+              />
+            </FadeIn>
+            <FadeIn delay={0.2}>
+              <Typography
+                variant="h5"
+                sx={{ mb: 1 }}
+                className="gradient-text"
+              >
+                Loading Academic Years
+              </Typography>
+            </FadeIn>
+            <FadeIn delay={0.3}>
+              <Typography variant="body1" color="text.secondary">
+                Please wait while we fetch the academic years...
+              </Typography>
+            </FadeIn>
+          </SectionContainer>
+        </Box>
+      </AnimatedContainer>
     );
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">
-          {isAdmin ? 'Academic Year Management' : 'Academic Years'}
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            color="info"
-            component={RouterLink}
-            to="/auth-debug"
-            startIcon={<InfoIcon />}
-          >
-            Auth Debug
-          </Button>
-          {isAdmin && (
-            <Button
-              variant="contained"
-              startIcon={<SchoolIcon />}
-              onClick={() => handleOpenDialog()}
+    <AnimatedContainer animation="fadeIn" duration={0.8}>
+      <Box sx={{ p: 3 }}>
+        <PageHeader
+          title={isAdmin ? 'Academic Year Management' : 'Academic Years'}
+          subtitle="Create and manage academic years for your school"
+          color="primary"
+          icon={
+            <IconContainer color="primary">
+              <CalendarIcon />
+            </IconContainer>
+          }
+          actions={[
+            <GradientButton
+              key="auth-debug"
+              variant="outlined"
+              color="info"
+              component={RouterLink}
+              to="/auth-debug"
+              startIcon={<InfoIcon />}
             >
-              Create New Academic Year
-            </Button>
-          )}
-        </Box>
-      </Box>
+              Auth Debug
+            </GradientButton>,
+            isAdmin && (
+              <GradientButton
+                key="create-year"
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenDialog()}
+              >
+                Create New Academic Year
+              </GradientButton>
+            )
+          ].filter(Boolean)}
+        />
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <FadeIn delay={0.1}>
+            <Alert
+              severity="error"
+              sx={{
+                mb: 3,
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+              }}
+              onClose={() => setError('')}
+            >
+              {error}
+            </Alert>
+          </FadeIn>
+        )}
 
-      {successMessage && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage('')}>
-          {successMessage}
-        </Alert>
-      )}
+        {successMessage && (
+          <FadeIn delay={0.1}>
+            <Alert
+              severity="success"
+              sx={{
+                mb: 3,
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+              }}
+              onClose={() => setSuccessMessage('')}
+            >
+              {successMessage}
+            </Alert>
+          </FadeIn>
+        )}
 
       {academicYears.length === 0 ? (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          No academic years found. Click "Create New Academic Year" to add one.
-        </Alert>
+        <FadeIn delay={0.2}>
+          <SectionContainer sx={{
+            p: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minHeight: '30vh',
+            justifyContent: 'center'
+          }}>
+            <IconContainer color="info" size="large">
+              <CalendarIcon fontSize="large" />
+            </IconContainer>
+            <Typography
+              variant="h5"
+              sx={{ mt: 2, mb: 1 }}
+              className="gradient-text"
+            >
+              No Academic Years Found
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+              You haven't created any academic years yet. Click the "Create New Academic Year" button to get started.
+            </Typography>
+            {isAdmin && (
+              <GradientButton
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenDialog()}
+              >
+                Create New Academic Year
+              </GradientButton>
+            )}
+          </SectionContainer>
+        </FadeIn>
       ) : (
-        <Grid container spacing={3}>
-          {academicYears.map((year) => (
-            <Grid item xs={12} md={6} key={year._id}>
-              <Paper sx={{ p: 2, position: 'relative', overflow: 'hidden' }}>
-                {year.isActive && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      bgcolor: 'success.main',
-                      color: 'white',
-                      px: 2,
-                      py: 0.5,
-                      transform: 'rotate(45deg) translate(20%, -50%)',
-                      transformOrigin: 'top right',
-                      boxShadow: 1,
-                      zIndex: 1
-                    }}
-                  >
-                    <Typography variant="caption" fontWeight="bold">
-                      ACTIVE
-                    </Typography>
-                  </Box>
-                )}
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="h6">
-                    {year.name || `Academic Year ${year.year}`}
-                  </Typography>
-                  <Box>
-                    {!year.isActive && (
-                      <Tooltip title="Set as active academic year">
-                        <IconButton
-                          onClick={() => handleSetActive(year._id)}
-                          color="success"
-                          size="small"
-                        >
-                          <CheckCircleIcon />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    <Tooltip title="Edit academic year">
-                      <IconButton onClick={() => handleOpenDialog(year)} size="small">
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete academic year">
-                      <IconButton
-                        onClick={() => {
-                          setSelectedYear(year);
-                          setDeleteConfirmOpen(true);
-                        }}
-                        color="error"
-                        size="small"
-                        disabled={year.isActive} // Prevent deleting active year
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </Box>
-
-                <Typography variant="subtitle1" color="text.secondary">
-                  Year: {year.year}
-                </Typography>
-
-                <Typography color="text.secondary" gutterBottom>
-                  {new Date(year.startDate).toLocaleDateString()} - {new Date(year.endDate).toLocaleDateString()}
-                </Typography>
-
-                <Divider sx={{ my: 1.5 }} />
-
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle1" fontWeight="medium">
-                    Terms
-                  </Typography>
-                  <Tooltip title="Terms define the academic periods within the year">
-                    <IconButton size="small" sx={{ ml: 0.5 }}>
-                      <InfoIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-
-                {year.terms && year.terms.length > 0 ? (
-                  year.terms.map((term, index) => (
-                    <Box key={`${year._id}-term-${index}`} sx={{ ml: 2, mb: 1 }}>
-                      <Typography variant="body2">
-                        <strong>{term.name}:</strong> {new Date(term.startDate).toLocaleDateString()} - {new Date(term.endDate).toLocaleDateString()}
+        <FadeIn delay={0.2}>
+          <Grid container spacing={3}>
+            {academicYears.map((year) => (
+              <Grid item xs={12} md={6} key={year._id}>
+                <StyledCard sx={{
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-5px)',
+                    boxShadow: '0 8px 16px rgba(0,0,0,0.1)'
+                  }
+                }}>
+                  {year.isActive && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        bgcolor: 'success.main',
+                        color: 'white',
+                        px: 2,
+                        py: 0.5,
+                        transform: 'rotate(45deg) translate(20%, -50%)',
+                        transformOrigin: 'top right',
+                        boxShadow: 1,
+                        zIndex: 1
+                      }}
+                    >
+                      <Typography variant="caption" fontWeight="bold">
+                        ACTIVE
                       </Typography>
                     </Box>
-                  ))
-                ) : (
-                  <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                    No terms defined for this academic year.
-                  </Typography>
-                )}
-              </Paper>
+                  )}
+
+                <Box sx={{ p: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 'bold',
+                        background: year.isActive ? 'linear-gradient(45deg, #2196f3 30%, #21cbf3 90%)' : 'inherit',
+                        WebkitBackgroundClip: year.isActive ? 'text' : 'inherit',
+                        WebkitTextFillColor: year.isActive ? 'transparent' : 'inherit',
+                      }}
+                    >
+                      {year.name || `Academic Year ${year.year}`}
+                    </Typography>
+                    <Box>
+                      {!year.isActive && (
+                        <Tooltip title="Set as active academic year">
+                          <IconButton
+                            onClick={() => handleSetActive(year._id)}
+                            color="success"
+                            size="small"
+                            sx={{
+                              transition: 'all 0.2s ease',
+                              '&:hover': { transform: 'scale(1.1)' }
+                            }}
+                          >
+                            <CheckCircleIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Edit academic year">
+                        <IconButton
+                          onClick={() => handleOpenDialog(year)}
+                          size="small"
+                          sx={{
+                            transition: 'all 0.2s ease',
+                            '&:hover': { transform: 'scale(1.1)' }
+                          }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete academic year">
+                        <IconButton
+                          onClick={() => {
+                            setSelectedYear(year);
+                            setDeleteConfirmOpen(true);
+                          }}
+                          color="error"
+                          size="small"
+                          disabled={year.isActive} // Prevent deleting active year
+                          sx={{
+                            transition: 'all 0.2s ease',
+                            '&:hover': { transform: 'scale(1.1)' }
+                          }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <StyledChip
+                      label={`Year: ${year.year}`}
+                      color="primary"
+                      variant="outlined"
+                    />
+                    <StyledChip
+                      label={year.educationLevel === 'O_LEVEL' ? 'O-Level' : 'A-Level'}
+                      color={year.educationLevel === 'O_LEVEL' ? 'success' : 'secondary'}
+                      variant="outlined"
+                    />
+                  </Box>
+
+                  <Box sx={{ mt: 2 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: 'text.secondary',
+                        fontWeight: 500
+                      }}
+                    >
+                      <CalendarIcon fontSize="small" sx={{ mr: 1, opacity: 0.7 }} />
+                      {new Date(year.startDate).toLocaleDateString()} - {new Date(year.endDate).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        '&::before': {
+                          content: '""',
+                          display: 'inline-block',
+                          width: '3px',
+                          height: '16px',
+                          backgroundColor: 'primary.main',
+                          marginRight: '8px',
+                          borderRadius: '3px'
+                        }
+                      }}
+                    >
+                      Terms
+                    </Typography>
+                    <Tooltip title="Terms define the academic periods within the year">
+                      <IconButton size="small" sx={{ ml: 0.5 }}>
+                        <InfoIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+
+                  {year.terms && year.terms.length > 0 ? (
+                    <Box sx={{
+                      ml: 2,
+                      p: 1.5,
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(0,0,0,0.02)'
+                    }}>
+                      {year.terms.map((term, index) => (
+                        <Box
+                          key={`${year._id}-term-${index}`}
+                          sx={{
+                            mb: index < year.terms.length - 1 ? 1.5 : 0,
+                            pb: index < year.terms.length - 1 ? 1.5 : 0,
+                            borderBottom: index < year.terms.length - 1 ? '1px dashed rgba(0,0,0,0.1)' : 'none'
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            {term.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(term.startDate).toLocaleDateString()} - {new Date(term.endDate).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                      No terms defined for this academic year.
+                    </Typography>
+                  )}
+                </Box>
+              </StyledCard>
             </Grid>
           ))}
         </Grid>
+        </FadeIn>
       )}
 
       <NewAcademicYearForm
@@ -307,31 +503,62 @@ const NewAcademicYearManagement = () => {
       <Dialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+          }
+        }}
       >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography>
+        <DialogTitle sx={{
+          borderBottom: '1px solid rgba(0,0,0,0.1)',
+          fontWeight: 'bold',
+          color: 'error.main'
+        }}>
+          Confirm Delete
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography variant="body1" paragraph>
             Are you sure you want to delete this academic year? This action cannot be undone.
           </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Deleting an academic year will remove all associated data including terms and assignments.
+          </Typography>
           {selectedYear?.isActive && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
+            <Alert
+              severity="warning"
+              sx={{
+                mt: 2,
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+              }}
+              icon={<InfoIcon />}
+            >
               You cannot delete an active academic year. Please set another year as active first.
             </Alert>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
-          <Button
+        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+          <GradientButton
+            onClick={() => setDeleteConfirmOpen(false)}
+            color="primary"
+            variant="outlined"
+          >
+            Cancel
+          </GradientButton>
+          <GradientButton
             onClick={() => handleDelete(selectedYear?._id)}
             color="error"
             variant="contained"
             disabled={selectedYear?.isActive}
+            startIcon={<DeleteIcon />}
           >
             Delete
-          </Button>
+          </GradientButton>
         </DialogActions>
       </Dialog>
     </Box>
+    </AnimatedContainer>
   );
 };
 

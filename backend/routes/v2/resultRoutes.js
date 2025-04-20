@@ -1,11 +1,11 @@
 /**
  * Unified Result Routes
- * 
+ *
  * This file contains all routes related to results, including:
  * - Result creation and retrieval
  * - Marks entry
  * - Report generation
- * 
+ *
  * It replaces the previous separate route files:
  * - resultRoutes.js
  * - newResultRoutes.js
@@ -30,10 +30,10 @@ const logger = require('../../utils/logger');
  * @desc    Create a new result
  * @access  Private (Admin, Teacher)
  */
-router.post('/', 
-  authenticateToken, 
-  authorizeRole(['admin', 'teacher']), 
-  validateResult, 
+router.post('/',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
+  validateResult,
   async (req, res) => {
     try {
       const result = await ResultService.createResult(req.body);
@@ -41,8 +41,8 @@ router.post('/',
       res.status(201).json(result);
     } catch (error) {
       logger.error(`Error creating result: ${error.message}`);
-      res.status(400).json({ 
-        message: 'Error creating result', 
+      res.status(400).json({
+        message: 'Error creating result',
         details: error.message,
         code: 'RESULT_CREATION_ERROR'
       });
@@ -54,11 +54,11 @@ router.post('/',
  * @desc    Enter marks for a student
  * @access  Private (Admin, Teacher)
  */
-router.post('/enter-marks', 
-  authenticateToken, 
-  authorizeRole(['admin', 'teacher']), 
-  checkExistingMarks, 
-  preventDuplicateMarks, 
+router.post('/enter-marks',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
+  checkExistingMarks,
+  preventDuplicateMarks,
   async (req, res) => {
     try {
       const result = await ResultService.enterMarks(req.body);
@@ -66,8 +66,8 @@ router.post('/enter-marks',
       res.status(201).json(result);
     } catch (error) {
       logger.error(`Error entering marks: ${error.message}`);
-      res.status(400).json({ 
-        message: 'Error entering marks', 
+      res.status(400).json({
+        message: 'Error entering marks',
         details: error.message,
         code: 'MARKS_ENTRY_ERROR'
       });
@@ -78,60 +78,66 @@ router.post('/enter-marks',
  * @route   POST /api/v2/results/enter-batch-marks
  * @desc    Enter batch marks for multiple students
  * @access  Private (Admin, Teacher)
+ * @deprecated Use /api/o-level/marks/batch for O-Level or /api/a-level-results/batch for A-Level instead
  */
-router.post('/enter-batch-marks', 
-  authenticateToken, 
-  authorizeRole(['admin', 'teacher']), 
-  checkExistingMarks, 
-  preventDuplicateMarks, 
+router.post('/enter-batch-marks',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
   async (req, res) => {
-    try {
-      const { marksData } = req.body;
+    // Log deprecation warning
+    logger.warn(`DEPRECATED ROUTE USED: ${req.method} ${req.originalUrl} - Use education level specific endpoints instead`);
 
-      if (!marksData || !Array.isArray(marksData) || marksData.length === 0) {
-        return res.status(400).json({ 
-          message: 'Invalid marks data', 
-          code: 'INVALID_MARKS_DATA'
+    // Check if we can determine the education level
+    const { marksData } = req.body;
+    if (marksData && Array.isArray(marksData) && marksData.length > 0) {
+      // Try to determine education level from the first mark
+      const firstMark = marksData[0];
+      if (firstMark.educationLevel) {
+        const redirectEndpoint = firstMark.educationLevel === 'A_LEVEL'
+          ? '/api/a-level-results/batch'
+          : '/api/o-level/marks/batch';
+
+        return res.status(301).json({
+          success: false,
+          message: `This route is deprecated. Please use ${redirectEndpoint} instead.`,
+          redirectTo: redirectEndpoint
         });
       }
-
-      const results = await ResultService.enterBatchMarks(marksData);
-      logger.info(`Entered batch marks for ${results.length} students`);
-      res.status(201).json({
-        message: `Successfully processed ${results.length} results`,
-        results
-      });
-    } catch (error) {
-      logger.error(`Error entering batch marks: ${error.message}`);
-      res.status(400).json({ 
-        message: 'Error entering batch marks', 
-        details: error.message,
-        code: 'BATCH_MARKS_ENTRY_ERROR'
-      });
     }
-});
+
+    // If we can't determine the education level, provide both options
+    return res.status(301).json({
+      success: false,
+      message: 'This route is deprecated. Please use /api/o-level/marks/batch for O-Level or /api/a-level-results/batch for A-Level instead.',
+      redirectOptions: {
+        oLevel: '/api/o-level/marks/batch',
+        aLevel: '/api/a-level-results/batch'
+      }
+    });
+  }
+);
 
 /**
  * @route   GET /api/v2/results
  * @desc    Get all results with pagination
  * @access  Private (Admin, Teacher)
  */
-router.get('/', 
-  authenticateToken, 
-  authorizeRole(['admin', 'teacher']), 
+router.get('/',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
   async (req, res) => {
     try {
       const { page = 1, limit = 50, ...filters } = req.query;
       const results = await ResultService.getAllResults(
-        parseInt(page), 
-        parseInt(limit), 
+        parseInt(page),
+        parseInt(limit),
         filters
       );
       res.json(results);
     } catch (error) {
       logger.error(`Error fetching results: ${error.message}`);
-      res.status(500).json({ 
-        message: 'Error fetching results', 
+      res.status(500).json({
+        message: 'Error fetching results',
         details: error.message,
         code: 'RESULTS_FETCH_ERROR'
       });
@@ -143,17 +149,17 @@ router.get('/',
  * @desc    Get results for a specific student
  * @access  Private (Admin, Teacher, Student)
  */
-router.get('/student/:studentId', 
-  authenticateToken, 
+router.get('/student/:studentId',
+  authenticateToken,
   async (req, res) => {
     try {
       const { studentId } = req.params;
       const { examId, academicYear, term } = req.query;
-      
+
       // Check if user has permission to access this student's results
       if (req.user.role === 'student' && req.user.id !== studentId) {
-        return res.status(403).json({ 
-          message: 'Access denied', 
+        return res.status(403).json({
+          message: 'Access denied',
           code: 'ACCESS_DENIED'
         });
       }
@@ -163,12 +169,12 @@ router.get('/student/:studentId',
         academicYear,
         term
       });
-      
+
       res.json(results);
     } catch (error) {
       logger.error(`Error fetching student results: ${error.message}`);
-      res.status(500).json({ 
-        message: 'Error fetching student results', 
+      res.status(500).json({
+        message: 'Error fetching student results',
         details: error.message,
         code: 'STUDENT_RESULTS_FETCH_ERROR'
       });
@@ -180,26 +186,26 @@ router.get('/student/:studentId',
  * @desc    Get results for a specific subject
  * @access  Private (Admin, Teacher)
  */
-router.get('/subject/:subjectId', 
-  authenticateToken, 
-  authorizeRole(['admin', 'teacher']), 
+router.get('/subject/:subjectId',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
   async (req, res) => {
     try {
       const { subjectId } = req.params;
       const { classId, examId, academicYear, term } = req.query;
-      
+
       const results = await ResultService.getSubjectResults(subjectId, {
         classId,
         examId,
         academicYear,
         term
       });
-      
+
       res.json(results);
     } catch (error) {
       logger.error(`Error fetching subject results: ${error.message}`);
-      res.status(500).json({ 
-        message: 'Error fetching subject results', 
+      res.status(500).json({
+        message: 'Error fetching subject results',
         details: error.message,
         code: 'SUBJECT_RESULTS_FETCH_ERROR'
       });
@@ -211,16 +217,16 @@ router.get('/subject/:subjectId',
  * @desc    Get results for a specific class
  * @access  Private (Admin, Teacher)
  */
-router.get('/class/:classId', 
-  authenticateToken, 
-  authorizeRole(['admin', 'teacher']), 
+router.get('/class/:classId',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
   async (req, res) => {
     try {
       const { classId } = req.params;
       const { examId, academicYear, term, page = 1, limit = 50 } = req.query;
-      
+
       const results = await ResultService.getClassResults(
-        classId, 
+        classId,
         {
           examId,
           academicYear,
@@ -229,12 +235,12 @@ router.get('/class/:classId',
         parseInt(page),
         parseInt(limit)
       );
-      
+
       res.json(results);
     } catch (error) {
       logger.error(`Error fetching class results: ${error.message}`);
-      res.status(500).json({ 
-        message: 'Error fetching class results', 
+      res.status(500).json({
+        message: 'Error fetching class results',
         details: error.message,
         code: 'CLASS_RESULTS_FETCH_ERROR'
       });
@@ -246,18 +252,18 @@ router.get('/class/:classId',
  * @desc    Get student result report
  * @access  Private (Admin, Teacher, Student)
  */
-router.get('/report/student/:studentId/:examId', 
-  authenticateToken, 
+router.get('/report/student/:studentId/:examId',
+  authenticateToken,
   validateReportRequest,
   async (req, res) => {
     try {
       const { studentId, examId } = req.params;
       const { educationLevel, format = 'pdf' } = req.query;
-      
+
       // Check if user has permission to access this student's report
       if (req.user.role === 'student' && req.user.id !== studentId) {
-        return res.status(403).json({ 
-          message: 'Access denied', 
+        return res.status(403).json({
+          message: 'Access denied',
           code: 'ACCESS_DENIED'
         });
       }
@@ -271,8 +277,8 @@ router.get('/report/student/:studentId/:examId',
       }
     } catch (error) {
       logger.error(`Error generating student report: ${error.message}`);
-      res.status(500).json({ 
-        message: 'Error generating student report', 
+      res.status(500).json({
+        message: 'Error generating student report',
         details: error.message,
         code: 'STUDENT_REPORT_ERROR'
       });
@@ -284,20 +290,20 @@ router.get('/report/student/:studentId/:examId',
  * @desc    Get class result report
  * @access  Private (Admin, Teacher)
  */
-router.get('/report/class/:classId/:examId', 
-  authenticateToken, 
-  authorizeRole(['admin', 'teacher']), 
+router.get('/report/class/:classId/:examId',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
   validateReportRequest,
   async (req, res) => {
     try {
       const { classId, examId } = req.params;
       const { educationLevel, format = 'pdf', page = 1, limit = 50 } = req.query;
-      
+
       // Generate report based on format
       if (format === 'json') {
         const report = await ReportService.generateClassReportJson(
-          classId, 
-          examId, 
+          classId,
+          examId,
           educationLevel,
           parseInt(page),
           parseInt(limit)
@@ -308,8 +314,8 @@ router.get('/report/class/:classId/:examId',
       }
     } catch (error) {
       logger.error(`Error generating class report: ${error.message}`);
-      res.status(500).json({ 
-        message: 'Error generating class report', 
+      res.status(500).json({
+        message: 'Error generating class report',
         details: error.message,
         code: 'CLASS_REPORT_ERROR'
       });
@@ -321,26 +327,26 @@ router.get('/report/class/:classId/:examId',
  * @desc    Send result report via SMS
  * @access  Private (Admin, Teacher)
  */
-router.post('/report/send-sms/:studentId/:examId', 
-  authenticateToken, 
-  authorizeRole(['admin', 'teacher']), 
+router.post('/report/send-sms/:studentId/:examId',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
   validateReportRequest,
   async (req, res) => {
     try {
       const { studentId, examId } = req.params;
       const { educationLevel } = req.query;
-      
+
       const result = await ReportService.sendReportSms(studentId, examId, educationLevel);
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         message: 'SMS sent successfully',
         details: result
       });
     } catch (error) {
       logger.error(`Error sending report SMS: ${error.message}`);
-      res.status(500).json({ 
-        message: 'Error sending report SMS', 
+      res.status(500).json({
+        message: 'Error sending report SMS',
         details: error.message,
         code: 'REPORT_SMS_ERROR'
       });

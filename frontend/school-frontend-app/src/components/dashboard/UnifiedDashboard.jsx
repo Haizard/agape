@@ -195,6 +195,12 @@ const UnifiedDashboard = () => {
           description: 'Generate and view result reports',
           path: '/admin/result-reports',
           icon: <AssessmentIcon color="secondary" />
+        },
+        {
+          name: 'Student-Class Diagnostic',
+          description: 'Diagnose and fix student-class assignments',
+          path: '/admin/student-class-diagnostic',
+          icon: <AssessmentIcon color="warning" />
         }
       ]
     },

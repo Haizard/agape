@@ -1,39 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Paper,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  CircularProgress,
-  Alert,
-  Divider,
-  Button
-} from '@mui/material';
+import { Box, Grid, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import DirectPdfLink from '../common/DirectPdfLink';
+import SchoolIcon from '@mui/icons-material/School';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import { ReportCard, PageTitle, AnimatedContainer, FadeIn } from '../common';
 
 /**
- * A completely new admin results page that focuses on direct PDF downloads
- * This component avoids rendering complex objects directly
+ * DirectResultsPage Component
+ *
+ * A completely new admin results page that focuses on providing easy access to
+ * A-Level and O-Level class reports with a modern, visually appealing interface.
  */
 const DirectResultsPage = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [classes, setClasses] = useState([]);
-  const [students, setStudents] = useState([]);
   const [exams, setExams] = useState([]);
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedExam, setSelectedExam] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState('');
 
   // Fetch classes
   useEffect(() => {
@@ -69,248 +52,52 @@ const DirectResultsPage = () => {
     fetchExams();
   }, []);
 
-  // Fetch students when class is selected
-  useEffect(() => {
-    if (!selectedClass) {
-      setStudents([]);
-      return;
-    }
-
-    const fetchStudents = async () => {
-      setLoading(true);
-      try {
-        const response = await axios.get(`/api/students?class=${selectedClass}`);
-        // Ensure we're working with an array
-        const studentsData = Array.isArray(response.data) ? response.data : [];
-        setStudents(studentsData);
-        setError(null);
-      } catch (error) {
-        console.error('Error fetching students:', error);
-        setError('Failed to fetch students');
-        setStudents([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStudents();
-  }, [selectedClass]);
-
-  // Handle class selection
-  const handleClassChange = (event) => {
-    setSelectedClass(event.target.value);
-    setSelectedStudent(''); // Reset student selection when class changes
-  };
-
-  // Handle exam selection
-  const handleExamChange = (event) => {
-    setSelectedExam(event.target.value);
-  };
-
-  // Handle student selection
-  const handleStudentChange = (event) => {
-    setSelectedStudent(event.target.value);
-  };
-
-  // Download functionality is now handled by the DirectPdfDownload component
-
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">
-          Result Reports
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => navigate('/admin/result-reports')}
-          >
-            A-Level & O-Level Reports
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => navigate('/admin/a-level-class-reports')}
-          >
-            A-Level Class Reports
-          </Button>
-        </Box>
-      </Box>
+    <AnimatedContainer animation="fadeIn" duration={0.8}>
+      <Box sx={{ p: 3 }}>
+        <PageTitle title="Result Reports" />
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {typeof error === 'object' ? JSON.stringify(error) : error}
-        </Alert>
-      )}
+        {error && (
+          <FadeIn>
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {typeof error === 'object' ? JSON.stringify(error) : error}
+            </Alert>
+          </FadeIn>
+        )}
 
-      <Grid container spacing={3}>
-        {/* Class Result Card */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h5" gutterBottom>
-                Class Result Report
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Class</InputLabel>
-                <Select
-                  value={selectedClass}
-                  onChange={handleClassChange}
-                >
-                  {classes.map((classItem) => (
-                    <MenuItem key={classItem._id} value={classItem._id}>
-                      {classItem.name ? String(classItem.name) : String(classItem._id)}
-                      {classItem.section ? ` - ${String(classItem.section)}` : ''}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Exam</InputLabel>
-                <Select
-                  value={selectedExam}
-                  onChange={handleExamChange}
-                >
-                  {exams.map((exam) => (
-                    <MenuItem key={exam._id} value={exam._id}>
-                      {exam.name ? String(exam.name) : String(exam._id)}
-                      {exam.term ? ` - Term ${String(exam.term)}` : ''}
-                      {exam.year ? ` (${String(exam.year)})` : ''}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </CardContent>
-            <CardActions sx={{ flexDirection: 'column', gap: 1 }}>
-              <DirectPdfLink
-                type="class"
-                classId={selectedClass}
-                examId={selectedExam}
-                label="Download Class Result PDF"
-                fullWidth
-                disabled={!selectedClass || !selectedExam}
+        <Grid container spacing={4}>
+          {/* A-Level Class Reports Card */}
+          <Grid item xs={12} md={6}>
+            <FadeIn delay={0.2}>
+              <ReportCard
+                title="A-Level Class Reports"
+                description="Generate and view comprehensive class reports for A-Level classes. These reports include student grades, divisions, and detailed performance statistics."
+                color="primary"
+                tags={['Grades', 'Divisions', 'Statistics']}
+                buttonText="Access A-Level Reports"
+                onClick={() => navigate('/results/a-level/class-reports')}
+                icon={<SchoolIcon sx={{ fontSize: '32px', color: '#3f51b5' }} />}
               />
-              <Button
-                variant="contained"
-                color="secondary"
-                fullWidth
-                disabled={!selectedClass || !selectedExam}
-                onClick={() => {
-                  const classObj = classes.find(c => c._id === selectedClass);
-                  if (classObj && classObj.educationLevel === 'A_LEVEL') {
-                    navigate(`/results/a-level/class/${selectedClass}/${selectedExam}`);
-                  } else {
-                    navigate(`/results/class-report/${selectedClass}/${selectedExam}`);
-                  }
-                }}
-              >
-                View Interactive Class Report
-              </Button>
-            </CardActions>
-          </Card>
-        </Grid>
+            </FadeIn>
+          </Grid>
 
-        {/* Student Result Card */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h5" gutterBottom>
-                Student Result Report
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Class</InputLabel>
-                <Select
-                  value={selectedClass}
-                  onChange={handleClassChange}
-                >
-                  {classes.map((classItem) => (
-                    <MenuItem key={classItem._id} value={classItem._id}>
-                      {classItem.name ? String(classItem.name) : String(classItem._id)}
-                      {classItem.section ? ` - ${String(classItem.section)}` : ''}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Student</InputLabel>
-                <Select
-                  value={selectedStudent}
-                  onChange={handleStudentChange}
-                  disabled={!selectedClass || loading}
-                >
-                  {students.map((student) => (
-                    <MenuItem key={student._id} value={student._id}>
-                      {student.firstName && student.lastName
-                        ? `${String(student.firstName)} ${String(student.lastName)}`
-                        : (student.name ? String(student.name) : String(student._id))}
-                      {student.rollNumber ? ` (${String(student.rollNumber)})` : ''}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Exam</InputLabel>
-                <Select
-                  value={selectedExam}
-                  onChange={handleExamChange}
-                >
-                  {exams.map((exam) => (
-                    <MenuItem key={exam._id} value={exam._id}>
-                      {exam.name ? String(exam.name) : String(exam._id)}
-                      {exam.term ? ` - Term ${String(exam.term)}` : ''}
-                      {exam.year ? ` (${String(exam.year)})` : ''}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              {loading && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                  <CircularProgress />
-                </Box>
-              )}
-            </CardContent>
-            <CardActions>
-              <DirectPdfLink
-                type="student"
-                studentId={selectedStudent}
-                examId={selectedExam}
-                label="Download Student Result PDF"
-                fullWidth
-                disabled={!selectedStudent || !selectedExam}
+          {/* O-Level Class Reports Card */}
+          <Grid item xs={12} md={6}>
+            <FadeIn delay={0.4}>
+              <ReportCard
+                title="O-Level Class Reports"
+                description="Generate and view comprehensive class reports for O-Level classes. These reports include student grades, divisions, and detailed performance statistics."
+                color="success"
+                tags={['Grades', 'Divisions', 'Statistics']}
+                buttonText="Access O-Level Reports"
+                onClick={() => navigate('/results/o-level/class-reports')}
+                icon={<SchoolIcon sx={{ fontSize: '32px', color: '#4caf50' }} />}
               />
-            </CardActions>
-          </Card>
+            </FadeIn>
+          </Grid>
         </Grid>
-      </Grid>
-
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          About Direct PDF Downloads
-        </Typography>
-        <Typography variant="body1" paragraph>
-          This page provides direct PDF downloads of result reports, bypassing any rendering issues in the UI.
-          The PDFs are generated on the server and contain all the information you need.
-        </Typography>
-        <Typography variant="body1">
-          To download a report:
-          <ol>
-            <li>Select a class</li>
-            <li>Select an exam</li>
-            <li>For student reports, also select a student</li>
-            <li>Click the download button</li>
-          </ol>
-        </Typography>
       </Box>
-    </Box>
+    </AnimatedContainer>
   );
 };
 

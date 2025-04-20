@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Assignment Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            padding: 15px 20px;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .btn-success {
+            background-color: #198754;
+            border-color: #198754;
+        }
+        .btn-info {
+            background-color: #0dcaf0;
+            border-color: #0dcaf0;
+            color: #fff;
+        }
+        .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+        .result-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+        }
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            margin-right: 5px;
+        }
+        .badge {
+            margin-left: 5px;
+        }
+        .list-group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .alert {
+            margin-top: 20px;
+        }
+        .diagnostic-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            background-color: #fff;
+        }
+        .diagnostic-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Teacher Assignment Manager</h1>
+        <p class="lead">Comprehensive tool to manage teacher-subject assignments and fix O-Level marks entry issues</p>
+
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="fix-tab" data-bs-toggle="tab" data-bs-target="#fix" type="button" role="tab" aria-controls="fix" aria-selected="true">Fix Assignments</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="diagnose-tab" data-bs-toggle="tab" data-bs-target="#diagnose" type="button" role="tab" aria-controls="diagnose" aria-selected="false">Diagnose Issues</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="view-tab" data-bs-toggle="tab" data-bs-target="#view" type="button" role="tab" aria-controls="view" aria-selected="false">View Assignments</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <!-- Fix Assignments Tab -->
+            <div class="tab-pane fade show active" id="fix" role="tabpanel" aria-labelledby="fix-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Fix Teacher Assignments</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Use this tool to fix teacher assignments for O-Level bulk marks entry. This will assign the teacher to all subjects in the selected class.</p>
+
+                        <form id="fixTeacherForm">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Teacher Username:</label>
+                                <input type="text" class="form-control" id="username" name="username" value="KAAYA" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="classId" class="form-label">Class ID:</label>
+                                <input type="text" class="form-control" id="classId" name="classId" value="67fdfc962cc25690fef0298e" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="token" class="form-label">JWT Token:</label>
+                                <input type="text" class="form-control" id="token" name="token" placeholder="Paste your JWT token here" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" id="fixButton">
+                                <span class="spinner-border d-none" id="fixSpinner" role="status" aria-hidden="true"></span>
+                                Fix Teacher Assignments
+                            </button>
+                        </form>
+
+                        <div class="result-container d-none" id="fixResult"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagnose Issues Tab -->
+            <div class="tab-pane fade" id="diagnose" role="tabpanel" aria-labelledby="diagnose-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Diagnose Assignment Issues</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">This tool will diagnose and fix any issues with teacher-subject assignments for the selected class.</p>
+
+                        <form id="diagnoseForm">
+                            <div class="mb-3">
+                                <label for="diagnoseUsername" class="form-label">Teacher Username:</label>
+                                <input type="text" class="form-control" id="diagnoseUsername" name="diagnoseUsername" value="KAAYA" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="diagnoseClassId" class="form-label">Class ID:</label>
+                                <input type="text" class="form-control" id="diagnoseClassId" name="diagnoseClassId" value="67fdfc962cc25690fef0298e" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="diagnoseToken" class="form-label">JWT Token:</label>
+                                <input type="text" class="form-control" id="diagnoseToken" name="diagnoseToken" placeholder="Paste your JWT token here" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-info" id="diagnoseButton">
+                                <span class="spinner-border d-none" id="diagnoseSpinner" role="status" aria-hidden="true"></span>
+                                Diagnose and Fix Issues
+                            </button>
+                        </form>
+
+                        <div class="diagnostic-section d-none" id="diagnosticResult">
+                            <h5>Diagnostic Results</h5>
+                            <div id="diagnosticDetails"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View Assignments Tab -->
+            <div class="tab-pane fade" id="view" role="tabpanel" aria-labelledby="view-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">View Teacher Assignments</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">View all subjects a teacher is assigned to in a specific class.</p>
+
+                        <form id="viewForm">
+                            <div class="mb-3">
+                                <label for="viewTeacherId" class="form-label">Teacher ID:</label>
+                                <input type="text" class="form-control" id="viewTeacherId" name="viewTeacherId" placeholder="Enter teacher ID" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="viewClassId" class="form-label">Class ID:</label>
+                                <input type="text" class="form-control" id="viewClassId" name="viewClassId" placeholder="Enter class ID" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="viewToken" class="form-label">JWT Token:</label>
+                                <input type="text" class="form-control" id="viewToken" name="viewToken" placeholder="Paste your JWT token here" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-success" id="viewButton">
+                                <span class="spinner-border d-none" id="viewSpinner" role="status" aria-hidden="true"></span>
+                                View Assignments
+                            </button>
+                        </form>
+
+                        <div class="mt-4 d-none" id="subjectsContainer">
+                            <h5>Assigned Subjects</h5>
+                            <ul class="list-group" id="subjectsList"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-success d-none" id="successAlert" role="alert"></div>
+        <div class="alert alert-danger d-none" id="errorAlert" role="alert"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Fix Teacher Assignments
+        document.getElementById('fixTeacherForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const classId = document.getElementById('classId').value;
+            const token = document.getElementById('token').value;
+
+            const resultDiv = document.getElementById('fixResult');
+            const spinner = document.getElementById('fixSpinner');
+            const button = document.getElementById('fixButton');
+            const successAlert = document.getElementById('successAlert');
+            const errorAlert = document.getElementById('errorAlert');
+
+            // Reset alerts
+            successAlert.classList.add('d-none');
+            errorAlert.classList.add('d-none');
+
+            // Show spinner
+            spinner.classList.remove('d-none');
+            button.disabled = true;
+            resultDiv.classList.remove('d-none');
+            resultDiv.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('/api/fix-teacher/fix-teacher-assignments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ username, classId })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                    successAlert.textContent = 'Success! Teacher assignments fixed.';
+                    successAlert.classList.remove('d-none');
+                } else {
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                    errorAlert.textContent = 'Error: ' + data.message;
+                    errorAlert.classList.remove('d-none');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                errorAlert.textContent = 'Error: ' + error.message;
+                errorAlert.classList.remove('d-none');
+            } finally {
+                // Hide spinner
+                spinner.classList.add('d-none');
+                button.disabled = false;
+            }
+        });
+
+        // Diagnose and Fix Issues
+        document.getElementById('diagnoseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('diagnoseUsername').value;
+            const classId = document.getElementById('diagnoseClassId').value;
+            const token = document.getElementById('diagnoseToken').value;
+
+            const resultDiv = document.getElementById('diagnosticResult');
+            const detailsDiv = document.getElementById('diagnosticDetails');
+            const spinner = document.getElementById('diagnoseSpinner');
+            const button = document.getElementById('diagnoseButton');
+            const successAlert = document.getElementById('successAlert');
+            const errorAlert = document.getElementById('errorAlert');
+
+            // Reset alerts
+            successAlert.classList.add('d-none');
+            errorAlert.classList.add('d-none');
+
+            // Show spinner
+            spinner.classList.remove('d-none');
+            button.disabled = true;
+            resultDiv.classList.add('d-none');
+
+            try {
+                const response = await fetch('/api/fix-teacher/diagnose-and-fix', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ username, classId })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Display diagnostic results
+                    resultDiv.classList.remove('d-none');
+
+                    // Create diagnostic details HTML
+                    let detailsHtml = '';
+
+                    if (data.diagnostic) {
+                        const diagnostic = data.diagnostic;
+
+                        detailsHtml += `
+                            <div class="diagnostic-item">
+                                <h6>Teacher Information</h6>
+                                <p>Name: ${diagnostic.teacher?.name || 'N/A'}</p>
+                            </div>
+
+                            <div class="diagnostic-item">
+                                <h6>Class Information</h6>
+                                <p>Name: ${diagnostic.class?.name || 'N/A'}</p>
+                                <p>Education Level: ${diagnostic.class?.educationLevel || 'N/A'}</p>
+                                <p>Subject Count: ${diagnostic.class?.subjectCount || 0}</p>
+                            </div>
+
+                            <div class="diagnostic-item">
+                                <h6>Assignment Status</h6>
+                                <p>Class Model Assignments: ${diagnostic.assignments?.classModel || 0}</p>
+                                <p>TeacherSubject Assignments: ${diagnostic.assignments?.teacherSubject || 0}</p>
+                                <p>TeacherAssignment Assignments: ${diagnostic.assignments?.teacherAssignment || 0}</p>
+                            </div>
+                        `;
+
+                        if (diagnostic.issues && diagnostic.issues.length > 0) {
+                            detailsHtml += `
+                                <div class="diagnostic-item">
+                                    <h6>Issues Found (${diagnostic.issues.length})</h6>
+                                    <ul class="list-group">
+                            `;
+
+                            diagnostic.issues.forEach(issue => {
+                                detailsHtml += `
+                                    <li class="list-group-item">
+                                        <div>
+                                            <strong>${issue.subject}</strong>
+                                            <p class="mb-0">${issue.issue} (${issue.type})</p>
+                                        </div>
+                                        <span class="badge bg-success">Fixed</span>
+                                    </li>
+                                `;
+                            });
+
+                            detailsHtml += `
+                                    </ul>
+                                </div>
+                            `;
+                        } else {
+                            detailsHtml += `
+                                <div class="diagnostic-item">
+                                    <h6>No Issues Found</h6>
+                                    <p>All assignments are correctly configured.</p>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    if (data.fixResult) {
+                        detailsHtml += `
+                            <div class="diagnostic-item">
+                                <h6>Fix Result</h6>
+                                <p>${data.fixResult.message}</p>
+                            </div>
+                        `;
+                    }
+
+                    detailsDiv.innerHTML = detailsHtml;
+                    successAlert.textContent = data.message || 'Diagnosis complete.';
+                    successAlert.classList.remove('d-none');
+                } else {
+                    errorAlert.textContent = 'Error: ' + data.message;
+                    errorAlert.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorAlert.textContent = 'Error: ' + error.message;
+                errorAlert.classList.remove('d-none');
+            } finally {
+                // Hide spinner
+                spinner.classList.add('d-none');
+                button.disabled = false;
+            }
+        });
+
+        // View Teacher Assignments
+        document.getElementById('viewForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const teacherId = document.getElementById('viewTeacherId').value;
+            const classId = document.getElementById('viewClassId').value;
+            const token = document.getElementById('viewToken').value;
+
+            const subjectsContainer = document.getElementById('subjectsContainer');
+            const subjectsList = document.getElementById('subjectsList');
+            const spinner = document.getElementById('viewSpinner');
+            const button = document.getElementById('viewButton');
+            const successAlert = document.getElementById('successAlert');
+            const errorAlert = document.getElementById('errorAlert');
+
+            // Reset alerts
+            successAlert.classList.add('d-none');
+            errorAlert.classList.add('d-none');
+
+            // Show spinner
+            spinner.classList.remove('d-none');
+            button.disabled = true;
+            subjectsContainer.classList.add('d-none');
+
+            try {
+                const response = await fetch(`/api/fix-teacher/teacher-subjects/${teacherId}/${classId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Display subjects
+                    subjectsContainer.classList.remove('d-none');
+                    subjectsList.innerHTML = '';
+
+                    if (data.subjects && data.subjects.length > 0) {
+                        data.subjects.forEach(subject => {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item';
+                            li.innerHTML = `
+                                <div>
+                                    <strong>${subject.name}</strong>
+                                    <p class="mb-0">${subject.code} (${subject.educationLevel})</p>
+                                </div>
+                                <span class="badge bg-primary">${subject.assignmentType}</span>
+                            `;
+                            subjectsList.appendChild(li);
+                        });
+
+                        successAlert.textContent = `Found ${data.subjects.length} subjects assigned to this teacher in the selected class.`;
+                        successAlert.classList.remove('d-none');
+                    } else {
+                        subjectsList.innerHTML = '<li class="list-group-item">No subjects found for this teacher in the selected class.</li>';
+                        errorAlert.textContent = 'No subjects found for this teacher in the selected class.';
+                        errorAlert.classList.remove('d-none');
+                    }
+                } else {
+                    errorAlert.textContent = 'Error: ' + data.message;
+                    errorAlert.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorAlert.textContent = 'Error: ' + error.message;
+                errorAlert.classList.remove('d-none');
+            } finally {
+                // Hide spinner
+                spinner.classList.add('d-none');
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

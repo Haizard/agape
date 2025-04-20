@@ -312,8 +312,8 @@ const OLevelMarksEntry = () => {
           return;
         }
 
-        // Check if student has existing marks
-        const response = await api.get('/marks/check-student-marks', {
+        // Check if student has existing marks using the new standardized API
+        const response = await api.get('/api/o-level/marks/student', {
           params: {
             studentId: selectedStudent,
             subjectId: selectedSubject,
@@ -342,7 +342,7 @@ const OLevelMarksEntry = () => {
   const calculateGrade = (marks) => {
     if (marks >= 75) return 'A';
     if (marks >= 65) return 'B';
-    if (marks >= 50) return 'C';
+    if (marks >= 45) return 'C';
     if (marks >= 30) return 'D';
     return 'F';
   };
@@ -441,8 +441,8 @@ const OLevelMarksEntry = () => {
 
       console.log('Submitting O-Level result:', resultData);
 
-      // Use the new API endpoint for entering marks
-      const response = await api.post('/v2/results/enter-marks', resultData);
+      // Use the new standardized API endpoint for entering marks
+      const response = await api.post('/api/o-level/marks/single', resultData);
 
       // Show success message
       setSnackbar({
@@ -455,8 +455,8 @@ const OLevelMarksEntry = () => {
       setMarks('');
       setComment('');
 
-      // Refresh existing results
-      const updatedResponse = await api.get('/marks/check-existing', {
+      // Refresh existing results using the new standardized API
+      const updatedResponse = await api.get('/api/o-level/marks/check', {
         params: {
           classId: selectedClass,
           subjectId: selectedSubject,

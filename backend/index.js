@@ -48,6 +48,11 @@ const studentEducationLevelRoutes = require('./routes/studentEducationLevelRoute
 const checkMarksRoutes = require('./routes/checkMarksRoutes');
 // Import v2 routes
 const v2ResultRoutes = require('./routes/v2/resultRoutes');
+// Import standardized O-Level routes
+const standardizedOLevelRoutes = require('./routes/standardizedOLevelRoutes');
+
+// Import logger
+const logger = require('./utils/logger');
 const examRoutes = require('./routes/examRoutes');
 const newsRoutes = require('./routes/newsRoutes');
 const examTypeRoutes = require('./routes/examTypeRoutes');
@@ -72,6 +77,8 @@ const subjectCombinationRoutes = require('./routes/subjectCombinationRoutes');
 const studentSubjectSelectionRoutes = require('./routes/studentSubjectSelectionRoutes');
 const dataConsistencyRoutes = require('./routes/dataConsistencyRoutes');
 const publicReportRoutes = require('./routes/publicReportRoutes');
+const fixTeacherRoute = require('./routes/fixTeacherRoute');
+const enhancedTeacherRoutes = require('./routes/enhancedTeacherRoutes');
 
 const app = express();
 
@@ -114,6 +121,10 @@ app.use(express.json({ limit: '10mb' }));
 
 // Serve static files from the React app build directory
 const frontendBuildPath = path.join(__dirname, '../frontend/school-frontend-app/build');
+
+// Serve static files from the public directory
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
 
 // Check if the frontend build directory exists before serving static files
 const fs = require('fs');
@@ -163,21 +174,62 @@ const criticalRoutesCors = cors({
 app.use('/api/users', userRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/students', studentRoutes);
-// Use fixed result routes for batch marks entry
-app.use('/api/results/enter-marks/batch', fixedResultRoutes);
-// Use original result routes for other endpoints
-app.use('/api/results', resultRoutes);
-app.use('/api/results/report', resultReportRoutes);
+
+// Register standardized O-Level routes (primary implementation)
+app.use('/api/o-level', standardizedOLevelRoutes);
+console.log('Standardized O-Level routes registered at /api/o-level');
+
+// Add deprecation notices for legacy routes
+
+// Deprecated: Use /api/o-level/marks/batch instead
+app.use('/api/o-level-results/batch', (req, res, next) => {
+  console.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/o-level/marks/batch instead`);
+  logger.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/o-level/marks/batch instead`);
+  res.setHeader('X-Deprecated', 'This route is deprecated. Use /api/o-level/marks/batch instead.');
+  next();
+}, criticalRoutesCors, oLevelResultBatchRoutes);
+
+// Deprecated: Use /api/o-level instead
+app.use('/api/o-level-results', (req, res, next) => {
+  console.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/o-level instead`);
+  logger.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/o-level instead`);
+  res.setHeader('X-Deprecated', 'This route is deprecated. Use /api/o-level instead.');
+  next();
+}, oLevelResultRoutes);
+
+// Deprecated: Use /api/o-level/marks/batch instead
+app.use('/api/results/enter-marks/batch', (req, res, next) => {
+  console.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/o-level/marks/batch instead`);
+  logger.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/o-level/marks/batch instead`);
+  res.setHeader('X-Deprecated', 'This route is deprecated. Use /api/o-level/marks/batch instead.');
+  next();
+}, fixedResultRoutes);
+
+// Deprecated: Use /api/v2/results or /api/o-level instead
+app.use('/api/results', (req, res, next) => {
+  console.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/v2/results or /api/o-level instead`);
+  logger.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/v2/results or /api/o-level instead`);
+  res.setHeader('X-Deprecated', 'This route is deprecated. Use /api/v2/results or /api/o-level instead.');
+  next();
+}, resultRoutes);
+
+// Deprecated: Use /api/o-level/reports instead
+app.use('/api/results/report', (req, res, next) => {
+  console.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/o-level/reports instead`);
+  logger.warn(`DEPRECATED ROUTE: ${req.method} ${req.originalUrl} - Use /api/o-level/reports instead`);
+  res.setHeader('X-Deprecated', 'This route is deprecated. Use /api/o-level/reports instead.');
+  next();
+}, resultReportRoutes);
+
+// Other routes
 app.use('/api/results/comprehensive', unifiedComprehensiveReportRoutes);
-// app.use('/api/a-level-results', aLevelResultRoutes);
-app.use('/api/o-level-results', oLevelResultRoutes);
 app.use('/api/a-level-results/batch', criticalRoutesCors, aLevelResultBatchRoutes);
-app.use('/api/o-level-results/batch', criticalRoutesCors, oLevelResultBatchRoutes);
 app.use('/api/a-level-comprehensive', aLevelComprehensiveReportRoutes);
 app.use('/api/a-level-reports', criticalRoutesCors, aLevelReportRoutes);
 app.use('/api/character-assessments', characterAssessmentRoutes);
 app.use('/api/student-education-level', studentEducationLevelRoutes);
 app.use('/api/check-marks', checkMarksRoutes);
+
 // Register v2 routes
 app.use('/api/v2/results', v2ResultRoutes);
 
@@ -207,6 +259,10 @@ app.use('/api/education-levels', educationLevelRoutes);
 app.use('/api/subject-combinations', subjectCombinationRoutes);
 app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
 app.use('/api/data-consistency', dataConsistencyRoutes);
+// Fix teacher routes
+app.use('/api/fix-teacher', fixTeacherRoute);
+// Enhanced teacher routes with improved O-Level handling
+app.use('/api/enhanced-teachers', enhancedTeacherRoutes);
 // Public routes with no authentication required
 app.use('/api/public', criticalRoutesCors, publicReportRoutes);
 

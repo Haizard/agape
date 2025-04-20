@@ -154,10 +154,44 @@ const OLevelBulkMarksEntry = () => {
           subject.educationLevel === 'O_LEVEL' || subject.educationLevel === 'BOTH' || !subject.educationLevel
         );
 
-        setSubjects(oLevelSubjects);
+        console.log('All subjects before filtering:', subjectsData);
+        console.log('O-Level subjects after filtering:', oLevelSubjects);
+
+        // If we have no O-Level subjects, try to fetch them directly
+        if (oLevelSubjects.length === 0) {
+          try {
+            console.log('No O-Level subjects found, trying direct approach');
+            // Try to get O-Level subjects directly
+            const directResponse = await api.get('/api/subjects', {
+              params: { educationLevel: 'O_LEVEL' }
+            });
+
+            if (directResponse.data && directResponse.data.length > 0) {
+              console.log('Direct approach: Found O-Level subjects directly:', directResponse.data);
+              setSubjects(directResponse.data);
+            } else {
+              console.log('Direct approach: No O-Level subjects found directly');
+              setSubjects(oLevelSubjects);
+            }
+          } catch (directError) {
+            console.error('Error fetching O-Level subjects directly:', directError);
+            setSubjects(oLevelSubjects);
+          }
+        } else {
+          setSubjects(oLevelSubjects);
+        }
       } catch (error) {
         console.error('Error fetching subjects:', error);
-        setError('Failed to fetch subjects. Please try again.');
+        // Provide more specific error message
+        if (error.response && error.response.status === 404) {
+          setError('Teacher profile not found. Please contact an administrator to set up your teacher profile.');
+        } else if (error.response && error.response.status === 403) {
+          setError('You are not authorized to access subjects in this class. Please contact an administrator.');
+        } else if (error.response && error.response.data && error.response.data.message) {
+          setError(error.response.data.message);
+        } else {
+          setError('Failed to fetch subjects. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -165,6 +199,19 @@ const OLevelBulkMarksEntry = () => {
 
     fetchSubjects();
   }, [selectedClass]);
+
+  // Function to fetch student subject selections
+  const fetchStudentSubjectSelections = async (classId) => {
+    try {
+      console.log(`Fetching student subject selections for class ${classId}`);
+      const response = await api.get(`/api/student-subject-selections/class/${classId}`);
+      console.log('Student subject selections:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching student subject selections:', error);
+      return [];
+    }
+  };
 
   // Fetch students when class, subject, and exam are selected
   useEffect(() => {
@@ -179,14 +226,24 @@ const OLevelBulkMarksEntry = () => {
 
         // If not admin, verify authorization
         if (!isAdmin) {
-          // Check if teacher is authorized for this class and subject
-          const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
-          const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+          // For O-Level classes, we'll be more permissive
+          const classInfo = classes.find(c => c._id === selectedClass);
+          const isOLevel = classInfo && (classInfo.educationLevel === 'O_LEVEL' || classInfo.educationLevel === 'O Level');
 
-          if (!isAuthorizedForClass || !isAuthorizedForSubject) {
-            setError('You are not authorized to view marks for this class or subject');
-            setLoading(false);
-            return;
+          if (!isOLevel) {
+            // For A-Level, check strict authorization
+            console.log('A-Level class detected, checking strict authorization');
+            // Check if teacher is authorized for this class and subject
+            const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+            const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+
+            if (!isAuthorizedForClass || !isAuthorizedForSubject) {
+              setError('You are not authorized to view marks for this class or subject');
+              setLoading(false);
+              return;
+            }
+          } else {
+            console.log('O-Level class detected, using permissive authorization');
           }
         }
 
@@ -198,20 +255,57 @@ const OLevelBulkMarksEntry = () => {
           studentsData = studentsResponse.data || [];
         } else {
           // Teachers can only see assigned students
-          studentsData = await teacherApi.getAssignedStudents(selectedClass);
+          try {
+            console.log('Trying O-Level specific endpoint for students');
+            // First try the O-Level specific endpoint
+            const oLevelResponse = await api.get(`/api/enhanced-teachers/o-level/classes/${selectedClass}/subjects/any/students`);
+            if (oLevelResponse.data && Array.isArray(oLevelResponse.data.students)) {
+              console.log(`Found ${oLevelResponse.data.students.length} students using O-Level specific endpoint`);
+              studentsData = oLevelResponse.data.students;
+            } else {
+              // Fall back to the regular endpoint
+              console.log('O-Level specific endpoint returned invalid data, falling back to regular endpoint');
+              studentsData = await teacherApi.getAssignedStudents(selectedClass);
+            }
+          } catch (oLevelError) {
+            console.log('O-Level specific endpoint failed, falling back to regular endpoint', oLevelError);
+            // Fall back to the regular endpoint
+            studentsData = await teacherApi.getAssignedStudents(selectedClass);
+          }
         }
 
-        // Get existing marks for the selected class, subject, and exam
-        const marksResponse = await api.get('/api/check-marks/check-existing', {
-          params: {
-            classId: selectedClass,
-            subjectId: selectedSubject,
-            examId: selectedExam
+        // Get existing marks for the selected class, subject, and exam using the new standardized API
+        let marksResponse;
+        try {
+          console.log('Fetching marks from standardized API endpoint...');
+          marksResponse = await api.get('/api/o-level/marks/check', {
+            params: {
+              classId: selectedClass,
+              subjectId: selectedSubject,
+              examId: selectedExam
+            }
+          });
+          console.log('Marks response:', marksResponse.data);
+          console.log('Students with marks:', marksResponse.data.studentsWithMarks || []);
+        } catch (marksError) {
+          console.error('Error fetching marks from standardized API:', marksError);
+          // Fall back to the legacy endpoint
+          console.log('Falling back to legacy endpoint...');
+          try {
+            marksResponse = await api.get('/api/check-marks/check-existing', {
+              params: {
+                classId: selectedClass,
+                subjectId: selectedSubject,
+                examId: selectedExam
+              }
+            });
+            console.log('Legacy marks response:', marksResponse.data);
+          } catch (legacyError) {
+            console.error('Error fetching marks from legacy API:', legacyError);
+            // Create an empty response to avoid errors
+            marksResponse = { data: { studentsWithMarks: [] } };
           }
-        });
-
-        console.log('Marks response:', marksResponse.data);
-        console.log('Students with marks:', marksResponse.data.studentsWithMarks || []);
+        }
 
         // Get exam details to get academic year
         const examResponse = await api.get(`/api/exams/${selectedExam}`);
@@ -224,7 +318,79 @@ const OLevelBulkMarksEntry = () => {
           student.educationLevel === 'O_LEVEL' || !student.educationLevel
         );
 
-        setStudents(oLevelStudents);
+        console.log('All students before filtering:', studentsData);
+        console.log('O-Level students after filtering:', oLevelStudents);
+
+        // Try to get student subject selections to filter students by subject
+        try {
+          // Get student subject selections for this class
+          const selections = await fetchStudentSubjectSelections(selectedClass);
+
+          if (selections && selections.length > 0) {
+            console.log(`Found ${selections.length} student subject selections`);
+
+            // Create a map of student IDs to their selected subjects
+            const studentSubjectsMap = {};
+            selections.forEach(selection => {
+              if (selection.student) {
+                const studentId = typeof selection.student === 'object' ? selection.student._id : selection.student;
+
+                // Combine core and optional subjects
+                const allSubjects = [
+                  ...(selection.coreSubjects || []).map(s => typeof s === 'object' ? s._id : s),
+                  ...(selection.optionalSubjects || []).map(s => typeof s === 'object' ? s._id : s)
+                ];
+
+                studentSubjectsMap[studentId] = allSubjects;
+              }
+            });
+
+            console.log('Student subjects map:', studentSubjectsMap);
+
+            // Check if the selected subject is a core subject
+            let isCoreSubject = false;
+            try {
+              console.log(`Checking if subject ${selectedSubject} is a core subject...`);
+              const subjectResponse = await api.get(`/api/subjects/${selectedSubject}`);
+              console.log('Subject response:', subjectResponse.data);
+              isCoreSubject = subjectResponse.data.type === 'CORE';
+              console.log(`Subject ${selectedSubject} is ${isCoreSubject ? 'a core subject' : 'not a core subject'}`);
+            } catch (subjectError) {
+              console.error(`Error checking if subject ${selectedSubject} is a core subject:`, subjectError);
+              // Assume it's a core subject if we can't determine
+              isCoreSubject = true;
+              console.log('Assuming subject is a core subject due to error');
+            }
+
+            if (isCoreSubject) {
+              console.log('Selected subject is a core subject, showing all O-Level students');
+              setStudents(oLevelStudents);
+            } else {
+              // Filter students who have selected this subject
+              const filteredStudents = oLevelStudents.filter(student => {
+                const studentId = student._id;
+                const studentSubjects = studentSubjectsMap[studentId] || [];
+                return studentSubjects.includes(selectedSubject);
+              });
+
+              console.log(`Filtered to ${filteredStudents.length} students who have selected subject ${selectedSubject}`);
+
+              // If no students are found after filtering, just show all O-Level students
+              if (filteredStudents.length === 0) {
+                console.log('No students found after filtering by subject selection, showing all O-Level students');
+                setStudents(oLevelStudents);
+              } else {
+                setStudents(filteredStudents);
+              }
+            }
+          } else {
+            console.log('No student subject selections found, showing all O-Level students');
+            setStudents(oLevelStudents);
+          }
+        } catch (selectionError) {
+          console.error('Error filtering students by subject selection:', selectionError);
+          setStudents(oLevelStudents);
+        }
 
         // Initialize marks array with existing marks
         const initialMarks = oLevelStudents.map(student => {
@@ -234,9 +400,25 @@ const OLevelBulkMarksEntry = () => {
             mark.studentId === student._id
           );
 
+          // Handle different student name formats
+          let studentName = '';
+          if (student.name) {
+            // If the student has a name property, use it
+            studentName = student.name;
+          } else if (student.studentName) {
+            // If the student already has a studentName property, use it
+            studentName = student.studentName;
+          } else if (student.firstName || student.lastName) {
+            // If the student has firstName and lastName properties, combine them
+            studentName = `${student.firstName || ''} ${student.lastName || ''}`.trim();
+          } else {
+            // Fallback to a default name
+            studentName = `Student ${student._id}`;
+          }
+
           return {
             studentId: student._id,
-            studentName: `${student.firstName} ${student.lastName}`,
+            studentName,
             examId: selectedExam,
             academicYearId,
             examTypeId,
@@ -300,9 +482,9 @@ const OLevelBulkMarksEntry = () => {
           ? {
               ...mark,
               marksObtained: value,
-              // Clear grade and points when marks are changed
-              grade: '',
-              points: ''
+              // Calculate grade and points immediately when marks are changed
+              grade: value !== '' ? calculateGrade(Number(value)) : '',
+              points: value !== '' ? calculatePoints(calculateGrade(Number(value))) : ''
             }
           : mark
       )
@@ -323,10 +505,11 @@ const OLevelBulkMarksEntry = () => {
   // Calculate grade based on marks (O-Level grading system)
   const calculateGrade = (marks) => {
     if (marks === '' || marks === undefined) return '';
-    if (marks >= 81) return 'A';
-    if (marks >= 61) return 'B';
-    if (marks >= 41) return 'C';
-    if (marks >= 21) return 'D';
+    // Using the standardized NECTA CSEE grading system
+    if (marks >= 75) return 'A';
+    if (marks >= 65) return 'B';
+    if (marks >= 45) return 'C';
+    if (marks >= 30) return 'D';
     return 'F';
   };
 
@@ -355,25 +538,35 @@ const OLevelBulkMarksEntry = () => {
 
       // If not admin, verify authorization
       if (!isAdmin) {
-        // Check if teacher is authorized for this class and subject
-        const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
-        const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
+        // For O-Level classes, we'll be more permissive
+        const classInfo = classes.find(c => c._id === selectedClass);
+        const isOLevel = classInfo && (classInfo.educationLevel === 'O_LEVEL' || classInfo.educationLevel === 'O Level');
 
-        if (!isAuthorizedForClass || !isAuthorizedForSubject) {
-          throw new Error('You are not authorized to save marks for this class or subject');
-        }
+        if (!isOLevel) {
+          // For A-Level, check strict authorization
+          console.log('Save: A-Level class detected, checking strict authorization');
+          // Check if teacher is authorized for this class and subject
+          const isAuthorizedForClass = await teacherAuthService.isAuthorizedForClass(selectedClass);
+          const isAuthorizedForSubject = await teacherAuthService.isAuthorizedForSubject(selectedClass, selectedSubject);
 
-        // Check if teacher is authorized for all students
-        const assignedStudents = await teacherApi.getAssignedStudents(selectedClass);
-        const assignedStudentIds = assignedStudents.map(student => student._id);
+          if (!isAuthorizedForClass || !isAuthorizedForSubject) {
+            throw new Error('You are not authorized to save marks for this class or subject');
+          }
 
-        // Check if any marks are for students not assigned to this teacher
-        const unauthorizedMarks = marks.filter(mark =>
-          mark.marksObtained !== '' && !assignedStudentIds.includes(mark.studentId)
-        );
+          // Check if teacher is authorized for all students
+          const assignedStudents = await teacherApi.getAssignedStudents(selectedClass);
+          const assignedStudentIds = assignedStudents.map(student => student._id);
 
-        if (unauthorizedMarks.length > 0) {
-          throw new Error('You are not authorized to enter marks for some of these students');
+          // Check if any marks are for students not assigned to this teacher
+          const unauthorizedMarks = marks.filter(mark =>
+            mark.marksObtained !== '' && !assignedStudentIds.includes(mark.studentId)
+          );
+
+          if (unauthorizedMarks.length > 0) {
+            throw new Error('You are not authorized to enter marks for some of these students');
+          }
+        } else {
+          console.log('Save: O-Level class detected, using permissive authorization');
         }
       }
 
@@ -396,14 +589,29 @@ const OLevelBulkMarksEntry = () => {
       // Filter out empty marks
       const marksToSave = marksWithGrades.filter(mark => mark.marksObtained !== '');
 
+      // Validate marks before saving
+      const validationErrors = [];
+      marksToSave.forEach((mark, index) => {
+        const numMarks = Number(mark.marksObtained);
+        if (isNaN(numMarks) || numMarks < 0 || numMarks > 100) {
+          validationErrors.push(`Invalid marks for ${mark.studentName}: ${mark.marksObtained}`);
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        setError(`Validation errors: ${validationErrors.join(', ')}`);
+        setSaving(false);
+        return;
+      }
+
       if (marksToSave.length === 0) {
         setError('No marks to save. Please enter at least one mark.');
         setSaving(false);
         return;
       }
 
-      // Save marks
-      await api.post('/api/o-level-results/batch', marksToSave);
+      // Save marks using the new standardized API
+      await api.post('/api/o-level/marks/batch', marksToSave);
 
       // Refresh marks to get the latest data including IDs
       await handleRefresh();
@@ -443,20 +651,57 @@ const OLevelBulkMarksEntry = () => {
           studentsData = studentsResponse.data || [];
         } else {
           // Teachers can only see assigned students
-          studentsData = await teacherApi.getAssignedStudents(selectedClass);
+          try {
+            console.log('Refresh: Trying O-Level specific endpoint for students');
+            // First try the O-Level specific endpoint
+            const oLevelResponse = await api.get(`/api/enhanced-teachers/o-level/classes/${selectedClass}/subjects/any/students`);
+            if (oLevelResponse.data && Array.isArray(oLevelResponse.data.students)) {
+              console.log(`Refresh: Found ${oLevelResponse.data.students.length} students using O-Level specific endpoint`);
+              studentsData = oLevelResponse.data.students;
+            } else {
+              // Fall back to the regular endpoint
+              console.log('Refresh: O-Level specific endpoint returned invalid data, falling back to regular endpoint');
+              studentsData = await teacherApi.getAssignedStudents(selectedClass);
+            }
+          } catch (oLevelError) {
+            console.log('Refresh: O-Level specific endpoint failed, falling back to regular endpoint', oLevelError);
+            // Fall back to the regular endpoint
+            studentsData = await teacherApi.getAssignedStudents(selectedClass);
+          }
         }
 
-        // Get existing marks for the selected class, subject, and exam
-        const marksResponse = await api.get('/api/check-marks/check-existing', {
-          params: {
-            classId: selectedClass,
-            subjectId: selectedSubject,
-            examId: selectedExam
+        // Get existing marks for the selected class, subject, and exam using the new standardized API
+        let marksResponse;
+        try {
+          console.log('Refresh: Fetching marks from standardized API endpoint...');
+          marksResponse = await api.get('/api/o-level/marks/check', {
+            params: {
+              classId: selectedClass,
+              subjectId: selectedSubject,
+              examId: selectedExam
+            }
+          });
+          console.log('Refresh - Marks response:', marksResponse.data);
+          console.log('Refresh - Students with marks:', marksResponse.data.studentsWithMarks || []);
+        } catch (marksError) {
+          console.error('Refresh: Error fetching marks from standardized API:', marksError);
+          // Fall back to the legacy endpoint
+          console.log('Refresh: Falling back to legacy endpoint...');
+          try {
+            marksResponse = await api.get('/api/check-marks/check-existing', {
+              params: {
+                classId: selectedClass,
+                subjectId: selectedSubject,
+                examId: selectedExam
+              }
+            });
+            console.log('Refresh: Legacy marks response:', marksResponse.data);
+          } catch (legacyError) {
+            console.error('Refresh: Error fetching marks from legacy API:', legacyError);
+            // Create an empty response to avoid errors
+            marksResponse = { data: { studentsWithMarks: [] } };
           }
-        });
-
-        console.log('Refresh - Marks response:', marksResponse.data);
-        console.log('Refresh - Students with marks:', marksResponse.data.studentsWithMarks || []);
+        }
 
         // Get exam details to get academic year
         const examResponse = await api.get(`/api/exams/${selectedExam}`);
@@ -469,7 +714,79 @@ const OLevelBulkMarksEntry = () => {
           student.educationLevel === 'O_LEVEL' || !student.educationLevel
         );
 
-        setStudents(oLevelStudents);
+        console.log('Refresh: All students before filtering:', studentsData);
+        console.log('Refresh: O-Level students after filtering:', oLevelStudents);
+
+        // Try to get student subject selections to filter students by subject
+        try {
+          // Get student subject selections for this class
+          const selections = await fetchStudentSubjectSelections(selectedClass);
+
+          if (selections && selections.length > 0) {
+            console.log(`Refresh: Found ${selections.length} student subject selections`);
+
+            // Create a map of student IDs to their selected subjects
+            const studentSubjectsMap = {};
+            selections.forEach(selection => {
+              if (selection.student) {
+                const studentId = typeof selection.student === 'object' ? selection.student._id : selection.student;
+
+                // Combine core and optional subjects
+                const allSubjects = [
+                  ...(selection.coreSubjects || []).map(s => typeof s === 'object' ? s._id : s),
+                  ...(selection.optionalSubjects || []).map(s => typeof s === 'object' ? s._id : s)
+                ];
+
+                studentSubjectsMap[studentId] = allSubjects;
+              }
+            });
+
+            console.log('Refresh: Student subjects map:', studentSubjectsMap);
+
+            // Check if the selected subject is a core subject
+            let isCoreSubject = false;
+            try {
+              console.log(`Refresh: Checking if subject ${selectedSubject} is a core subject...`);
+              const subjectResponse = await api.get(`/api/subjects/${selectedSubject}`);
+              console.log('Refresh: Subject response:', subjectResponse.data);
+              isCoreSubject = subjectResponse.data.type === 'CORE';
+              console.log(`Refresh: Subject ${selectedSubject} is ${isCoreSubject ? 'a core subject' : 'not a core subject'}`);
+            } catch (subjectError) {
+              console.error(`Refresh: Error checking if subject ${selectedSubject} is a core subject:`, subjectError);
+              // Assume it's a core subject if we can't determine
+              isCoreSubject = true;
+              console.log('Refresh: Assuming subject is a core subject due to error');
+            }
+
+            if (isCoreSubject) {
+              console.log('Refresh: Selected subject is a core subject, showing all O-Level students');
+              setStudents(oLevelStudents);
+            } else {
+              // Filter students who have selected this subject
+              const filteredStudents = oLevelStudents.filter(student => {
+                const studentId = student._id;
+                const studentSubjects = studentSubjectsMap[studentId] || [];
+                return studentSubjects.includes(selectedSubject);
+              });
+
+              console.log(`Refresh: Filtered to ${filteredStudents.length} students who have selected subject ${selectedSubject}`);
+
+              // If no students are found after filtering, just show all O-Level students
+              if (filteredStudents.length === 0) {
+                console.log('Refresh: No students found after filtering by subject selection, showing all O-Level students');
+                setStudents(oLevelStudents);
+              } else {
+                setStudents(filteredStudents);
+              }
+            }
+          } else {
+            console.log('Refresh: No student subject selections found, showing all O-Level students');
+            setStudents(oLevelStudents);
+          }
+        } catch (selectionError) {
+          console.error('Refresh: Error filtering students by subject selection:', selectionError);
+          setStudents(oLevelStudents);
+        }
 
         // Initialize marks array with existing marks
         const initialMarks = oLevelStudents.map(student => {
@@ -479,9 +796,25 @@ const OLevelBulkMarksEntry = () => {
             mark.studentId === student._id
           );
 
+          // Handle different student name formats
+          let studentName = '';
+          if (student.name) {
+            // If the student has a name property, use it
+            studentName = student.name;
+          } else if (student.studentName) {
+            // If the student already has a studentName property, use it
+            studentName = student.studentName;
+          } else if (student.firstName || student.lastName) {
+            // If the student has firstName and lastName properties, combine them
+            studentName = `${student.firstName || ''} ${student.lastName || ''}`.trim();
+          } else {
+            // Fallback to a default name
+            studentName = `Student ${student._id}`;
+          }
+
           return {
             studentId: student._id,
-            studentName: `${student.firstName} ${student.lastName}`,
+            studentName,
             examId: selectedExam,
             academicYearId,
             examTypeId,
@@ -731,7 +1064,7 @@ const OLevelBulkMarksEntry = () => {
                     <Typography variant="h6">
                       Grades and Points
                     </Typography>
-                    <Tooltip title="O-Level Grading: A (81-100%), B (61-80%), C (41-60%), D (21-40%), F (0-20%)">
+                    <Tooltip title="O-Level Grading: A (75-100%), B (65-74%), C (45-64%), D (30-44%), F (0-29%)">
                       <IconButton>
                         <HelpIcon />
                       </IconButton>

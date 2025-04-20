@@ -56,6 +56,7 @@ import AcademicYearManagement from './components/academic/AcademicYearManagement
 import NewAcademicYearManagement from './components/academic/NewAcademicYearManagement';
 import DirectStudentRegistration from './components/admin/DirectStudentRegistration';
 import DebugUserRole from './components/admin/DebugUserRole';
+import StudentClassDiagnostic from './components/diagnostics/StudentClassDiagnostic';
 import SubjectClassAssignment from './components/academic/SubjectClassAssignment';
 import SubjectClassAssignmentNew from './components/academic/SubjectClassAssignmentNew';
 import FixedSubjectClassAssignment from './components/academic/FixedSubjectClassAssignment';
@@ -100,6 +101,9 @@ import LegacyReportRedirect from './components/results/aLevel/LegacyReportRedire
 import ALevelFormStudentReport from './components/results/ALevelFormStudentReport';
 import ALevelStudentReportRouter from './components/results/aLevel/ALevelStudentReportRouter';
 import ALevelClassReportRouter from './components/results/aLevel/ALevelClassReportRouter';
+import OLevelClassReportRouter from './components/results/oLevel/OLevelClassReportRouter';
+import OLevelClassReport from './components/reports/OLevelClassReport';
+import OLevelResultReport from './components/reports/OLevelResultReport';
 import DemoDataNavigator from './components/demo/DemoDataNavigator';
 import UnifiedMarksEntry from './components/results/UnifiedMarksEntry';
 import CharacterAssessmentEntry from './components/results/CharacterAssessmentEntry';
@@ -115,9 +119,13 @@ import MarksEntryDashboard from './components/results/MarksEntryDashboard';
 import ALevelBulkMarksEntry from './components/results/ALevelBulkMarksEntry';
 import SimplifiedALevelBulkMarksEntry from './components/results/SimplifiedALevelBulkMarksEntry';
 import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
+import EnhancedBulkMarksEntry from './components/marks/EnhancedBulkMarksEntry';
 import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
 import ALevelComprehensiveReportRouter from './components/results/ALevelComprehensiveReportRouter';
 import ALevelClassReportSelector from './components/results/aLevel/ALevelClassReportSelector';
+import OLevelClassReportSelector from './components/results/oLevel/OLevelClassReportSelector';
+import ALevelClassReportsPage from './components/results/aLevel/ALevelClassReportsPage';
+import OLevelClassReportsPage from './components/results/oLevel/OLevelClassReportsPage';
 import EnterSampleMarks from './components/results/EnterSampleMarks';
 import DirectMarksEntry from './components/results/DirectMarksEntry';
 import RoleFixButton from './components/common/RoleFixButton';
@@ -207,6 +215,7 @@ function App() {
                               <ALevelClassReportSelector />
                             </Box>
                           } />
+                          {/* O-Level Class Reports are now only accessible through Assessment Management */}
                           {/* Routes for A-Level class reports with different path patterns */}
                           <Route path="a-level-class-reports/results/a-level/class/:classId/:examId" element={<ALevelClassReportRouter />} />
                           <Route path="a-level-class-reports/results/a-level/class/:classId/:examId/form/:formLevel" element={<ALevelClassReportRouter />} />
@@ -241,6 +250,7 @@ function App() {
                           <Route path="create-user" element={<UnifiedUserCreation />} />
                           <Route path="direct-student-register" element={<DirectStudentRegistration />} />
                           <Route path="debug-user-role" element={<DebugUserRole />} />
+                          <Route path="student-class-diagnostic" element={<StudentClassDiagnostic />} />
                           <Route path="teacher-assignments" element={<TeacherAssignment />} />
                           <Route path="teacher-subject-assignment" element={<TeacherSubjectAssignment />} />
                           <Route path="student-assignments" element={<StudentAssignment />} />
@@ -341,11 +351,36 @@ function App() {
                         <ALevelClassReportRouter />
                       </ProtectedRoute>
                     } />
+
+                    {/* O-Level Class Report Routes */}
+                    <Route path="results/o-level/class/:classId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <OLevelClassReportRouter />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="results/o-level/class/:classId/:examId/form/:formLevel" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <OLevelClassReportRouter />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* O-Level Student Report Routes */}
+                    <Route path="results/o-level/student-clean/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <OLevelResultReport />
+                      </ProtectedRoute>
+                    } />
                     <Route path="admin/assessment-management/results/a-level/class/:classId/:examId/form/:formLevel"
                       element={<ALevelClassReportRouter />}
                     />
                     <Route path="admin/assessment-management/results/a-level/class/:classId/:examId"
                       element={<ALevelClassReportRouter />}
+                    />
+                    <Route path="admin/assessment-management/results/o-level/class/:classId/:examId"
+                      element={<OLevelClassReportRouter />}
+                    />
+                    <Route path="admin/assessment-management/results/o-level/class/:classId/:examId/form/:formLevel"
+                      element={<OLevelClassReportRouter />}
                     />
                     {/* Generic Student Report Route (for backward compatibility) */}
                     <Route path="results/student-report/:studentId/:examId" element={
@@ -361,6 +396,16 @@ function App() {
                     <Route path="/results/a-level-comprehensive-selector" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <ALevelComprehensiveReportSelector />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/a-level/class-reports" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ALevelClassReportsPage />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/o-level/class-reports" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <OLevelClassReportsPage />
                       </ProtectedRoute>
                     } />
                     <Route path="/results/a-level-comprehensive/:studentId/:examId" element={
@@ -423,6 +468,11 @@ function App() {
                         <OLevelBulkMarksEntry />
                       </ProtectedRoute>
                     } />
+                    <Route path="/results/o-level/enhanced-bulk-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <EnhancedBulkMarksEntry />
+                      </ProtectedRoute>
+                    } />
 
                     {/* A-Level Marks Entry Routes */}
                     <Route path="/results/a-level/marks-entry" element={
@@ -445,6 +495,11 @@ function App() {
                     <Route path="/teacher/o-level/bulk-marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <OLevelBulkMarksEntry />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/o-level/enhanced-bulk-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <EnhancedBulkMarksEntry />
                       </ProtectedRoute>
                     } />
                     <Route path="/teacher/a-level/marks-entry" element={

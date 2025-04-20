@@ -3,24 +3,26 @@ import { debounce } from '../../../utils/debounceUtils';
 import {
   Box,
   Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
   Grid,
   CircularProgress,
   Alert,
-  Paper,
-  Divider,
-  Switch,
-  FormControlLabel,
   Tooltip,
   IconButton
 } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import {
+  FormContainer,
+  EnhancedSelect,
+  EnhancedSwitch,
+  SubmitButton,
+  FormRow,
+  FormCol,
+  AnimatedContainer
+} from '../../common';
 
 /**
  * ALevelClassReportSelector Component
@@ -106,10 +108,10 @@ const ALevelClassReportSelector = () => {
     // Navigate to the appropriate report based on form level
     if (formLevel === 'all') {
       // Use the correct path structure that matches the route definition
-      url = `results/a-level/class/${selectedClass}/${selectedExam}`;
+      url = `/results/a-level/class/${selectedClass}/${selectedExam}`;
     } else {
       // Use the correct path structure that matches the route definition
-      url = `results/a-level/class/${selectedClass}/${selectedExam}/form/${formLevel}`;
+      url = `/results/a-level/class/${selectedClass}/${selectedExam}/form/${formLevel}`;
     }
 
     // Build query parameters as an object for better consistency
@@ -145,139 +147,121 @@ const ALevelClassReportSelector = () => {
   );
 
   return (
-    <Paper sx={{ p: 3 }}>
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+    <AnimatedContainer animation="fadeIn" duration={0.5}>
+      <FormContainer>
+        {error && (
+          <Alert
+            severity="error"
+            sx={{
+              mb: 3,
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}
+          >
+            {error}
+          </Alert>
+        )}
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth>
-            <InputLabel>Class</InputLabel>
-            <Select
+        <FormRow spacing={3}>
+          <FormCol xs={12} md={4}>
+            <EnhancedSelect
+              label="Class"
               value={selectedClass}
               onChange={handleClassChange}
-              label="Class"
+              color="primary"
               disabled={loading}
-            >
-              <MenuItem value="">Select a class</MenuItem>
-              {classes.map((classItem) => (
-                <MenuItem key={classItem._id} value={classItem._id}>
-                  {classItem.name} {classItem.section || ''} {classItem.stream || ''}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
+              options={[
+                { value: "", label: "Select a class" },
+                ...classes.map((classItem) => ({
+                  value: classItem._id,
+                  label: `${classItem.name} ${classItem.section || ''} ${classItem.stream || ''}`
+                }))
+              ]}
+            />
+          </FormCol>
 
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth>
-            <InputLabel>Exam</InputLabel>
-            <Select
+          <FormCol xs={12} md={4}>
+            <EnhancedSelect
+              label="Exam"
               value={selectedExam}
               onChange={handleExamChange}
-              label="Exam"
+              color="primary"
               disabled={loading}
-            >
-              <MenuItem value="">Select an exam</MenuItem>
-              {exams.map((exam) => (
-                <MenuItem key={exam._id} value={exam._id}>
-                  {exam.name} {exam.term ? `- Term ${exam.term}` : ''} {exam.year ? `(${exam.year})` : ''}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
+              options={[
+                { value: "", label: "Select an exam" },
+                ...exams.map((exam) => ({
+                  value: exam._id,
+                  label: `${exam.name} ${exam.term ? `- Term ${exam.term}` : ''} ${exam.year ? `(${exam.year})` : ''}`
+                }))
+              ]}
+            />
+          </FormCol>
 
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth>
-            <InputLabel>Form Level</InputLabel>
-            <Select
+          <FormCol xs={12} md={4}>
+            <EnhancedSelect
+              label="Form Level"
               value={formLevel}
               onChange={handleFormLevelChange}
-              label="Form Level"
+              color="primary"
               disabled={loading}
-            >
-              <MenuItem value="all">All Forms</MenuItem>
-              <MenuItem value="5">Form 5</MenuItem>
-              <MenuItem value="6">Form 6</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={forceRealData}
-                  onChange={(e) => setForceRealData(e.target.checked)}
-                  color="primary"
-                />
-              }
-              label="Force Real Data (Dev Only)"
+              options={[
+                { value: "all", label: "All Forms" },
+                { value: "5", label: "Form 5" },
+                { value: "6", label: "Form 6" }
+              ]}
             />
-            <Tooltip title="When enabled, bypasses mock data and forces the system to use real database data">
-              <IconButton size="small">
-                <InfoIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
+          </FormCol>
+        </FormRow>
 
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleGenerateReport}
-            disabled={!selectedClass || !selectedExam || loading}
-            fullWidth
-            sx={{ mt: 1 }}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Generate A-Level Class Report'}
-          </Button>
-        </Grid>
-      </Grid>
+        <FormRow>
+          <FormCol xs={12}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <EnhancedSwitch
+                label="Force Real Data (Dev Only)"
+                checked={forceRealData}
+                onChange={(e) => setForceRealData(e.target.checked)}
+                color="primary"
+              />
+              <Tooltip title="When enabled, bypasses mock data and forces the system to use real database data">
+                <IconButton size="small">
+                  <InfoIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
-      <Divider sx={{ my: 3 }} />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <SubmitButton
+                variant="contained"
+                color="primary"
+                onClick={handleGenerateReport}
+                disabled={!selectedClass || !selectedExam || loading}
+                loading={loading}
+                sx={{ flexGrow: 1 }}
+                startIcon={<AssignmentIcon />}
+              >
+                Generate A-Level Class Report
+              </SubmitButton>
 
-      <Typography variant="h6" gutterBottom>
-        Quick Access
-      </Typography>
-
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={4}>
-          <Button
-            variant="outlined"
-            color="primary"
-            fullWidth
-            onClick={() => navigate('results/a-level/marks-entry')}
-          >
-            Enter A-Level Marks
-          </Button>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Button
-            variant="outlined"
-            color="secondary"
-            fullWidth
-            onClick={() => navigate('results/a-level-comprehensive-selector')}
-          >
-            A-Level Comprehensive Reports
-          </Button>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Button
-            variant="outlined"
-            color="info"
-            fullWidth
-            onClick={() => navigate('results/marks-entry-dashboard')}
-          >
-            Marks Entry Dashboard
-          </Button>
-        </Grid>
-      </Grid>
-    </Paper>
+              <SubmitButton
+                variant="outlined"
+                color="secondary"
+                onClick={() => {
+                  setSelectedClass('');
+                  setSelectedExam('');
+                  setFormLevel('all');
+                  setForceRealData(false);
+                }}
+                disabled={loading}
+                sx={{ width: '120px' }}
+                startIcon={<RefreshIcon />}
+              >
+                Reset
+              </SubmitButton>
+            </Box>
+          </FormCol>
+        </FormRow>
+      </FormContainer>
+    </AnimatedContainer>
   );
 };
 

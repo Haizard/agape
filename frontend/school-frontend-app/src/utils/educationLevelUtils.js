@@ -29,14 +29,14 @@ export const FormLevels = {
  */
 export const getEducationLevelFromForm = (form) => {
   // Convert form to number if it's a string
-  const formNumber = typeof form === 'string' 
-    ? parseInt(form.replace(/\D/g, ''), 10) 
+  const formNumber = typeof form === 'string'
+    ? parseInt(form.replace(/\D/g, ''), 10)
     : form;
-  
+
   if (FormLevels[EducationLevels.A_LEVEL].includes(formNumber)) {
     return EducationLevels.A_LEVEL;
   }
-  
+
   return EducationLevels.O_LEVEL;
 };
 
@@ -75,6 +75,69 @@ export const getRoutePathForEducationLevel = (educationLevel) => {
 };
 
 /**
+ * Determines the appropriate report URL based on education level
+ * @param {string} educationLevel - The education level (A_LEVEL or O_LEVEL)
+ * @param {string} studentId - The student ID
+ * @param {string} examId - The exam ID
+ * @returns {string} - The appropriate URL for the report
+ */
+export const getReportUrlByEducationLevel = (educationLevel, studentId, examId) => {
+  if (educationLevel === EducationLevels.A_LEVEL) {
+    return `/results/a-level/student-clean/${studentId}/${examId}`;
+  } else {
+    return `/results/o-level/student-clean/${studentId}/${examId}`;
+  }
+};
+
+/**
+ * Determines the appropriate class report URL based on education level
+ * @param {string} educationLevel - The education level (A_LEVEL or O_LEVEL)
+ * @param {string} classId - The class ID
+ * @param {string} examId - The exam ID
+ * @param {string} formLevel - Optional form level for A-Level reports
+ * @returns {string} - The appropriate URL for the class report
+ */
+export const getClassReportUrlByEducationLevel = (educationLevel, classId, examId, formLevel) => {
+  if (educationLevel === EducationLevels.A_LEVEL) {
+    return formLevel
+      ? `/results/a-level/class/${classId}/${examId}/form/${formLevel}`
+      : `/results/a-level/class/${classId}/${examId}`;
+  } else {
+    return `/results/o-level/class/${classId}/${examId}`;
+  }
+};
+
+/**
+ * Determines the appropriate API endpoint for fetching a report
+ * @param {string} educationLevel - The education level (A_LEVEL or O_LEVEL)
+ * @param {string} studentId - The student ID
+ * @param {string} examId - The exam ID
+ * @returns {string} - The appropriate API endpoint
+ */
+export const getReportApiEndpoint = (educationLevel, studentId, examId) => {
+  if (educationLevel === EducationLevels.A_LEVEL) {
+    return `/a-level-reports/student/${studentId}/${examId}`;
+  } else {
+    return `/o-level-reports/student/${studentId}/${examId}`;
+  }
+};
+
+/**
+ * Determines the appropriate API endpoint for fetching a class report
+ * @param {string} educationLevel - The education level (A_LEVEL or O_LEVEL)
+ * @param {string} classId - The class ID
+ * @param {string} examId - The exam ID
+ * @returns {string} - The appropriate API endpoint
+ */
+export const getClassReportApiEndpoint = (educationLevel, classId, examId) => {
+  if (educationLevel === EducationLevels.A_LEVEL) {
+    return `/a-level-reports/class/${classId}/${examId}`;
+  } else {
+    return `/o-level-reports/class/${classId}/${examId}`;
+  }
+};
+
+/**
  * Filters an array of items by education level
  * @param {Array} items - Array of items with educationLevel property
  * @param {string} educationLevel - Education level to filter by
@@ -82,11 +145,11 @@ export const getRoutePathForEducationLevel = (educationLevel) => {
  */
 export const filterByEducationLevel = (items, educationLevel) => {
   if (!items || !Array.isArray(items)) return [];
-  
+
   return items.filter(item => {
     // Items with BOTH education level should be included in both O_LEVEL and A_LEVEL
     if (item.educationLevel === EducationLevels.BOTH) return true;
-    
+
     return item.educationLevel === educationLevel;
   });
 };
@@ -99,7 +162,7 @@ export const filterByEducationLevel = (items, educationLevel) => {
  */
 export const calculateGrade = (marks, educationLevel) => {
   if (typeof marks !== 'number') return 'N/A';
-  
+
   if (educationLevel === EducationLevels.A_LEVEL) {
     if (marks >= 80) return 'A';
     if (marks >= 70) return 'B';
@@ -109,10 +172,10 @@ export const calculateGrade = (marks, educationLevel) => {
     if (marks >= 35) return 'S';
     return 'F';
   } else {
-    // O_LEVEL grading
+    // O_LEVEL grading using the standardized NECTA CSEE system
     if (marks >= 75) return 'A';
     if (marks >= 65) return 'B';
-    if (marks >= 50) return 'C';
+    if (marks >= 45) return 'C';
     if (marks >= 30) return 'D';
     return 'F';
   }
@@ -126,7 +189,7 @@ export const calculateGrade = (marks, educationLevel) => {
  */
 export const calculatePoints = (grade, educationLevel) => {
   if (!grade) return 0;
-  
+
   if (educationLevel === EducationLevels.A_LEVEL) {
     switch (grade) {
       case 'A': return 1;
@@ -159,7 +222,7 @@ export const calculatePoints = (grade, educationLevel) => {
  */
 export const calculateDivision = (points, educationLevel) => {
   if (typeof points !== 'number') return 'N/A';
-  
+
   if (educationLevel === EducationLevels.A_LEVEL) {
     // A_LEVEL division calculation (based on best 3 principal subjects)
     if (points <= 9) return 'I';
@@ -185,7 +248,7 @@ export const calculateDivision = (points, educationLevel) => {
  */
 export const getBestSubjects = (subjects, count) => {
   if (!subjects || !Array.isArray(subjects)) return [];
-  
+
   // Sort subjects by points (ascending, since lower points are better)
   return [...subjects]
     .sort((a, b) => (a.points || 0) - (b.points || 0))
@@ -201,7 +264,7 @@ export const separatePrincipalAndSubsidiarySubjects = (subjects) => {
   if (!subjects || !Array.isArray(subjects)) {
     return { principal: [], subsidiary: [] };
   }
-  
+
   return {
     principal: subjects.filter(subject => subject.isPrincipal),
     subsidiary: subjects.filter(subject => !subject.isPrincipal)
@@ -217,10 +280,10 @@ export const calculateTotalAndAverageMarks = (subjects) => {
   if (!subjects || !Array.isArray(subjects) || subjects.length === 0) {
     return { total: 0, average: 0 };
   }
-  
+
   const total = subjects.reduce((sum, subject) => sum + (subject.marks || 0), 0);
   const average = total / subjects.length;
-  
+
   return { total, average };
 };
 
@@ -231,7 +294,7 @@ export const calculateTotalAndAverageMarks = (subjects) => {
  */
 export const calculateTotalPoints = (subjects) => {
   if (!subjects || !Array.isArray(subjects)) return 0;
-  
+
   return subjects.reduce((sum, subject) => sum + (subject.points || 0), 0);
 };
 
@@ -242,9 +305,9 @@ export const calculateTotalPoints = (subjects) => {
  */
 export const calculateBestThreePrincipalPoints = (subjects) => {
   if (!subjects || !Array.isArray(subjects)) return 0;
-  
+
   const principalSubjects = subjects.filter(subject => subject.isPrincipal);
   const bestThree = getBestSubjects(principalSubjects, 3);
-  
+
   return calculateTotalPoints(bestThree);
 };

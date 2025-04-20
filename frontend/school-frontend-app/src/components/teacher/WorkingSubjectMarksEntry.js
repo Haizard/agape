@@ -581,20 +581,19 @@ const WorkingSubjectMarksEntry = () => {
         return;
       }
 
-      // Make the API call with explicit data structure
-      const response = await api.post('/api/results/enter-marks/batch', {
-        marksData: validMarks.map(mark => {
-          // Create a clean object with only the required fields
-          const cleanMark = {
-            studentId: mark.studentId,
-            subjectId: selectedSubject, // Use the selected subject directly
-            classId: selectedClass, // Use the selected class directly
-            academicYearId: selectedAcademicYear, // Use the selected academic year directly
-            examId: selectedExam, // Use the selected exam directly
-            marksObtained: mark.marksObtained,
-            // Include the manually selected calculation type
-            educationLevel: calculationType
-          };
+      // Prepare marks data for the new standardized API
+      const marksData = validMarks.map(mark => {
+        // Create a clean object with only the required fields
+        const cleanMark = {
+          studentId: mark.studentId,
+          subjectId: selectedSubject, // Use the selected subject directly
+          classId: selectedClass, // Use the selected class directly
+          academicYearId: selectedAcademicYear, // Use the selected academic year directly
+          examId: selectedExam, // Use the selected exam directly
+          marksObtained: mark.marksObtained,
+          // Include the manually selected calculation type
+          educationLevel: calculationType
+        };
 
           // Ensure classId is a valid string
           if (!cleanMark.classId || cleanMark.classId === 'default-class') {
@@ -619,8 +618,10 @@ const WorkingSubjectMarksEntry = () => {
           if (mark.examTypeId) cleanMark.examTypeId = mark.examTypeId;
 
           return cleanMark;
-        })
-      });
+        });
+
+      // Make the API call with the new standardized endpoint
+      const response = await api.post('/api/o-level/marks/batch', marksData);
 
       // Log the response for debugging
       console.log('API Response:', response.status, response.statusText);

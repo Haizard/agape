@@ -65,7 +65,7 @@ const MarksEntryDashboard = () => {
                     <Button
                       variant="contained"
                       endIcon={<ArrowForwardIcon />}
-                      onClick={() => navigate('/results/a-level/bulk-marks-entry')}
+                      onClick={() => navigate('/results/a-level/bulk-marks-entry', { state: { educationLevel: 'A_LEVEL' } })}
                       fullWidth
                     >
                       Go to A-Level Bulk Entry
@@ -108,7 +108,30 @@ const MarksEntryDashboard = () => {
             </Box>
             <Divider sx={{ mb: 2 }} />
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
+                <Card variant="outlined" sx={{ height: '100%', bgcolor: '#f9f9ff' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Enhanced O-Level Bulk Marks Entry
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Recommended:</strong> New and improved bulk marks entry with automatic teacher-subject assignment fixing.
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      endIcon={<ArrowForwardIcon />}
+                      onClick={() => navigate('/results/o-level/enhanced-bulk-marks-entry')}
+                      fullWidth
+                    >
+                      Go to Enhanced Bulk Entry
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={4}>
                 <Card variant="outlined" sx={{ height: '100%' }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
@@ -120,7 +143,7 @@ const MarksEntryDashboard = () => {
                   </CardContent>
                   <CardActions>
                     <Button
-                      variant="contained"
+                      variant="outlined"
                       color="secondary"
                       endIcon={<ArrowForwardIcon />}
                       onClick={() => navigate('/results/o-level/bulk-marks-entry')}
@@ -131,7 +154,7 @@ const MarksEntryDashboard = () => {
                   </CardActions>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <Card variant="outlined" sx={{ height: '100%' }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
@@ -149,7 +172,7 @@ const MarksEntryDashboard = () => {
                       onClick={() => navigate('/results/o-level/marks-entry')}
                       fullWidth
                     >
-                      Go to O-Level Individual Entry
+                      Go to Individual Entry
                     </Button>
                   </CardActions>
                 </Card>

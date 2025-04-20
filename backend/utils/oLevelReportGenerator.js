@@ -14,21 +14,23 @@ const generateOLevelStudentReportPDF = (report, res) => {
     console.error('Headers already sent, cannot generate PDF');
     return;
   }
-  // Create a new PDF document
-  const doc = new PDFDocument({
-    margin: 30,
-    size: 'A4'
-  });
 
-  // Pipe the PDF to the response with error handling
+  // Wrap the entire PDF generation process in a try-catch block
   try {
+    // Create a new PDF document
+    const doc = new PDFDocument({
+      margin: 30,
+      size: 'A4'
+    });
+
+    // Pipe the PDF to the response
     doc.pipe(res);
-  } catch (error) {
-    console.error('Error piping PDF to response:', error);
-    // If there's an error, end the document to prevent further issues
-    doc.end();
-    return;
-  }
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="o-level-student-report.pdf"`);
+
+    // The rest of the PDF generation will be wrapped in this try block
 
   // Set font
   doc.font('Helvetica');
@@ -177,11 +179,25 @@ const generateOLevelStudentReportPDF = (report, res) => {
     { align: 'center' }
   );
 
-  // Finalize the PDF with error handling
-  try {
+    // Finalize the PDF
     doc.end();
   } catch (error) {
-    console.error('Error finalizing PDF:', error);
+    console.error('Error generating PDF:', error);
+
+    // If headers haven't been sent yet, send an error response
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: 'Error generating PDF report',
+        error: error.message
+      });
+    } else {
+      // If headers have been sent, try to end the document
+      try {
+        if (doc) doc.end();
+      } catch (endError) {
+        console.error('Error ending PDF document:', endError);
+      }
+    }
   }
 };
 
@@ -196,22 +212,24 @@ const generateOLevelClassReportPDF = (report, res) => {
     console.error('Headers already sent, cannot generate PDF');
     return;
   }
-  // Create a new PDF document
-  const doc = new PDFDocument({
-    margin: 30,
-    size: 'A3',
-    layout: 'landscape'
-  });
 
-  // Pipe the PDF to the response with error handling
+  // Wrap the entire PDF generation process in a try-catch block
   try {
+    // Create a new PDF document
+    const doc = new PDFDocument({
+      margin: 30,
+      size: 'A3',
+      layout: 'landscape'
+    });
+
+    // Pipe the PDF to the response
     doc.pipe(res);
-  } catch (error) {
-    console.error('Error piping PDF to response:', error);
-    // If there's an error, end the document to prevent further issues
-    doc.end();
-    return;
-  }
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="o-level-class-report.pdf"`);
+
+    // The rest of the PDF generation will be wrapped in this try block
 
   // Set font
   doc.font('Helvetica');
@@ -416,11 +434,25 @@ const generateOLevelClassReportPDF = (report, res) => {
     );
   }
 
-  // Finalize the PDF with error handling
-  try {
+    // Finalize the PDF
     doc.end();
   } catch (error) {
-    console.error('Error finalizing PDF:', error);
+    console.error('Error generating PDF:', error);
+
+    // If headers haven't been sent yet, send an error response
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: 'Error generating PDF report',
+        error: error.message
+      });
+    } else {
+      // If headers have been sent, try to end the document
+      try {
+        if (doc) doc.end();
+      } catch (endError) {
+        console.error('Error ending PDF document:', endError);
+      }
+    }
   }
 };
 

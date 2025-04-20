@@ -17,6 +17,7 @@ import OLevelMarksEntry from './results/OLevelMarksEntry';
 import ALevelMarksEntry from './results/ALevelMarksEntry';
 import OLevelBulkMarksEntry from './results/OLevelBulkMarksEntry';
 import ALevelBulkMarksEntry from './results/ALevelBulkMarksEntry';
+import EnhancedBulkMarksEntry from './marks/EnhancedBulkMarksEntry';
 
 const TeacherPanel = () => {
   return (
@@ -25,7 +26,7 @@ const TeacherPanel = () => {
         <Route index element={<TeacherDashboard />} />
         <Route path="my-subjects" element={<WorkingTeacherSubjectsClasses />} />
         <Route path="my-students" element={<MyStudents />} />
-        <Route path="marks-entry" element={<WorkingSubjectMarksEntry />} />
+        {/* Standard marks entry removed - using Marks Entry Dashboard instead */}
         <Route path="direct-test" element={<DirectTestMarksEntry />} />
         <Route path="results" element={<TeacherStudentResults />} />
         <Route path="result-reports" element={<ResultReportSelector />} />
@@ -38,7 +39,8 @@ const TeacherPanel = () => {
         <Route path="marks-entry-dashboard" element={<MarksEntryDashboard />} />
         <Route path="o-level/marks-entry" element={<OLevelMarksEntry />} />
         <Route path="a-level/marks-entry" element={<ALevelMarksEntry />} />
-        <Route path="o-level/bulk-marks-entry" element={<OLevelBulkMarksEntry />} />
+        <Route path="o-level/bulk-marks-entry" element={<ALevelBulkMarksEntry educationLevel="O_LEVEL" />} />
+        <Route path="o-level/enhanced-bulk-marks-entry" element={<EnhancedBulkMarksEntry />} />
         <Route path="a-level/bulk-marks-entry" element={<ALevelBulkMarksEntry />} />
       </Routes>
     </Box>

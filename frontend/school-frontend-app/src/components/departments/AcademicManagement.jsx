@@ -11,6 +11,7 @@ import ALevelSubjectAssignment from '../academic/ALevelSubjectAssignment';
 import CoreSubjectManagement from '../admin/CoreSubjectManagement';
 import OptionalSubjectManagement from '../admin/OptionalSubjectManagement';
 import FixedSubjectClassAssignment from '../academic/FixedSubjectClassAssignment';
+import NewAcademicYearManagement from '../academic/NewAcademicYearManagement';
 
 import {
   School as SchoolIcon,
@@ -21,11 +22,18 @@ import {
   Book as BookIcon,
   MenuBook as MenuBookIcon,
   LibraryBooks as LibraryBooksIcon,
-  AssignmentInd as AssignmentIndIcon
+  AssignmentInd as AssignmentIndIcon,
+  CalendarMonth as CalendarIcon
 } from '@mui/icons-material';
 
 const AcademicManagement = () => {
   const menuItems = [
+    {
+      id: 'academic-years',
+      label: 'Academic Years',
+      icon: <CalendarIcon />,
+      component: <NewAcademicYearManagement />
+    },
     {
       id: 'education-levels',
       label: 'Education Levels',

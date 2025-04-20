@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test O-Level Marks Check Endpoint</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test O-Level Marks Check Endpoint</h1>
+    
+    <div class="test-section">
+        <h2>1. Test Basic Route</h2>
+        <p>This tests if the standardized O-Level routes are registered correctly.</p>
+        <button id="testBasicRoute">Test /api/o-level/test</button>
+        <pre id="basicRouteResult">Results will appear here...</pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Test Marks Check Test Route</h2>
+        <p>This tests the special test endpoint for the marks check route.</p>
+        <button id="testMarksCheckTestRoute">Test /api/o-level/marks-check-test</button>
+        <pre id="marksCheckTestResult">Results will appear here...</pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Test Marks Check Route</h2>
+        <p>This tests the actual marks check endpoint with parameters.</p>
+        
+        <div class="form-group">
+            <label for="token">JWT Token:</label>
+            <input type="text" id="token" placeholder="Enter your JWT token">
+        </div>
+        
+        <div class="form-group">
+            <label for="classId">Class ID:</label>
+            <input type="text" id="classId" value="67fdfc962cc25690fef0298e" placeholder="Enter class ID">
+        </div>
+        
+        <div class="form-group">
+            <label for="subjectId">Subject ID:</label>
+            <input type="text" id="subjectId" value="67f2fd7fdcc60fd7fef2ef2c" placeholder="Enter subject ID">
+        </div>
+        
+        <div class="form-group">
+            <label for="examId">Exam ID:</label>
+            <input type="text" id="examId" value="67f60835dcc60fd7fef2ef4a" placeholder="Enter exam ID">
+        </div>
+        
+        <button id="testMarksCheckRoute">Test /api/o-level/marks/check</button>
+        <pre id="marksCheckResult">Results will appear here...</pre>
+    </div>
+
+    <script>
+        // Helper function to make API requests
+        async function makeRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                return { 
+                    success: true, 
+                    status: response.status,
+                    data 
+                };
+            } catch (error) {
+                return { 
+                    success: false, 
+                    error: error.message 
+                };
+            }
+        }
+
+        // Test basic route
+        document.getElementById('testBasicRoute').addEventListener('click', async () => {
+            const resultElement = document.getElementById('basicRouteResult');
+            resultElement.textContent = 'Testing...';
+            
+            const result = await makeRequest('/api/o-level/test');
+            resultElement.textContent = JSON.stringify(result, null, 2);
+        });
+
+        // Test marks check test route
+        document.getElementById('testMarksCheckTestRoute').addEventListener('click', async () => {
+            const resultElement = document.getElementById('marksCheckTestResult');
+            resultElement.textContent = 'Testing...';
+            
+            const result = await makeRequest('/api/o-level/marks-check-test');
+            resultElement.textContent = JSON.stringify(result, null, 2);
+        });
+
+        // Test marks check route
+        document.getElementById('testMarksCheckRoute').addEventListener('click', async () => {
+            const resultElement = document.getElementById('marksCheckResult');
+            resultElement.textContent = 'Testing...';
+            
+            const token = document.getElementById('token').value;
+            const classId = document.getElementById('classId').value;
+            const subjectId = document.getElementById('subjectId').value;
+            const examId = document.getElementById('examId').value;
+            
+            if (!token) {
+                resultElement.textContent = 'Error: JWT token is required';
+                return;
+            }
+            
+            if (!classId || !subjectId || !examId) {
+                resultElement.textContent = 'Error: All IDs are required';
+                return;
+            }
+            
+            const url = `/api/o-level/marks/check?classId=${classId}&subjectId=${subjectId}&examId=${examId}`;
+            const options = {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            };
+            
+            const result = await makeRequest(url, options);
+            resultElement.textContent = JSON.stringify(result, null, 2);
+        });
+    </script>
+</body>
+</html>

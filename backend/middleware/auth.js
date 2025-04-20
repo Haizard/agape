@@ -46,6 +46,13 @@ const authenticateToken = (req, res, next) => {
 
     const decoded = jwt.verify(token, jwtSecret);
     console.log('Token verified successfully for user:', decoded);
+
+    // Ensure userId is set correctly
+    if (decoded.id && !decoded.userId) {
+      decoded.userId = decoded.id;
+      console.log('Set userId from id:', decoded.userId);
+    }
+
     req.user = decoded;
     next();
   } catch (error) {

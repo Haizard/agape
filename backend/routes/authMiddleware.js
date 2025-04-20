@@ -22,6 +22,13 @@ const authenticateToken = (req, res, next) => {
       return res.status(403).json({ message: 'Invalid token' });
     }
     console.log('Token verified successfully for user:', user);
+
+    // Ensure userId is set correctly
+    if (user.id && !user.userId) {
+      user.userId = user.id;
+      console.log('Set userId from id:', user.userId);
+    }
+
     req.user = user;
     next();
   });
@@ -36,13 +43,13 @@ const authorizeRole = (role) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
-    
+
     if (req.user.role !== role) {
-      return res.status(403).json({ 
-        message: `Access denied. Required role: ${role}, User role: ${req.user.role}` 
+      return res.status(403).json({
+        message: `Access denied. Required role: ${role}, User role: ${req.user.role}`
       });
     }
-    
+
     next();
   };
 };

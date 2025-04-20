@@ -8,6 +8,7 @@ const User = require('../models/User');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const mongoose = require('mongoose');
 const teacherAuthController = require('../controllers/teacherAuthController');
+const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
 
 // Create a new teacher
 router.post('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
@@ -159,6 +160,64 @@ router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res)
     console.error(`Error updating teacher ${req.params.id}:`, error);
     res.status(400).json({
       message: 'Failed to update teacher',
+      error: error.message
+    });
+  }
+});
+
+// Get the current teacher's profile
+router.get('/profile/me', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log('GET /api/teachers/profile/me - Fetching current teacher profile');
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId })
+      .populate('subjects', 'name code type description educationLevel');
+
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+
+      // For admin users, create a temporary teacher profile
+      if (req.user.role === 'admin') {
+        console.log('Creating temporary teacher profile for admin user');
+        const adminUser = await User.findById(userId);
+
+        if (!adminUser) {
+          return res.status(404).json({ message: 'Admin user not found' });
+        }
+
+        // Create a temporary teacher object
+        const tempTeacher = {
+          _id: 'admin-' + userId,
+          firstName: adminUser.username || 'Admin',
+          lastName: 'User',
+          email: adminUser.email || 'admin@example.com',
+          isAdmin: true,
+          isTemporary: true,
+          subjects: [],
+          status: 'active'
+        };
+
+        return res.json(tempTeacher);
+      }
+
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    console.log(`Found teacher profile: ${teacher._id}`);
+    res.json(teacher);
+  } catch (error) {
+    console.error('Error fetching teacher profile:', error);
+    res.status(500).json({
+      message: 'Failed to fetch teacher profile',
       error: error.message
     });
   }
@@ -363,6 +422,84 @@ router.get('/:id/qualifications', authenticateToken, async (req, res) => {
   }
 });
 
+// Get students in a class for a teacher
+router.get('/classes/:classId/students', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log(`GET /api/teachers/classes/${req.params.classId}/students - Fetching students in class`);
+
+    const classId = req.params.classId;
+    const { subjectId } = req.query;
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+
+      // For admin users, allow access to all students
+      if (req.user.role === 'admin') {
+        console.log('Admin user accessing students in class');
+
+        // Get all students in the class
+        const Student = require('../models/Student');
+        const students = await Student.find({ class: classId })
+          .select('_id name rollNumber gender educationLevel')
+          .sort({ rollNumber: 1 });
+
+        console.log(`Found ${students.length} students in class ${classId}`);
+        return res.json(students);
+      }
+
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Get the teacher ID
+    const teacherId = teacher._id;
+    console.log(`Found teacher profile: ${teacherId}`);
+
+    // Check if the teacher is assigned to this class
+    const isAssigned = await enhancedTeacherSubjectService.isTeacherAssignedToClass(teacherId, classId);
+
+    if (!isAssigned) {
+      console.log(`Teacher ${teacherId} is not assigned to class ${classId}`);
+      return res.status(403).json({ message: 'You are not assigned to this class' });
+    }
+
+    // If a subject ID is provided, check if the teacher is assigned to this subject
+    if (subjectId) {
+      const isAssignedToSubject = await enhancedTeacherSubjectService.isTeacherAssignedToSubject(teacherId, classId, subjectId);
+
+      if (!isAssignedToSubject) {
+        console.log(`Teacher ${teacherId} is not assigned to subject ${subjectId} in class ${classId}`);
+        return res.status(403).json({ message: 'You are not assigned to this subject' });
+      }
+    }
+
+    // Get all students in the class
+    const Student = require('../models/Student');
+    const students = await Student.find({ class: classId })
+      .select('_id name rollNumber gender educationLevel')
+      .sort({ rollNumber: 1 });
+
+    console.log(`Found ${students.length} students in class ${classId}`);
+    res.json(students);
+  } catch (error) {
+    console.error(`Error fetching students in class ${req.params.classId}:`, error);
+    res.status(500).json({
+      message: 'Failed to fetch students',
+      error: error.message
+    });
+  }
+});
+
 // Get classes assigned to a teacher
 router.get('/:id/classes', authenticateToken, async (req, res) => {
   try {
@@ -416,26 +553,352 @@ router.get('/:id/classes', authenticateToken, async (req, res) => {
   }
 });
 
+// Get simple classes for the current teacher (used by enhanced service)
+router.get('/simple-classes', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log('GET /api/teachers/simple-classes - Fetching classes for current teacher');
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+
+      // For admin users, create a temporary teacher profile
+      if (req.user.role === 'admin') {
+        console.log('Creating temporary teacher profile for admin user');
+        const adminUser = await User.findById(userId);
+
+        if (!adminUser) {
+          return res.status(404).json({ message: 'Admin user not found' });
+        }
+
+        // Get all classes
+        const classes = await Class.find()
+          .select('_id name section stream educationLevel')
+          .sort({ name: 1 });
+
+        return res.json(classes);
+      }
+
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Get the teacher ID
+    const teacherId = teacher._id;
+    console.log(`Found teacher profile: ${teacherId}`);
+
+    // Find all classes where this teacher is assigned to teach subjects
+    const classesWithTeacher = await Class.find({ 'subjects.teacher': teacherId })
+      .select('_id name section stream educationLevel')
+      .sort({ name: 1 });
+
+    console.log(`Found ${classesWithTeacher.length} classes for teacher ${teacherId}`);
+
+    // Find all classes where this teacher is assigned via TeacherAssignment
+    const teacherAssignments = await TeacherAssignment.find({ teacher: teacherId })
+      .distinct('class');
+
+    const classesFromAssignments = await Class.find({ _id: { $in: teacherAssignments } })
+      .select('_id name section stream educationLevel')
+      .sort({ name: 1 });
+
+    console.log(`Found ${classesFromAssignments.length} classes from TeacherAssignment for teacher ${teacherId}`);
+
+    // Combine and deduplicate classes
+    const allClasses = [...classesWithTeacher];
+
+    // Add classes from assignments if they're not already in the list
+    for (const cls of classesFromAssignments) {
+      if (!allClasses.some(c => c._id.toString() === cls._id.toString())) {
+        allClasses.push(cls);
+      }
+    }
+
+    console.log(`Returning ${allClasses.length} total classes for teacher ${teacherId}`);
+
+    res.json(allClasses);
+  } catch (error) {
+    console.error('Error fetching simple classes:', error);
+    res.status(500).json({
+      message: 'Failed to fetch classes',
+      error: error.message
+    });
+  }
+});
+
+// Get subjects for marks entry
+router.get('/marks-entry-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log('GET /api/teachers/marks-entry-subjects - Fetching subjects for marks entry');
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+    const { classId } = req.query;
+
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    if (!classId) {
+      console.log('No classId provided in request');
+      return res.status(400).json({ message: 'Class ID is required' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+
+      // For admin users, create a temporary teacher profile
+      if (req.user.role === 'admin') {
+        console.log('Creating temporary teacher profile for admin user');
+
+        // Get all subjects in the class
+        const classObj = await Class.findById(classId)
+          .populate({
+            path: 'subjects.subject',
+            model: 'Subject',
+            select: 'name code type description educationLevel isPrincipal isCompulsory'
+          });
+
+        if (!classObj) {
+          return res.status(404).json({ message: 'Class not found' });
+        }
+
+        // Extract subjects from the class
+        const subjects = classObj.subjects
+          .filter(s => s.subject)
+          .map(s => ({
+            _id: s.subject._id,
+            name: s.subject.name,
+            code: s.subject.code,
+            type: s.subject.type || 'UNKNOWN',
+            description: s.subject.description || '',
+            educationLevel: s.subject.educationLevel || 'UNKNOWN',
+            isPrincipal: s.subject.isPrincipal || false,
+            isCompulsory: s.subject.isCompulsory || false,
+            assignmentType: 'admin' // Admin access
+          }));
+
+        return res.json(subjects);
+      }
+
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Use the enhanced teacher subject service
+    const subjects = await enhancedTeacherSubjectService.getTeacherSubjects(
+      teacher._id,
+      classId,
+      false // Don't use cache
+    );
+
+    res.json(subjects);
+  } catch (error) {
+    console.error('Error fetching marks entry subjects:', error);
+    res.status(500).json({
+      message: 'Failed to fetch subjects',
+      error: error.message
+    });
+  }
+});
+
+// Get simple classes for the current teacher (used by enhanced service)
+router.get('/simple-classes', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log('GET /api/teachers/simple-classes - Fetching classes for current teacher');
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+
+      // For admin users, create a temporary teacher profile
+      if (req.user.role === 'admin') {
+        console.log('Creating temporary teacher profile for admin user');
+        const adminUser = await User.findById(userId);
+
+        if (!adminUser) {
+          return res.status(404).json({ message: 'Admin user not found' });
+        }
+
+        // Get all classes
+        const classes = await Class.find()
+          .select('_id name section stream educationLevel')
+          .sort({ name: 1 });
+
+        return res.json(classes);
+      }
+
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Get the teacher ID
+    const teacherId = teacher._id;
+    console.log(`Found teacher profile: ${teacherId}`);
+
+    // Find all classes where this teacher is assigned to teach subjects
+    const classesWithTeacher = await Class.find({ 'subjects.teacher': teacherId })
+      .select('_id name section stream educationLevel')
+      .sort({ name: 1 });
+
+    console.log(`Found ${classesWithTeacher.length} classes for teacher ${teacherId}`);
+
+    // Find all classes where this teacher is assigned via TeacherAssignment
+    const teacherAssignments = await TeacherAssignment.find({ teacher: teacherId })
+      .distinct('class');
+
+    const classesFromAssignments = await Class.find({ _id: { $in: teacherAssignments } })
+      .select('_id name section stream educationLevel')
+      .sort({ name: 1 });
+
+    console.log(`Found ${classesFromAssignments.length} classes from TeacherAssignment for teacher ${teacherId}`);
+
+    // Combine and deduplicate classes
+    const allClasses = [...classesWithTeacher];
+
+    // Add classes from assignments if they're not already in the list
+    for (const cls of classesFromAssignments) {
+      if (!allClasses.some(c => c._id.toString() === cls._id.toString())) {
+        allClasses.push(cls);
+      }
+    }
+
+    console.log(`Returning ${allClasses.length} total classes for teacher ${teacherId}`);
+
+    res.json(allClasses);
+  } catch (error) {
+    console.error('Error fetching simple classes:', error);
+    res.status(500).json({
+      message: 'Failed to fetch classes',
+      error: error.message
+    });
+  }
+});
+
+// Get subjects for marks entry
+router.get('/marks-entry-subjects', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log('GET /api/teachers/marks-entry-subjects - Fetching subjects for marks entry');
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+    const { classId } = req.query;
+
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized as a teacher' });
+    }
+
+    if (!classId) {
+      console.log('No classId provided in request');
+      return res.status(400).json({ message: 'Class ID is required' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+
+      // For admin users, create a temporary teacher profile
+      if (req.user.role === 'admin') {
+        console.log('Creating temporary teacher profile for admin user');
+
+        // Get all subjects in the class
+        const classObj = await Class.findById(classId)
+          .populate({
+            path: 'subjects.subject',
+            model: 'Subject',
+            select: 'name code type description educationLevel isPrincipal isCompulsory'
+          });
+
+        if (!classObj) {
+          return res.status(404).json({ message: 'Class not found' });
+        }
+
+        // Extract subjects from the class
+        const subjects = classObj.subjects
+          .filter(s => s.subject)
+          .map(s => ({
+            _id: s.subject._id,
+            name: s.subject.name,
+            code: s.subject.code,
+            type: s.subject.type || 'UNKNOWN',
+            description: s.subject.description || '',
+            educationLevel: s.subject.educationLevel || 'UNKNOWN',
+            isPrincipal: s.subject.isPrincipal || false,
+            isCompulsory: s.subject.isCompulsory || false,
+            assignmentType: 'admin' // Admin access
+          }));
+
+        return res.json(subjects);
+      }
+
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Use the enhanced teacher subject service
+    const subjects = await enhancedTeacherSubjectService.getTeacherSubjects(
+      teacher._id,
+      classId,
+      false // Don't use cache
+    );
+
+    res.json(subjects);
+  } catch (error) {
+    console.error('Error fetching marks entry subjects:', error);
+    res.status(500).json({
+      message: 'Failed to fetch subjects',
+      error: error.message
+    });
+  }
+});
+
 // Get all subjects for the current teacher
 router.get('/my-subjects', authenticateToken, async (req, res) => {
   try {
     console.log(`GET /api/teachers/my-subjects - Fetching subjects for current teacher`);
 
-    // Get the teacher ID from the authenticated user
-    const teacherId = req.user.teacherId;
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
     const { classId } = req.query;
 
-    if (!teacherId) {
-      console.log('No teacher ID found in the authenticated user');
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
       return res.status(403).json({ message: 'Not authorized as a teacher' });
     }
 
-    // Find the teacher profile
-    const teacher = await Teacher.findById(teacherId).populate('subjects');
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId }).populate('subjects');
+
     if (!teacher) {
-      console.log(`Teacher profile not found for ID ${teacherId}`);
+      console.log(`No teacher found with userId: ${userId}`);
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
+
+    // Get the teacher ID
+    const teacherId = teacher._id;
 
     console.log(`Found teacher profile: ${teacher._id}`);
 
@@ -504,14 +967,24 @@ router.get('/marks-entry-subjects', authenticateToken, async (req, res) => {
   try {
     console.log(`GET /api/teachers/marks-entry-subjects - Fetching subjects for marks entry`);
 
-    // Get the teacher ID from the authenticated user
-    const teacherId = req.user.teacherId;
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
     const { classId } = req.query;
 
-    if (!teacherId) {
-      console.log('No teacher ID found in the authenticated user');
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
       return res.status(403).json({ message: 'Not authorized as a teacher' });
     }
+
+    // Find the teacher by userId
+    const teacher = await Teacher.findOne({ userId });
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Get the teacher ID
+    const teacherId = teacher._id;
 
     if (!classId) {
       console.log('No class ID provided');
@@ -571,26 +1044,31 @@ router.get('/classes/:classId/subjects', authenticateToken, async (req, res) => 
   try {
     console.log(`GET /api/teachers/classes/${req.params.classId}/subjects - Fetching subjects for current teacher in class`);
 
-    // Get the teacher ID from the authenticated user
-    const teacherId = req.user.teacherId;
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
     const classId = req.params.classId;
 
-    if (!teacherId) {
-      console.log('No teacher ID found in the authenticated user');
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
       return res.status(403).json({ message: 'Not authorized as a teacher' });
     }
+
+    // Find the teacher by userId
+    const teacher = await Teacher.findOne({ userId });
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Get the teacher ID
+    const teacherId = teacher._id;
 
     if (!classId) {
       console.log('No class ID provided');
       return res.status(400).json({ message: 'Class ID is required' });
     }
 
-    // Find the teacher profile
-    const teacher = await Teacher.findById(teacherId);
-    if (!teacher) {
-      console.log(`Teacher profile not found for ID ${teacherId}`);
-      return res.status(404).json({ message: 'Teacher profile not found' });
-    }
+    // Teacher profile already found above
 
     console.log(`Found teacher profile: ${teacher._id}`);
 

@@ -4,10 +4,11 @@ import AdvancedThemeProvider from './AdvancedThemeProvider';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useColorMode } from './AdvancedThemeProvider';
 import { alpha } from '@mui/material';
+import enhancedTheme from './enhancedTheme';
 
 /**
  * EnhancedThemeProvider - Combines the existing theme provider with artistic enhancements
- * 
+ *
  * This component wraps the existing AdvancedThemeProvider and adds additional
  * component styling for a more artistic, consistent look across the application.
  */
@@ -23,16 +24,16 @@ const EnhancedThemeProvider = ({ children }) => {
 
 /**
  * ArtisticComponentOverrides - Provides additional component styling
- * 
+ *
  * This component adds artistic styling to MUI components without changing
  * the existing theme structure.
  */
 const ArtisticComponentOverrides = ({ children }) => {
   const { mode } = useColorMode();
   const isDark = mode === 'dark';
-  
-  // Create a theme with enhanced component styling
-  const enhancedTheme = createTheme({
+
+  // Create a theme with enhanced component styling by merging with our enhanced theme
+  const artisticTheme = createTheme(enhancedTheme, {
     components: {
       // Enhanced MuiTextField styling
       MuiTextField: {
@@ -41,15 +42,15 @@ const ArtisticComponentOverrides = ({ children }) => {
             '& .MuiOutlinedInput-root': {
               borderRadius: 8,
               transition: 'all 0.3s ease',
-              backgroundColor: isDark 
-                ? alpha('#1E293B', 0.6) 
+              backgroundColor: isDark
+                ? alpha('#1E293B', 0.6)
                 : alpha('#FFFFFF', 0.8),
               backdropFilter: 'blur(8px)',
               '&:hover': {
-                backgroundColor: isDark 
-                  ? alpha('#1E293B', 0.8) 
+                backgroundColor: isDark
+                  ? alpha('#1E293B', 0.8)
                   : '#FFFFFF',
-                boxShadow: isDark 
+                boxShadow: isDark
                   ? '0 0 0 1px rgba(255, 255, 255, 0.1)'
                   : '0 0 0 1px rgba(0, 0, 0, 0.05)',
               },
@@ -76,7 +77,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiSelect styling
       MuiSelect: {
         styleOverrides: {
@@ -85,7 +86,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiMenuItem styling
       MuiMenuItem: {
         styleOverrides: {
@@ -94,24 +95,24 @@ const ArtisticComponentOverrides = ({ children }) => {
             margin: '2px 8px',
             transition: 'all 0.2s ease',
             '&:hover': {
-              backgroundColor: isDark 
-                ? alpha('#3B82F6', 0.1) 
+              backgroundColor: isDark
+                ? alpha('#3B82F6', 0.1)
                 : alpha('#3B82F6', 0.05),
             },
             '&.Mui-selected': {
-              backgroundColor: isDark 
-                ? alpha('#3B82F6', 0.2) 
+              backgroundColor: isDark
+                ? alpha('#3B82F6', 0.2)
                 : alpha('#3B82F6', 0.1),
               '&:hover': {
-                backgroundColor: isDark 
-                  ? alpha('#3B82F6', 0.3) 
+                backgroundColor: isDark
+                  ? alpha('#3B82F6', 0.3)
                   : alpha('#3B82F6', 0.15),
               },
             },
           },
         },
       },
-      
+
       // Enhanced MuiDialog styling
       MuiDialog: {
         styleOverrides: {
@@ -127,7 +128,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiDialogTitle styling
       MuiDialogTitle: {
         styleOverrides: {
@@ -138,7 +139,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiDialogContent styling
       MuiDialogContent: {
         styleOverrides: {
@@ -147,7 +148,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiDialogActions styling
       MuiDialogActions: {
         styleOverrides: {
@@ -156,7 +157,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiTableCell styling
       MuiTableCell: {
         styleOverrides: {
@@ -174,7 +175,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiTableRow styling
       MuiTableRow: {
         styleOverrides: {
@@ -188,7 +189,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiFormControl styling
       MuiFormControl: {
         styleOverrides: {
@@ -197,7 +198,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiFormLabel styling
       MuiFormLabel: {
         styleOverrides: {
@@ -206,7 +207,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiFormHelperText styling
       MuiFormHelperText: {
         styleOverrides: {
@@ -216,7 +217,7 @@ const ArtisticComponentOverrides = ({ children }) => {
           },
         },
       },
-      
+
       // Enhanced MuiGrid styling
       MuiGrid: {
         styleOverrides: {
@@ -230,9 +231,9 @@ const ArtisticComponentOverrides = ({ children }) => {
       },
     },
   });
-  
+
   return (
-    <ThemeProvider theme={enhancedTheme}>
+    <ThemeProvider theme={artisticTheme}>
       {children}
     </ThemeProvider>
   );

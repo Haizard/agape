@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import PreviewDialog from '../common/PreviewDialog';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../utils/api';
 import teacherAuthService from '../../services/teacherAuthService';
 import teacherApi from '../../services/teacherApi';
@@ -50,13 +50,25 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 
 /**
- * A-Level Bulk Marks Entry Component
- * Allows teachers to enter marks for multiple A-Level students at once
+ * Bulk Marks Entry Component
+ * Allows teachers to enter marks for multiple students at once
+ * Supports both A-Level and O-Level education levels
  */
-const ALevelBulkMarksEntry = () => {
+const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user && user.role === 'admin';
+  const location = useLocation();
+
+  // Determine education level from props or location state
+  const [educationLevel, setEducationLevel] = useState(
+    propEducationLevel || location.state?.educationLevel || 'A_LEVEL'
+  );
+
+  // Set page title based on education level
+  const pageTitle = educationLevel === 'O_LEVEL' ? 'O-Level Bulk Marks Entry' : 'A-Level Bulk Marks Entry';
+
+  console.log('Bulk Marks Entry - Education Level:', educationLevel);
 
   // State variables
   const [classes, setClasses] = useState([]);
@@ -101,7 +113,7 @@ const ALevelBulkMarksEntry = () => {
           // Admin can see all classes
           const response = await api.get('/api/classes', {
             params: {
-              educationLevel: 'A_LEVEL'
+              educationLevel: educationLevel
             }
           });
           classesData = response.data || [];
@@ -111,9 +123,9 @@ const ALevelBulkMarksEntry = () => {
             // First try using the teacherApi
             console.log('Fetching assigned classes using teacherApi');
             const assignedClasses = await teacherApi.getAssignedClasses();
-            // Filter for A-Level classes
+            // Filter for classes based on education level
             classesData = assignedClasses.filter(cls =>
-              cls.educationLevel === 'A_LEVEL'
+              cls.educationLevel === educationLevel || !cls.educationLevel
             );
           } catch (error) {
             console.error('Error using teacherApi, falling back to direct API call:', error);
@@ -134,18 +146,37 @@ const ALevelBulkMarksEntry = () => {
               console.log('Last resort: fetching all classes');
               const allClassesResponse = await api.get('/api/classes');
               const allClasses = allClassesResponse.data || [];
-              // Filter for A-Level classes
-              classesData = allClasses.filter(cls =>
-                cls.educationLevel === 'A_LEVEL' ||
-                cls.form === 5 ||
-                cls.form === 6 ||
-                (cls.name && (
-                  cls.name.toUpperCase().includes('FORM 5') ||
-                  cls.name.toUpperCase().includes('FORM 6') ||
-                  cls.name.toUpperCase().includes('FORM V') ||
-                  cls.name.toUpperCase().includes('FORM VI')
-                ))
-              );
+              // Filter for classes based on education level
+              if (educationLevel === 'A_LEVEL') {
+                classesData = allClasses.filter(cls =>
+                  cls.educationLevel === 'A_LEVEL' ||
+                  cls.form === 5 ||
+                  cls.form === 6 ||
+                  (cls.name && (
+                    cls.name.toUpperCase().includes('FORM 5') ||
+                    cls.name.toUpperCase().includes('FORM 6') ||
+                    cls.name.toUpperCase().includes('FORM V') ||
+                    cls.name.toUpperCase().includes('FORM VI')
+                  ))
+                );
+              } else {
+                classesData = allClasses.filter(cls =>
+                  cls.educationLevel === 'O_LEVEL' ||
+                  (cls.form && cls.form < 5) ||
+                  (cls.name && (
+                    cls.name.toUpperCase().includes('FORM 1') ||
+                    cls.name.toUpperCase().includes('FORM 2') ||
+                    cls.name.toUpperCase().includes('FORM 3') ||
+                    cls.name.toUpperCase().includes('FORM 4') ||
+                    cls.name.toUpperCase().includes('FORM I') ||
+                    cls.name.toUpperCase().includes('FORM II') ||
+                    cls.name.toUpperCase().includes('FORM III') ||
+                    cls.name.toUpperCase().includes('FORM IV') ||
+                    cls.name.toUpperCase().includes('O-LEVEL') ||
+                    cls.name.toUpperCase().includes('O LEVEL')
+                  ))
+                );
+              }
             }
           }
         }
@@ -518,6 +549,19 @@ const ALevelBulkMarksEntry = () => {
       sessionStorage.setItem(storageKey, JSON.stringify(marks));
     }
   }, [marks, selectedClass, selectedSubject, selectedExam]);
+
+  // Function to fetch student subject selections for O-Level
+  const fetchStudentSubjectSelections = async (classId) => {
+    try {
+      console.log(`Fetching student subject selections for class ${classId}`);
+      const response = await api.get(`/api/student-subject-selections/class/${classId}`);
+      console.log('Student subject selections:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching student subject selections:', error);
+      return [];
+    }
+  };
 
   // Fetch students when class, subject, and exam are selected
   useEffect(() => {
@@ -961,8 +1005,74 @@ const ALevelBulkMarksEntry = () => {
         const academicYearId = examResponse.data.academicYear;
         const examTypeId = examResponse.data.examType;
 
-        // Use the filtered students that have the selected subject in their combination
-        setStudents(filteredStudents);
+        // For O-Level, we need to handle student subject selections differently
+        if (educationLevel === 'O_LEVEL') {
+          console.log('Handling O-Level student filtering based on subject selections');
+
+          // Try to get student subject selections to filter students by subject
+          try {
+            // Get student subject selections for this class
+            const selections = await fetchStudentSubjectSelections(selectedClass);
+
+            if (selections && selections.length > 0) {
+              console.log(`Found ${selections.length} student subject selections`);
+
+              // Create a map of student IDs to their selected subjects
+              const studentSubjectsMap = {};
+              selections.forEach(selection => {
+                if (selection.student) {
+                  const studentId = typeof selection.student === 'object' ? selection.student._id : selection.student;
+
+                  // Combine core and optional subjects
+                  const allSubjects = [
+                    ...(selection.coreSubjects || []).map(s => typeof s === 'object' ? s._id : s),
+                    ...(selection.optionalSubjects || []).map(s => typeof s === 'object' ? s._id : s)
+                  ];
+
+                  studentSubjectsMap[studentId] = allSubjects;
+                }
+              });
+
+              console.log('Student subjects map:', studentSubjectsMap);
+
+              // Check if the selected subject is a core subject
+              const isCoreSubject = await api.get(`/api/subjects/${selectedSubject}`)
+                .then(res => res.data.type === 'CORE')
+                .catch(() => false);
+
+              if (isCoreSubject) {
+                console.log('Selected subject is a core subject, showing all O-Level students');
+                setStudents(filteredStudents);
+              } else {
+                // Filter students who have selected this subject
+                const oLevelFilteredStudents = filteredStudents.filter(student => {
+                  const studentId = student._id;
+                  const studentSubjects = studentSubjectsMap[studentId] || [];
+                  return studentSubjects.includes(selectedSubject);
+                });
+
+                console.log(`Filtered to ${oLevelFilteredStudents.length} students who have selected subject ${selectedSubject}`);
+
+                // If no students are found after filtering, just show all O-Level students
+                if (oLevelFilteredStudents.length === 0) {
+                  console.log('No students found after filtering by subject selection, showing all O-Level students');
+                  setStudents(filteredStudents);
+                } else {
+                  setStudents(oLevelFilteredStudents);
+                }
+              }
+            } else {
+              console.log('No student subject selections found, showing all O-Level students');
+              setStudents(filteredStudents);
+            }
+          } catch (selectionError) {
+            console.error('Error filtering students by subject selection:', selectionError);
+            setStudents(filteredStudents);
+          }
+        } else {
+          // For A-Level, use the filtered students that have the selected subject in their combination
+          setStudents(filteredStudents);
+        }
 
         // Check if we have marks in session storage
         const storageKey = `marks_${selectedClass}_${selectedSubject}_${selectedExam}`;
@@ -1200,30 +1310,55 @@ const ALevelBulkMarksEntry = () => {
     });
   };
 
-  // Calculate grade based on marks (A-Level grading system)
+  // Calculate grade based on marks and education level
   const calculateGrade = (marks) => {
     if (marks === '' || marks === undefined) return '';
-    if (marks >= 80) return 'A';
-    if (marks >= 70) return 'B';
-    if (marks >= 60) return 'C';
-    if (marks >= 50) return 'D';
-    if (marks >= 40) return 'E';
-    if (marks >= 35) return 'S';
-    return 'F';
+
+    if (educationLevel === 'O_LEVEL') {
+      // Using the standardized NECTA CSEE grading system
+      if (marks >= 75) return 'A';
+      if (marks >= 65) return 'B';
+      if (marks >= 45) return 'C';
+      if (marks >= 30) return 'D';
+      return 'F';
+    } else {
+      // Using the standardized NECTA ACSEE grading system
+      if (marks >= 80) return 'A';
+      if (marks >= 70) return 'B';
+      if (marks >= 60) return 'C';
+      if (marks >= 50) return 'D';
+      if (marks >= 40) return 'E';
+      if (marks >= 35) return 'S';
+      return 'F';
+    }
   };
 
-  // Calculate points based on grade (A-Level points system)
+  // Calculate points based on grade and education level
   const calculatePoints = (grade) => {
     if (!grade) return '';
-    switch (grade) {
-      case 'A': return 5;
-      case 'B': return 4;
-      case 'C': return 3;
-      case 'D': return 2;
-      case 'E': return 1;
-      case 'S': return 0.5;
-      case 'F': return 0;
-      default: return '';
+
+    if (educationLevel === 'O_LEVEL') {
+      // O-Level points system
+      switch (grade) {
+        case 'A': return 1;
+        case 'B': return 2;
+        case 'C': return 3;
+        case 'D': return 4;
+        case 'F': return 5;
+        default: return '';
+      }
+    } else {
+      // A-Level points system
+      switch (grade) {
+        case 'A': return 5;
+        case 'B': return 4;
+        case 'C': return 3;
+        case 'D': return 2;
+        case 'E': return 1;
+        case 'S': return 0.5;
+        case 'F': return 0;
+        default: return '';
+      }
     }
   };
 
@@ -1375,7 +1510,9 @@ const ALevelBulkMarksEntry = () => {
 
       // Save marks
       console.log(`Saving ${previewData.marks.length} marks to the server`);
-      const saveResponse = await api.post('/api/a-level-results/batch', previewData.marks);
+      const endpoint = educationLevel === 'O_LEVEL' ? '/api/o-level/marks/batch' : '/api/a-level-results/batch';
+      console.log(`Using endpoint: ${endpoint} for education level: ${educationLevel}`);
+      const saveResponse = await api.post(endpoint, previewData.marks);
       console.log('Save response:', saveResponse.data);
 
       // Log the structure of the saved marks
@@ -1557,7 +1694,7 @@ const ALevelBulkMarksEntry = () => {
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h4">
-            A-Level Bulk Marks Entry
+            {pageTitle}
           </Typography>
         </Box>
 
@@ -1566,7 +1703,7 @@ const ALevelBulkMarksEntry = () => {
             variant="outlined"
             color="primary"
             startIcon={<HistoryIcon />}
-            onClick={() => navigate(`/marks-history/subject/${selectedSubject}?model=ALevelResult`)}
+            onClick={() => navigate(`/marks-history/subject/${selectedSubject}?model=${educationLevel === 'O_LEVEL' ? 'OLevelResult' : 'ALevelResult'}`)}
           >
             View Marks History
           </Button>
@@ -1812,7 +1949,7 @@ const ALevelBulkMarksEntry = () => {
                                   <IconButton
                                     size="small"
                                     color="primary"
-                                    onClick={() => navigate(`/marks-history/result/${mark._id}?model=ALevelResult`)}
+                                    onClick={() => navigate(`/marks-history/result/${mark._id}?model=${educationLevel === 'O_LEVEL' ? 'OLevelResult' : 'ALevelResult'}`)}
                                   >
                                     <HistoryIcon fontSize="small" />
                                   </IconButton>
@@ -1844,7 +1981,10 @@ const ALevelBulkMarksEntry = () => {
                     <Typography variant="h6">
                       Grades and Points
                     </Typography>
-                    <Tooltip title="A-Level Grading: A (80-100%), B (70-79%), C (60-69%), D (50-59%), E (40-49%), S (35-39%), F (0-34%)">
+                    <Tooltip title={educationLevel === 'O_LEVEL' ?
+                      "O-Level Grading: A (75-100%), B (65-74%), C (45-64%), D (30-44%), F (0-29%)" :
+                      "A-Level Grading: A (80-100%), B (70-79%), C (60-69%), D (50-59%), E (40-49%), S (35-39%), F (0-34%)"
+                    }>
                       <IconButton>
                         <HelpIcon />
                       </IconButton>

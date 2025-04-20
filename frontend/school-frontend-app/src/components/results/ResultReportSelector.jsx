@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
+import { getReportUrlByEducationLevel, getClassReportUrlByEducationLevel } from '../../utils/educationLevelUtils';
 
 /**
  * Result Report Selector Component
@@ -172,15 +173,14 @@ const ResultReportSelector = () => {
       return;
     }
 
-    // Use the education level specific routes
-    if (educationLevel === 'O_LEVEL') {
-      navigate(`/results/o-level/student/${selectedStudent}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
-    } else if (educationLevel === 'A_LEVEL') {
-      navigate(`/results/a-level/student/${selectedStudent}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
-    } else {
-      // Fallback to the generic route
-      navigate(`/results/student-report/${selectedStudent}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
-    }
+    // Use the education level utility to get the appropriate URL
+    const reportUrl = getReportUrlByEducationLevel(
+      educationLevel,
+      selectedStudent,
+      selectedExam
+    );
+
+    navigate(`${reportUrl}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
   };
 
   // Generate class report
@@ -190,8 +190,14 @@ const ResultReportSelector = () => {
       return;
     }
 
-    // Use the unified class report route for all education levels
-    navigate(`/results/class-report/${selectedClass}/${selectedExam}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
+    // Use the education level utility to get the appropriate URL
+    const reportUrl = getClassReportUrlByEducationLevel(
+      educationLevel,
+      selectedClass,
+      selectedExam
+    );
+
+    navigate(`${reportUrl}?academicYear=${selectedAcademicYear}&term=${selectedTerm}`);
   };
 
   return (
@@ -710,17 +716,17 @@ const ResultReportSelector = () => {
               <Grid item xs={12} md={6}>
                 <Button
                   variant="contained"
-                  color="secondary"
+                  color="success"
                   onClick={() => {
                     if (selectedClass && selectedExam) {
-                      navigate(`/admin/enhanced-o-level-report/${selectedClass}/${selectedExam}?educationLevel=O_LEVEL`);
+                      navigate(`/results/o-level/class/${selectedClass}/${selectedExam}`);
                     }
                   }}
                   disabled={!selectedClass || !selectedExam || loading || educationLevel !== 'O_LEVEL'}
                   startIcon={<AssignmentIcon />}
                   fullWidth
                 >
-                  Generate Enhanced O-Level Report
+                  Generate O-Level Class Report
                 </Button>
               </Grid>
 
@@ -833,7 +839,7 @@ const ResultReportSelector = () => {
                   <Card sx={{ bgcolor: '#e8f5e9', border: '1px solid #4caf50', p: 2, mb: 3, height: '100%' }}>
                     <CardContent>
                       <Typography variant="h6" color="success.main" gutterBottom>
-                        Enhanced O-Level Class Report (New!)
+                        O-Level Class Report (New!)
                       </Typography>
                       <Typography variant="body2" color="text.secondary" paragraph>
                         Our new enhanced O-Level class report format includes:
@@ -851,7 +857,7 @@ const ResultReportSelector = () => {
                         color="success"
                         onClick={() => {
                           if (selectedClass && selectedExam) {
-                            navigate(`/admin/enhanced-o-level-report/${selectedClass}/${selectedExam}?educationLevel=O_LEVEL`);
+                            navigate(`/results/o-level/class/${selectedClass}/${selectedExam}`);
                           } else {
                             setError('Please select a class and exam first');
                           }
@@ -860,7 +866,7 @@ const ResultReportSelector = () => {
                         sx={{ mt: 2 }}
                         disabled={educationLevel !== 'O_LEVEL'}
                       >
-                        Try Enhanced O-Level Report
+                        Try O-Level Class Report
                       </Button>
                     </CardContent>
                   </Card>

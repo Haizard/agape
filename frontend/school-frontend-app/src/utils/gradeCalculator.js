@@ -14,18 +14,19 @@ const oLevelGradeCalculator = {
    */
   calculateGrade: (marks) => {
     if (marks === null || marks === undefined || marks === '') return '';
-    
+
     const numericMarks = Number(marks);
-    
+
     if (isNaN(numericMarks)) return '';
-    
-    if (numericMarks >= 80) return 'A';
+
+    // Using the standardized NECTA CSEE grading system
+    if (numericMarks >= 75) return 'A';
     if (numericMarks >= 65) return 'B';
-    if (numericMarks >= 50) return 'C';
-    if (numericMarks >= 40) return 'D';
+    if (numericMarks >= 45) return 'C';
+    if (numericMarks >= 30) return 'D';
     return 'F';
   },
-  
+
   /**
    * Calculate points based on grade
    * @param {string} grade - Grade (A, B, C, D, F)
@@ -33,7 +34,7 @@ const oLevelGradeCalculator = {
    */
   calculatePoints: (grade) => {
     if (!grade) return '';
-    
+
     switch (grade.toUpperCase()) {
       case 'A': return 1;
       case 'B': return 2;
@@ -56,11 +57,11 @@ const aLevelGradeCalculator = {
    */
   calculateGrade: (marks) => {
     if (marks === null || marks === undefined || marks === '') return '';
-    
+
     const numericMarks = Number(marks);
-    
+
     if (isNaN(numericMarks)) return '';
-    
+
     if (numericMarks >= 80) return 'A';
     if (numericMarks >= 70) return 'B';
     if (numericMarks >= 60) return 'C';
@@ -69,7 +70,7 @@ const aLevelGradeCalculator = {
     if (numericMarks >= 35) return 'S';
     return 'F';
   },
-  
+
   /**
    * Calculate points based on grade
    * @param {string} grade - Grade (A, B, C, D, E, F, S)
@@ -77,7 +78,7 @@ const aLevelGradeCalculator = {
    */
   calculatePoints: (grade) => {
     if (!grade) return '';
-    
+
     switch (grade.toUpperCase()) {
       case 'A': return 1;
       case 'B': return 2;
@@ -99,9 +100,9 @@ const aLevelGradeCalculator = {
  */
 const calculateDivision = (totalPoints, numberOfSubjects) => {
   if (!totalPoints || !numberOfSubjects) return '';
-  
+
   const averagePoints = totalPoints / numberOfSubjects;
-  
+
   if (averagePoints <= 1.4) return 'I';
   if (averagePoints <= 2.4) return 'II';
   if (averagePoints <= 3.4) return 'III';
