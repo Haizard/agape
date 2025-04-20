@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../utils/api';
 import teacherAuthService from '../../services/teacherAuthService';
 import teacherApi from '../../services/teacherApi';
+import teacherSubjectFilter from '../../services/teacherSubjectFilter';
 import studentSubjectsApi from '../../services/studentSubjectsApi';
 import {
   Box,
@@ -263,27 +264,45 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
             // Try multiple approaches to get the teacher's assigned subjects
             let subjectsFound = false;
 
-            // Approach 1: Try the teacher-subjects endpoint
+            // Approach 0: Try our new specialized filter service
             try {
-              console.log('Approach 1: Using /api/teachers/classes/:classId/subjects endpoint');
-              const response = await api.get(`/api/teachers/classes/${selectedClass}/subjects`);
+              console.log('Approach 0: Using teacherSubjectFilter service');
+              const filteredSubjects = await teacherSubjectFilter.getTeacherFilteredSubjects(selectedClass);
 
-              // Check if the response has data
-              if (response.data) {
-                if (Array.isArray(response.data)) {
-                  // If the response is an array, use it directly
-                  subjectsData = response.data;
-                  subjectsFound = true;
-                } else if (response.data.subjects && Array.isArray(response.data.subjects)) {
-                  // If the response has a subjects array, use that
-                  subjectsData = response.data.subjects;
-                  subjectsFound = true;
-                }
+              if (filteredSubjects && filteredSubjects.length > 0) {
+                subjectsData = filteredSubjects;
+                subjectsFound = true;
+                console.log(`Approach 0: Found ${subjectsData.length} subjects using specialized filter`);
+              } else {
+                console.log('Approach 0: No subjects found using specialized filter');
               }
+            } catch (error0) {
+              console.error('Approach 0 failed:', error0);
+            }
 
-              console.log(`Approach 1: Found ${subjectsData.length} subjects`);
-            } catch (error1) {
-              console.error('Approach 1 failed:', error1);
+            // Approach 1: Try the teacher-subjects endpoint
+            if (!subjectsFound) {
+              try {
+                console.log('Approach 1: Using /api/teachers/classes/:classId/subjects endpoint');
+                const response = await api.get(`/api/teachers/classes/${selectedClass}/subjects`);
+
+                // Check if the response has data
+                if (response.data) {
+                  if (Array.isArray(response.data)) {
+                    // If the response is an array, use it directly
+                    subjectsData = response.data;
+                    subjectsFound = true;
+                  } else if (response.data.subjects && Array.isArray(response.data.subjects)) {
+                    // If the response has a subjects array, use that
+                    subjectsData = response.data.subjects;
+                    subjectsFound = true;
+                  }
+                }
+
+                console.log(`Approach 1: Found ${subjectsData.length} subjects`);
+              } catch (error1) {
+                console.error('Approach 1 failed:', error1);
+              }
             }
 
             // Approach 2: Try the marks-entry-subjects endpoint

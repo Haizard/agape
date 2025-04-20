@@ -175,27 +175,10 @@ async function getTeacherSubjects(teacherId, classId = null, useCache = true, in
       if (classObj) {
         console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is the class teacher for class ${classId}`);
 
-        // Add all subjects in the class to the map
-        for (const subjectAssignment of classObj.subjects) {
-          if (subjectAssignment.subject) {
-            const subjectId = subjectAssignment.subject._id.toString();
-
-            // If this subject is not in the map yet, add it
-            if (!subjectMap[subjectId]) {
-              subjectMap[subjectId] = {
-                _id: subjectAssignment.subject._id,
-                name: subjectAssignment.subject.name,
-                code: subjectAssignment.subject.code,
-                type: subjectAssignment.subject.type,
-                description: subjectAssignment.subject.description,
-                educationLevel: subjectAssignment.subject.educationLevel || 'UNKNOWN',
-                isPrincipal: subjectAssignment.subject.isPrincipal || false,
-                isCompulsory: subjectAssignment.subject.isCompulsory || false,
-                assignmentType: 'classTeacher' // Assigned as class teacher
-              };
-            }
-          }
-        }
+        // For both O-Level and A-Level classes, class teachers should only see subjects they're specifically assigned to teach
+        // This is a critical fix to ensure teachers only see subjects they're assigned to
+        console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is the class teacher for class ${classId}, but will only see assigned subjects`);
+        // We don't automatically add all subjects here - only subjects the teacher is specifically assigned to teach will be added
       }
     }
 
@@ -220,37 +203,26 @@ async function getTeacherSubjects(teacherId, classId = null, useCache = true, in
       } else {
         console.log(`[EnhancedTeacherSubjectService] Class ${classId} exists with ${classObj.subjects.length} subject assignments`);
 
-        // For O-Level classes, check if the teacher is the class teacher
+        // For O-Level classes, even if the teacher is the class teacher, only show subjects they're specifically assigned to teach
         if (classObj.educationLevel === 'O_LEVEL' && classObj.classTeacher && classObj.classTeacher.toString() === teacherId) {
-          console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is the class teacher for O-Level class ${classId}, returning all subjects`);
+          console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is the class teacher for O-Level class ${classId}, but will only see assigned subjects`);
 
-          // Add all subjects in the class to the map
-          for (const subjectAssignment of classObj.subjects) {
-            if (subjectAssignment.subject) {
-              const subjectId = subjectAssignment.subject._id.toString();
+          // Instead of returning all subjects, we'll check for specific subject assignments
+          // This ensures teachers only see subjects they're qualified to teach
 
-              // If this subject is not in the map yet, add it
-              if (!subjectMap[subjectId]) {
-                subjectMap[subjectId] = {
-                  _id: subjectAssignment.subject._id,
-                  name: subjectAssignment.subject.name,
-                  code: subjectAssignment.subject.code,
-                  type: subjectAssignment.subject.type,
-                  description: subjectAssignment.subject.description,
-                  educationLevel: subjectAssignment.subject.educationLevel || 'O_LEVEL',
-                  isPrincipal: subjectAssignment.subject.isPrincipal || false,
-                  isCompulsory: subjectAssignment.subject.isCompulsory || false,
-                  assignmentType: 'classTeacher' // Class teacher has access to all subjects
-                };
-              }
-            }
+          // Check if the teacher has any subjects in the map already
+          const existingSubjects = Object.values(subjectMap);
+          console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} has ${existingSubjects.length} subjects already assigned`);
+
+          // If the teacher has no subjects assigned, we'll look for specific assignments
+          if (existingSubjects.length === 0) {
+            console.log(`[EnhancedTeacherSubjectService] Looking for specific subject assignments for teacher ${teacherId}`);
+
+            // We'll check TeacherSubject assignments in the next section
+            // No need to add all subjects here
           }
 
-          // Convert the map to an array again
-          const oLevelSubjects = Object.values(subjectMap);
-          console.log(`[EnhancedTeacherSubjectService] Returning ${oLevelSubjects.length} subjects for O-Level class ${classId}`);
-
-          return oLevelSubjects;
+          // We'll continue with the normal flow to find specific subject assignments
         }
       }
     }
@@ -317,16 +289,41 @@ async function isTeacherAuthorizedForClass(teacherId, classId) {
       return false;
     }
 
-    // For O-Level classes, check if the teacher exists in the Teacher model
+    // For O-Level classes, use strict authorization - only allow teachers who are specifically assigned
     if (classObj.educationLevel === 'O_LEVEL') {
-      console.log(`[EnhancedTeacherSubjectService] Class ${classId} is an O-Level class`);
+      console.log(`[EnhancedTeacherSubjectService] Class ${classId} is an O-Level class, using strict authorization`);
 
-      // Check if the teacher exists
-      const teacher = await Teacher.findById(teacherId);
-      if (teacher) {
-        console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} exists, authorizing for O-Level class ${classId}`);
+      // Check if the teacher is the class teacher
+      if (classObj.classTeacher && classObj.classTeacher.toString() === teacherId.toString()) {
+        console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is the class teacher for O-Level class ${classId}`);
         return true;
       }
+
+      // Check if the teacher is assigned to any subject in the class
+      if (classObj.subjects && Array.isArray(classObj.subjects)) {
+        for (const subjectAssignment of classObj.subjects) {
+          if (subjectAssignment.teacher && subjectAssignment.teacher.toString() === teacherId.toString()) {
+            console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is assigned to a subject in O-Level class ${classId}`);
+            return true;
+          }
+        }
+      }
+
+      // Check TeacherSubject assignments
+      const teacherSubjectAssignments = await TeacherSubject.find({
+        teacherId: teacherId,
+        classId: classId,
+        status: 'active'
+      });
+
+      if (teacherSubjectAssignments.length > 0) {
+        console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} has TeacherSubject assignments for O-Level class ${classId}`);
+        return true;
+      }
+
+      // If we get here, the teacher is not authorized for this O-Level class
+      console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is NOT authorized for O-Level class ${classId}`);
+      return false;
     }
 
     // For A-Level classes or if the teacher doesn't exist,
@@ -467,7 +464,14 @@ async function getTeacherStudents(teacherId, classId, subjectId = null) {
 
         // Get the subject to check if it's a core subject
         const subject = await Subject.findById(subjectId);
+        console.log(`[EnhancedTeacherSubjectService] Subject ${subjectId} details:`, {
+          name: subject?.name,
+          code: subject?.code,
+          type: subject?.type,
+          educationLevel: subject?.educationLevel
+        });
         const isCoreSubject = subject && subject.type === 'CORE';
+        console.log(`[EnhancedTeacherSubjectService] Is subject ${subjectId} a core subject? ${isCoreSubject}`);
 
         // Get all students in the class
         const allStudents = await Student.find({ class: classId })
@@ -476,7 +480,51 @@ async function getTeacherStudents(teacherId, classId, subjectId = null) {
         // If it's a core subject, all students take it
         if (isCoreSubject) {
           console.log(`[EnhancedTeacherSubjectService] Subject ${subjectId} is a core subject, all students take it`);
-          return allStudents;
+
+          // Even for core subjects, we should check if the student has a subject selection record
+          // This ensures we don't show students who might be exempted from this core subject
+
+          // Create a set of student IDs who take this subject
+          const studentIdSet = new Set();
+
+          // Method 1: Check the Student model's selectedSubjects field
+          for (const student of allStudents) {
+            if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+              const selectedSubjects = student.selectedSubjects.map(s => s.toString());
+              if (selectedSubjects.includes(subjectId)) {
+                studentIdSet.add(student._id.toString());
+                console.log(`[EnhancedTeacherSubjectService] Student ${student._id} takes core subject ${subjectId} (from Student model)`);
+              }
+            }
+          }
+
+          // Method 2: Check the StudentSubjectSelection model
+          const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+          const studentIds = allStudents.map(s => s._id);
+          const selections = await StudentSubjectSelection.find({ student: { $in: studentIds } });
+
+          for (const selection of selections) {
+            const studentId = selection.student.toString();
+            const coreSubjects = selection.coreSubjects ? selection.coreSubjects.map(s => s.toString()) : [];
+
+            if (coreSubjects.includes(subjectId)) {
+              studentIdSet.add(studentId);
+              console.log(`[EnhancedTeacherSubjectService] Student ${studentId} takes core subject ${subjectId} (from StudentSubjectSelection model)`);
+            }
+          }
+
+          // If no students have explicit subject selections, assume all students take this core subject
+          if (studentIdSet.size === 0) {
+            console.log(`[EnhancedTeacherSubjectService] No explicit subject selections found for core subject ${subjectId}, assuming all students take it`);
+            return allStudents;
+          }
+
+          // Filter students who take this subject
+          const filteredStudents = allStudents.filter(student =>
+            studentIdSet.has(student._id.toString()));
+
+          console.log(`[EnhancedTeacherSubjectService] Found ${filteredStudents.length} students who take core subject ${subjectId} in class ${classId}`);
+          return filteredStudents;
         }
 
         // If it's an optional subject, filter students who have selected it
@@ -486,29 +534,69 @@ async function getTeacherStudents(teacherId, classId, subjectId = null) {
         const studentIdSet = new Set();
 
         // Method 1: Check the Student model's selectedSubjects field
+        console.log(`[EnhancedTeacherSubjectService] Checking ${allStudents.length} students for subject ${subjectId} in Student model`);
         for (const student of allStudents) {
+          console.log(`[EnhancedTeacherSubjectService] Student ${student._id} (${student.firstName} ${student.lastName}) selectedSubjects:`,
+            student.selectedSubjects ? (Array.isArray(student.selectedSubjects) ? student.selectedSubjects.map(s => s.toString()) : 'Not an array') : 'None');
+
           if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
             const selectedSubjects = student.selectedSubjects.map(s => s.toString());
             if (selectedSubjects.includes(subjectId)) {
               studentIdSet.add(student._id.toString());
-              console.log(`[EnhancedTeacherSubjectService] Student ${student._id} takes subject ${subjectId} (from Student model)`);
+              console.log(`[EnhancedTeacherSubjectService] Student ${student._id} (${student.firstName} ${student.lastName}) takes subject ${subjectId} (from Student model)`);
+            } else {
+              console.log(`[EnhancedTeacherSubjectService] Student ${student._id} (${student.firstName} ${student.lastName}) does NOT take subject ${subjectId} (from Student model)`);
             }
+          } else {
+            console.log(`[EnhancedTeacherSubjectService] Student ${student._id} (${student.firstName} ${student.lastName}) has no selectedSubjects in Student model`);
           }
         }
 
         // Method 2: Check the StudentSubjectSelection model
         const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
         const studentIds = allStudents.map(s => s._id);
+        console.log(`[EnhancedTeacherSubjectService] Checking StudentSubjectSelection for ${studentIds.length} students`);
+
         const selections = await StudentSubjectSelection.find({ student: { $in: studentIds } });
+        console.log(`[EnhancedTeacherSubjectService] Found ${selections.length} StudentSubjectSelection records`);
+
+        // Create a map of student names for better logging
+        const studentNameMap = {};
+        allStudents.forEach(student => {
+          studentNameMap[student._id.toString()] = `${student.firstName} ${student.lastName}`;
+        });
 
         for (const selection of selections) {
           const studentId = selection.student.toString();
-          const coreSubjects = selection.coreSubjects.map(s => s.toString());
-          const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
+          const studentName = studentNameMap[studentId] || 'Unknown Student';
 
-          if (coreSubjects.includes(subjectId) || optionalSubjects.includes(subjectId)) {
+          const coreSubjects = selection.coreSubjects ? selection.coreSubjects.map(s => s.toString()) : [];
+          const optionalSubjects = selection.optionalSubjects ? selection.optionalSubjects.map(s => s.toString()) : [];
+
+          console.log(`[EnhancedTeacherSubjectService] Student ${studentId} (${studentName}) selection:`, {
+            coreSubjects,
+            optionalSubjects
+          });
+
+          if (coreSubjects.includes(subjectId)) {
             studentIdSet.add(studentId);
-            console.log(`[EnhancedTeacherSubjectService] Student ${studentId} takes subject ${subjectId} (from StudentSubjectSelection model)`);
+            console.log(`[EnhancedTeacherSubjectService] Student ${studentId} (${studentName}) takes subject ${subjectId} as CORE subject`);
+          } else if (optionalSubjects.includes(subjectId)) {
+            studentIdSet.add(studentId);
+            console.log(`[EnhancedTeacherSubjectService] Student ${studentId} (${studentName}) takes subject ${subjectId} as OPTIONAL subject`);
+          } else {
+            console.log(`[EnhancedTeacherSubjectService] Student ${studentId} (${studentName}) does NOT take subject ${subjectId} in StudentSubjectSelection`);
+          }
+        }
+
+        // Check for students without any selection records
+        const studentsWithSelections = new Set(selections.map(s => s.student.toString()));
+        const studentsWithoutSelections = allStudents.filter(s => !studentsWithSelections.has(s._id.toString()));
+
+        if (studentsWithoutSelections.length > 0) {
+          console.log(`[EnhancedTeacherSubjectService] ${studentsWithoutSelections.length} students have no StudentSubjectSelection records:`);
+          for (const student of studentsWithoutSelections) {
+            console.log(`[EnhancedTeacherSubjectService] Student ${student._id} (${student.firstName} ${student.lastName}) has no subject selection record`);
           }
         }
 
@@ -657,16 +745,14 @@ async function isTeacherAssignedToClass(teacherId, classId) {
       return true;
     }
 
-    // For O-Level classes, check if the teacher exists in the Teacher model
+    // For O-Level classes, use strict authorization - only allow teachers who are specifically assigned
     if (classObj.educationLevel === 'O_LEVEL') {
-      console.log(`[EnhancedTeacherSubjectService] Class ${classId} is an O-Level class`);
+      console.log(`[EnhancedTeacherSubjectService] Class ${classId} is an O-Level class, using strict authorization`);
 
-      // Check if the teacher exists
-      const teacher = await Teacher.findById(teacherId);
-      if (teacher) {
-        console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} exists, authorizing for O-Level class ${classId}`);
-        return true;
-      }
+      // We've already checked if the teacher is the class teacher or assigned to any subject above
+      // If we get here, the teacher is not assigned to this class
+      console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is NOT assigned to O-Level class ${classId}`);
+      return false;
     }
 
     console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is not assigned to class ${classId}`);
@@ -752,6 +838,7 @@ async function isTeacherAssignedToSubject(teacherId, classId, subjectId) {
 /**
  * Check if a teacher is specifically assigned to teach a subject in a class
  * This is a stricter check than isTeacherAuthorizedForSubject
+ * It checks all three assignment models (Class.subjects, TeacherSubject, TeacherAssignment)
  *
  * @param {string} teacherId - Teacher ID
  * @param {string} classId - Class ID
@@ -759,49 +846,69 @@ async function isTeacherAssignedToSubject(teacherId, classId, subjectId) {
  * @returns {Promise<boolean>} - Whether the teacher is specifically assigned to the subject
  */
 async function isTeacherSpecificallyAssignedToSubject(teacherId, classId, subjectId) {
-  console.log(`[EnhancedTeacherSubjectService] Checking if teacher ${teacherId} is specifically assigned to subject ${subjectId} in class ${classId}`);
+  console.log(`\n\n[DEBUG] [EnhancedTeacherSubjectService] Checking if teacher ${teacherId} is specifically assigned to subject ${subjectId} in class ${classId}`);
 
   try {
+    // Validate parameters
+    if (!teacherId || !classId || !subjectId) {
+      console.log(`[EnhancedTeacherSubjectService] Invalid parameters: teacherId=${teacherId}, classId=${classId}, subjectId=${subjectId}`);
+      return false;
+    }
+
+    // Convert IDs to strings for consistent comparison
+    const teacherIdStr = teacherId.toString();
+    const classIdStr = classId.toString();
+    const subjectIdStr = subjectId.toString();
+
     // Method 1: Check if the teacher is directly assigned to this subject in the Class model
-    const classObj = await Class.findById(classId);
+    console.log(`[EnhancedTeacherSubjectService] Method 1: Checking Class.subjects for teacher ${teacherIdStr} and subject ${subjectIdStr}`);
+    const classObj = await Class.findById(classIdStr);
     if (classObj && classObj.subjects && Array.isArray(classObj.subjects)) {
       for (const subjectAssignment of classObj.subjects) {
         const assignedSubjectId = subjectAssignment.subject?.toString() || subjectAssignment.subject;
         const assignedTeacherId = subjectAssignment.teacher?.toString();
 
-        if (assignedSubjectId === subjectId && assignedTeacherId === teacherId.toString()) {
-          console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is directly assigned to subject ${subjectId} in class ${classId}`);
+        if (assignedSubjectId === subjectIdStr && assignedTeacherId === teacherIdStr) {
+          console.log(`[EnhancedTeacherSubjectService] AUTHORIZED: Teacher ${teacherIdStr} is directly assigned to subject ${subjectIdStr} in class ${classIdStr} via Class.subjects`);
           return true;
         }
       }
+      console.log(`[EnhancedTeacherSubjectService] No matching assignment found in Class.subjects for teacher ${teacherIdStr} and subject ${subjectIdStr}`);
+    } else {
+      console.log(`[EnhancedTeacherSubjectService] Class ${classIdStr} not found or has no subjects array`);
     }
 
     // Method 2: Check TeacherSubject assignments
+    console.log(`[EnhancedTeacherSubjectService] Method 2: Checking TeacherSubject model for teacher ${teacherIdStr} and subject ${subjectIdStr}`);
     const teacherSubjectAssignment = await TeacherSubject.findOne({
-      teacherId: teacherId,
-      classId: classId,
-      subjectId: subjectId,
+      teacherId: teacherIdStr,
+      classId: classIdStr,
+      subjectId: subjectIdStr,
       status: 'active'
     });
 
     if (teacherSubjectAssignment) {
-      console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} has a TeacherSubject assignment for subject ${subjectId} in class ${classId}`);
+      console.log(`[EnhancedTeacherSubjectService] AUTHORIZED: Teacher ${teacherIdStr} has a TeacherSubject assignment for subject ${subjectIdStr} in class ${classIdStr}`);
       return true;
     }
+    console.log(`[EnhancedTeacherSubjectService] No matching assignment found in TeacherSubject model for teacher ${teacherIdStr} and subject ${subjectIdStr}`);
 
     // Method 3: Check TeacherAssignment assignments
+    console.log(`[EnhancedTeacherSubjectService] Method 3: Checking TeacherAssignment model for teacher ${teacherIdStr} and subject ${subjectIdStr}`);
     const teacherAssignment = await TeacherAssignment.findOne({
-      teacher: teacherId,
-      class: classId,
-      subject: subjectId
+      teacher: teacherIdStr,
+      class: classIdStr,
+      subject: subjectIdStr
     });
 
     if (teacherAssignment) {
-      console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} has a TeacherAssignment for subject ${subjectId} in class ${classId}`);
+      console.log(`[EnhancedTeacherSubjectService] AUTHORIZED: Teacher ${teacherIdStr} has a TeacherAssignment for subject ${subjectIdStr} in class ${classIdStr}`);
       return true;
     }
+    console.log(`[EnhancedTeacherSubjectService] No matching assignment found in TeacherAssignment model for teacher ${teacherIdStr} and subject ${subjectIdStr}`);
 
-    console.log(`[EnhancedTeacherSubjectService] Teacher ${teacherId} is NOT specifically assigned to subject ${subjectId} in class ${classId}`);
+    // If we get here, the teacher is not specifically assigned to this subject in this class
+    console.log(`[EnhancedTeacherSubjectService] UNAUTHORIZED: Teacher ${teacherIdStr} is NOT specifically assigned to subject ${subjectIdStr} in class ${classIdStr} in any model`);
     return false;
   } catch (error) {
     console.error(`[EnhancedTeacherSubjectService] Error checking specific teacher assignment:`, error);

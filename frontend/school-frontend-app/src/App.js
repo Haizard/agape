@@ -465,7 +465,9 @@ function App() {
                     } />
                     <Route path="/results/o-level/bulk-marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <OLevelBulkMarksEntry />
+                        <ErrorBoundary>
+                          <OLevelBulkMarksEntry />
+                        </ErrorBoundary>
                       </ProtectedRoute>
                     } />
                     <Route path="/results/o-level/enhanced-bulk-marks-entry" element={
@@ -494,7 +496,9 @@ function App() {
                     } />
                     <Route path="/teacher/o-level/bulk-marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <OLevelBulkMarksEntry />
+                        <ErrorBoundary>
+                          <OLevelBulkMarksEntry />
+                        </ErrorBoundary>
                       </ProtectedRoute>
                     } />
                     <Route path="/teacher/o-level/enhanced-bulk-marks-entry" element={

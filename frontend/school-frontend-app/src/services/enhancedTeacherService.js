@@ -59,9 +59,63 @@ const getAssignedClasses = async () => {
  */
 const getAssignedSubjects = async (classId, autoFix = true) => {
   try {
-    // First try the enhanced endpoint
+    // Get the teacher's profile to get their ID
+    const profileResponse = await api.get('/api/teachers/profile/me');
+    const teacherId = profileResponse.data._id;
+
+    if (!teacherId) {
+      console.error('No teacher ID found in profile');
+      throw new Error('No teacher ID found in profile');
+    }
+
+    console.log(`Getting assigned subjects for teacher ${teacherId} in class ${classId}`);
+
+    // First try the teacher-subject-assignments endpoint
+    try {
+      console.log(`[EnhancedTeacherService] Calling /api/teacher-subject-assignments with teacherId=${teacherId}, classId=${classId}`);
+      const assignmentsResponse = await api.get('/api/teacher-subject-assignments', {
+        params: { teacherId, classId }
+      });
+
+      const assignments = assignmentsResponse.data || [];
+      console.log(`[EnhancedTeacherService] Found ${assignments.length} subject assignments for teacher ${teacherId} in class ${classId}`);
+
+      // Log the first assignment for debugging
+      if (assignments.length > 0) {
+        console.log('[EnhancedTeacherService] First assignment:', assignments[0]);
+      } else {
+        console.log('[EnhancedTeacherService] WARNING: No assignments found');
+      }
+
+      if (assignments.length > 0) {
+        // Extract subject IDs from assignments
+        const subjectIds = assignments.map(assignment => {
+          if (assignment.subjectId && typeof assignment.subjectId === 'object') {
+            return assignment.subjectId._id;
+          }
+          return assignment.subjectId;
+        }).filter(id => id); // Filter out any undefined or null values
+
+        // Get details for these subjects
+        const subjectsResponse = await api.get(`/api/classes/${classId}/subjects`);
+        const allSubjects = subjectsResponse.data || [];
+
+        // Filter to only include subjects the teacher is assigned to
+        const assignedSubjects = allSubjects.filter(subject =>
+          subjectIds.includes(subject._id)
+        );
+
+        console.log(`Found ${assignedSubjects.length} assigned subjects`);
+        return assignedSubjects;
+      }
+    } catch (assignmentsError) {
+      console.log('Teacher-subject-assignments endpoint failed:', assignmentsError.message);
+    }
+
+    // Then try the enhanced endpoint
     try {
       const response = await api.get(`/api/enhanced-teachers/classes/${classId}/subjects`);
+      console.log(`Found ${response.data.subjects.length} subjects from enhanced endpoint`);
       return response.data.subjects;
     } catch (enhancedError) {
       console.log('Enhanced endpoint not available, falling back to original endpoint');
@@ -69,6 +123,7 @@ const getAssignedSubjects = async (classId, autoFix = true) => {
       const fallbackResponse = await api.get('/api/teachers/marks-entry-subjects', {
         params: { classId }
       });
+      console.log(`Found ${fallbackResponse.data.length} subjects from fallback endpoint`);
       return fallbackResponse.data;
     }
   } catch (error) {
@@ -84,15 +139,10 @@ const getAssignedSubjects = async (classId, autoFix = true) => {
  */
 const getOLevelAssignedSubjects = async (classId) => {
   try {
-    // First try the enhanced endpoint specifically for O-Level
-    try {
-      const response = await api.get(`/api/enhanced-teachers/o-level/classes/${classId}/subjects`);
-      return response.data.subjects;
-    } catch (enhancedError) {
-      console.log('Enhanced O-Level endpoint not available, falling back to general endpoint');
-      // Fall back to the general enhanced endpoint
-      return await getAssignedSubjects(classId);
-    }
+    // For O-Level classes, we use the same function as for A-Level classes
+    // The backend now handles both education levels consistently
+    console.log(`Getting O-Level assigned subjects for class ${classId}`);
+    return await getAssignedSubjects(classId);
   } catch (error) {
     console.error('Error fetching O-Level assigned subjects:', error);
     throw error;

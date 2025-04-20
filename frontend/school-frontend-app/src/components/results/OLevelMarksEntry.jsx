@@ -170,7 +170,7 @@ const OLevelMarksEntry = () => {
     fetchSubjects();
   }, [selectedClass, selectedStudent]);
 
-  // Fetch students when class is selected
+  // Fetch students when class and subject are selected
   useEffect(() => {
     const fetchStudents = async () => {
       if (!selectedClass) {
@@ -187,15 +187,48 @@ const OLevelMarksEntry = () => {
         let studentsData;
         if (isAdmin) {
           // Admin can see all students in the class
-          const response = await api.get(`/api/students/class/${selectedClass}`);
-          studentsData = response.data || [];
+          if (selectedSubject) {
+            // If subject is selected, get only students who take this subject
+            console.log(`[OLevelMarksEntry] Admin fetching students for class ${selectedClass} and subject ${selectedSubject}`);
+            try {
+              const response = await api.get(`/api/enhanced-teachers/o-level/classes/${selectedClass}/subject/${selectedSubject}/students`);
+              studentsData = response.data?.students || [];
+              console.log(`[OLevelMarksEntry] Admin found ${studentsData.length} students who take subject ${selectedSubject}`);
+            } catch (error) {
+              console.error('[OLevelMarksEntry] Error fetching students for subject:', error);
+              // Fallback to all students in class
+              const fallbackResponse = await api.get(`/api/students/class/${selectedClass}`);
+              studentsData = fallbackResponse.data || [];
+              console.log(`[OLevelMarksEntry] Admin fallback: found ${studentsData.length} students in class`);
+            }
+          } else {
+            // If no subject selected, get all students in class
+            const response = await api.get(`/api/students/class/${selectedClass}`);
+            studentsData = response.data || [];
+            console.log(`[OLevelMarksEntry] Admin found ${studentsData.length} students in class ${selectedClass}`);
+          }
         } else {
           // Teachers can only see assigned students
-          try {
-            studentsData = await teacherApi.getAssignedStudents(selectedClass);
-          } catch (error) {
-            console.error('Error fetching assigned students:', error);
-            studentsData = [];
+          if (selectedSubject) {
+            // If subject is selected, get only students who take this subject
+            console.log(`[OLevelMarksEntry] Teacher fetching students for class ${selectedClass} and subject ${selectedSubject}`);
+            try {
+              const response = await api.get(`/api/enhanced-teachers/o-level/classes/${selectedClass}/subject/${selectedSubject}/students`);
+              studentsData = response.data?.students || [];
+              console.log(`[OLevelMarksEntry] Teacher found ${studentsData.length} students who take subject ${selectedSubject}`);
+            } catch (error) {
+              console.error('[OLevelMarksEntry] Error fetching students for subject:', error);
+              studentsData = [];
+            }
+          } else {
+            // If no subject selected, get all assigned students
+            try {
+              studentsData = await teacherApi.getAssignedStudents(selectedClass);
+              console.log(`[OLevelMarksEntry] Teacher found ${studentsData.length} assigned students in class ${selectedClass}`);
+            } catch (error) {
+              console.error('[OLevelMarksEntry] Error fetching assigned students:', error);
+              studentsData = [];
+            }
           }
         }
 
@@ -207,14 +240,14 @@ const OLevelMarksEntry = () => {
         setStudents(oLevelStudents);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching students:', err);
+        console.error('[OLevelMarksEntry] Error fetching students:', err);
         setError('Failed to load students');
         setLoading(false);
       }
     };
 
     fetchStudents();
-  }, [selectedClass]);
+  }, [selectedClass, selectedSubject]);
 
   // Fetch existing results when class, subject, and exam are selected
   useEffect(() => {

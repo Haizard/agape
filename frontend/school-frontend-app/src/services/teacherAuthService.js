@@ -26,6 +26,7 @@ const teacherAuthService = {
   async getAssignedSubjects(classId) {
     try {
       if (!classId) {
+        console.error('[TeacherAuthService] No classId provided to getAssignedSubjects');
         return [];
       }
 
@@ -37,19 +38,71 @@ const teacherAuthService = {
         return response.data || [];
       }
 
-      // For teachers, strictly use the teacher-specific endpoint
-      console.log(`[TeacherAuthService] Fetching subjects for class ${classId} using strict endpoint`);
-      try {
-        const response = await api.get('/api/teachers/marks-entry-subjects', {
-          params: { classId }
-        });
-        console.log(`[TeacherAuthService] Found ${response.data ? response.data.length : 0} subjects for class ${classId}`);
-        return response.data || [];
-      } catch (error) {
-        console.error('[TeacherAuthService] Error fetching assigned subjects:', error);
-        // For all errors, return an empty array to enforce strict access control
-        console.log('[TeacherAuthService] Returning empty array due to error');
+      // For teachers, use a reliable method to get only assigned subjects
+      console.log(`[TeacherAuthService] Teacher user, fetching strictly assigned subjects for class ${classId}`);
+
+      // Get the teacher's profile to get their ID
+      const profileResponse = await api.get('/api/teachers/profile/me');
+      const teacherId = profileResponse.data._id;
+
+      if (!teacherId) {
+        console.error('[TeacherAuthService] No teacher ID found in profile');
         return [];
+      }
+
+      console.log(`[TeacherAuthService] Found teacher ID: ${teacherId}`);
+
+      // Get teacher-subject assignments directly from the assignments collection
+      // This is the most reliable way to get only subjects the teacher is assigned to
+      try {
+        console.log(`[TeacherAuthService] Calling /api/teacher-subject-assignments with teacherId=${teacherId}, classId=${classId}`);
+        const assignmentsResponse = await api.get('/api/teacher-subject-assignments', {
+          params: { teacherId, classId }
+        });
+
+        const assignments = assignmentsResponse.data || [];
+        console.log(`[TeacherAuthService] Found ${assignments.length} subject assignments for teacher ${teacherId} in class ${classId}`);
+
+        // Log the first assignment for debugging
+        if (assignments.length > 0) {
+          console.log('[TeacherAuthService] First assignment:', assignments[0]);
+        }
+
+        if (assignments.length === 0) {
+          console.log('[TeacherAuthService] No subject assignments found, returning empty array');
+          return [];
+        }
+
+        // Extract subject IDs from assignments
+        const subjectIds = assignments.map(assignment => assignment.subjectId);
+        console.log(`[TeacherAuthService] Subject IDs from assignments: ${subjectIds.join(', ')}`);
+
+        // Get details for these subjects
+        const subjectsResponse = await api.get(`/api/classes/${classId}/subjects`);
+        const allSubjects = subjectsResponse.data || [];
+
+        // Filter to only include subjects the teacher is assigned to
+        const assignedSubjects = allSubjects.filter(subject =>
+          subjectIds.includes(subject._id)
+        );
+
+        console.log(`[TeacherAuthService] Final filtered assigned subjects: ${assignedSubjects.length}`);
+        return assignedSubjects;
+      } catch (error) {
+        console.error('[TeacherAuthService] Error fetching teacher-subject assignments:', error);
+
+        // As a fallback, try the marks-entry-subjects endpoint which should be filtered
+        try {
+          console.log('[TeacherAuthService] Trying fallback to marks-entry-subjects endpoint');
+          const response = await api.get('/api/teachers/marks-entry-subjects', {
+            params: { classId }
+          });
+          console.log(`[TeacherAuthService] Found ${response.data ? response.data.length : 0} subjects using fallback endpoint`);
+          return response.data || [];
+        } catch (fallbackError) {
+          console.error('[TeacherAuthService] Fallback also failed:', fallbackError);
+          return [];
+        }
       }
     } catch (error) {
       console.error('[TeacherAuthService] Error in getAssignedSubjects:', error);
@@ -107,10 +160,18 @@ const teacherAuthService = {
           ))
         );
 
-        // If this is an O-Level class, bypass the authorization check
+        // For O-Level classes, use strict authorization
         if (isOLevelClass) {
-          console.log(`[TeacherAuthService] Bypassing class authorization check for O-Level class ${classId}`);
-          return true;
+          console.log(`[TeacherAuthService] Using strict authorization for O-Level class ${classId}`);
+          // Check if the teacher has any assigned subjects in this class
+          const assignedSubjects = await this.getAssignedSubjects(classId);
+          if (assignedSubjects.length > 0) {
+            console.log(`[TeacherAuthService] Teacher has ${assignedSubjects.length} assigned subjects in O-Level class ${classId}`);
+            return true;
+          } else {
+            console.log(`[TeacherAuthService] Teacher has no assigned subjects in O-Level class ${classId}`);
+            return false;
+          }
         }
       } catch (error) {
         console.error('[TeacherAuthService] Error checking if class is O-Level:', error);
@@ -135,6 +196,7 @@ const teacherAuthService = {
   async isAuthorizedForSubject(classId, subjectId) {
     try {
       if (!classId || !subjectId) {
+        console.error('[TeacherAuthService] Missing classId or subjectId in isAuthorizedForSubject');
         return false;
       }
 
@@ -144,53 +206,28 @@ const teacherAuthService = {
         return true;
       }
 
-      // Use the enhanced teacher API to check authorization
-      try {
-        console.log(`[TeacherAuthService] Checking authorization for subject ${subjectId} in class ${classId} using enhanced API`);
-        const response = await api.get(`/api/enhanced-teacher/check-subject-authorization`, {
-          params: { classId, subjectId }
-        });
+      console.log(`[TeacherAuthService] Checking authorization for subject ${subjectId} in class ${classId}`);
 
-        console.log(`[TeacherAuthService] Authorization check result:`, response.data);
-        return response.data.authorized === true;
-      } catch (error) {
-        // If the enhanced API fails, fall back to the old method
-        console.error('[TeacherAuthService] Error using enhanced API for authorization check:', error);
+      // The most reliable way to check authorization is to get the teacher's assigned subjects
+      // and check if the requested subject is in that list
+      const assignedSubjects = await this.getAssignedSubjects(classId);
 
-        // Check if this is an O-Level class
-        try {
-          const response = await api.get(`/api/classes/${classId}`);
-          const classData = response.data;
+      // Log the assigned subjects for debugging
+      console.log(`[TeacherAuthService] Teacher has ${assignedSubjects.length} assigned subjects in class ${classId}:`,
+        assignedSubjects.map(s => ({ id: s._id, name: s.name })));
 
-          // Check if this is an O-Level class
-          const isOLevelClass = classData && (
-            classData.educationLevel === 'O_LEVEL' ||
-            (classData.name && (
-              classData.name.toUpperCase().includes('O-LEVEL') ||
-              classData.name.toUpperCase().includes('O LEVEL')
-            ))
-          );
+      // Check if the subject is in the assigned subjects list
+      const isAuthorized = assignedSubjects.some(subject => subject._id === subjectId);
 
-          // For O-Level classes, check if the teacher is assigned to any subject in the class
-          if (isOLevelClass) {
-            console.log(`[TeacherAuthService] Class ${classId} is an O-Level class, checking class authorization`);
-            const isAuthorizedForClass = await this.isAuthorizedForClass(classId);
-            if (isAuthorizedForClass) {
-              console.log(`[TeacherAuthService] Teacher is authorized for O-Level class ${classId}, authorizing for subject ${subjectId}`);
-              return true;
-            }
-          }
-        } catch (classError) {
-          console.error('[TeacherAuthService] Error checking if class is O-Level:', classError);
-        }
-
-        // Normal authorization check
-        console.log(`[TeacherAuthService] Falling back to normal authorization check for subject ${subjectId} in class ${classId}`);
-        const assignedSubjects = await this.getAssignedSubjects(classId);
-        return assignedSubjects.some(subject => subject._id === subjectId);
+      if (isAuthorized) {
+        console.log(`[TeacherAuthService] Teacher is authorized for subject ${subjectId} in class ${classId}`);
+      } else {
+        console.log(`[TeacherAuthService] Teacher is NOT authorized for subject ${subjectId} in class ${classId}`);
       }
+
+      return isAuthorized;
     } catch (error) {
-      console.error('Error checking subject authorization:', error);
+      console.error('[TeacherAuthService] Error checking subject authorization:', error);
       return false;
     }
   },
@@ -236,14 +273,47 @@ const teacherAuthService = {
           ))
         );
 
-        // If this is an O-Level or A-Level class, bypass the authorization check
+        // For O-Level classes, use strict authorization
         if (isOLevelClass) {
-          console.log(`[TeacherAuthService] Bypassing student authorization check for O-Level class ${classId}`);
-          return true;
+          console.log(`[TeacherAuthService] Using strict student authorization for O-Level class ${classId}`);
+          // Check if the teacher has any assigned subjects in this class
+          const assignedSubjects = await this.getAssignedSubjects(classId);
+          if (assignedSubjects.length > 0) {
+            // Check if the student is in the class
+            const assignedStudents = await this.getAssignedStudents(classId);
+            const isStudentInClass = assignedStudents.some(student => student._id === studentId);
+            if (isStudentInClass) {
+              console.log(`[TeacherAuthService] Teacher is authorized for student ${studentId} in O-Level class ${classId}`);
+              return true;
+            } else {
+              console.log(`[TeacherAuthService] Student ${studentId} not found in O-Level class ${classId}`);
+              return false;
+            }
+          } else {
+            console.log(`[TeacherAuthService] Teacher has no assigned subjects in O-Level class ${classId}`);
+            return false;
+          }
         }
+        // For A-Level classes, use the same strict authorization
         if (isALevelClass) {
-          console.log(`[TeacherAuthService] Bypassing student authorization check for A-Level class ${classId}`);
-          return true;
+          console.log(`[TeacherAuthService] Using strict student authorization for A-Level class ${classId}`);
+          // Check if the teacher has any assigned subjects in this class
+          const assignedSubjects = await this.getAssignedSubjects(classId);
+          if (assignedSubjects.length > 0) {
+            // Check if the student is in the class
+            const assignedStudents = await this.getAssignedStudents(classId);
+            const isStudentInClass = assignedStudents.some(student => student._id === studentId);
+            if (isStudentInClass) {
+              console.log(`[TeacherAuthService] Teacher is authorized for student ${studentId} in A-Level class ${classId}`);
+              return true;
+            } else {
+              console.log(`[TeacherAuthService] Student ${studentId} not found in A-Level class ${classId}`);
+              return false;
+            }
+          } else {
+            console.log(`[TeacherAuthService] Teacher has no assigned subjects in A-Level class ${classId}`);
+            return false;
+          }
         }
       } catch (error) {
         console.error('[TeacherAuthService] Error checking class education level:', error);

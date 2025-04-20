@@ -135,26 +135,73 @@ exports.checkTeacherAuthorization = async (req, res, next) => {
       // Check if this is an O-Level class
       try {
         const classObj = await Class.findOne({ _id: classIdToCheck });
-        if (classObj && classObj.educationLevel === 'O_LEVEL') {
-          logger.info(`Teacher ${teacherId} is authorized for subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} (bypassing strict checks)`);
-          isAuthorized = true;
+        const isOLevelClass = classObj && classObj.educationLevel === 'O_LEVEL';
+
+        if (isOLevelClass) {
+          logger.info(`Teacher ${teacherId} is checking authorization for subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} (using strict checks)`);
+
+          // For O-Level classes, use strict subject-level access control
+          // Check all three assignment models
+
+          // Method 1: Check if the teacher is directly assigned to this subject in the Class model
+          if (classObj.subjects && Array.isArray(classObj.subjects)) {
+            for (const subjectAssignment of classObj.subjects) {
+              const assignedSubjectId = subjectAssignment.subject?.toString() || subjectAssignment.subject;
+              const assignedTeacherId = subjectAssignment.teacher?.toString();
+
+              if (assignedSubjectId === subjectIdToCheck && assignedTeacherId === teacherId) {
+                logger.info(`Teacher ${teacherId} is authorized for subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via Class.subjects`);
+                isAuthorized = true;
+                break;
+              }
+            }
+          }
+
+          // Method 2: Check TeacherSubject assignments
+          if (!isAuthorized) {
+            const teacherSubject = await TeacherSubject.findOne({
+              teacherId,
+              classId: classIdToCheck,
+              subjectId: subjectIdToCheck,
+              status: 'active'
+            });
+
+            if (teacherSubject) {
+              logger.info(`Teacher ${teacherId} is authorized for subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via TeacherSubject model`);
+              isAuthorized = true;
+            }
+          }
+
+          // Method 3: Check TeacherAssignment assignments
+          if (!isAuthorized) {
+            const TeacherAssignment = require('../models/TeacherAssignment');
+            const teacherAssignment = await TeacherAssignment.findOne({
+              teacher: teacherId,
+              class: classIdToCheck,
+              subject: subjectIdToCheck
+            });
+
+            if (teacherAssignment) {
+              logger.info(`Teacher ${teacherId} is authorized for subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via TeacherAssignment model`);
+              isAuthorized = true;
+            }
+          }
+        } else {
+          // For A-Level classes, use the regular authorization check
+          const teacherSubject = await TeacherSubject.findOne({
+            teacherId,
+            classId: classIdToCheck,
+            subjectId: subjectIdToCheck
+          });
+
+          if (teacherSubject) {
+            logger.info(`Teacher ${teacherId} is authorized for subject ${subjectIdToCheck} in A-Level class ${classIdToCheck} via TeacherSubject model`);
+            isAuthorized = true;
+          }
         }
       } catch (error) {
         logger.warn(`Error checking class education level for subject authorization: ${error.message}`);
         // Continue to normal authorization checks
-      }
-
-      // If not already authorized, check teacher subject assignment
-      if (!isAuthorized) {
-        const teacherSubject = await TeacherSubject.findOne({
-          teacherId,
-          classId: classIdToCheck,
-          subjectId: subjectIdToCheck
-        });
-
-        if (teacherSubject) {
-          isAuthorized = true;
-        }
       }
 
       if (!isAuthorized) {
@@ -167,16 +214,128 @@ exports.checkTeacherAuthorization = async (req, res, next) => {
     }
 
     // If we're dealing with a specific student, check if the teacher is assigned to that student
-    if (studentId && classIdToCheck) {
+    if (studentId && classIdToCheck && subjectIdToCheck) {
       let isAuthorized = false;
       let assignedStudents = [];
 
       // Check if this is an O-Level class
       try {
         const classObj = await Class.findOne({ _id: classIdToCheck });
-        if (classObj && classObj.educationLevel === 'O_LEVEL') {
-          logger.info(`Teacher ${teacherId} is authorized for student ${studentId} in O-Level class ${classIdToCheck} (bypassing strict checks)`);
-          isAuthorized = true;
+        const isOLevelClass = classObj && classObj.educationLevel === 'O_LEVEL';
+
+        if (isOLevelClass) {
+          logger.info(`Teacher ${teacherId} is checking authorization for student ${studentId} in O-Level class ${classIdToCheck} with subject ${subjectIdToCheck}`);
+
+          // For O-Level classes, we need to check if the teacher is assigned to the subject
+          // and if the student takes this subject
+
+          // First, check if the teacher is assigned to the subject
+          let isTeacherAssignedToSubject = false;
+
+          // Method 1: Check Class.subjects
+          if (classObj.subjects && Array.isArray(classObj.subjects)) {
+            for (const subjectAssignment of classObj.subjects) {
+              const assignedSubjectId = subjectAssignment.subject?.toString() || subjectAssignment.subject;
+              const assignedTeacherId = subjectAssignment.teacher?.toString();
+
+              if (assignedSubjectId === subjectIdToCheck && assignedTeacherId === teacherId) {
+                logger.info(`Teacher ${teacherId} is assigned to subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via Class.subjects`);
+                isTeacherAssignedToSubject = true;
+                break;
+              }
+            }
+          }
+
+          // Method 2: Check TeacherSubject
+          if (!isTeacherAssignedToSubject) {
+            const teacherSubject = await TeacherSubject.findOne({
+              teacherId,
+              classId: classIdToCheck,
+              subjectId: subjectIdToCheck,
+              status: 'active'
+            });
+
+            if (teacherSubject) {
+              logger.info(`Teacher ${teacherId} is assigned to subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via TeacherSubject model`);
+              isTeacherAssignedToSubject = true;
+            }
+          }
+
+          // Method 3: Check TeacherAssignment
+          if (!isTeacherAssignedToSubject) {
+            const TeacherAssignment = require('../models/TeacherAssignment');
+            const teacherAssignment = await TeacherAssignment.findOne({
+              teacher: teacherId,
+              class: classIdToCheck,
+              subject: subjectIdToCheck
+            });
+
+            if (teacherAssignment) {
+              logger.info(`Teacher ${teacherId} is assigned to subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via TeacherAssignment model`);
+              isTeacherAssignedToSubject = true;
+            }
+          }
+
+          if (!isTeacherAssignedToSubject) {
+            logger.warn(`Teacher ${teacherId} is not assigned to subject ${subjectIdToCheck} in O-Level class ${classIdToCheck}`);
+            return res.status(403).json({
+              success: false,
+              message: 'You are not assigned to teach this subject in this class'
+            });
+          }
+
+          // Now, check if this is a core or optional subject
+          const Subject = require('../models/Subject');
+          const subject = await Subject.findById(subjectIdToCheck);
+          const isCoreSubject = subject && subject.type === 'CORE';
+
+          if (isCoreSubject) {
+            // If it's a core subject, all students take it
+            logger.info(`Subject ${subjectIdToCheck} is a core subject, student ${studentId} takes it`);
+            isAuthorized = true;
+          } else {
+            // If it's an optional subject, check if the student takes it
+            logger.info(`Subject ${subjectIdToCheck} is an optional subject, checking if student ${studentId} takes it`);
+
+            // Method 1: Check StudentSubjectSelection model
+            const StudentSubjectSelection = require('../models/StudentSubjectSelection');
+            const subjectSelection = await StudentSubjectSelection.findOne({
+              student: studentId,
+              status: 'APPROVED'
+            });
+
+            if (subjectSelection) {
+              const optionalSubjects = subjectSelection.optionalSubjects.map(s => s.toString());
+              if (optionalSubjects.includes(subjectIdToCheck)) {
+                logger.info(`Student ${studentId} takes optional subject ${subjectIdToCheck} via StudentSubjectSelection model`);
+                isAuthorized = true;
+              }
+            }
+
+            // Method 2: Check Student model's selectedSubjects field
+            if (!isAuthorized) {
+              const Student = require('../models/Student');
+              const student = await Student.findById(studentId);
+
+              if (student && student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+                const selectedSubjects = student.selectedSubjects.map(s =>
+                  typeof s === 'object' && s._id ? s._id.toString() : s.toString());
+                if (selectedSubjects.includes(subjectIdToCheck)) {
+                  logger.info(`Student ${studentId} takes optional subject ${subjectIdToCheck} via Student.selectedSubjects`);
+                  isAuthorized = true;
+                }
+              }
+            }
+
+            if (!isAuthorized) {
+              logger.warn(`Student ${studentId} does not take optional subject ${subjectIdToCheck}`);
+              return res.status(403).json({
+                success: false,
+                message: 'This student does not take this optional subject',
+                details: 'You can only enter marks for students who take this subject'
+              });
+            }
+          }
         }
       } catch (error) {
         logger.warn(`Error checking class education level for student authorization: ${error.message}`);
@@ -243,16 +402,148 @@ exports.checkTeacherAuthorization = async (req, res, next) => {
     }
 
     // For batch operations, check if teacher is authorized for all students
-    if (Array.isArray(req.body) && classIdToCheck) {
+    if (Array.isArray(req.body) && classIdToCheck && subjectIdToCheck) {
       let assignedStudentIds = [];
       let allStudentsAuthorized = false;
 
       // Check if this is an O-Level class
       try {
         const classObj = await Class.findOne({ _id: classIdToCheck });
-        if (classObj && classObj.educationLevel === 'O_LEVEL') {
-          logger.info(`Teacher ${teacherId} is authorized for batch operations in O-Level class ${classIdToCheck} (bypassing strict checks)`);
-          allStudentsAuthorized = true;
+        const isOLevelClass = classObj && classObj.educationLevel === 'O_LEVEL';
+
+        if (isOLevelClass) {
+          logger.info(`Teacher ${teacherId} is checking authorization for batch operations in O-Level class ${classIdToCheck} with subject ${subjectIdToCheck}`);
+
+          // For O-Level classes, we need to check if the teacher is assigned to the subject
+          // and filter students based on subject selection
+
+          // First, check if the teacher is assigned to the subject
+          let isTeacherAssignedToSubject = false;
+
+          // Method 1: Check Class.subjects
+          if (classObj.subjects && Array.isArray(classObj.subjects)) {
+            for (const subjectAssignment of classObj.subjects) {
+              const assignedSubjectId = subjectAssignment.subject?.toString() || subjectAssignment.subject;
+              const assignedTeacherId = subjectAssignment.teacher?.toString();
+
+              if (assignedSubjectId === subjectIdToCheck && assignedTeacherId === teacherId) {
+                logger.info(`Teacher ${teacherId} is assigned to subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via Class.subjects`);
+                isTeacherAssignedToSubject = true;
+                break;
+              }
+            }
+          }
+
+          // Method 2: Check TeacherSubject
+          if (!isTeacherAssignedToSubject) {
+            const teacherSubject = await TeacherSubject.findOne({
+              teacherId,
+              classId: classIdToCheck,
+              subjectId: subjectIdToCheck,
+              status: 'active'
+            });
+
+            if (teacherSubject) {
+              logger.info(`Teacher ${teacherId} is assigned to subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via TeacherSubject model`);
+              isTeacherAssignedToSubject = true;
+            }
+          }
+
+          // Method 3: Check TeacherAssignment
+          if (!isTeacherAssignedToSubject) {
+            const TeacherAssignment = require('../models/TeacherAssignment');
+            const teacherAssignment = await TeacherAssignment.findOne({
+              teacher: teacherId,
+              class: classIdToCheck,
+              subject: subjectIdToCheck
+            });
+
+            if (teacherAssignment) {
+              logger.info(`Teacher ${teacherId} is assigned to subject ${subjectIdToCheck} in O-Level class ${classIdToCheck} via TeacherAssignment model`);
+              isTeacherAssignedToSubject = true;
+            }
+          }
+
+          if (!isTeacherAssignedToSubject) {
+            logger.warn(`Teacher ${teacherId} is not assigned to subject ${subjectIdToCheck} in O-Level class ${classIdToCheck}`);
+            return res.status(403).json({
+              success: false,
+              message: 'You are not assigned to teach this subject in this class'
+            });
+          }
+
+          // Now, check if this is a core or optional subject
+          const Subject = require('../models/Subject');
+          const subject = await Subject.findById(subjectIdToCheck);
+          const isCoreSubject = subject && subject.type === 'CORE';
+
+          if (isCoreSubject) {
+            // If it's a core subject, all students take it
+            logger.info(`Subject ${subjectIdToCheck} is a core subject, all students in class ${classIdToCheck} take it`);
+            allStudentsAuthorized = true;
+          } else {
+            // If it's an optional subject, we need to filter students who take it
+            logger.info(`Subject ${subjectIdToCheck} is an optional subject, filtering students in class ${classIdToCheck} who take it`);
+
+            // Get all students in the class
+            const Student = require('../models/Student');
+            const students = await Student.find({ class: classIdToCheck });
+
+            // Get student IDs
+            const studentIds = students.map(student => student._id.toString());
+
+            // Get subject selections for these students
+            const StudentSubjectSelection = require('../models/StudentSubjectSelection');
+            const subjectSelections = await StudentSubjectSelection.find({
+              student: { $in: studentIds },
+              status: 'APPROVED'
+            });
+
+            // Create a set of student IDs who take this subject
+            const studentsTakingSubject = new Set();
+
+            // Check each selection
+            for (const selection of subjectSelections) {
+              // Check if the subject is in the optional subjects list
+              const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
+              if (optionalSubjects.includes(subjectIdToCheck)) {
+                studentsTakingSubject.add(selection.student.toString());
+              }
+            }
+
+            // Also check students with direct subject assignments
+            for (const student of students) {
+              if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+                const selectedSubjects = student.selectedSubjects.map(s =>
+                  typeof s === 'object' && s._id ? s._id.toString() : s.toString());
+                if (selectedSubjects.includes(subjectIdToCheck)) {
+                  studentsTakingSubject.add(student._id.toString());
+                }
+              }
+            }
+
+            // Store the filtered student IDs
+            assignedStudentIds = Array.from(studentsTakingSubject);
+            logger.info(`Found ${assignedStudentIds.length} students who take subject ${subjectIdToCheck} in class ${classIdToCheck}`);
+
+            // Check if any marks are for students not assigned to this subject
+            const unauthorizedMarks = req.body.filter(
+              mark => mark.marksObtained !== '' && !assignedStudentIds.includes(mark.studentId)
+            );
+
+            if (unauthorizedMarks.length > 0) {
+              logger.warn(`Teacher ${teacherId} attempted to enter marks for ${unauthorizedMarks.length} unauthorized students in class ${classIdToCheck} for subject ${subjectIdToCheck}`);
+              return res.status(403).json({
+                success: false,
+                message: 'You are not authorized to enter marks for some students',
+                details: `${unauthorizedMarks.length} students do not take this optional subject`,
+                unauthorizedStudentIds: unauthorizedMarks.map(mark => mark.studentId)
+              });
+            }
+
+            // If we get here, all students are authorized
+            allStudentsAuthorized = true;
+          }
         }
       } catch (error) {
         logger.warn(`Error checking class education level for batch authorization: ${error.message}`);

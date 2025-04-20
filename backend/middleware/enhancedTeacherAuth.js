@@ -429,41 +429,29 @@ const getEnhancedTeacherSubjects = async (req, res, next) => {
     }
 
     // Use the enhanced teacher subject service to get the teacher's subjects
-    // For O-Level classes, we want to return all subjects in the class
-    const classObj = await Class.findById(classId);
-    if (classObj && classObj.educationLevel === 'O_LEVEL') {
-      console.log(`[EnhancedTeacherAuth] Class ${classId} is an O-Level class, returning all subjects`);
+    // For all classes, we want to return only the subjects the teacher is assigned to teach
+    console.log(`[EnhancedTeacherAuth] Getting subjects for teacher ${req.teacher._id} in class ${classId}, returning only assigned subjects`);
 
-      // Get all subjects in the class
-      const populatedClass = await Class.findById(classId)
-        .populate({
-          path: 'subjects.subject',
-          model: 'Subject',
-          select: 'name code type description educationLevel isPrincipal isCompulsory'
-        });
+    // Get only the subjects this teacher is assigned to teach in this class
+    const teacherSubjects = await enhancedTeacherSubjectService.getTeacherSubjects(
+      req.teacher._id,
+      classId,
+      false // Don't use cache to ensure fresh data
+    );
 
-      if (!populatedClass || !populatedClass.subjects) {
-        console.log(`[EnhancedTeacherAuth] No subjects found in class ${classId}`);
-        req.teacherSubjects = [];
-        return next();
-      }
+    if (!teacherSubjects || teacherSubjects.length === 0) {
+      console.log(`[EnhancedTeacherAuth] No subjects found for teacher ${req.teacher._id} in class ${classId}`);
+      req.teacherSubjects = [];
+      return next();
+    }
 
-      // Extract subjects from the class
-      const subjects = populatedClass.subjects
-        .filter(s => s.subject)
-        .map(s => ({
-          _id: s.subject._id,
-          name: s.subject.name,
-          code: s.subject.code,
-          type: s.subject.type || 'UNKNOWN',
-          description: s.subject.description || '',
-          educationLevel: s.subject.educationLevel || 'UNKNOWN',
-          isPrincipal: s.subject.isPrincipal || false,
-          isCompulsory: s.subject.isCompulsory || false,
-          assignmentType: 'o-level' // Special assignment type for O-Level
-        }));
+    console.log(`[EnhancedTeacherAuth] Found ${teacherSubjects.length} subjects assigned to teacher ${req.teacher._id} in class ${classId}`);
 
-      console.log(`[EnhancedTeacherAuth] Found ${subjects.length} subjects in O-Level class ${classId}`);
+    // Add assignment type for tracking
+    const subjects = teacherSubjects.map(subject => ({
+      ...subject,
+      assignmentType: 'teacher-specific' // Special assignment type for teacher-specific subjects
+    }));
 
       // If studentId is provided, filter subjects to only those the student takes
       if (req.query.studentId) {
@@ -515,20 +503,6 @@ const getEnhancedTeacherSubjects = async (req, res, next) => {
 
       req.teacherSubjects = subjects;
       return next();
-    } else {
-      // For A-Level classes, use the enhanced teacher subject service
-      const subjects = await enhancedTeacherSubjectService.getTeacherSubjects(
-        req.teacher._id,
-        classId,
-        false // Don't use cache to ensure fresh data
-      );
-
-      // Attach the subjects to the request object
-      req.teacherSubjects = subjects;
-      console.log(`[EnhancedTeacherAuth] Found ${subjects.length} subjects for teacher ${req.teacher._id} in class ${classId} using enhanced service`);
-    }
-
-    next();
   } catch (error) {
     console.error('[EnhancedTeacherAuth] Error in getEnhancedTeacherSubjects middleware:', error);
     res.status(500).json({
@@ -575,29 +549,57 @@ const strictSubjectAccessControl = async (req, res, next) => {
 
     // Use the enhanced teacher subject service to check if the teacher is specifically assigned to this subject
     const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
+    const Class = require('../models/Class');
+    const Subject = require('../models/Subject');
+    const TeacherAssignment = require('../models/TeacherAssignment');
+    const TeacherSubject = require('../models/TeacherSubject');
 
     // If classId is provided, check specific assignment in that class
     if (classId) {
       console.log(`[EnhancedTeacherAuth] Checking if teacher ${req.teacher._id} is assigned to subject ${subjectId} in class ${classId}`);
 
-      // Use the isTeacherAuthorizedForSubject method which now has strict subject-level access control
-      const isAuthorized = await enhancedTeacherSubjectService.isTeacherAuthorizedForSubject(
-        req.teacher._id,
-        classId,
-        subjectId
-      );
+      // Check if this is an O-Level class
+      const classObj = await Class.findById(classId);
+      const isOLevelClass = classObj && classObj.educationLevel === 'O_LEVEL';
 
-      if (isAuthorized) {
-        console.log(`[EnhancedTeacherAuth] Teacher ${req.teacher._id} is authorized for subject ${subjectId} in class ${classId}`);
-        return next();
+      if (isOLevelClass) {
+        console.log(`[EnhancedTeacherAuth] Class ${classId} is an O-Level class, using strict subject-level access control`);
+
+        // For O-Level classes, always use the strict check
+        const isSpecificallyAssigned = await enhancedTeacherSubjectService.isTeacherSpecificallyAssignedToSubject(
+          req.teacher._id,
+          classId,
+          subjectId
+        );
+
+        if (isSpecificallyAssigned) {
+          console.log(`[EnhancedTeacherAuth] Teacher ${req.teacher._id} is specifically assigned to subject ${subjectId} in O-Level class ${classId}`);
+
+          // Get the subject to check if it's a core or optional subject
+          const subject = await Subject.findById(subjectId);
+          const isCoreSubject = subject && subject.type === 'CORE';
+
+          // Store subject type in request for later use in student filtering
+          req.subjectType = subject ? subject.type : null;
+
+          return next();
+        }
+      } else {
+        // For A-Level classes, use the regular authorization check
+        const isAuthorized = await enhancedTeacherSubjectService.isTeacherAuthorizedForSubject(
+          req.teacher._id,
+          classId,
+          subjectId
+        );
+
+        if (isAuthorized) {
+          console.log(`[EnhancedTeacherAuth] Teacher ${req.teacher._id} is authorized for subject ${subjectId} in class ${classId}`);
+          return next();
+        }
       }
     } else {
       // If no classId is provided, check if the teacher is assigned to this subject in any class
       console.log(`[EnhancedTeacherAuth] Checking if teacher ${req.teacher._id} is assigned to subject ${subjectId} in any class`);
-
-      const TeacherAssignment = require('../models/TeacherAssignment');
-      const TeacherSubject = require('../models/TeacherSubject');
-      const Class = require('../models/Class');
 
       // Method 1: Check TeacherAssignment model
       const assignment = await TeacherAssignment.findOne({
@@ -652,11 +654,155 @@ const strictSubjectAccessControl = async (req, res, next) => {
   }
 };
 
+/**
+ * Middleware to filter students based on subject selection for O-Level classes
+ * This ensures teachers can only see students who take the subject they teach
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const filterStudentsBySubjectSelection = async (req, res, next) => {
+  try {
+    // Skip for admin users
+    if (req.user.role === 'admin') {
+      console.log('[EnhancedTeacherAuth] Admin user, bypassing student filtering');
+      return next();
+    }
+
+    // Make sure we have a teacher profile
+    if (!req.teacher) {
+      return res.status(500).json({
+        message: 'Teacher profile not attached to request. Make sure to use ensureTeacherProfile middleware first.',
+        error: 'MIDDLEWARE_SEQUENCE_ERROR'
+      });
+    }
+
+    // Get class ID and subject ID from params, query, or body
+    const classId = req.params.classId || req.query.classId || req.body.classId;
+    const subjectId = req.params.subjectId || req.query.subjectId || req.body.subjectId;
+
+    if (!classId || !subjectId) {
+      console.log('[EnhancedTeacherAuth] Missing classId or subjectId in request');
+      return res.status(400).json({
+        message: 'Class ID and Subject ID are required',
+        error: 'MISSING_PARAMETERS'
+      });
+    }
+
+    // Check if this is an O-Level class
+    const Class = require('../models/Class');
+    const Subject = require('../models/Subject');
+    const Student = require('../models/Student');
+    const StudentSubjectSelection = require('../models/StudentSubjectSelection');
+
+    const classObj = await Class.findById(classId);
+    if (!classObj) {
+      return res.status(404).json({
+        message: 'Class not found',
+        error: 'CLASS_NOT_FOUND'
+      });
+    }
+
+    const isOLevelClass = classObj.educationLevel === 'O_LEVEL';
+    if (!isOLevelClass) {
+      // For A-Level classes, we don't need to filter students
+      console.log(`[EnhancedTeacherAuth] Class ${classId} is not an O-Level class, skipping student filtering`);
+      return next();
+    }
+
+    // Get the subject to check if it's a core or optional subject
+    const subject = await Subject.findById(subjectId);
+    if (!subject) {
+      return res.status(404).json({
+        message: 'Subject not found',
+        error: 'SUBJECT_NOT_FOUND'
+      });
+    }
+
+    const isCoreSubject = subject.type === 'CORE';
+    console.log(`[EnhancedTeacherAuth] Subject ${subjectId} is a ${isCoreSubject ? 'core' : 'optional'} subject`);
+
+    // If it's a core subject, all students take it, so we don't need to filter
+    if (isCoreSubject) {
+      console.log(`[EnhancedTeacherAuth] Core subject ${subjectId}, all students take it, no filtering needed`);
+      return next();
+    }
+
+    // For optional subjects, we need to filter students who have selected this subject
+    console.log(`[EnhancedTeacherAuth] Optional subject ${subjectId}, filtering students who take it`);
+
+    // Get all students in the class
+    const students = await Student.find({ class: classId });
+    if (!students || students.length === 0) {
+      console.log(`[EnhancedTeacherAuth] No students found in class ${classId}`);
+      // If there are no students, just continue
+      return next();
+    }
+
+    console.log(`[EnhancedTeacherAuth] Found ${students.length} students in class ${classId}`);
+
+    // Get student IDs
+    const studentIds = students.map(student => student._id);
+
+    // Get subject selections for these students
+    const subjectSelections = await StudentSubjectSelection.find({
+      student: { $in: studentIds },
+      status: 'APPROVED'
+    });
+
+    console.log(`[EnhancedTeacherAuth] Found ${subjectSelections.length} subject selections for students in class ${classId}`);
+
+    // Create a set of student IDs who take this subject
+    const studentsTakingSubject = new Set();
+
+    // Check each selection
+    for (const selection of subjectSelections) {
+      // Check if the subject is in the optional subjects list
+      const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
+      if (optionalSubjects.includes(subjectId.toString())) {
+        studentsTakingSubject.add(selection.student.toString());
+      }
+    }
+
+    // Also check students with direct subject assignments
+    for (const student of students) {
+      if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+        const selectedSubjects = student.selectedSubjects.map(s =>
+          typeof s === 'object' && s._id ? s._id.toString() : s.toString());
+        if (selectedSubjects.includes(subjectId.toString())) {
+          studentsTakingSubject.add(student._id.toString());
+        }
+      }
+    }
+
+    console.log(`[EnhancedTeacherAuth] Found ${studentsTakingSubject.size} students who take subject ${subjectId}`);
+
+    // Attach the filtered student IDs to the request
+    req.filteredStudentIds = Array.from(studentsTakingSubject);
+
+    // If we're returning students directly, filter them
+    if (req.students) {
+      req.students = req.students.filter(student =>
+        studentsTakingSubject.has(student._id.toString()));
+      console.log(`[EnhancedTeacherAuth] Filtered students array to ${req.students.length} students`);
+    }
+
+    next();
+  } catch (error) {
+    console.error('[EnhancedTeacherAuth] Error in filterStudentsBySubjectSelection middleware:', error);
+    res.status(500).json({
+      message: 'Server error while filtering students by subject selection',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   ensureTeacherProfile,
   ensureTeacherClassAssignment,
   ensureTeacherSubjectAssignment,
   diagnoseAndFixTeacherAssignments,
   getEnhancedTeacherSubjects,
-  strictSubjectAccessControl
+  strictSubjectAccessControl,
+  filterStudentsBySubjectSelection
 };

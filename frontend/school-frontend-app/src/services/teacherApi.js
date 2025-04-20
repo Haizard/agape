@@ -45,50 +45,80 @@ const teacherApi = {
           return [];
         }
       } else {
-        // For teachers, strictly use the teacher-specific endpoint
+        // For teachers, use a reliable method to get only assigned subjects
         console.log(`[TeacherAPI] Fetching subjects for class ${classId} that the teacher is strictly assigned to teach`);
+
+        // Get the teacher's profile to get their ID
         try {
-          // Use the enhanced-teachers endpoint which strictly returns only subjects the teacher is assigned to teach
-          const response = await api.get('/api/enhanced-teachers/o-level/classes/' + classId + '/subjects');
+          const profileResponse = await api.get('/api/teachers/profile/me');
+          const teacherId = profileResponse.data._id;
 
-          // Check if the response has a subjects array (new format)
-          if (response.data && Array.isArray(response.data.subjects)) {
-            console.log(`[TeacherAPI] Found ${response.data.subjects.length} subjects for class ${classId} (new format)`);
-            return response.data.subjects || [];
-          }
-
-          // Otherwise, assume the response is the array itself (old format)
-          console.log(`[TeacherAPI] Found ${response.data ? response.data.length : 0} subjects for class ${classId} (old format)`);
-          return response.data || [];
-        } catch (error) {
-          console.error('[TeacherAPI] Error fetching from teacher-specific endpoint:', error);
-
-          // Try the my-subjects endpoint as a fallback
-          try {
-            console.log(`[TeacherAPI] Falling back to my-subjects endpoint for class ${classId}`);
-            const fallbackResponse = await api.get('/api/teachers/my-subjects', {
-              params: { classId }
-            });
-
-            if (fallbackResponse.data && Array.isArray(fallbackResponse.data.subjects)) {
-              console.log(`[TeacherAPI] Found ${fallbackResponse.data.subjects.length} subjects from fallback endpoint`);
-              return fallbackResponse.data.subjects || [];
-            }
-
-            console.log(`[TeacherAPI] Found ${fallbackResponse.data ? fallbackResponse.data.length : 0} subjects from fallback endpoint`);
-            return fallbackResponse.data || [];
-          } catch (fallbackError) {
-            console.error('[TeacherAPI] Error fetching from fallback endpoint:', fallbackError);
-          }
-
-          // For 403/401/404 errors, log a clear message and return empty array
-          if (error.response && (error.response.status === 403 || error.response.status === 401 || error.response.status === 404)) {
-            console.log('[TeacherAPI] Teacher is not authorized or not found:', error.response.data?.message || 'Unknown error');
+          if (!teacherId) {
+            console.error('[TeacherAPI] No teacher ID found in profile');
             return [];
           }
 
-          // For other errors, return empty array
-          console.log('[TeacherAPI] Returning empty array due to error');
+          console.log(`[TeacherAPI] Found teacher ID: ${teacherId}`);
+
+          // Get teacher-subject assignments directly from the assignments collection
+          // This is the most reliable way to get only subjects the teacher is assigned to
+          try {
+            const assignmentsResponse = await api.get('/api/teacher-subject-assignments', {
+              params: { teacherId, classId }
+            });
+
+            const assignments = assignmentsResponse.data || [];
+            console.log(`[TeacherAPI] Found ${assignments.length} subject assignments for teacher ${teacherId} in class ${classId}`);
+
+            if (assignments.length === 0) {
+              console.log('[TeacherAPI] No subject assignments found, returning empty array');
+              return [];
+            }
+
+            // Extract subject IDs from assignments
+            const subjectIds = assignments.map(assignment => assignment.subjectId);
+            console.log(`[TeacherAPI] Subject IDs from assignments: ${subjectIds.join(', ')}`);
+
+            // Get details for these subjects
+            const subjectsResponse = await api.get(`/api/classes/${classId}/subjects`);
+            const allSubjects = subjectsResponse.data || [];
+
+            // Filter to only include subjects the teacher is assigned to
+            const assignedSubjects = allSubjects.filter(subject =>
+              subjectIds.includes(subject._id)
+            );
+
+            console.log(`[TeacherAPI] Final filtered assigned subjects: ${assignedSubjects.length}`);
+            return assignedSubjects;
+          } catch (error) {
+            console.error('[TeacherAPI] Error fetching teacher-subject assignments:', error);
+
+            // Try fallback methods if the direct approach fails
+            try {
+              // First try the enhanced-teachers endpoint
+              console.log(`[TeacherAPI] Trying enhanced-teachers endpoint for class ${classId}`);
+              const enhancedResponse = await api.get(`/api/enhanced-teachers/o-level/classes/${classId}/subjects`);
+
+              if (enhancedResponse.data && Array.isArray(enhancedResponse.data.subjects)) {
+                console.log(`[TeacherAPI] Found ${enhancedResponse.data.subjects.length} subjects using enhanced endpoint`);
+                return enhancedResponse.data.subjects;
+              }
+
+              // Then try the marks-entry-subjects endpoint
+              console.log(`[TeacherAPI] Trying marks-entry-subjects endpoint for class ${classId}`);
+              const marksEntryResponse = await api.get('/api/teachers/marks-entry-subjects', {
+                params: { classId }
+              });
+
+              console.log(`[TeacherAPI] Found ${marksEntryResponse.data ? marksEntryResponse.data.length : 0} subjects using marks-entry endpoint`);
+              return marksEntryResponse.data || [];
+            } catch (fallbackError) {
+              console.error('[TeacherAPI] All fallback methods failed:', fallbackError);
+              return [];
+            }
+          }
+        } catch (profileError) {
+          console.error('[TeacherAPI] Error fetching teacher profile:', profileError);
           return [];
         }
       }

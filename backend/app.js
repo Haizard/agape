@@ -101,6 +101,28 @@ app.use('/api/marks', checkMarksRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/finance/fee-schedules', feeScheduleRoutes);
 app.use('/api/student-subject-selections', studentSubjectSelectionRoutes);
+// Teacher-subject assignment routes
+app.use('/api/teacher-subject-assignments', require('./routes/teacherSubjectAssignmentRoutes'));
+console.log('Teacher-subject assignment routes registered at /api/teacher-subject-assignments');
+
+// Log all registered routes for debugging
+const registeredRoutes = [];
+app._router.stack.forEach(middleware => {
+  if (middleware.route) {
+    // Routes registered directly on the app
+    registeredRoutes.push(`${Object.keys(middleware.route.methods)[0].toUpperCase()} ${middleware.route.path}`);
+  } else if (middleware.name === 'router') {
+    // Router middleware
+    middleware.handle.stack.forEach(handler => {
+      if (handler.route) {
+        const path = handler.route.path;
+        const method = Object.keys(handler.route.methods)[0].toUpperCase();
+        registeredRoutes.push(`${method} ${middleware.regexp} ${path}`);
+      }
+    });
+  }
+});
+console.log('Registered routes:', registeredRoutes);
 // Public routes - no authentication required
 app.use('/api/public', openCors, publicReportRoutes);
 // Marks history routes

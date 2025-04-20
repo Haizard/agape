@@ -39,29 +39,15 @@ router.get('/check-subject-authorization',
         });
       }
 
-      // Check if the class is an O-Level class
-      const Class = require('../models/Class');
-      const classObj = await Class.findById(classId);
-      const isOLevelClass = classObj && classObj.educationLevel === 'O_LEVEL';
+      // For all classes, use the strict check to ensure teachers only see subjects they're assigned to
+      const isAuthorized = await enhancedTeacherSubjectService.isTeacherSpecificallyAssignedToSubject(
+        teacherId,
+        classId,
+        subjectId
+      );
 
-      // Use the appropriate authorization check based on class type
-      let isAuthorized = false;
+      console.log(`[EnhancedTeacherAuth] Authorization check for teacher ${teacherId}, class ${classId}, subject ${subjectId}: ${isAuthorized ? 'AUTHORIZED' : 'UNAUTHORIZED'}`);
 
-      if (isOLevelClass) {
-        // For O-Level classes, use the more lenient check
-        isAuthorized = await enhancedTeacherSubjectService.isTeacherAuthorizedForSubject(
-          teacherId,
-          classId,
-          subjectId
-        );
-      } else {
-        // For A-Level classes, use the stricter check
-        isAuthorized = await enhancedTeacherSubjectService.isTeacherSpecificallyAssignedToSubject(
-          teacherId,
-          classId,
-          subjectId
-        );
-      }
 
       return res.json({
         success: true,
@@ -1105,6 +1091,7 @@ router.get('/o-level/classes/:classId/subjects/:subjectId/students',
   authorizeRole(['teacher', 'admin']),
   enhancedTeacherAuth.ensureTeacherProfile,
   enhancedTeacherAuth.strictSubjectAccessControl,
+  enhancedTeacherAuth.filterStudentsBySubjectSelection, // Add the new middleware for filtering students
   async (req, res) => {
     try {
       const { classId, subjectId } = req.params;
@@ -1133,104 +1120,29 @@ router.get('/o-level/classes/:classId/subjects/:subjectId/students',
 
       console.log(`Class ${classId} confirmed as O-Level class`);
 
-      // For admin users, we'll return all students in the class who take this subject
-      if (req.user.role === 'admin') {
-        console.log(`User is admin, returning all students in class ${classId} who take subject ${subjectId}`);
+      // Get all students in the class
+      const Student = require('../models/Student');
+      const students = await Student.find({ class: classId })
+        .select('firstName lastName rollNumber gender educationLevel selectedSubjects')
+        .sort({ firstName: 1, lastName: 1 });
 
-        // For O-Level, we need to filter students based on subject selection
-        const Student = require('../models/Student');
-        const mongoose = require('mongoose');
-        const Subject = mongoose.model('Subject');
-        const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+      console.log(`Found ${students.length} students in O-Level class ${classId}`);
 
-        // Get all students in the class
-        const students = await Student.find({ class: classId })
-          .select('firstName lastName rollNumber gender educationLevel selectedSubjects')
-          .sort({ firstName: 1, lastName: 1 });
-
-        console.log(`Found ${students.length} students in O-Level class ${classId}`);
-
-        // Check if this is a core subject
-        const subject = await Subject.findById(subjectId);
-        const isCoreSubject = subject && subject.type === 'CORE';
-
-        let filteredStudents = [];
-
-        if (isCoreSubject) {
-          // If it's a core subject, all students take it
-          console.log(`Subject ${subjectId} is a core subject, all students take it`);
-          filteredStudents = students;
-        } else {
-          // If it's an optional subject, filter students who have selected it
-          console.log(`Subject ${subjectId} is an optional subject, filtering students`);
-
-          // Create a set of student IDs who take this subject
-          const studentIdSet = new Set();
-
-          // Method 1: Check the Student model's selectedSubjects field
-          for (const student of students) {
-            if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
-              const selectedSubjects = student.selectedSubjects.map(s => s.toString());
-              if (selectedSubjects.includes(subjectId)) {
-                studentIdSet.add(student._id.toString());
-                console.log(`Student ${student._id} takes subject ${subjectId} (from Student model)`);
-              }
-            }
-          }
-
-          // Method 2: Check the StudentSubjectSelection model
-          const studentIds = students.map(s => s._id);
-          const selections = await StudentSubjectSelection.find({ student: { $in: studentIds } });
-
-          for (const selection of selections) {
-            const studentId = selection.student.toString();
-            const coreSubjects = selection.coreSubjects.map(s => s.toString());
-            const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
-
-            if (coreSubjects.includes(subjectId) || optionalSubjects.includes(subjectId)) {
-              studentIdSet.add(studentId);
-              console.log(`Student ${studentId} takes subject ${subjectId} (from StudentSubjectSelection model)`);
-            }
-          }
-
-          // Filter students who take this subject
-          filteredStudents = students.filter(student =>
-            studentIdSet.has(student._id.toString()));
-        }
-
-        console.log(`Returning ${filteredStudents.length} students who take subject ${subjectId} in class ${classId}`);
-
-        return res.json({
-          success: true,
-          classId,
-          subjectId,
-          students: filteredStudents.map(student => ({
-            _id: student._id,
-            name: `${student.firstName} ${student.lastName}`,
-            firstName: student.firstName, // Add firstName for compatibility
-            lastName: student.lastName, // Add lastName for compatibility
-            studentName: `${student.firstName} ${student.lastName}`, // Add studentName for compatibility
-            rollNumber: student.rollNumber,
-            gender: student.gender,
-            educationLevel: student.educationLevel
-          }))
-        });
+      // If we have filtered student IDs from the middleware, use them
+      let filteredStudents = students;
+      if (req.filteredStudentIds && Array.isArray(req.filteredStudentIds)) {
+        console.log(`Using filtered student IDs from middleware: ${req.filteredStudentIds.length} students`);
+        filteredStudents = students.filter(student =>
+          req.filteredStudentIds.includes(student._id.toString()));
       }
 
-      // For teachers, we'll return only students they are authorized to see
-      console.log(`User is teacher, returning students in class ${classId} who take subject ${subjectId} and are assigned to this teacher`);
-
-      // Use the enhanced teacher subject service to get students for this specific subject
-      const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
-      const students = await enhancedTeacherSubjectService.getTeacherStudents(teacherId, classId, subjectId);
-
-      console.log(`Found ${students.length} students assigned to teacher ${teacherId} for subject ${subjectId} in class ${classId}`);
+      console.log(`Returning ${filteredStudents.length} students who take subject ${subjectId} in class ${classId}`);
 
       return res.json({
         success: true,
         classId,
         subjectId,
-        students: students.map(student => ({
+        students: filteredStudents.map(student => ({
           _id: student._id,
           name: `${student.firstName} ${student.lastName}`,
           firstName: student.firstName, // Add firstName for compatibility
@@ -1339,6 +1251,276 @@ router.post('/diagnose-and-fix',
       res.status(500).json({
         success: false,
         message: 'Failed to diagnose teacher assignments',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Diagnostic endpoint to check student subject selections
+router.get('/diagnose-student-subjects/:classId',
+  authenticateToken,
+  authorizeRole(['admin']),
+  async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const { subjectId } = req.query;
+
+      console.log(`GET /api/enhanced-teachers/diagnose-student-subjects/${classId} - Diagnosing student subject selections`);
+
+      // Get the class
+      const Class = require('../models/Class');
+      const classObj = await Class.findById(classId);
+      if (!classObj) {
+        return res.status(404).json({
+          success: false,
+          message: 'Class not found'
+        });
+      }
+
+      // Get all students in the class
+      const Student = require('../models/Student');
+      const students = await Student.find({ class: classId })
+        .select('_id firstName lastName rollNumber gender educationLevel selectedSubjects')
+        .sort({ firstName: 1, lastName: 1 });
+
+      console.log(`Found ${students.length} students in class ${classId}`);
+
+      // Get all subjects in the class
+      const subjects = [];
+      if (classObj.subjects && Array.isArray(classObj.subjects)) {
+        for (const subjectAssignment of classObj.subjects) {
+          if (subjectAssignment.subject) {
+            const Subject = require('../models/Subject');
+            const subject = await Subject.findById(subjectAssignment.subject);
+            if (subject) {
+              subjects.push({
+                _id: subject._id,
+                name: subject.name,
+                code: subject.code,
+                type: subject.type
+              });
+            }
+          }
+        }
+      }
+
+      console.log(`Found ${subjects.length} subjects in class ${classId}`);
+
+      // Get student subject selections
+      const mongoose = require('mongoose');
+      const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+      const studentIds = students.map(s => s._id);
+      const selections = await StudentSubjectSelection.find({ student: { $in: studentIds } });
+
+      console.log(`Found ${selections.length} StudentSubjectSelection records`);
+
+      // Create a map of student selections
+      const studentSelections = {};
+      for (const selection of selections) {
+        const studentId = selection.student.toString();
+        studentSelections[studentId] = {
+          coreSubjects: selection.coreSubjects ? selection.coreSubjects.map(s => s.toString()) : [],
+          optionalSubjects: selection.optionalSubjects ? selection.optionalSubjects.map(s => s.toString()) : []
+        };
+      }
+
+      // Create a map of subject names
+      const subjectNames = {};
+      for (const subject of subjects) {
+        subjectNames[subject._id.toString()] = `${subject.name} (${subject.code}) - ${subject.type}`;
+      }
+
+      // Create a detailed report
+      const studentReport = [];
+      for (const student of students) {
+        const studentId = student._id.toString();
+        const selection = studentSelections[studentId] || { coreSubjects: [], optionalSubjects: [] };
+
+        // Get selected subjects from Student model
+        const selectedSubjectsFromModel = student.selectedSubjects ?
+          student.selectedSubjects.map(s => s.toString()) : [];
+
+        // Check if this student takes the specified subject
+        let takesSpecificSubject = false;
+        if (subjectId) {
+          const coreSubjects = selection.coreSubjects || [];
+          const optionalSubjects = selection.optionalSubjects || [];
+          takesSpecificSubject =
+            coreSubjects.includes(subjectId) ||
+            optionalSubjects.includes(subjectId) ||
+            selectedSubjectsFromModel.includes(subjectId);
+        }
+
+        studentReport.push({
+          _id: student._id,
+          name: `${student.firstName} ${student.lastName}`,
+          rollNumber: student.rollNumber,
+          gender: student.gender,
+          educationLevel: student.educationLevel,
+          selectedSubjectsInModel: selectedSubjectsFromModel.map(s => subjectNames[s] || s),
+          coreSubjects: selection.coreSubjects.map(s => subjectNames[s] || s),
+          optionalSubjects: selection.optionalSubjects.map(s => subjectNames[s] || s),
+          hasSelectionRecord: !!studentSelections[studentId],
+          takesSpecificSubject: subjectId ? takesSpecificSubject : undefined
+        });
+      }
+
+      // Return the report
+      res.json({
+        success: true,
+        classId,
+        className: classObj.name,
+        educationLevel: classObj.educationLevel,
+        studentCount: students.length,
+        subjectCount: subjects.length,
+        selectionRecordCount: selections.length,
+        subjects: subjects.map(s => ({
+          _id: s._id,
+          name: s.name,
+          code: s.code,
+          type: s.type
+        })),
+        students: studentReport
+      });
+    } catch (error) {
+      console.error('Error diagnosing student subject selections:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to diagnose student subject selections',
+        error: error.message
+      });
+    }
+  }
+);
+
+// Endpoint to assign a subject to students
+router.post('/assign-subject-to-students',
+  authenticateToken,
+  authorizeRole(['admin']),
+  async (req, res) => {
+    try {
+      const { classId, subjectId, studentIds } = req.body;
+
+      console.log(`POST /api/enhanced-teachers/assign-subject-to-students - Assigning subject ${subjectId} to students in class ${classId}`);
+
+      if (!classId || !subjectId || !studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Class ID, subject ID, and student IDs array are required'
+        });
+      }
+
+      // Get the class
+      const Class = require('../models/Class');
+      const classObj = await Class.findById(classId);
+      if (!classObj) {
+        return res.status(404).json({
+          success: false,
+          message: 'Class not found'
+        });
+      }
+
+      // Get the subject
+      const Subject = require('../models/Subject');
+      const subject = await Subject.findById(subjectId);
+      if (!subject) {
+        return res.status(404).json({
+          success: false,
+          message: 'Subject not found'
+        });
+      }
+
+      console.log(`Assigning subject ${subject.name} (${subject.code}) to ${studentIds.length} students`);
+
+      // Get the students
+      const Student = require('../models/Student');
+      const students = await Student.find({ _id: { $in: studentIds }, class: classId });
+
+      if (students.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No matching students found in the specified class'
+        });
+      }
+
+      console.log(`Found ${students.length} matching students in class ${classId}`);
+
+      // Get the StudentSubjectSelection model
+      const mongoose = require('mongoose');
+      const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+
+      // Process each student
+      const results = [];
+      for (const student of students) {
+        // Update the Student model's selectedSubjects field
+        if (!student.selectedSubjects) {
+          student.selectedSubjects = [];
+        }
+
+        // Check if the subject is already in the selectedSubjects array
+        const selectedSubjects = student.selectedSubjects.map(s => s.toString());
+        if (!selectedSubjects.includes(subjectId)) {
+          student.selectedSubjects.push(subjectId);
+          await student.save();
+          console.log(`Added subject ${subjectId} to Student ${student._id} (${student.firstName} ${student.lastName}) selectedSubjects`);
+        }
+
+        // Update or create a StudentSubjectSelection record
+        let selection = await StudentSubjectSelection.findOne({ student: student._id });
+
+        if (!selection) {
+          // Create a new selection record
+          selection = new StudentSubjectSelection({
+            student: student._id,
+            coreSubjects: subject.type === 'CORE' ? [subjectId] : [],
+            optionalSubjects: subject.type !== 'CORE' ? [subjectId] : []
+          });
+          await selection.save();
+          console.log(`Created new StudentSubjectSelection for Student ${student._id} (${student.firstName} ${student.lastName})`);
+        } else {
+          // Update the existing selection record
+          if (subject.type === 'CORE') {
+            // Add to core subjects if not already there
+            const coreSubjects = selection.coreSubjects.map(s => s.toString());
+            if (!coreSubjects.includes(subjectId)) {
+              selection.coreSubjects.push(subjectId);
+              await selection.save();
+              console.log(`Added subject ${subjectId} to Student ${student._id} (${student.firstName} ${student.lastName}) coreSubjects`);
+            }
+          } else {
+            // Add to optional subjects if not already there
+            const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
+            if (!optionalSubjects.includes(subjectId)) {
+              selection.optionalSubjects.push(subjectId);
+              await selection.save();
+              console.log(`Added subject ${subjectId} to Student ${student._id} (${student.firstName} ${student.lastName}) optionalSubjects`);
+            }
+          }
+        }
+
+        results.push({
+          _id: student._id,
+          name: `${student.firstName} ${student.lastName}`,
+          success: true
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Assigned subject ${subject.name} (${subject.code}) to ${results.length} students`,
+        classId,
+        subjectId,
+        subjectName: subject.name,
+        subjectCode: subject.code,
+        subjectType: subject.type,
+        studentsProcessed: results
+      });
+    } catch (error) {
+      console.error('Error assigning subject to students:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to assign subject to students',
         error: error.message
       });
     }
