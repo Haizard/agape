@@ -604,7 +604,51 @@ exports.getClassReport = async (req, res) => {
     const subjects = [];
     const subjectMap = new Map();
 
-    // First, try to extract subjects from results
+    // ALWAYS get all O-Level subjects from the database first
+    console.log('Fetching ALL O-Level subjects from database');
+    const allOLevelSubjects = await executeWithRetry(
+      () => Subject.find({ educationLevel: { $in: ['O_LEVEL', 'BOTH'] } }),
+      'Error fetching all O-Level subjects'
+    );
+
+    if (allOLevelSubjects && allOLevelSubjects.length > 0) {
+      console.log(`Found ${allOLevelSubjects.length} O-Level subjects in database`);
+      for (const subject of allOLevelSubjects) {
+        if (!subjectMap.has(subject._id.toString())) {
+          subjectMap.set(subject._id.toString(), true);
+          subjects.push({
+            id: subject._id,
+            name: subject.name,
+            code: subject.code || subject.name.substring(0, 4).toUpperCase()
+          });
+          console.log(`Added subject from database: ${subject.name} (${subject._id})`);
+        }
+      }
+    }
+
+    // Then get subjects assigned to the class
+    console.log(`Fetching subjects assigned to class ${classId}`);
+    const classWithSubjects = await executeWithRetry(
+      () => Class.findById(classId).populate('subjects.subject'),
+      `Error fetching subjects for class ${classId}`
+    );
+
+    if (classWithSubjects && classWithSubjects.subjects) {
+      console.log(`Class has ${classWithSubjects.subjects.length} subject entries in class object`);
+      for (const subjectEntry of classWithSubjects.subjects) {
+        if (subjectEntry.subject && !subjectMap.has(subjectEntry.subject._id.toString())) {
+          subjectMap.set(subjectEntry.subject._id.toString(), true);
+          subjects.push({
+            id: subjectEntry.subject._id,
+            name: subjectEntry.subject.name,
+            code: subjectEntry.subject.code || subjectEntry.subject.name.substring(0, 4).toUpperCase()
+          });
+          console.log(`Added subject from class: ${subjectEntry.subject.name} (${subjectEntry.subject._id})`);
+        }
+      }
+    }
+
+    // Then add any subjects from results that might not be in the class subjects
     for (const result of allResults) {
       if (result.subjectId && !subjectMap.has(result.subjectId._id.toString())) {
         subjectMap.set(result.subjectId._id.toString(), true);
@@ -617,33 +661,9 @@ exports.getClassReport = async (req, res) => {
       }
     }
 
-    // If we have no subjects with results but we have students, get all subjects assigned to the class
-    if (subjects.length === 0) {
-      console.log(`No subjects found from results. Fetching all subjects assigned to class ${classId}`);
-      const classWithSubjects = await executeWithRetry(
-        () => Class.findById(classId).populate('subjects.subject'),
-        `Error fetching subjects for class ${classId}`
-      );
-
-      if (classWithSubjects && classWithSubjects.subjects) {
-        console.log(`Class has ${classWithSubjects.subjects.length} subject entries in class object`);
-        for (const subjectEntry of classWithSubjects.subjects) {
-          if (subjectEntry.subject && !subjectMap.has(subjectEntry.subject._id.toString())) {
-            subjectMap.set(subjectEntry.subject._id.toString(), true);
-            subjects.push({
-              id: subjectEntry.subject._id,
-              name: subjectEntry.subject.name,
-              code: subjectEntry.subject.code || subjectEntry.subject.name.substring(0, 4).toUpperCase()
-            });
-            console.log(`Added subject from class: ${subjectEntry.subject.name} (${subjectEntry.subject._id})`);
-          }
-        }
-      }
-    }
-
     // If we still have no subjects, try to get them directly from the database
     if (subjects.length === 0) {
-      console.log('No subjects found from results or class. Fetching all O-Level subjects from database.');
+      console.log('No subjects found from class or results. Fetching all O-Level subjects from database.');
       const allSubjects = await executeWithRetry(
         () => Subject.find({ educationLevel: 'O_LEVEL' }),
         'Error fetching all O-Level subjects'
@@ -693,6 +713,9 @@ exports.getClassReport = async (req, res) => {
       lowestMarks: 100,
       grades: { A: 0, B: 0, C: 0, D: 0, F: 0 }
     }));
+
+    // Log all subjects for debugging
+    console.log('All subjects for report:', subjects.map(s => `${s.name} (${s.code})`));
 
     // Track if we have any results at all
     let anyResultsFound = false;
@@ -798,6 +821,7 @@ exports.getClassReport = async (req, res) => {
         } else {
           console.log(`No result found for subject ${subject.name}, using placeholder values`);
 
+          // Still include the subject in the results, but with placeholder values
           subjectResults.push({
             subject: subject.name,
             code: subject.code,
@@ -807,6 +831,9 @@ exports.getClassReport = async (req, res) => {
           });
         }
       }
+
+      // Sort subject results by name for consistent display
+      subjectResults.sort((a, b) => a.subject.localeCompare(b.subject));
 
       // Log whether this student has any valid results
       console.log(`Student ${studentId} has valid results: ${hasAnyValidResult}`);
@@ -890,6 +917,9 @@ exports.getClassReport = async (req, res) => {
     console.log(`Class average: ${classAverage.toFixed(2)}`);
     console.log('Division summary:', divisionSummary);
 
+    // Log all subjects for debugging
+    console.log('All subjects being included in report:', subjects.map(s => `${s.name} (${s.code})`));
+
     const report = {
       reportTitle: `${exam.name} Class Result Report`,
       schoolName: 'AGAPE LUTHERAN JUNIOR SEMINARY',
@@ -899,7 +929,12 @@ exports.getClassReport = async (req, res) => {
       className: classObj.name,
       section: classObj.section || '',
       stream: classObj.stream || '',
-      subjects,
+      // Ensure subjects are properly formatted for the frontend
+      subjects: subjects.map(subject => ({
+        id: subject.id,
+        name: subject.name,
+        code: subject.code
+      })),
       students: studentResults,
       subjectAnalysis,
       classAverage: classAverage.toFixed(2),
