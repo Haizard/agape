@@ -320,7 +320,22 @@ exports.getStudentReport = async (req, res) => {
     // Process each subject
     for (const subject of allSubjects) {
       // Check if this student takes this subject
-      const studentTakesSubject = studentSubjectIds.includes(subject._id.toString());
+      let studentTakesSubject = false;
+
+      // Method 1: Check if it's a core subject (all students take core subjects)
+      if (subject.type === 'CORE') {
+        studentTakesSubject = true;
+        console.log(`Subject ${subject.name} is a core subject, student ${studentId} takes it by default`);
+      } else {
+        // Method 2: Check if it's in the student's selected subjects
+        studentTakesSubject = studentSubjectIds.includes(subject._id.toString());
+
+        if (studentTakesSubject) {
+          console.log(`Student ${studentId} takes optional subject ${subject.name} based on subject selection`);
+        } else {
+          console.log(`Student ${studentId} does NOT take optional subject ${subject.name}`);
+        }
+      }
 
       // Find result for this subject
       const result = results.find(r => r.subjectId && r.subjectId._id && r.subjectId._id.toString() === subject._id.toString());
@@ -884,7 +899,25 @@ exports.getClassReport = async (req, res) => {
         console.log(`Checking subject ${subject.name} (${subject.id}) for student ${studentId}`);
 
         // Check if this student takes this subject
-        const studentTakesSubject = studentSubjectIds.includes(subject.id.toString());
+        let studentTakesSubject = false;
+
+        // First get the full subject details to check if it's a core subject
+        const fullSubject = await Subject.findById(subject.id).select('name code type');
+
+        // Method 1: Check if it's a core subject (all students take core subjects)
+        if (fullSubject && fullSubject.type === 'CORE') {
+          studentTakesSubject = true;
+          console.log(`Subject ${subject.name} is a core subject, student ${studentId} takes it by default`);
+        } else {
+          // Method 2: Check if it's in the student's selected subjects
+          studentTakesSubject = studentSubjectIds.includes(subject.id.toString());
+
+          if (studentTakesSubject) {
+            console.log(`Student ${studentId} takes optional subject ${subject.name} based on subject selection`);
+          } else {
+            console.log(`Student ${studentId} does NOT take optional subject ${subject.name}`);
+          }
+        }
 
         // Find result for this subject
         const result = results.find(r => r.subjectId && r.subjectId._id && r.subjectId._id.toString() === subject.id.toString());

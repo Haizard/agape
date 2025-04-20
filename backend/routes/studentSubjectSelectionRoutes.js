@@ -512,6 +512,26 @@ router.post('/', authenticateToken, authorizeRole(['admin', 'teacher']), async (
 
     await selection.save();
 
+    // Update the student's selectedSubjects field to include both core and optional subjects
+    try {
+      const Student = require('../models/Student');
+      const student = await Student.findById(selection.student);
+
+      if (student) {
+        // Combine core and optional subjects
+        const allSubjects = [...selection.coreSubjects, ...selection.optionalSubjects];
+
+        // Update the student's selectedSubjects field
+        student.selectedSubjects = allSubjects;
+        await student.save();
+
+        console.log(`Updated student ${student._id} with ${allSubjects.length} selected subjects`);
+      }
+    } catch (updateError) {
+      console.error('Error updating student selected subjects:', updateError);
+      // Continue even if this fails - we'll log the error but not fail the request
+    }
+
     // Populate the selection for the response
     const populatedSelection = await StudentSubjectSelection.findById(selection._id)
       .populate('student', 'firstName lastName admissionNumber')
@@ -553,6 +573,26 @@ router.put('/:id', authenticateToken, authorizeRole(['admin', 'teacher']), async
     selection.approvedBy = req.user._id;
 
     await selection.save();
+
+    // Update the student's selectedSubjects field to include both core and optional subjects
+    try {
+      const Student = require('../models/Student');
+      const student = await Student.findById(selection.student);
+
+      if (student) {
+        // Combine core and optional subjects
+        const allSubjects = [...selection.coreSubjects, ...selection.optionalSubjects];
+
+        // Update the student's selectedSubjects field
+        student.selectedSubjects = allSubjects;
+        await student.save();
+
+        console.log(`Updated student ${student._id} with ${allSubjects.length} selected subjects after modification`);
+      }
+    } catch (updateError) {
+      console.error('Error updating student selected subjects after modification:', updateError);
+      // Continue even if this fails - we'll log the error but not fail the request
+    }
 
     // Populate the selection for the response
     const populatedSelection = await StudentSubjectSelection.findById(selection._id)

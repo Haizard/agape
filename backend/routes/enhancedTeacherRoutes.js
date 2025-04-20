@@ -230,20 +230,74 @@ router.get('/classes/:classId/subjects/:subjectId/students',
           console.log(`Teacher ${teacherId} is NOT assigned to any subject in O-Level class ${classId}`);
         }
 
-        // For O-Level, we'll return all students regardless of specific subject assignment
-        // This matches how A-Level works in practice
+        // For O-Level, we need to filter students based on subject selection
         const Student = require('../models/Student');
+        const mongoose = require('mongoose');
+        const Subject = mongoose.model('Subject');
+        const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+
+        // Get all students in the class
         const students = await Student.find({ class: classId })
-          .select('firstName lastName rollNumber gender educationLevel')
+          .select('firstName lastName rollNumber gender educationLevel selectedSubjects')
           .sort({ firstName: 1, lastName: 1 });
 
         console.log(`Found ${students.length} students in O-Level class ${classId}`);
+
+        // Check if this is a core subject
+        const subject = await Subject.findById(subjectId);
+        const isCoreSubject = subject && subject.type === 'CORE';
+
+        let filteredStudents = [];
+
+        if (isCoreSubject) {
+          // If it's a core subject, all students take it
+          console.log(`Subject ${subjectId} is a core subject, all students take it`);
+          filteredStudents = students;
+        } else {
+          // If it's an optional subject, filter students who have selected it
+          console.log(`Subject ${subjectId} is an optional subject, filtering students`);
+
+          // Create a set of student IDs who take this subject
+          const studentIdSet = new Set();
+
+          // Method 1: Check the Student model's selectedSubjects field
+          for (const student of students) {
+            if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+              const selectedSubjects = student.selectedSubjects.map(s => s.toString());
+              if (selectedSubjects.includes(subjectId)) {
+                studentIdSet.add(student._id.toString());
+                console.log(`Student ${student._id} takes subject ${subjectId} (from Student model)`);
+              }
+            }
+          }
+
+          // Method 2: Check the StudentSubjectSelection model
+          const studentIds = students.map(s => s._id);
+          const selections = await StudentSubjectSelection.find({ student: { $in: studentIds } });
+
+          for (const selection of selections) {
+            const studentId = selection.student.toString();
+            const coreSubjects = selection.coreSubjects.map(s => s.toString());
+            const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
+
+            if (coreSubjects.includes(subjectId) || optionalSubjects.includes(subjectId)) {
+              studentIdSet.add(studentId);
+              console.log(`Student ${studentId} takes subject ${subjectId} (from StudentSubjectSelection model)`);
+            }
+          }
+
+          // Filter students who take this subject
+          filteredStudents = students.filter(student =>
+            studentIdSet.has(student._id.toString()));
+        }
+
+        console.log(`Returning ${filteredStudents.length} students who take subject ${subjectId} in class ${classId}`);
 
         return res.json({
           success: true,
           classId,
           subjectId,
-          students: students.map(student => ({
+          students: filteredStudents.map(student => ({
             _id: student._id,
             name: `${student.firstName} ${student.lastName}`,
             rollNumber: student.rollNumber,
@@ -359,11 +413,67 @@ router.post('/classes/:classId/subjects/:subjectId/marks',
 
       // Process marks
       const Result = require('../models/Result');
+      const Student = require('../models/Student');
+      const mongoose = require('mongoose');
+      const Subject = mongoose.model('Subject');
+      const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
       const savedResults = [];
+      const skippedStudents = [];
+
+      // Get the class to check if it's O-Level or A-Level
+      const Class = require('../models/Class');
+      const classObj = await Class.findById(classId);
+      const isOLevelClass = classObj && classObj.educationLevel === 'O_LEVEL';
+
+      // Get the subject to check if it's a core subject
+      const subject = await Subject.findById(subjectId);
+      const isCoreSubject = subject && subject.type === 'CORE';
 
       for (const mark of marks) {
         if (!mark.studentId || mark.marksObtained === undefined) {
           continue; // Skip invalid entries
+        }
+
+        // For O-Level classes with optional subjects, check if the student takes this subject
+        if (isOLevelClass && !isCoreSubject) {
+          // Get the student
+          const student = await Student.findById(mark.studentId).select('selectedSubjects');
+
+          // Check if student takes this subject
+          let studentTakesSubject = false;
+
+          // Method 1: Check the Student model's selectedSubjects field
+          if (student && student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+            const selectedSubjects = student.selectedSubjects.map(s => s.toString());
+            if (selectedSubjects.includes(subjectId)) {
+              studentTakesSubject = true;
+              console.log(`Student ${mark.studentId} takes subject ${subjectId} (from Student model)`);
+            }
+          }
+
+          // Method 2: Check the StudentSubjectSelection model
+          if (!studentTakesSubject) {
+            const selection = await StudentSubjectSelection.findOne({ student: mark.studentId });
+            if (selection) {
+              const coreSubjects = selection.coreSubjects.map(s => s.toString());
+              const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
+
+              if (coreSubjects.includes(subjectId) || optionalSubjects.includes(subjectId)) {
+                studentTakesSubject = true;
+                console.log(`Student ${mark.studentId} takes subject ${subjectId} (from StudentSubjectSelection model)`);
+              }
+            }
+          }
+
+          // Skip this student if they don't take this subject
+          if (!studentTakesSubject) {
+            console.log(`Skipping marks entry for student ${mark.studentId} who doesn't take subject ${subjectId}`);
+            skippedStudents.push({
+              studentId: mark.studentId,
+              reason: 'Student does not take this subject'
+            });
+            continue;
+          }
         }
 
         // Calculate grade and points
@@ -383,7 +493,7 @@ router.post('/classes/:classId/subjects/:subjectId/marks',
             grade,
             points,
             comment: mark.comment || '',
-            educationLevel: mark.educationLevel || 'O_LEVEL'
+            educationLevel: mark.educationLevel || (isOLevelClass ? 'O_LEVEL' : 'A_LEVEL')
           },
           { upsert: true, new: true }
         );
@@ -393,8 +503,9 @@ router.post('/classes/:classId/subjects/:subjectId/marks',
 
       res.json({
         success: true,
-        message: `Saved ${savedResults.length} results`,
-        results: savedResults
+        message: `Saved ${savedResults.length} results${skippedStudents.length > 0 ? `, skipped ${skippedStudents.length} students` : ''}`,
+        results: savedResults,
+        skippedStudents: skippedStudents.length > 0 ? skippedStudents : undefined
       });
     } catch (error) {
       console.error('Error saving marks:', error);
@@ -501,12 +612,24 @@ router.get('/o-level/classes/:classId/subject/:subjectId/students',
         // If it's an optional subject, filter students who have selected it
         console.log(`[EnhancedTeacherRoutes] Subject ${subjectId} is an optional subject, filtering students`);
 
+        // Create a set of student IDs who take this subject
+        const studentIdSet = new Set();
+
+        // Method 1: Check the Student model's selectedSubjects field
+        for (const student of students) {
+          if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+            const selectedSubjects = student.selectedSubjects.map(s => s.toString());
+            if (selectedSubjects.includes(subjectId)) {
+              studentIdSet.add(student._id.toString());
+              console.log(`[EnhancedTeacherRoutes] Student ${student._id} takes subject ${subjectId} (from Student model)`);
+            }
+          }
+        }
+
+        // Method 2: Check the StudentSubjectSelection model
         // Get all student subject selections for this class
         const studentIds = students.map(s => s._id);
         const selections = await StudentSubjectSelection.find({ student: { $in: studentIds } });
-
-        // Create a set of student IDs who take this subject
-        const studentIdSet = new Set();
 
         for (const selection of selections) {
           const studentId = selection.student.toString();
@@ -515,6 +638,7 @@ router.get('/o-level/classes/:classId/subject/:subjectId/students',
 
           if (coreSubjects.includes(subjectId) || optionalSubjects.includes(subjectId)) {
             studentIdSet.add(studentId);
+            console.log(`[EnhancedTeacherRoutes] Student ${studentId} takes subject ${subjectId} (from StudentSubjectSelection model)`);
           }
         }
 

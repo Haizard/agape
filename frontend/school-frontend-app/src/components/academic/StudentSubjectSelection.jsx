@@ -51,7 +51,7 @@ const StudentSubjectSelection = () => {
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
-  const [showOnlyOLevel, setShowOnlyOLevel] = useState(true);
+  const [educationLevelFilter, setEducationLevelFilter] = useState('O_LEVEL'); // 'O_LEVEL', 'A_LEVEL', or 'ALL'
   const [showOnlyNewStudents, setShowOnlyNewStudents] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -122,7 +122,9 @@ const StudentSubjectSelection = () => {
         admissionNumber.includes(searchQuery.toLowerCase());
 
       // Filter by education level
-      const isOLevel = !showOnlyOLevel || student.educationLevel === 'O_LEVEL';
+      const matchesEducationLevel =
+        educationLevelFilter === 'ALL' ||
+        student.educationLevel === educationLevelFilter;
 
       // Filter by subject selection status
       const hasExistingSelection = existingSelections.some(
@@ -130,9 +132,9 @@ const StudentSubjectSelection = () => {
       );
       const isNewStudent = !showOnlyNewStudents || !hasExistingSelection;
 
-      return matchesSearch && isOLevel && isNewStudent;
+      return matchesSearch && matchesEducationLevel && isNewStudent;
     });
-  }, [students, searchQuery, showOnlyOLevel, showOnlyNewStudents, existingSelections]);
+  }, [students, searchQuery, educationLevelFilter, showOnlyNewStudents, existingSelections]);
 
   // Handle student selection
   const handleStudentChange = (e) => {
@@ -298,8 +300,8 @@ const StudentSubjectSelection = () => {
       </Typography>
 
       <Typography variant="body1" paragraph>
-        Use this form to select optional subjects for O-Level students. Core subjects are automatically assigned.
-        Students will study these subjects throughout their O-Level education (Form 1-4).
+        Use this form to select subjects for students. For O-Level students, core subjects are automatically assigned and you can select optional subjects.
+        For A-Level students, you can select from available subject combinations. Students will study these subjects throughout their education.
       </Typography>
 
       {error && (
@@ -313,6 +315,36 @@ const StudentSubjectSelection = () => {
           {success}
         </Alert>
       )}
+
+      {/* Quick Education Level Filter */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+        <Paper elevation={0} sx={{ display: 'inline-flex', borderRadius: '24px', overflow: 'hidden' }}>
+          <Button
+            variant={educationLevelFilter === 'O_LEVEL' ? 'contained' : 'text'}
+            color="primary"
+            onClick={() => setEducationLevelFilter('O_LEVEL')}
+            sx={{ px: 3, py: 1, borderRadius: 0 }}
+          >
+            O-Level Students
+          </Button>
+          <Button
+            variant={educationLevelFilter === 'A_LEVEL' ? 'contained' : 'text'}
+            color="secondary"
+            onClick={() => setEducationLevelFilter('A_LEVEL')}
+            sx={{ px: 3, py: 1, borderRadius: 0 }}
+          >
+            A-Level Students
+          </Button>
+          <Button
+            variant={educationLevelFilter === 'ALL' ? 'contained' : 'text'}
+            color="inherit"
+            onClick={() => setEducationLevelFilter('ALL')}
+            sx={{ px: 3, py: 1, borderRadius: 0 }}
+          >
+            All Students
+          </Button>
+        </Paper>
+      </Box>
 
       {/* Search and Filter Section */}
       <Paper elevation={0} variant="outlined" sx={{ p: 2, mb: 3 }}>
@@ -361,18 +393,31 @@ const StudentSubjectSelection = () => {
                   <Grid item xs={12} md={6}>
                     <FormControl component="fieldset">
                       <FormLabel component="legend">Education Level</FormLabel>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={showOnlyOLevel}
-                            onChange={(e) => setShowOnlyOLevel(e.target.checked)}
-                            color="primary"
-                          />
-                        }
-                        label="Show only O-Level students"
-                      />
+                      <RadioGroup
+                        row
+                        value={educationLevelFilter}
+                        onChange={(e) => setEducationLevelFilter(e.target.value)}
+                      >
+                        <FormControlLabel
+                          value="O_LEVEL"
+                          control={<Radio color="primary" />}
+                          label="O-Level"
+                        />
+                        <FormControlLabel
+                          value="A_LEVEL"
+                          control={<Radio color="secondary" />}
+                          label="A-Level"
+                        />
+                        <FormControlLabel
+                          value="ALL"
+                          control={<Radio />}
+                          label="All Students"
+                        />
+                      </RadioGroup>
                       <FormHelperText>
-                        {showOnlyOLevel ? 'Showing only O-Level students' : 'Showing all students'}
+                        {educationLevelFilter === 'O_LEVEL' ? 'Showing only O-Level students' :
+                         educationLevelFilter === 'A_LEVEL' ? 'Showing only A-Level students' :
+                         'Showing students of all education levels'}
                       </FormHelperText>
                     </FormControl>
                   </Grid>
@@ -657,7 +702,7 @@ const StudentSubjectSelection = () => {
                       <Chip
                         label={selection.status}
                         color={selection.status === 'APPROVED' ? 'success' :
-                               selection.status === 'REJECTED' ? 'error' : 'default'}
+                               selection.status === 'REJECTED' ? 'error' : 'primary'}
                       />
                     </TableCell>
                   </TableRow>
