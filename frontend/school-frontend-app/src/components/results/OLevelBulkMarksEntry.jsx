@@ -142,11 +142,20 @@ const OLevelBulkMarksEntry = () => {
         let subjectsData;
         if (isAdmin) {
           // Admin can see all subjects in the class
-          const response = await api.get(`/api/classes/${selectedClass}/subjects`);
-          subjectsData = response.data || [];
+          // Use enhanced API endpoint that respects student subject selections
+          const response = await api.get(`/api/enhanced-teacher/o-level/classes/${selectedClass}/subjects`);
+          subjectsData = response.data.subjects || [];
         } else {
           // Teachers can only see assigned subjects
-          subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
+          // Use enhanced API endpoint that respects student subject selections
+          try {
+            const response = await api.get(`/api/enhanced-teacher/o-level/classes/${selectedClass}/subjects`);
+            subjectsData = response.data.subjects || [];
+          } catch (error) {
+            console.error('Error fetching subjects with enhanced API:', error);
+            // Fall back to regular API
+            subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
+          }
         }
 
         // Filter for O-Level subjects only

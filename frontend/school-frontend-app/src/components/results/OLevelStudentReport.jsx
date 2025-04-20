@@ -18,7 +18,8 @@ import {
   Button,
   CircularProgress,
   Alert,
-  Grid
+  Grid,
+  Tooltip
 } from '@mui/material';
 import {
   Print as PrintIcon,
@@ -424,16 +425,54 @@ const OLevelStudentReport = ({ reportData }) => {
             </TableHead>
             <TableBody>
               {subjects && subjects.length > 0 ? (
-                subjects.map((subject, index) => (
-                  <TableRow key={`subject-${index}`} className="subject-row">
-                    <TableCell className="subject-name">{subject.subject}</TableCell>
-                    <TableCell align="center" className="subject-code">{subject.code}</TableCell>
-                    <TableCell align="center" className="subject-marks">{subject.marks}</TableCell>
-                    <TableCell align="center" className="subject-grade">{subject.grade}</TableCell>
-                    <TableCell align="center" className="subject-points">{subject.points}</TableCell>
-                    <TableCell align="center" className="subject-remarks">{subject.remarks}</TableCell>
-                  </TableRow>
-                ))
+                subjects.map((subject, index) => {
+                  // Check if student takes this subject
+                  const studentTakesSubject = subject.studentTakesSubject !== false;
+
+                  return (
+                    <TableRow
+                      key={`subject-${index}`}
+                      className="subject-row"
+                      sx={{
+                        // Gray out subjects the student doesn't take
+                        backgroundColor: !studentTakesSubject ? 'rgba(0, 0, 0, 0.04)' : 'inherit',
+                      }}
+                    >
+                      <TableCell className="subject-name">
+                        {subject.subject}
+                        {!studentTakesSubject && (
+                          <Tooltip title="Student doesn't take this subject" placement="top">
+                            <Box
+                              component="span"
+                              sx={{
+                                display: 'inline-block',
+                                width: '8px',
+                                height: '8px',
+                                backgroundColor: '#bdbdbd',
+                                borderRadius: '50%',
+                                ml: 1,
+                                verticalAlign: 'middle'
+                              }}
+                            />
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                      <TableCell align="center" className="subject-code">{subject.code}</TableCell>
+                      <TableCell align="center" className="subject-marks">
+                        {studentTakesSubject ? subject.marks : 'N/A'}
+                      </TableCell>
+                      <TableCell align="center" className="subject-grade">
+                        {studentTakesSubject ? subject.grade : 'N/A'}
+                      </TableCell>
+                      <TableCell align="center" className="subject-points">
+                        {studentTakesSubject ? subject.points : 'N/A'}
+                      </TableCell>
+                      <TableCell align="center" className="subject-remarks">
+                        {studentTakesSubject ? subject.remarks : 'Not enrolled'}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} align="center">No subjects data available</TableCell>

@@ -266,6 +266,37 @@ exports.getStudentReport = async (req, res) => {
       `Error fetching results for student ${studentId} in exam ${examId}`
     );
 
+    // Get student's selected subjects (both core and optional)
+    let studentSubjectIds = [];
+    try {
+      // First try to get directly from student record
+      if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+        studentSubjectIds = student.selectedSubjects.map(s =>
+          typeof s === 'object' && s._id ? s._id.toString() : s.toString());
+        console.log(`Student ${studentId} has ${studentSubjectIds.length} selected subjects directly on their record`);
+      }
+
+      // If no subjects found, try to find from StudentSubjectSelection model
+      if (studentSubjectIds.length === 0) {
+        try {
+          const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+          const subjectSelection = await StudentSubjectSelection.findOne({ student: studentId });
+
+          if (subjectSelection) {
+            // Combine core and optional subjects
+            const coreSubjectIds = subjectSelection.coreSubjects.map(s => s.toString());
+            const optionalSubjectIds = subjectSelection.optionalSubjects.map(s => s.toString());
+            studentSubjectIds = [...coreSubjectIds, ...optionalSubjectIds];
+            console.log(`Student ${studentId} has ${studentSubjectIds.length} subjects from StudentSubjectSelection (${coreSubjectIds.length} core, ${optionalSubjectIds.length} optional)`);
+          }
+        } catch (error) {
+          console.log(`Error fetching subject selection for student ${studentId}:`, error.message);
+        }
+      }
+    } catch (error) {
+      console.error(`Error getting subject selections for student ${studentId}:`, error);
+    }
+
     if (results.length === 0) {
       logger.warn(`No results found for student ${studentId} in exam ${examId}`);
       return res.status(404).json({
@@ -280,25 +311,50 @@ exports.getStudentReport = async (req, res) => {
     let totalPoints = 0;
     let resultCount = 0;
 
-    for (const result of results) {
-      const subject = result.subjectId;
-      if (!subject) continue;
+    // Get all O-Level subjects
+    const allSubjects = await executeWithRetry(
+      () => Subject.find({ educationLevel: { $in: ['O_LEVEL', 'BOTH'] } }),
+      'Error fetching all O-Level subjects'
+    );
 
-      // Get remarks based on grade
-      const remarks = oLevelGradeCalculator.getRemarks(result.grade);
+    // Process each subject
+    for (const subject of allSubjects) {
+      // Check if this student takes this subject
+      const studentTakesSubject = studentSubjectIds.includes(subject._id.toString());
 
-      subjectResults.push({
-        subject: subject.name, // Use the original subject name
-        code: subject.code,
-        marks: result.marksObtained,
-        grade: result.grade,
-        points: result.points,
-        remarks
-      });
+      // Find result for this subject
+      const result = results.find(r => r.subjectId && r.subjectId._id && r.subjectId._id.toString() === subject._id.toString());
 
-      totalMarks += result.marksObtained;
-      totalPoints += result.points;
-      resultCount++;
+      if (result) {
+        // Get remarks based on grade
+        const remarks = oLevelGradeCalculator.getRemarks(result.grade);
+
+        // Student has a result for this subject
+        subjectResults.push({
+          subject: subject.name,
+          code: subject.code,
+          marks: result.marksObtained,
+          grade: result.grade,
+          points: result.points,
+          remarks,
+          studentTakesSubject // Flag to indicate if student takes this subject
+        });
+
+        totalMarks += result.marksObtained;
+        totalPoints += result.points;
+        resultCount++;
+      } else if (studentTakesSubject) {
+        // Student takes this subject but has no result yet
+        subjectResults.push({
+          subject: subject.name,
+          code: subject.code,
+          marks: 0,
+          grade: 'N/A',
+          points: 0,
+          remarks: 'No marks entered',
+          studentTakesSubject: true
+        });
+      }
     }
 
     // Calculate average marks
@@ -778,6 +834,45 @@ exports.getClassReport = async (req, res) => {
         console.log(`No results found for student ${studentId}, will use placeholder values`);
       }
 
+      // Get student's selected subjects (both core and optional)
+      let studentSubjectIds = [];
+      try {
+        // First try to get directly from student record
+        if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+          studentSubjectIds = student.selectedSubjects.map(s =>
+            typeof s === 'object' && s._id ? s._id.toString() : s.toString());
+          console.log(`Student ${studentId} has ${studentSubjectIds.length} selected subjects directly on their record`);
+        }
+
+        // If no subjects found, try to find from StudentSubjectSelection model
+        if (studentSubjectIds.length === 0) {
+          try {
+            const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+            const subjectSelection = await StudentSubjectSelection.findOne({ student: studentId });
+
+            if (subjectSelection) {
+              // Combine core and optional subjects
+              const coreSubjectIds = subjectSelection.coreSubjects.map(s => s.toString());
+              const optionalSubjectIds = subjectSelection.optionalSubjects.map(s => s.toString());
+              studentSubjectIds = [...coreSubjectIds, ...optionalSubjectIds];
+              console.log(`Student ${studentId} has ${studentSubjectIds.length} subjects from StudentSubjectSelection (${coreSubjectIds.length} core, ${optionalSubjectIds.length} optional)`);
+            }
+          } catch (error) {
+            console.log(`Error fetching subject selection for student ${studentId}:`, error.message);
+          }
+        }
+
+        // If still no subjects found, assume all subjects
+        if (studentSubjectIds.length === 0) {
+          studentSubjectIds = subjects.map(s => s.id.toString());
+          console.log(`Assuming all subjects for student ${studentId} as no specific selections found`);
+        }
+      } catch (error) {
+        console.error(`Error getting subject selections for student ${studentId}:`, error);
+        // Default to all subjects if there's an error
+        studentSubjectIds = subjects.map(s => s.id.toString());
+      }
+
       // Process results
       const subjectResults = [];
       let totalMarks = 0;
@@ -787,6 +882,9 @@ exports.getClassReport = async (req, res) => {
 
       for (const subject of subjects) {
         console.log(`Checking subject ${subject.name} (${subject.id}) for student ${studentId}`);
+
+        // Check if this student takes this subject
+        const studentTakesSubject = studentSubjectIds.includes(subject.id.toString());
 
         // Find result for this subject
         const result = results.find(r => r.subjectId && r.subjectId._id && r.subjectId._id.toString() === subject.id.toString());
@@ -800,7 +898,8 @@ exports.getClassReport = async (req, res) => {
             code: subject.code,
             marks: result.marksObtained,
             grade: result.grade,
-            points: result.points
+            points: result.points,
+            studentTakesSubject // Flag to indicate if student takes this subject
           });
 
           totalMarks += result.marksObtained;
@@ -827,7 +926,8 @@ exports.getClassReport = async (req, res) => {
             code: subject.code,
             marks: 0,
             grade: 'N/A',
-            points: 0
+            points: 0,
+            studentTakesSubject // Flag to indicate if student takes this subject
           });
         }
       }

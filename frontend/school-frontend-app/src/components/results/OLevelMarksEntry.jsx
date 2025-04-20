@@ -112,7 +112,7 @@ const OLevelMarksEntry = () => {
     fetchExams();
   }, []);
 
-  // Fetch subjects when class is selected
+  // Fetch subjects when class or student is selected
   useEffect(() => {
     const fetchSubjects = async () => {
       if (!selectedClass) {
@@ -129,12 +129,24 @@ const OLevelMarksEntry = () => {
         let subjectsData;
         if (isAdmin) {
           // Admin can see all subjects in the class
-          const response = await api.get(`/api/classes/${selectedClass}/subjects`);
-          subjectsData = response.data || [];
+          // If student is selected, only show subjects the student takes
+          const endpoint = selectedStudent
+            ? `/api/enhanced-teacher/o-level/classes/${selectedClass}/subjects?studentId=${selectedStudent}`
+            : `/api/classes/${selectedClass}/subjects`;
+
+          const response = await api.get(endpoint);
+          subjectsData = selectedStudent ? (response.data.subjects || []) : (response.data || []);
         } else {
           // Teachers can only see assigned subjects
+          // If student is selected, only show subjects the student takes
           try {
-            subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
+            if (selectedStudent) {
+              // Use enhanced API with student filtering
+              const response = await api.get(`/api/enhanced-teacher/o-level/classes/${selectedClass}/subjects?studentId=${selectedStudent}`);
+              subjectsData = response.data.subjects || [];
+            } else {
+              subjectsData = await teacherApi.getAssignedSubjects(selectedClass);
+            }
           } catch (error) {
             console.error('Error fetching assigned subjects:', error);
             subjectsData = [];
@@ -156,7 +168,7 @@ const OLevelMarksEntry = () => {
     };
 
     fetchSubjects();
-  }, [selectedClass]);
+  }, [selectedClass, selectedStudent]);
 
   // Fetch students when class is selected
   useEffect(() => {

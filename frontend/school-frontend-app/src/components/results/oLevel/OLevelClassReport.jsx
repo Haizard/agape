@@ -882,6 +882,8 @@ const OLevelClassReport = (props) => {
                               {allSubjects.map(subject => {
                                 const result = studentResults[subject.code];
                                 const hasValidResult = result && result.marks > 0 && result.grade !== 'N/A';
+                                // Check if student takes this subject
+                                const studentTakesSubject = result ? result.studentTakesSubject !== false : false;
 
                                 return (
                                   <TableCell
@@ -891,9 +893,29 @@ const OLevelClassReport = (props) => {
                                       borderRight: '1px solid rgba(224, 224, 224, 1)',
                                       borderLeft: '1px solid rgba(224, 224, 224, 1)',
                                       fontSize: '0.75rem',
-                                      padding: '4px 2px'
+                                      padding: '4px 2px',
+                                      // Gray out subjects the student doesn't take
+                                      backgroundColor: !studentTakesSubject ? 'rgba(0, 0, 0, 0.04)' : 'inherit',
+                                      position: 'relative'
                                     }}
                                   >
+                                    {/* Show a tooltip for subjects the student doesn't take */}
+                                    {!studentTakesSubject && (
+                                      <Tooltip title="Student doesn't take this subject" placement="top">
+                                        <Box
+                                          sx={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            right: 0,
+                                            width: '8px',
+                                            height: '8px',
+                                            backgroundColor: '#bdbdbd',
+                                            borderRadius: '50%'
+                                          }}
+                                        />
+                                      </Tooltip>
+                                    )}
+
                                     {hasValidResult ? (
                                       <Box>
                                         <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>{result.marks}</Typography>
@@ -914,7 +936,9 @@ const OLevelClassReport = (props) => {
                                         </Typography>
                                       </Box>
                                     ) : (
-                                      <Typography variant="body2" color="text.secondary">-</Typography>
+                                      <Typography variant="body2" color="text.secondary">
+                                        {studentTakesSubject ? '-' : 'N/A'}
+                                      </Typography>
                                     )}
                                   </TableCell>
                                 );
@@ -1005,10 +1029,13 @@ const OLevelClassReport = (props) => {
                               // Process each student's result for this subject
                               report.students.forEach(student => {
                                 const result = student.results.find(r => r.code === subject.code);
-                                if (result && result.grade) {
-                                  gradeDistribution[result.grade] = (gradeDistribution[result.grade] || 0) + 1;
-                                  totalPoints += result.points || 0;
-                                  studentCount++;
+                                // Only include students who take this subject
+                                if (result && result.studentTakesSubject !== false) {
+                                  if (result.grade && result.grade !== 'N/A') {
+                                    gradeDistribution[result.grade] = (gradeDistribution[result.grade] || 0) + 1;
+                                    totalPoints += result.points || 0;
+                                    studentCount++;
+                                  }
                                 }
                               });
 
@@ -1199,7 +1226,8 @@ const OLevelClassReport = (props) => {
 
                               report.students.forEach(student => {
                                 const result = student.results.find(r => r.code === subject.code);
-                                if (result && result.marks !== undefined) {
+                                // Only include students who take this subject
+                                if (result && result.studentTakesSubject !== false && result.marks !== undefined && result.marks > 0) {
                                   total += result.marks;
                                   count++;
                                   highest = Math.max(highest, result.marks);

@@ -454,6 +454,99 @@ router.get('/o-level/classes/:classId/subjects',
   }
 );
 
+// Get students who take a specific subject in a class (for O-Level)
+router.get('/o-level/classes/:classId/subject/:subjectId/students',
+  authenticateToken,
+  authorizeRole(['teacher', 'admin']),
+  enhancedTeacherAuth.ensureTeacherProfile,
+  async (req, res) => {
+    try {
+      const { classId, subjectId } = req.params;
+      const teacherId = req.teacher._id;
+
+      console.log(`[EnhancedTeacherRoutes] Getting students for teacher ${teacherId} in class ${classId} for subject ${subjectId}`);
+
+      // Get all students in the class
+      const Class = require('../models/Class');
+      const Student = require('../models/Student');
+
+      // Get students in this class
+      const students = await Student.find({ class: classId })
+        .select('_id firstName lastName rollNumber gender educationLevel selectedSubjects')
+        .sort({ firstName: 1, lastName: 1 });
+
+      if (!students || students.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No students found in this class'
+        });
+      }
+
+      // Filter students who take this subject
+      const mongoose = require('mongoose');
+      const StudentSubjectSelection = mongoose.model('StudentSubjectSelection');
+      const Subject = mongoose.model('Subject');
+
+      // Check if this is a core subject
+      const subject = await Subject.findById(subjectId);
+      const isCoreSubject = subject && subject.type === 'CORE';
+
+      let studentsWhoTakeSubject = [];
+
+      if (isCoreSubject) {
+        // If it's a core subject, all students take it
+        console.log(`[EnhancedTeacherRoutes] Subject ${subjectId} is a core subject, all students take it`);
+        studentsWhoTakeSubject = students;
+      } else {
+        // If it's an optional subject, filter students who have selected it
+        console.log(`[EnhancedTeacherRoutes] Subject ${subjectId} is an optional subject, filtering students`);
+
+        // Get all student subject selections for this class
+        const studentIds = students.map(s => s._id);
+        const selections = await StudentSubjectSelection.find({ student: { $in: studentIds } });
+
+        // Create a set of student IDs who take this subject
+        const studentIdSet = new Set();
+
+        for (const selection of selections) {
+          const studentId = selection.student.toString();
+          const coreSubjects = selection.coreSubjects.map(s => s.toString());
+          const optionalSubjects = selection.optionalSubjects.map(s => s.toString());
+
+          if (coreSubjects.includes(subjectId) || optionalSubjects.includes(subjectId)) {
+            studentIdSet.add(studentId);
+          }
+        }
+
+        // Filter students who take this subject
+        studentsWhoTakeSubject = students.filter(student =>
+          studentIdSet.has(student._id.toString()));
+
+        console.log(`[EnhancedTeacherRoutes] Found ${studentsWhoTakeSubject.length} students who take subject ${subjectId}`);
+      }
+
+      // Return the filtered students
+      return res.json({
+        success: true,
+        students: studentsWhoTakeSubject.map(student => ({
+          _id: student._id,
+          name: `${student.firstName} ${student.lastName}`,
+          rollNumber: student.rollNumber,
+          gender: student.gender,
+          educationLevel: student.educationLevel
+        }))
+      });
+    } catch (error) {
+      console.error('[EnhancedTeacherRoutes] Error getting students:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to get students',
+        error: error.message
+      });
+    }
+  }
+);
+
 // Direct endpoint to assign students to a class (for debugging)
 router.post('/assign-students-to-class',
   authenticateToken,

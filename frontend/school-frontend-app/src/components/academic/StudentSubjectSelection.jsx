@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -22,8 +22,17 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  TextField,
+  InputAdornment,
+  FormLabel,
+  RadioGroup,
+  Radio,
+  Switch,
+  FormHelperText
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import api from '../../services/api';
 
 const StudentSubjectSelection = () => {
@@ -39,6 +48,12 @@ const StudentSubjectSelection = () => {
   const [optionalSubjects, setOptionalSubjects] = useState([]);
   const [selectionRules, setSelectionRules] = useState(null);
   const [existingSelections, setExistingSelections] = useState([]);
+
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showOnlyOLevel, setShowOnlyOLevel] = useState(true);
+  const [showOnlyNewStudents, setShowOnlyNewStudents] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
@@ -95,6 +110,29 @@ const StudentSubjectSelection = () => {
 
     fetchData();
   }, []);
+
+  // Filter students based on search query and filters
+  const filteredStudents = useMemo(() => {
+    return students.filter(student => {
+      // Search by name
+      const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
+      const admissionNumber = student.admissionNumber?.toLowerCase() || '';
+      const matchesSearch = searchQuery === '' ||
+        fullName.includes(searchQuery.toLowerCase()) ||
+        admissionNumber.includes(searchQuery.toLowerCase());
+
+      // Filter by education level
+      const isOLevel = !showOnlyOLevel || student.educationLevel === 'O_LEVEL';
+
+      // Filter by subject selection status
+      const hasExistingSelection = existingSelections.some(
+        selection => selection?.student?._id === student._id
+      );
+      const isNewStudent = !showOnlyNewStudents || !hasExistingSelection;
+
+      return matchesSearch && isOLevel && isNewStudent;
+    });
+  }, [students, searchQuery, showOnlyOLevel, showOnlyNewStudents, existingSelections]);
 
   // Handle student selection
   const handleStudentChange = (e) => {
@@ -276,6 +314,96 @@ const StudentSubjectSelection = () => {
         </Alert>
       )}
 
+      {/* Search and Filter Section */}
+      <Paper elevation={0} variant="outlined" sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Search Students"
+              variant="outlined"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+              placeholder="Search by name or admission number"
+              size="small"
+            />
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Button
+                startIcon={<FilterListIcon />}
+                onClick={() => setShowFilters(!showFilters)}
+                color="primary"
+                variant="outlined"
+                size="small"
+              >
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </Button>
+
+              <Typography variant="body2" color="textSecondary">
+                Showing {filteredStudents.length} of {students.length} students
+              </Typography>
+            </Box>
+          </Grid>
+
+          {showFilters && (
+            <Grid item xs={12}>
+              <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.default' }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <FormControl component="fieldset">
+                      <FormLabel component="legend">Education Level</FormLabel>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={showOnlyOLevel}
+                            onChange={(e) => setShowOnlyOLevel(e.target.checked)}
+                            color="primary"
+                          />
+                        }
+                        label="Show only O-Level students"
+                      />
+                      <FormHelperText>
+                        {showOnlyOLevel ? 'Showing only O-Level students' : 'Showing all students'}
+                      </FormHelperText>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <FormControl component="fieldset">
+                      <FormLabel component="legend">Subject Selection Status</FormLabel>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={showOnlyNewStudents}
+                            onChange={(e) => setShowOnlyNewStudents(e.target.checked)}
+                            color="primary"
+                          />
+                        }
+                        label="Show only students without subject selections"
+                      />
+                      <FormHelperText>
+                        {showOnlyNewStudents
+                          ? 'Showing only students who need subject selection'
+                          : 'Showing all students regardless of selection status'}
+                      </FormHelperText>
+                    </FormControl>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          )}
+        </Grid>
+      </Paper>
+
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
           <FormControl fullWidth>
@@ -289,12 +417,23 @@ const StudentSubjectSelection = () => {
               <MenuItem value="">
                 <em>Select a student</em>
               </MenuItem>
-              {students.map(student => (
+              {filteredStudents.map(student => (
                 <MenuItem key={student._id} value={student._id}>
-                  {student.firstName} {student.lastName} ({student.admissionNumber})
+                  {student.firstName} {student.lastName} ({student.admissionNumber || 'No ID'})
+                  {student.educationLevel && (
+                    <Chip
+                      size="small"
+                      label={student.educationLevel}
+                      color={student.educationLevel === 'O_LEVEL' ? 'primary' : 'secondary'}
+                      sx={{ ml: 1, fontSize: '0.7rem' }}
+                    />
+                  )}
                 </MenuItem>
               ))}
             </Select>
+            <FormHelperText>
+              {filteredStudents.length === 0 ? 'No students match your filters' : ''}
+            </FormHelperText>
           </FormControl>
         </Grid>
 
@@ -457,8 +596,13 @@ const StudentSubjectSelection = () => {
 
       {existingSelections.length > 0 && (
         <Box sx={{ mt: 4 }}>
-          <Typography variant="h5" gutterBottom>
+          <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             Existing Subject Selections
+            <Chip
+              label={`${existingSelections.length} selections`}
+              color="primary"
+              size="small"
+            />
           </Typography>
 
           <TableContainer component={Paper} variant="outlined">
@@ -476,7 +620,22 @@ const StudentSubjectSelection = () => {
                 {existingSelections.map(selection => (
                   <TableRow key={selection._id}>
                     <TableCell>
-                      {selection.student?.firstName || 'Unknown'} {selection.student?.lastName || ''}
+                      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          {selection.student?.firstName || 'Unknown'} {selection.student?.lastName || ''}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          ID: {selection.student?.admissionNumber || 'N/A'}
+                          {selection.student?.educationLevel && (
+                            <Chip
+                              size="small"
+                              label={selection.student.educationLevel}
+                              color={selection.student.educationLevel === 'O_LEVEL' ? 'primary' : 'secondary'}
+                              sx={{ ml: 1, fontSize: '0.6rem' }}
+                            />
+                          )}
+                        </Typography>
+                      </Box>
                     </TableCell>
                     <TableCell>
                       {selection.selectionClass?.name || 'Unknown Class'} {selection.selectionClass?.stream || ''}

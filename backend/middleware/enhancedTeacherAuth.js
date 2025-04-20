@@ -464,6 +464,55 @@ const getEnhancedTeacherSubjects = async (req, res, next) => {
         }));
 
       console.log(`[EnhancedTeacherAuth] Found ${subjects.length} subjects in O-Level class ${classId}`);
+
+      // If studentId is provided, filter subjects to only those the student takes
+      if (req.query.studentId) {
+        const studentId = req.query.studentId;
+        console.log(`[EnhancedTeacherAuth] Filtering subjects for student ${studentId}`);
+
+        // Get student's selected subjects
+        const Student = require('../models/Student');
+        const student = await Student.findById(studentId);
+
+        if (student) {
+          let studentSubjectIds = [];
+
+          // First try to get directly from student record
+          if (student.selectedSubjects && Array.isArray(student.selectedSubjects)) {
+            studentSubjectIds = student.selectedSubjects.map(s =>
+              typeof s === 'object' && s._id ? s._id.toString() : s.toString());
+            console.log(`[EnhancedTeacherAuth] Student ${studentId} has ${studentSubjectIds.length} selected subjects directly on their record`);
+          }
+
+          // If no subjects found, try to find from StudentSubjectSelection model
+          if (studentSubjectIds.length === 0) {
+            try {
+              const StudentSubjectSelection = require('../models/StudentSubjectSelection');
+              const subjectSelection = await StudentSubjectSelection.findOne({ student: studentId });
+
+              if (subjectSelection) {
+                // Combine core and optional subjects
+                const coreSubjectIds = subjectSelection.coreSubjects.map(s => s.toString());
+                const optionalSubjectIds = subjectSelection.optionalSubjects.map(s => s.toString());
+                studentSubjectIds = [...coreSubjectIds, ...optionalSubjectIds];
+                console.log(`[EnhancedTeacherAuth] Student ${studentId} has ${studentSubjectIds.length} subjects from StudentSubjectSelection (${coreSubjectIds.length} core, ${optionalSubjectIds.length} optional)`);
+              }
+            } catch (error) {
+              console.log(`[EnhancedTeacherAuth] Error fetching subject selection for student ${studentId}:`, error.message);
+            }
+          }
+
+          if (studentSubjectIds.length > 0) {
+            // Filter subjects to only those the student takes
+            const filteredSubjects = subjects.filter(subject =>
+              studentSubjectIds.includes(subject._id.toString()));
+            console.log(`[EnhancedTeacherAuth] Filtered to ${filteredSubjects.length} subjects that student ${studentId} takes`);
+            req.teacherSubjects = filteredSubjects;
+            return next();
+          }
+        }
+      }
+
       req.teacherSubjects = subjects;
       return next();
     } else {
