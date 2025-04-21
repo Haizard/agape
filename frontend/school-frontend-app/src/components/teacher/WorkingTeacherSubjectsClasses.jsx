@@ -18,7 +18,13 @@ import {
   ListItemIcon,
   Avatar,
   Paper,
-  Tooltip
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Snackbar
 } from '@mui/material';
 import {
   Class as ClassIcon,
@@ -26,7 +32,10 @@ import {
   People as PeopleIcon,
   Edit as EditIcon,
   Assessment as AssessmentIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  CleaningServices as CleaningServicesIcon,
+  Refresh as RefreshIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -67,6 +76,11 @@ const WorkingTeacherSubjectsClasses = () => {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [tabValue, setTabValue] = useState(0);
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
   const user = useSelector((state) => state.user?.user);
 
   // Fetch teacher data
@@ -143,6 +157,82 @@ const WorkingTeacherSubjectsClasses = () => {
   // Handle tab change
   const handleTabChange = (_, newValue) => {
     setTabValue(newValue);
+  };
+
+  // Handle cleanup of unused subject assignments
+  const handleCleanup = async () => {
+    setCleanupLoading(true);
+    setCleanupResult(null);
+
+    try {
+      // Call the cleanup endpoint
+      const response = await api.post('/api/teachers/cleanup-subject-assignments');
+      console.log('Cleanup response:', response.data);
+
+      // Set the cleanup result
+      setCleanupResult(response.data);
+
+      // Show a success message
+      if (response.data.removedSubjects && response.data.removedSubjects.length > 0) {
+        setSnackbarMessage(`Successfully removed ${response.data.removedSubjects.length} unused subject assignments`);
+      } else {
+        setSnackbarMessage('No unused subject assignments found');
+      }
+      setSnackbarOpen(true);
+
+      // Refresh the data after cleanup
+      handleRefresh();
+    } catch (error) {
+      console.error('Error cleaning up subject assignments:', error);
+      setCleanupResult({
+        success: false,
+        message: 'Failed to clean up subject assignments',
+        error: error.message
+      });
+      setSnackbarMessage('Failed to clean up subject assignments');
+      setSnackbarOpen(true);
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
+  // Handle opening the cleanup dialog
+  const handleOpenCleanupDialog = () => {
+    setCleanupDialogOpen(true);
+  };
+
+  // Handle closing the cleanup dialog
+  const handleCloseCleanupDialog = () => {
+    setCleanupDialogOpen(false);
+  };
+
+  // Handle closing the snackbar
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
+  };
+
+  // Handle deleting a subject assignment
+  const handleDeleteSubject = async (subjectId, subjectName) => {
+    try {
+      setLoading(true);
+
+      // Call the API to delete the subject assignment
+      const response = await api.delete(`/api/teachers/subject-assignment/${subjectId}`);
+      console.log('Delete subject response:', response.data);
+
+      // Show success message
+      setSnackbarMessage(`Successfully removed ${subjectName} from your assignments`);
+      setSnackbarOpen(true);
+
+      // Refresh the data
+      handleRefresh();
+    } catch (error) {
+      console.error('Error deleting subject assignment:', error);
+      setSnackbarMessage(`Failed to remove ${subjectName} from your assignments`);
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle refresh
@@ -240,9 +330,25 @@ const WorkingTeacherSubjectsClasses = () => {
             </Typography>
           )}
         </div>
-        <Button variant="outlined" onClick={handleRefresh} disabled={loading}>
-          Refresh Data
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={handleOpenCleanupDialog}
+            disabled={loading || cleanupLoading}
+            startIcon={<CleaningServicesIcon />}
+          >
+            Clean Up Unused Subjects
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleRefresh}
+            disabled={loading}
+            startIcon={<RefreshIcon />}
+          >
+            Refresh Data
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -265,9 +371,70 @@ const WorkingTeacherSubjectsClasses = () => {
 
         {/* Subjects Tab */}
         <TabPanel value={tabValue} index={0}>
-          {subjects.length > 0 ? (
-            <Grid container spacing={3}>
-              {subjects.map((subject) => (
+          {/* Separate unused subjects */}
+          {subjects.some(subject => !subject.classes || subject.classes.length === 0) && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" color="error" gutterBottom>
+                Unused Subject Assignments
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                These subjects are assigned to you but you don't teach them in any class. You can remove them to clean up your dashboard.
+              </Typography>
+              <Grid container spacing={3}>
+                {subjects
+                  .filter(subject => !subject.classes || subject.classes.length === 0)
+                  .map((subject) => (
+                    <Grid item xs={12} sm={6} md={4} key={subject._id}>
+                      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1px solid #f44336' }}>
+                        <CardContent sx={{ flexGrow: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Avatar sx={{ bgcolor: 'error.main', mr: 2 }}>
+                              <BookIcon />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h6" component="div">
+                                {safeRender(subject.name)}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Code: {safeRender(subject.code)}
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          <Divider sx={{ my: 1 }} />
+
+                          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, color: 'error.main' }}>
+                            No Classes Assigned
+                          </Typography>
+                        </CardContent>
+                        <CardActions>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            color="error"
+                            onClick={() => handleDeleteSubject(subject._id, subject.name)}
+                            startIcon={<DeleteIcon />}
+                          >
+                            Remove Unused Subject
+                          </Button>
+                        </CardActions>
+                      </Card>
+                    </Grid>
+                  ))}
+              </Grid>
+            </Box>
+          )}
+
+          {/* Active subjects */}
+          {subjects.some(subject => subject.classes && subject.classes.length > 0) && (
+            <Box>
+              <Typography variant="h6" color="primary" gutterBottom>
+                Active Teaching Assignments
+              </Typography>
+              <Grid container spacing={3}>
+                {subjects
+                  .filter(subject => subject.classes && subject.classes.length > 0)
+                  .map((subject) => (
                 <Grid item xs={12} sm={6} md={4} key={subject._id}>
                   <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardContent sx={{ flexGrow: 1 }}>
@@ -336,12 +503,17 @@ const WorkingTeacherSubjectsClasses = () => {
                           View Results
                         </Button>
                       </Tooltip>
+                      {/* Debug info */}
+                      {console.log(`Subject ${subject.name} (${subject._id}) has classes:`, subject.classes)}
                     </CardActions>
                   </Card>
                 </Grid>
-              ))}
-            </Grid>
-          ) : (
+                  ))}
+              </Grid>
+            </Box>
+          )}
+
+          {subjects.length === 0 && (
             <Alert severity="info" sx={{ m: 2 }}>
               You are not assigned to teach any subjects yet. Please contact an administrator to assign you to subjects.
             </Alert>
@@ -451,6 +623,74 @@ const WorkingTeacherSubjectsClasses = () => {
           )}
         </TabPanel>
       </Paper>
+      {/* Cleanup Dialog */}
+      <Dialog
+        open={cleanupDialogOpen}
+        onClose={handleCloseCleanupDialog}
+        aria-labelledby="cleanup-dialog-title"
+        aria-describedby="cleanup-dialog-description"
+      >
+        <DialogTitle id="cleanup-dialog-title">
+          Clean Up Unused Subject Assignments
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="cleanup-dialog-description">
+            This will remove all subject assignments that are not associated with any classes.
+            These are subjects that appear in your profile but you don't actually teach in any class.
+            This action cannot be undone.
+          </DialogContentText>
+
+          {cleanupResult && (
+            <Box sx={{ mt: 2 }}>
+              <Alert severity={cleanupResult.success ? 'success' : 'error'} sx={{ mb: 2 }}>
+                {cleanupResult.message}
+              </Alert>
+
+              {cleanupResult.removedSubjects && cleanupResult.removedSubjects.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Removed Subjects:
+                  </Typography>
+                  <List dense>
+                    {cleanupResult.removedSubjects.map((subject) => (
+                      <ListItem key={subject._id}>
+                        <ListItemIcon>
+                          <BookIcon />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={subject.name}
+                          secondary={`Code: ${subject.code}`}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCleanupDialog} color="primary">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCleanup}
+            color="secondary"
+            disabled={cleanupLoading}
+            startIcon={cleanupLoading ? <CircularProgress size={20} /> : <CleaningServicesIcon />}
+          >
+            {cleanupLoading ? 'Cleaning...' : 'Clean Up'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        message={snackbarMessage}
+      />
     </Box>
   );
 };

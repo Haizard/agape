@@ -496,6 +496,208 @@ router.put('/assignments/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Delete a subject assignment for a teacher
+router.delete('/subject-assignment/:subjectId', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log(`DELETE /api/teachers/subject-assignment/${req.params.subjectId} - Deleting subject assignment`);
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    const teacherId = teacher._id;
+    const subjectId = req.params.subjectId;
+    console.log(`Found teacher profile: ${teacherId}, removing subject: ${subjectId}`);
+
+    // Check if the subject exists in the teacher's subjects array
+    if (!teacher.subjects || !teacher.subjects.includes(subjectId)) {
+      console.log(`Subject ${subjectId} not found in teacher ${teacherId}'s subjects`);
+      return res.status(404).json({ message: 'Subject not found in teacher profile' });
+    }
+
+    // Remove the subject from the teacher's subjects array
+    teacher.subjects = teacher.subjects.filter(id => id.toString() !== subjectId);
+
+    // Save the updated teacher profile
+    await teacher.save();
+
+    console.log(`Removed subject ${subjectId} from teacher ${teacherId}'s profile`);
+
+    return res.json({
+      success: true,
+      message: 'Subject assignment removed successfully',
+      subjectId
+    });
+  } catch (error) {
+    console.error('Error deleting subject assignment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete subject assignment',
+      error: error.message
+    });
+  }
+});
+
+// Clean up unused teacher subject assignments
+router.post('/cleanup-subject-assignments', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+  try {
+    console.log('POST /api/teachers/cleanup-subject-assignments - Cleaning up unused subject assignments');
+
+    // Get the user ID from the authenticated user
+    const userId = req.user.userId;
+
+    if (!userId) {
+      console.log('No user ID found in the authenticated user');
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      console.log(`No teacher found with userId: ${userId}`);
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    const teacherId = teacher._id;
+    console.log(`Found teacher profile: ${teacherId}`);
+
+    // Find all classes where this teacher is assigned to teach subjects
+    const classes = await Class.find({
+      'subjects.teacher': teacherId
+    });
+
+    console.log(`Found ${classes.length} classes with teacher ${teacherId} assigned to subjects`);
+
+    // Get all subjects assigned to the teacher in the Teacher model
+    const teacherSubjects = teacher.subjects || [];
+    console.log(`Teacher has ${teacherSubjects.length} subjects in their profile`);
+
+    // Create a set of subject IDs that are actually assigned to classes
+    const assignedSubjectIds = new Set();
+
+    // Track which subjects are assigned to which classes
+    const subjectClassMap = {};
+
+    // Process each class to find assigned subjects
+    for (const cls of classes) {
+      if (!cls.subjects || !Array.isArray(cls.subjects)) continue;
+
+      for (const subjectAssignment of cls.subjects) {
+        if (!subjectAssignment.subject || !subjectAssignment.teacher) continue;
+
+        // Check if this teacher is assigned to this subject
+        const subjectTeacherId = subjectAssignment.teacher.toString();
+        if (subjectTeacherId === teacherId.toString()) {
+          const subjectId = subjectAssignment.subject.toString();
+          assignedSubjectIds.add(subjectId);
+
+          // Add class to the subject-class map
+          if (!subjectClassMap[subjectId]) {
+            subjectClassMap[subjectId] = [];
+          }
+          subjectClassMap[subjectId].push({
+            classId: cls._id,
+            className: cls.name,
+            section: cls.section,
+            stream: cls.stream
+          });
+        }
+      }
+    }
+
+    console.log(`Teacher ${teacherId} is assigned to ${assignedSubjectIds.size} subjects in classes`);
+
+    // Find subjects that are in the teacher's profile but not assigned to any class
+    const unusedSubjects = [];
+    for (const subjectId of teacherSubjects) {
+      const subjectIdStr = subjectId.toString();
+      if (!assignedSubjectIds.has(subjectIdStr)) {
+        unusedSubjects.push(subjectIdStr);
+      }
+    }
+
+    console.log(`Found ${unusedSubjects.length} unused subjects in teacher's profile`);
+
+    // Remove unused subjects from the teacher's profile
+    if (unusedSubjects.length > 0) {
+      // Get subject details for the response
+      const subjectDetails = await Subject.find({
+        _id: { $in: unusedSubjects }
+      }).select('name code');
+
+      // Create a map of subject IDs to details
+      const subjectDetailsMap = {};
+      for (const subject of subjectDetails) {
+        subjectDetailsMap[subject._id.toString()] = {
+          name: subject.name,
+          code: subject.code
+        };
+      }
+
+      // Filter out unused subjects from the teacher's profile
+      teacher.subjects = teacherSubjects.filter(subjectId => {
+        return !unusedSubjects.includes(subjectId.toString());
+      });
+
+      // Save the updated teacher profile
+      await teacher.save();
+
+      console.log(`Removed ${unusedSubjects.length} unused subjects from teacher ${teacherId}'s profile`);
+
+      // Return the cleaned up subjects with details
+      return res.json({
+        success: true,
+        message: `Removed ${unusedSubjects.length} unused subject assignments`,
+        removedSubjects: unusedSubjects.map(subjectId => ({
+          _id: subjectId,
+          ...subjectDetailsMap[subjectId]
+        })),
+        remainingSubjects: teacher.subjects.map(subjectId => {
+          const subjectIdStr = subjectId.toString();
+          return {
+            _id: subjectIdStr,
+            classes: subjectClassMap[subjectIdStr] || []
+          };
+        })
+      });
+    } else {
+      // No unused subjects found
+      return res.json({
+        success: true,
+        message: 'No unused subject assignments found',
+        removedSubjects: [],
+        remainingSubjects: teacher.subjects.map(subjectId => {
+          const subjectIdStr = subjectId.toString();
+          return {
+            _id: subjectIdStr,
+            classes: subjectClassMap[subjectIdStr] || []
+          };
+        })
+      });
+    }
+  } catch (error) {
+    console.error('Error cleaning up subject assignments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clean up subject assignments',
+      error: error.message
+    });
+  }
+});
+
 // Get teacher qualifications (subjects assigned to the teacher)
 router.get('/:id/qualifications', authenticateToken, async (req, res) => {
   try {

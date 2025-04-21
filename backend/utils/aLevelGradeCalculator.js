@@ -200,6 +200,72 @@ const calculateBestThreeAndDivision = (results, principalSubjectIds = []) => {
 };
 
 /**
+ * Calculate subject GPA based on the formula:
+ * Subject GPA = Sum(Number of students with each grade × Grade point value) / Total number of students
+ * @param {Object} gradeDistribution - Object with grade counts (A, B, C, D, E, S, F)
+ * @param {Number} totalStudents - Total number of students
+ * @returns {Number} - The calculated GPA
+ */
+const calculateSubjectGPA = (gradeDistribution, totalStudents) => {
+  // Handle edge case
+  if (!totalStudents || totalStudents === 0) {
+    return 0;
+  }
+
+  // Calculate total points based on grade distribution
+  const totalPoints =
+    (gradeDistribution.A || 0) * 1 +
+    (gradeDistribution.B || 0) * 2 +
+    (gradeDistribution.C || 0) * 3 +
+    (gradeDistribution.D || 0) * 4 +
+    (gradeDistribution.E || 0) * 5 +
+    (gradeDistribution.S || 0) * 6 +
+    (gradeDistribution.F || 0) * 7;
+
+  // Calculate GPA
+  return totalPoints / totalStudents;
+};
+
+/**
+ * Calculate subject pass rate based on the formula:
+ * For principal subjects: Pass Rate = (Count of A + B + C + D + E grades) / Total students × 100%
+ * For subsidiary subjects: Pass Rate = (Count of A + B + C + D + E + S grades) / Total students × 100%
+ * @param {Object} gradeDistribution - Object with grade counts (A, B, C, D, E, S, F)
+ * @param {Number} totalStudents - Total number of students
+ * @param {Boolean} isPrincipal - Whether the subject is a principal subject
+ * @returns {Number} - The calculated pass rate (percentage)
+ */
+const calculateSubjectPassRate = (gradeDistribution, totalStudents, isPrincipal) => {
+  // Handle edge case
+  if (!totalStudents || totalStudents === 0) {
+    return 0;
+  }
+
+  let passedCount;
+  if (isPrincipal) {
+    // For principal subjects, A-E are passing grades
+    passedCount =
+      (gradeDistribution.A || 0) +
+      (gradeDistribution.B || 0) +
+      (gradeDistribution.C || 0) +
+      (gradeDistribution.D || 0) +
+      (gradeDistribution.E || 0);
+  } else {
+    // For subsidiary subjects, A-S are passing grades
+    passedCount =
+      (gradeDistribution.A || 0) +
+      (gradeDistribution.B || 0) +
+      (gradeDistribution.C || 0) +
+      (gradeDistribution.D || 0) +
+      (gradeDistribution.E || 0) +
+      (gradeDistribution.S || 0);
+  }
+
+  // Calculate pass rate
+  return (passedCount / totalStudents) * 100;
+};
+
+/**
  * Calculate student rankings based on average marks or points for A-Level
  * @param {Array} students - Array of students with results
  * @param {String} rankBy - Field to rank by ('averageMarks' or 'totalPoints')
@@ -216,21 +282,24 @@ const calculateStudentRankings = (students, rankBy = 'averageMarks') => {
     return (b[rankBy] || 0) - (a[rankBy] || 0);
   });
 
-  // Assign ranks (handling ties)
-  let currentRank = 1;
+  // Assign ranks (handling ties according to the formula)
+  let currentRank = 0;
   let previousValue = null;
-  let skippedRanks = 0;
+  let studentsAtRank = 0;
 
   return sortedStudents.map((student, index) => {
     const currentValue = student[rankBy] || 0;
 
     // If this is the first student or the value is different from the previous one
     if (index === 0 || currentValue !== previousValue) {
-      currentRank = index + 1;
-      skippedRanks = 0;
+      // Skip ranks equal to the number of tied students
+      currentRank += studentsAtRank;
+      // Start a new rank
+      currentRank++;
+      studentsAtRank = 1;
     } else {
-      // This is a tie, so keep the same rank but increment skipped ranks
-      skippedRanks++;
+      // This is a tie, so keep the same rank but count tied students
+      studentsAtRank++;
     }
 
     previousValue = currentValue;
@@ -255,21 +324,24 @@ const calculateSubjectPositions = (results) => {
     return marksB - marksA;
   });
 
-  // Assign positions (handling ties)
-  let currentPosition = 1;
+  // Assign positions (handling ties according to the formula)
+  let currentPosition = 0;
   let previousMarks = null;
-  let skippedPositions = 0;
+  let studentsAtPosition = 0;
 
   return sortedResults.map((result, index) => {
     const currentMarks = Number(result.marksObtained || result.marks || 0);
 
     // If this is the first result or the marks are different from the previous one
     if (index === 0 || currentMarks !== previousMarks) {
-      currentPosition = index + 1;
-      skippedPositions = 0;
+      // Skip positions equal to the number of tied students
+      currentPosition += studentsAtPosition;
+      // Start a new position
+      currentPosition++;
+      studentsAtPosition = 1;
     } else {
-      // This is a tie, so keep the same position but increment skipped positions
-      skippedPositions++;
+      // This is a tie, so keep the same position but count tied students
+      studentsAtPosition++;
     }
 
     previousMarks = currentMarks;
@@ -358,6 +430,49 @@ const isPassed = (grade, isPrincipal) => {
   }
 };
 
+/**
+ * Calculate examination GPA based on the formula:
+ * Method 1 (Student-based): Sum of all students' best three points / Total number of students
+ * @param {Array} students - Array of students with bestThreePoints
+ * @returns {Number} - The calculated examination GPA
+ */
+const calculateExaminationGPA = (students) => {
+  // Handle edge case
+  if (!students || students.length === 0) {
+    return 0;
+  }
+
+  // Calculate total points from all students' best three points
+  const totalPoints = students.reduce(
+    (sum, student) => sum + (student.bestThreePoints || 0),
+    0
+  );
+
+  // Calculate examination GPA
+  return totalPoints / students.length;
+};
+
+/**
+ * Calculate class pass rate based on the formula:
+ * Class Pass Rate = Number of students with divisions I, II, III, or IV / Total students × 100%
+ * @param {Array} students - Array of students with division
+ * @returns {Number} - The calculated class pass rate (percentage)
+ */
+const calculateClassPassRate = (students) => {
+  // Handle edge case
+  if (!students || students.length === 0) {
+    return 0;
+  }
+
+  // Count students with passing divisions (I, II, III, IV)
+  const passedStudents = students.filter(
+    student => student.division && ['I', 'II', 'III', 'IV'].includes(student.division.toString().replace('Division ', ''))
+  ).length;
+
+  // Calculate pass rate
+  return (passedStudents / students.length) * 100;
+};
+
 module.exports = {
   calculateGradeAndPoints,
   calculateDivision,
@@ -366,5 +481,9 @@ module.exports = {
   calculateStudentRankings,
   calculateSubjectPositions,
   calculateClassStatistics,
-  isPassed
+  isPassed,
+  calculateSubjectGPA,
+  calculateSubjectPassRate,
+  calculateExaminationGPA,
+  calculateClassPassRate
 };
