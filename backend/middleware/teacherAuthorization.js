@@ -39,8 +39,31 @@ exports.checkTeacherAuthorization = async (req, res, next) => {
       });
     }
 
-    // Get teacher ID from user
-    const teacherId = req.user.id;
+    // Get user ID from user
+    const userId = req.user.userId;
+
+    // If we don't have a userId, return an error
+    if (!userId) {
+      logger.warn('No userId found in req.user.');
+      return res.status(403).json({
+        success: false,
+        message: 'User ID not found in authenticated user'
+      });
+    }
+
+    // Find the teacher profile by userId
+    const teacher = await Teacher.findOne({ userId });
+
+    if (!teacher) {
+      logger.warn(`No teacher found with userId: ${userId}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Teacher profile not found'
+      });
+    }
+
+    // Use the teacher's _id for authorization checks
+    const teacherId = teacher._id.toString();
 
     // Get request parameters
     const { classId, subjectId, studentId } = req.method === 'GET' ? req.query : req.body;

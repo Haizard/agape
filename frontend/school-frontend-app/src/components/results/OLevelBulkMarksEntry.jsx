@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
+import authUtils from '../../utils/authUtils';
 import teacherAuthService from '../../services/teacherAuthService';
 import teacherApi from '../../services/teacherApi';
 import teacherSubjectFilter from '../../services/teacherSubjectFilter';
@@ -222,7 +223,22 @@ const OLevelBulkMarksEntry = () => {
     try {
       console.log(`Fetching student subject selections for class ${classId}`);
       const response = await api.get(getEndpoint(ENDPOINTS.STUDENT_SELECTIONS.BY_CLASS, classId));
-      console.log('Student subject selections:', response.data);
+      console.log(`Found ${response.data.length} student subject selections for class ${classId}`);
+
+      // Log a sample of the selections
+      if (response.data.length > 0) {
+        const sample = response.data.slice(0, 2);
+        console.log('Sample of student subject selections:',
+          sample.map(s => ({
+            studentId: s.student?._id || 'unknown',
+            studentName: s.student ? `${s.student.firstName || ''} ${s.student.lastName || ''}` : 'unknown',
+            coreSubjects: (s.coreSubjects || []).length,
+            optionalSubjects: (s.optionalSubjects || []).length,
+            status: s.status
+          }))
+        );
+      }
+
       return response.data;
     } catch (error) {
       console.error('Error fetching student subject selections:', error);
@@ -241,13 +257,31 @@ const OLevelBulkMarksEntry = () => {
   const filterStudentsForSubject = (students, subjectId, isCoreSubject, studentSubjectsMap) => {
     // If it's a core subject, all students take it
     if (isCoreSubject) {
-      console.log('Subject is a core subject, using all students');
+      console.log(`Subject ${subjectId} is a core subject, using all ${students.length} students`);
       return students;
     }
 
     // For optional subjects, filter students who have selected this subject
+    console.log(`Subject ${subjectId} is an optional subject, filtering students...`);
+    console.log(`Total students before filtering: ${students.length}`);
+    console.log(`Student subjects map has ${Object.keys(studentSubjectsMap).length} entries`);
+
+    // Check if we have any student subject selections
+    if (Object.keys(studentSubjectsMap).length === 0) {
+      console.log('No student subject selections found, cannot filter students');
+      return [];
+    }
+
     const filteredStudents = filterStudentsBySubject(students, subjectId, false, studentSubjectsMap);
     console.log(`Filtered to ${filteredStudents.length} students who have selected subject ${subjectId}`);
+
+    // Log the filtered students for debugging
+    if (filteredStudents.length > 0) {
+      console.log('Filtered students:', filteredStudents.map(s => ({
+        id: s._id,
+        name: `${s.firstName || ''} ${s.lastName || ''}`
+      })));
+    }
 
     return filteredStudents;
   };
@@ -293,26 +327,64 @@ const OLevelBulkMarksEntry = () => {
         let studentsData;
         if (isAdmin) {
           // Admin can see all students in the class
-          const studentsResponse = await api.get(`/api/classes/${selectedClass}/students`);
-          studentsData = studentsResponse.data || [];
+          try {
+            console.log('Admin: Fetching students using /api/students/class endpoint');
+            const studentsResponse = await api.get(`/api/students/class/${selectedClass}`);
+            studentsData = studentsResponse.data || [];
+            console.log(`Admin: Found ${studentsData.length} students in class ${selectedClass}`);
+          } catch (adminError) {
+            console.error('Admin: Error fetching students:', adminError);
+            // Try alternative endpoint
+            console.log('Admin: Trying alternative endpoint /api/teachers/classes');
+            try {
+              const altResponse = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+              studentsData = altResponse.data || [];
+              console.log(`Admin: Found ${studentsData.length} students using alternative endpoint`);
+            } catch (altError) {
+              console.error('Admin: Alternative endpoint also failed:', altError);
+              throw new Error('Failed to fetch students. Please try again.');
+            }
+          }
         } else {
           // Teachers can only see assigned students
           try {
-            console.log('Trying O-Level specific endpoint for students');
+            console.log('Teacher: Trying O-Level specific endpoint for students');
             // First try the O-Level specific endpoint
-            const oLevelResponse = await api.get(getEndpoint(ENDPOINTS.TEACHER.ENHANCED.O_LEVEL.STUDENTS, selectedClass, 'any'));
+            const oLevelResponse = await api.get(getEndpoint(ENDPOINTS.TEACHER.ENHANCED.O_LEVEL.STUDENTS, selectedClass, selectedSubject));
             if (oLevelResponse.data && Array.isArray(oLevelResponse.data.students)) {
-              console.log(`Found ${oLevelResponse.data.students.length} students using O-Level specific endpoint`);
+              console.log(`Teacher: Found ${oLevelResponse.data.students.length} students using O-Level specific endpoint`);
               studentsData = oLevelResponse.data.students;
             } else {
               // Fall back to the regular endpoint
-              console.log('O-Level specific endpoint returned invalid data, falling back to regular endpoint');
-              studentsData = await teacherApi.getAssignedStudents(selectedClass);
+              console.log('Teacher: O-Level specific endpoint returned invalid data, falling back to regular endpoint');
+              try {
+                const regularResponse = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+                studentsData = regularResponse.data || [];
+                console.log(`Teacher: Found ${studentsData.length} students using regular endpoint`);
+              } catch (regularError) {
+                console.error('Teacher: Regular endpoint failed:', regularError);
+                // Try another fallback
+                console.log('Teacher: Trying students/class endpoint as last resort');
+                const lastResortResponse = await api.get(`/api/students/class/${selectedClass}`);
+                studentsData = lastResortResponse.data || [];
+                console.log(`Teacher: Found ${studentsData.length} students using last resort endpoint`);
+              }
             }
           } catch (oLevelError) {
-            console.log('O-Level specific endpoint failed, falling back to regular endpoint', oLevelError);
+            console.log('Teacher: O-Level specific endpoint failed, falling back to regular endpoint', oLevelError);
             // Fall back to the regular endpoint
-            studentsData = await teacherApi.getAssignedStudents(selectedClass);
+            try {
+              const regularResponse = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+              studentsData = regularResponse.data || [];
+              console.log(`Teacher: Found ${studentsData.length} students using regular endpoint`);
+            } catch (regularError) {
+              console.error('Teacher: Regular endpoint failed:', regularError);
+              // Try another fallback
+              console.log('Teacher: Trying students/class endpoint as last resort');
+              const lastResortResponse = await api.get(`/api/students/class/${selectedClass}`);
+              studentsData = lastResortResponse.data || [];
+              console.log(`Teacher: Found ${studentsData.length} students using last resort endpoint`);
+            }
           }
         }
 
@@ -384,24 +456,57 @@ const OLevelBulkMarksEntry = () => {
               console.log(`Checking if subject ${selectedSubject} is a core subject...`);
               const subjectResponse = await api.get(getEndpoint(ENDPOINTS.SUBJECTS.DETAILS, selectedSubject));
               console.log('Subject response:', subjectResponse.data);
-              subjectIsCoreSubject = subjectResponse.data.type === 'CORE';
-              console.log(`Subject ${selectedSubject} is ${subjectIsCoreSubject ? 'a core subject' : 'not a core subject'}`);
+
+              // Check if the subject has a type property
+              if (subjectResponse.data && subjectResponse.data.type) {
+                subjectIsCoreSubject = subjectResponse.data.type === 'CORE';
+                console.log(`Subject ${selectedSubject} (${subjectResponse.data.name}) is ${subjectIsCoreSubject ? 'a CORE subject' : 'an OPTIONAL subject'}`);
+              } else {
+                // If no type property, check if we can find it in the subjects array
+                const subjectFromList = subjects.find(s => s._id === selectedSubject);
+                if (subjectFromList && subjectFromList.type) {
+                  subjectIsCoreSubject = subjectFromList.type === 'CORE';
+                  console.log(`Subject ${selectedSubject} (${subjectFromList.name}) is ${subjectIsCoreSubject ? 'a CORE subject' : 'an OPTIONAL subject'} (from subjects list)`);
+                } else {
+                  // Default to false for safety - only show students who have explicitly selected this subject
+                  subjectIsCoreSubject = false;
+                  console.log(`Could not determine subject type for ${selectedSubject}, assuming it is an OPTIONAL subject for safety`);
+                }
+              }
             } catch (subjectError) {
               console.error(`Error checking if subject ${selectedSubject} is a core subject:`, subjectError);
-              // Assume it's a core subject if we can't determine
-              subjectIsCoreSubject = true;
-              console.log('Assuming subject is a core subject due to error');
+              // Default to false for safety - only show students who have explicitly selected this subject
+              subjectIsCoreSubject = false;
+              console.log('Error occurred, assuming subject is an OPTIONAL subject for safety');
             }
 
             // Filter students based on subject type
             studentsToUse = filterStudentsForSubject(oLevelStudents, selectedSubject, subjectIsCoreSubject, studentSubjectsMap);
 
             // Update the students state
-            if (studentsToUse.length === 0 && !subjectIsCoreSubject) {
-              console.log('No students found who take this optional subject, showing empty list');
-              setStudents([]);
+            if (studentsToUse.length === 0) {
+              console.log('No students found for this subject');
+
+              // Get the subject name from the subjects array
+              const subjectObj = subjects.find(s => s._id === selectedSubject);
+              const subjectName = subjectObj ? subjectObj.name : selectedSubject;
+
+              if (!subjectIsCoreSubject) {
+                console.log('This is an optional subject, showing empty list with explanation');
+                setStudents([]);
+                // Show a more user-friendly error message
+                setError(`No students are assigned to take ${subjectName} in this class. Please check subject assignments.`);
+              } else {
+                console.log('This is a core subject, showing all students as fallback');
+                // For core subjects, we'll show all students as a fallback
+                setStudents(oLevelStudents);
+                setError(`Warning: No specific student assignments found for ${subjectName}, showing all students as fallback.`);
+              }
             } else {
+              console.log(`Setting students state with ${studentsToUse.length} students for subject ${selectedSubject}`);
               setStudents(studentsToUse);
+              // Clear any previous error message
+              setError('');
             }
           } else {
             console.log('No student subject selections found, showing all O-Level students');
@@ -502,6 +607,58 @@ const OLevelBulkMarksEntry = () => {
     setActiveTab(newValue);
   };
 
+  // Fix teacher-subject assignment
+  const handleFixTeacherAssignment = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setSuccess('');
+
+      // Get the current teacher's ID
+      const profileResponse = await api.get('/api/teachers/profile/me');
+      const teacherId = profileResponse.data._id;
+
+      if (!teacherId) {
+        setError('Could not determine your teacher ID. Please contact an administrator.');
+        setLoading(false);
+        return;
+      }
+
+      // Call the fix-teacher endpoint
+      const response = await api.post('/api/fix-teacher/subject-assignment', {
+        classId: selectedClass,
+        subjectId: selectedSubject,
+        teacherId
+      });
+
+      if (response.data.success) {
+        setSuccess('Teacher-subject assignment fixed successfully. Please try saving marks again.');
+        setSnackbar({
+          open: true,
+          message: 'Teacher-subject assignment fixed successfully',
+          severity: 'success'
+        });
+      } else {
+        setError(`Failed to fix teacher-subject assignment: ${response.data.message}`);
+        setSnackbar({
+          open: true,
+          message: `Failed to fix teacher-subject assignment: ${response.data.message}`,
+          severity: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error fixing teacher-subject assignment:', error);
+      setError('Failed to fix teacher-subject assignment. Please contact an administrator.');
+      setSnackbar({
+        open: true,
+        message: 'Failed to fix teacher-subject assignment',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle mark change
   const handleMarkChange = (studentId, value) => {
     // Validate input (0-100)
@@ -561,6 +718,7 @@ const OLevelBulkMarksEntry = () => {
 
   // Save marks
   const handleSaveMarks = async () => {
+    let marksToSave = [];
     try {
       setSaving(true);
       setError('');
@@ -708,26 +866,64 @@ const OLevelBulkMarksEntry = () => {
         let studentsData;
         if (isAdmin) {
           // Admin can see all students in the class
-          const studentsResponse = await api.get(`/api/classes/${selectedClass}/students`);
-          studentsData = studentsResponse.data || [];
+          try {
+            console.log('Refresh: Admin: Fetching students using /api/students/class endpoint');
+            const studentsResponse = await api.get(`/api/students/class/${selectedClass}`);
+            studentsData = studentsResponse.data || [];
+            console.log(`Refresh: Admin: Found ${studentsData.length} students in class ${selectedClass}`);
+          } catch (adminError) {
+            console.error('Refresh: Admin: Error fetching students:', adminError);
+            // Try alternative endpoint
+            console.log('Refresh: Admin: Trying alternative endpoint /api/teachers/classes');
+            try {
+              const altResponse = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+              studentsData = altResponse.data || [];
+              console.log(`Refresh: Admin: Found ${studentsData.length} students using alternative endpoint`);
+            } catch (altError) {
+              console.error('Refresh: Admin: Alternative endpoint also failed:', altError);
+              throw new Error('Failed to fetch students. Please try again.');
+            }
+          }
         } else {
           // Teachers can only see assigned students
           try {
-            console.log('Refresh: Trying O-Level specific endpoint for students');
+            console.log('Refresh: Teacher: Trying O-Level specific endpoint for students');
             // First try the O-Level specific endpoint
-            const oLevelResponse = await api.get(`/api/enhanced-teachers/o-level/classes/${selectedClass}/subjects/any/students`);
+            const oLevelResponse = await api.get(getEndpoint(ENDPOINTS.TEACHER.ENHANCED.O_LEVEL.STUDENTS, selectedClass, selectedSubject));
             if (oLevelResponse.data && Array.isArray(oLevelResponse.data.students)) {
-              console.log(`Refresh: Found ${oLevelResponse.data.students.length} students using O-Level specific endpoint`);
+              console.log(`Refresh: Teacher: Found ${oLevelResponse.data.students.length} students using O-Level specific endpoint`);
               studentsData = oLevelResponse.data.students;
             } else {
               // Fall back to the regular endpoint
-              console.log('Refresh: O-Level specific endpoint returned invalid data, falling back to regular endpoint');
-              studentsData = await teacherApi.getAssignedStudents(selectedClass);
+              console.log('Refresh: Teacher: O-Level specific endpoint returned invalid data, falling back to regular endpoint');
+              try {
+                const regularResponse = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+                studentsData = regularResponse.data || [];
+                console.log(`Refresh: Teacher: Found ${studentsData.length} students using regular endpoint`);
+              } catch (regularError) {
+                console.error('Refresh: Teacher: Regular endpoint failed:', regularError);
+                // Try another fallback
+                console.log('Refresh: Teacher: Trying students/class endpoint as last resort');
+                const lastResortResponse = await api.get(`/api/students/class/${selectedClass}`);
+                studentsData = lastResortResponse.data || [];
+                console.log(`Refresh: Teacher: Found ${studentsData.length} students using last resort endpoint`);
+              }
             }
           } catch (oLevelError) {
-            console.log('Refresh: O-Level specific endpoint failed, falling back to regular endpoint', oLevelError);
+            console.log('Refresh: Teacher: O-Level specific endpoint failed, falling back to regular endpoint', oLevelError);
             // Fall back to the regular endpoint
-            studentsData = await teacherApi.getAssignedStudents(selectedClass);
+            try {
+              const regularResponse = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+              studentsData = regularResponse.data || [];
+              console.log(`Refresh: Teacher: Found ${studentsData.length} students using regular endpoint`);
+            } catch (regularError) {
+              console.error('Refresh: Teacher: Regular endpoint failed:', regularError);
+              // Try another fallback
+              console.log('Refresh: Teacher: Trying students/class endpoint as last resort');
+              const lastResortResponse = await api.get(`/api/students/class/${selectedClass}`);
+              studentsData = lastResortResponse.data || [];
+              console.log(`Refresh: Teacher: Found ${studentsData.length} students using last resort endpoint`);
+            }
           }
         }
 
@@ -786,21 +982,8 @@ const OLevelBulkMarksEntry = () => {
           if (selections && selections.length > 0) {
             console.log(`Refresh: Found ${selections.length} student subject selections`);
 
-            // Create a map of student IDs to their selected subjects
-            const studentSubjectsMap = {};
-            selections.forEach(selection => {
-              if (selection.student) {
-                const studentId = typeof selection.student === 'object' ? selection.student._id : selection.student;
-
-                // Combine core and optional subjects
-                const allSubjects = [
-                  ...(selection.coreSubjects || []).map(s => typeof s === 'object' ? s._id : s),
-                  ...(selection.optionalSubjects || []).map(s => typeof s === 'object' ? s._id : s)
-                ];
-
-                studentSubjectsMap[studentId] = allSubjects;
-              }
-            });
+            // Create a map of student IDs to their selected subjects using our utility function
+            const studentSubjectsMap = createStudentSubjectsMap(selections);
 
             console.log('Refresh: Student subjects map:', studentSubjectsMap);
 
@@ -810,13 +993,28 @@ const OLevelBulkMarksEntry = () => {
               console.log(`Refresh: Checking if subject ${selectedSubject} is a core subject...`);
               const subjectResponse = await api.get(`/api/subjects/${selectedSubject}`);
               console.log('Refresh: Subject response:', subjectResponse.data);
-              subjectIsCoreSubject = subjectResponse.data.type === 'CORE';
-              console.log(`Refresh: Subject ${selectedSubject} is ${subjectIsCoreSubject ? 'a core subject' : 'not a core subject'}`);
+
+              // Check if the subject has a type property
+              if (subjectResponse.data && subjectResponse.data.type) {
+                subjectIsCoreSubject = subjectResponse.data.type === 'CORE';
+                console.log(`Refresh: Subject ${selectedSubject} (${subjectResponse.data.name}) is ${subjectIsCoreSubject ? 'a CORE subject' : 'an OPTIONAL subject'}`);
+              } else {
+                // If no type property, check if we can find it in the subjects array
+                const subjectFromList = subjects.find(s => s._id === selectedSubject);
+                if (subjectFromList && subjectFromList.type) {
+                  subjectIsCoreSubject = subjectFromList.type === 'CORE';
+                  console.log(`Refresh: Subject ${selectedSubject} (${subjectFromList.name}) is ${subjectIsCoreSubject ? 'a CORE subject' : 'an OPTIONAL subject'} (from subjects list)`);
+                } else {
+                  // Default to false for safety - only show students who have explicitly selected this subject
+                  subjectIsCoreSubject = false;
+                  console.log(`Refresh: Could not determine subject type for ${selectedSubject}, assuming it is an OPTIONAL subject for safety`);
+                }
+              }
             } catch (subjectError) {
               console.error(`Refresh: Error checking if subject ${selectedSubject} is a core subject:`, subjectError);
-              // Assume it's a core subject if we can't determine
-              subjectIsCoreSubject = true;
-              console.log('Refresh: Assuming subject is a core subject due to error');
+              // Default to false for safety - only show students who have explicitly selected this subject
+              subjectIsCoreSubject = false;
+              console.log('Refresh: Error occurred, assuming subject is an OPTIONAL subject for safety');
             }
 
             // Use our centralized function to filter students based on subject type
@@ -824,11 +1022,29 @@ const OLevelBulkMarksEntry = () => {
             console.log(`Refresh: Filtered to ${filteredStudents.length} students who have selected subject ${selectedSubject}`);
 
             // Update the students state
-            if (filteredStudents.length === 0 && !subjectIsCoreSubject) {
-              console.log('Refresh: No students found who take this optional subject, showing empty list');
-              setStudents([]);
+            if (filteredStudents.length === 0) {
+              console.log('Refresh: No students found for this subject');
+
+              // Get the subject name from the subjects array
+              const subjectObj = subjects.find(s => s._id === selectedSubject);
+              const subjectName = subjectObj ? subjectObj.name : selectedSubject;
+
+              if (!subjectIsCoreSubject) {
+                console.log('Refresh: This is an optional subject, showing empty list with explanation');
+                setStudents([]);
+                // Show a more user-friendly error message
+                setError(`No students are assigned to take ${subjectName} in this class. Please check subject assignments.`);
+              } else {
+                console.log('Refresh: This is a core subject, showing all students as fallback');
+                // For core subjects, we'll show all students as a fallback
+                setStudents(oLevelStudents);
+                setError(`Warning: No specific student assignments found for ${subjectName}, showing all students as fallback.`);
+              }
             } else {
+              console.log(`Refresh: Setting students state with ${filteredStudents.length} students for subject ${selectedSubject}`);
               setStudents(filteredStudents);
+              // Clear any previous error message
+              setError('');
             }
           } else {
             console.log('Refresh: No student subject selections found, showing all O-Level students');
@@ -1022,7 +1238,7 @@ const OLevelBulkMarksEntry = () => {
                         color="primary"
                         startIcon={<SaveIcon />}
                         onClick={handleSaveMarks}
-                        disabled={saving}
+                        disabled={saving || loading}
                         sx={{ mr: 1 }}
                       >
                         {saving ? 'Saving...' : 'Save Marks'}
@@ -1031,10 +1247,22 @@ const OLevelBulkMarksEntry = () => {
                         variant="outlined"
                         startIcon={<RefreshIcon />}
                         onClick={handleRefresh}
-                        disabled={saving}
+                        disabled={saving || loading}
+                        sx={{ mr: 1 }}
                       >
                         Refresh
                       </Button>
+                      {error && error.includes('not authorized') && (
+                        <Button
+                          variant="outlined"
+                          color="secondary"
+                          startIcon={<CheckIcon />}
+                          onClick={handleFixTeacherAssignment}
+                          disabled={saving || loading}
+                        >
+                          Fix Teacher Assignment
+                        </Button>
+                      )}
                     </Box>
                   </Box>
 
@@ -1051,68 +1279,82 @@ const OLevelBulkMarksEntry = () => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {Array.isArray(marks) && marks.map((mark, index) => (
-                          <TableRow key={mark.studentId}>
-                            <TableCell>{index + 1}</TableCell>
-                            <TableCell>{mark.studentName}</TableCell>
-                            <TableCell>
-                              <TextField
-                                type="text"
-                                value={mark.marksObtained}
-                                onChange={(e) => handleMarkChange(mark.studentId, e.target.value)}
-                                variant="outlined"
-                                size="small"
-                                fullWidth
-                                inputProps={{
-                                  min: 0,
-                                  max: 100,
-                                  step: 0.5
-                                }}
-                                disabled={saving}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <TextField
-                                type="text"
-                                value={mark.comment}
-                                onChange={(e) => handleCommentChange(mark.studentId, e.target.value)}
-                                variant="outlined"
-                                size="small"
-                                fullWidth
-                                disabled={saving}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              {mark._id ? (
-                                <Chip
-                                  icon={<CheckIcon />}
-                                  label="Saved"
-                                  color="success"
-                                  size="small"
-                                />
-                              ) : mark.marksObtained ? (
-                                <Chip
-                                  icon={<WarningIcon />}
-                                  label="Unsaved"
-                                  color="warning"
-                                  size="small"
-                                />
-                              ) : null}
-                            </TableCell>
-                            <TableCell>
-                              {mark._id && (
-                                <Tooltip title="View mark history">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => navigate(`/marks-history/result/${mark._id}?model=OLevelResult`)}
-                                  >
-                                    <HistoryIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                        {marks.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} align="center">
+                              {students.length === 0 && selectedSubject ? (
+                                <Typography color="error">
+                                  No students are assigned to take this subject. Please check subject assignments.
+                                </Typography>
+                              ) : (
+                                `Enter Marks for ${students.length} Students`
                               )}
                             </TableCell>
                           </TableRow>
-                        ))}
+                        ) : (
+                          marks.map((mark, index) => (
+                            <TableRow key={mark.studentId}>
+                              <TableCell>{index + 1}</TableCell>
+                              <TableCell>{mark.studentName}</TableCell>
+                              <TableCell>
+                                <TextField
+                                  type="text"
+                                  value={mark.marksObtained}
+                                  onChange={(e) => handleMarkChange(mark.studentId, e.target.value)}
+                                  variant="outlined"
+                                  size="small"
+                                  fullWidth
+                                  inputProps={{
+                                    min: 0,
+                                    max: 100,
+                                    step: 0.5
+                                  }}
+                                  disabled={saving}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <TextField
+                                  type="text"
+                                  value={mark.comment}
+                                  onChange={(e) => handleCommentChange(mark.studentId, e.target.value)}
+                                  variant="outlined"
+                                  size="small"
+                                  fullWidth
+                                  disabled={saving}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {mark._id ? (
+                                  <Chip
+                                    icon={<CheckIcon />}
+                                    label="Saved"
+                                    color="success"
+                                    size="small"
+                                  />
+                                ) : mark.marksObtained ? (
+                                  <Chip
+                                    icon={<WarningIcon />}
+                                    label="Unsaved"
+                                    color="warning"
+                                    size="small"
+                                  />
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                {mark._id && (
+                                  <Tooltip title="View mark history">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => navigate(`/marks-history/result/${mark._id}?model=OLevelResult`)}
+                                    >
+                                      <HistoryIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )))
+                        }
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -1144,38 +1386,52 @@ const OLevelBulkMarksEntry = () => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {Array.isArray(marks) && marks.map((mark, index) => {
-                          // Calculate grade and points for display
-                          const grade = mark.marksObtained
-                            ? (mark.grade || calculateGrade(Number(mark.marksObtained)))
-                            : '';
-                          const points = grade
-                            ? (mark.points || calculatePoints(grade))
-                            : '';
+                        {marks.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} align="center">
+                              {students.length === 0 && selectedSubject ? (
+                                <Typography color="error">
+                                  No students are assigned to take this subject. Please check subject assignments.
+                                </Typography>
+                              ) : (
+                                `No marks entered for ${students.length} students`
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          marks.map((mark, index) => {
+                            // Calculate grade and points for display
+                            const grade = mark.marksObtained
+                              ? (mark.grade || calculateGrade(Number(mark.marksObtained)))
+                              : '';
+                            const points = grade
+                              ? (mark.points || calculatePoints(grade))
+                              : '';
 
-                          return (
-                            <TableRow key={mark.studentId}>
-                              <TableCell>{index + 1}</TableCell>
-                              <TableCell>{mark.studentName}</TableCell>
-                              <TableCell align="center">{mark.marksObtained || '-'}</TableCell>
-                              <TableCell align="center">
-                                {grade ? (
-                                  <Chip
-                                    label={grade}
-                                    color={
-                                      grade === 'A' ? 'success' :
-                                      grade === 'B' ? 'success' :
-                                      grade === 'C' ? 'primary' :
-                                      grade === 'D' ? 'warning' : 'error'
-                                    }
-                                    size="small"
-                                  />
-                                ) : '-'}
-                              </TableCell>
-                              <TableCell align="center">{points || '-'}</TableCell>
-                            </TableRow>
-                          );
-                        })}
+                            return (
+                              <TableRow key={mark.studentId}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{mark.studentName}</TableCell>
+                                <TableCell align="center">{mark.marksObtained || '-'}</TableCell>
+                                <TableCell align="center">
+                                  {grade ? (
+                                    <Chip
+                                      label={grade}
+                                      color={
+                                        grade === 'A' ? 'success' :
+                                        grade === 'B' ? 'success' :
+                                        grade === 'C' ? 'primary' :
+                                        grade === 'D' ? 'warning' : 'error'
+                                      }
+                                      size="small"
+                                    />
+                                  ) : '-'}
+                                </TableCell>
+                                <TableCell align="center">{points || '-'}</TableCell>
+                              </TableRow>
+                            );
+                          }))
+                        }
                       </TableBody>
                     </Table>
                   </TableContainer>

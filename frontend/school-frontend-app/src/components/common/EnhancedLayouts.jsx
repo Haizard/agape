@@ -18,7 +18,7 @@ import { GradientHeading } from './StyledComponents';
 
 /**
  * Enhanced Layout Components
- * 
+ *
  * A collection of layout components with modern styling, animations, and consistent design.
  */
 
@@ -91,7 +91,7 @@ export const PageHeader = ({
           ))}
         </Breadcrumbs>
       )}
-      
+
       <Box
         sx={{
           display: 'flex',
@@ -105,7 +105,7 @@ export const PageHeader = ({
           <GradientHeading variant="h4" color={color}>
             {title}
           </GradientHeading>
-          
+
           {subtitle && (
             <Typography
               variant="subtitle1"
@@ -116,7 +116,7 @@ export const PageHeader = ({
             </Typography>
           )}
         </Box>
-        
+
         {actions && (
           <Box
             sx={{
@@ -129,7 +129,7 @@ export const PageHeader = ({
           </Box>
         )}
       </Box>
-      
+
       <Divider
         sx={{
           mt: 3,
@@ -204,7 +204,7 @@ export const SectionHeader = ({
           <GradientHeading variant="h5" color={color}>
             {title}
           </GradientHeading>
-          
+
           {subtitle && (
             <Typography
               variant="body2"
@@ -215,7 +215,7 @@ export const SectionHeader = ({
             </Typography>
           )}
         </Box>
-        
+
         {actions && (
           <Box
             sx={{
@@ -228,7 +228,7 @@ export const SectionHeader = ({
           </Box>
         )}
       </Box>
-      
+
       {divider && (
         <Divider
           sx={{
@@ -317,7 +317,7 @@ export const DashboardLayout = ({
           {sidebar}
         </Box>
       )}
-      
+
       {/* Main content */}
       <Box
         component="main"
@@ -340,7 +340,7 @@ export const DashboardLayout = ({
             {header}
           </Box>
         )}
-        
+
         {/* Content */}
         <Box
           sx={{

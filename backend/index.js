@@ -67,6 +67,7 @@ const fixedSubjectRoutes = require('./routes/fixedSubjectRoutes');
 const aLevelSubjectRoutes = require('./routes/aLevelSubjectRoutes');
 const parentContactRoutes = require('./routes/parentContactRoutes');
 const financeRoutes = require('./routes/financeRoutes');
+const quickbooksRoutes = require('./routes/quickbooksRoutes');
 const smsRoutes = require('./routes/smsRoutes');
 const smsSettingsRoutes = require('./routes/smsSettingsRoutes');
 const assignmentRoutes = require('./routes/assignmentRoutes');
@@ -79,6 +80,7 @@ const dataConsistencyRoutes = require('./routes/dataConsistencyRoutes');
 const publicReportRoutes = require('./routes/publicReportRoutes');
 const fixTeacherRoute = require('./routes/fixTeacherRoute');
 const enhancedTeacherRoutes = require('./routes/enhancedTeacherRoutes');
+const teacherSubjectAssignmentRoutes = require('./routes/teacherSubjectAssignmentRoutes');
 
 const app = express();
 
@@ -250,6 +252,7 @@ app.use('/api/fixed-subjects', fixedSubjectRoutes);
 app.use('/api/a-level-subjects', aLevelSubjectRoutes);
 app.use('/api/parent-contacts', parentContactRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/finance/quickbooks', quickbooksRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/settings/sms', smsSettingsRoutes);
 app.use('/api/student-assignments', assignmentRoutes);
@@ -263,6 +266,8 @@ app.use('/api/data-consistency', dataConsistencyRoutes);
 app.use('/api/fix-teacher', fixTeacherRoute);
 // Enhanced teacher routes with improved O-Level handling
 app.use('/api/enhanced-teachers', enhancedTeacherRoutes);
+// Teacher-subject assignment routes
+app.use('/api/teacher-subject-assignments', teacherSubjectAssignmentRoutes);
 // Public routes with no authentication required
 app.use('/api/public', criticalRoutesCors, publicReportRoutes);
 

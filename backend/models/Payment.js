@@ -64,13 +64,21 @@ const paymentSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  quickbooksPaymentId: String,
-  quickbooksSyncStatus: {
-    type: String,
-    enum: ['pending', 'synced', 'failed'],
-    default: 'pending'
-  },
-  quickbooksSyncError: String
+  quickbooksInfo: {
+    id: String,
+    documentNumber: String,
+    syncStatus: {
+      type: String,
+      enum: ['pending', 'synced', 'failed'],
+      default: 'pending'
+    },
+    syncError: String,
+    lastSyncDate: Date,
+    syncAttempts: {
+      type: Number,
+      default: 0
+    }
+  }
 }, {
   timestamps: true
 });

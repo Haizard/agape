@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const teacherAssignmentService = require('../services/teacherAssignmentService');
+const { fixTeacherSubjectAssignment } = require('../utils/fixTeacherAssignments');
+const logger = require('../utils/logger');
 
 // Fix teacher assignments
 router.post('/fix-teacher-assignments', authenticateToken, async (req, res) => {
@@ -124,6 +126,41 @@ router.get('/teacher-classes/:teacherId', authenticateToken, async (req, res) =>
     console.error('Error getting teacher classes:', error);
     res.status(500).json({ message: 'Failed to get teacher classes', error: error.message });
   }
+});
+
+/**
+ * @route   POST /api/fix-teacher/subject-assignment
+ * @desc    Fix teacher-subject assignment
+ * @access  Private (Admin, Teacher)
+ */
+router.post('/subject-assignment',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
+  async (req, res) => {
+    try {
+      const { classId, subjectId, teacherId } = req.body;
+
+      // Validate required fields
+      if (!classId || !subjectId || !teacherId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields: classId, subjectId, teacherId'
+        });
+      }
+
+      // Fix the assignment
+      const result = await fixTeacherSubjectAssignment(classId, subjectId, teacherId);
+
+      // Return the result
+      return res.status(result.success ? 200 : 400).json(result);
+    } catch (error) {
+      logger.error(`Error in fix-teacher/subject-assignment: ${error.message}`);
+      return res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
 });
 
 module.exports = router;

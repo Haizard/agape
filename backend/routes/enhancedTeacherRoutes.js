@@ -1091,7 +1091,7 @@ router.get('/o-level/classes/:classId/subjects/:subjectId/students',
   authorizeRole(['teacher', 'admin']),
   enhancedTeacherAuth.ensureTeacherProfile,
   enhancedTeacherAuth.strictSubjectAccessControl,
-  enhancedTeacherAuth.filterStudentsBySubjectSelection, // Add the new middleware for filtering students
+  enhancedTeacherAuth.filterStudentsBySubjectSelection, // Add the middleware for filtering students
   async (req, res) => {
     try {
       const { classId, subjectId } = req.params;

@@ -321,12 +321,11 @@ router.post('/self-assign-subjects', authenticateToken, authorizeRole(['teacher'
       }
     }
 
-      // NOTE: We're no longer adding the subject to the teacher's subjects array
-      // This was causing confusion because the teacher.subjects array should represent
-      // the subjects a teacher is qualified to teach, not the subjects they're currently
-      // assigned to teach in specific classes
-      // The assignment is already recorded in the Class.subjects array
-    }
+    // NOTE: We're no longer adding the subject to the teacher's subjects array
+    // This was causing confusion because the teacher.subjects array should represent
+    // the subjects a teacher is qualified to teach, not the subjects they're currently
+    // assigned to teach in specific classes
+    // The assignment is already recorded in the Class.subjects array
 
     // Save the updated class
     classObj.subjects = updatedSubjects;

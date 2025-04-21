@@ -74,17 +74,88 @@ const teacherAuthService = {
         }
 
         // Extract subject IDs from assignments
-        const subjectIds = assignments.map(assignment => assignment.subjectId);
-        console.log(`[TeacherAuthService] Subject IDs from assignments: ${subjectIds.join(', ')}`);
+        const subjectIds = [];
+
+        // Log the raw assignments for debugging
+        console.log('[TeacherAuthService] Raw assignments:', JSON.stringify(assignments, null, 2));
+
+        assignments.forEach(assignment => {
+          let subjectId = null;
+
+          // Handle different formats of subjectId
+          if (assignment.subjectId) {
+            if (typeof assignment.subjectId === 'object') {
+              if (assignment.subjectId._id) {
+                subjectId = assignment.subjectId._id.toString();
+                console.log(`[TeacherAuthService] Extracted subject ID from object._id: ${subjectId}`);
+              } else {
+                // Try to stringify the object to see what's in it
+                console.log(`[TeacherAuthService] Subject ID is an object without _id:`, JSON.stringify(assignment.subjectId));
+                // Try to extract ID if it's a MongoDB ObjectId stringified
+                if (assignment.subjectId.toString().includes('"_id"')) {
+                  try {
+                    const parsed = JSON.parse(assignment.subjectId.toString());
+                    if (parsed._id) {
+                      subjectId = parsed._id.toString();
+                      console.log(`[TeacherAuthService] Extracted subject ID from parsed object: ${subjectId}`);
+                    }
+                  } catch (e) {
+                    console.log('[TeacherAuthService] Failed to parse subject ID object:', e);
+                  }
+                }
+              }
+            } else if (typeof assignment.subjectId === 'string') {
+              subjectId = assignment.subjectId;
+              console.log(`[TeacherAuthService] Subject ID is already a string: ${subjectId}`);
+            } else {
+              // For any other type, try toString()
+              try {
+                subjectId = assignment.subjectId.toString();
+                console.log(`[TeacherAuthService] Converted subject ID to string: ${subjectId}`);
+              } catch (e) {
+                console.log('[TeacherAuthService] Failed to convert subject ID to string:', e);
+              }
+            }
+          }
+
+          if (subjectId) {
+            subjectIds.push(subjectId);
+          }
+        });
+
+        // Log each ID separately for better debugging
+        console.log(`[TeacherAuthService] Found ${subjectIds.length} subject IDs from assignments`);
+        subjectIds.forEach((id, index) => {
+          console.log(`[TeacherAuthService] Subject ID ${index + 1}: ${id}`);
+        });
 
         // Get details for these subjects
         const subjectsResponse = await api.get(`/api/classes/${classId}/subjects`);
         const allSubjects = subjectsResponse.data || [];
 
         // Filter to only include subjects the teacher is assigned to
-        const assignedSubjects = allSubjects.filter(subject =>
-          subjectIds.includes(subject._id)
-        );
+        const assignedSubjects = allSubjects.filter(subject => {
+          // Ensure we have a valid subject with an ID
+          if (!subject || !subject._id) {
+            console.log(`[TeacherAuthService] Invalid subject without ID:`, subject);
+            return false;
+          }
+
+          // Convert subject ID to string for comparison
+          const currentSubjectIdStr = subject._id.toString();
+
+          // Check if this subject ID is in our list of assigned subject IDs
+          const isAssigned = subjectIds.some(id => {
+            const match = id === currentSubjectIdStr;
+            if (match) {
+              console.log(`[TeacherAuthService] Found match: ${id} === ${currentSubjectIdStr}`);
+            }
+            return match;
+          });
+
+          console.log(`[TeacherAuthService] Subject ${subject.name} (${currentSubjectIdStr}) assigned: ${isAssigned}`);
+          return isAssigned;
+        });
 
         console.log(`[TeacherAuthService] Final filtered assigned subjects: ${assignedSubjects.length}`);
         return assignedSubjects;
@@ -217,7 +288,24 @@ const teacherAuthService = {
         assignedSubjects.map(s => ({ id: s._id, name: s.name })));
 
       // Check if the subject is in the assigned subjects list
-      const isAuthorized = assignedSubjects.some(subject => subject._id === subjectId);
+      const isAuthorized = assignedSubjects.some(subject => {
+        // Ensure we have a valid subject with an ID
+        if (!subject || !subject._id) {
+          console.log(`[TeacherAuthService] Invalid subject without ID in authorization check:`, subject);
+          return false;
+        }
+
+        // Convert both to string for comparison
+        const assignedSubjectId = subject._id.toString();
+        const requestedSubjectId = subjectId.toString();
+
+        const match = assignedSubjectId === requestedSubjectId;
+        if (match) {
+          console.log(`[TeacherAuthService] Found subject match for authorization: ${assignedSubjectId} === ${requestedSubjectId}`);
+        }
+
+        return match;
+      });
 
       if (isAuthorized) {
         console.log(`[TeacherAuthService] Teacher is authorized for subject ${subjectId} in class ${classId}`);
@@ -281,7 +369,7 @@ const teacherAuthService = {
           if (assignedSubjects.length > 0) {
             // Check if the student is in the class
             const assignedStudents = await this.getAssignedStudents(classId);
-            const isStudentInClass = assignedStudents.some(student => student._id === studentId);
+            const isStudentInClass = assignedStudents.some(student => student._id.toString() === studentId.toString());
             if (isStudentInClass) {
               console.log(`[TeacherAuthService] Teacher is authorized for student ${studentId} in O-Level class ${classId}`);
               return true;
@@ -302,7 +390,7 @@ const teacherAuthService = {
           if (assignedSubjects.length > 0) {
             // Check if the student is in the class
             const assignedStudents = await this.getAssignedStudents(classId);
-            const isStudentInClass = assignedStudents.some(student => student._id === studentId);
+            const isStudentInClass = assignedStudents.some(student => student._id.toString() === studentId.toString());
             if (isStudentInClass) {
               console.log(`[TeacherAuthService] Teacher is authorized for student ${studentId} in A-Level class ${classId}`);
               return true;
@@ -322,7 +410,7 @@ const teacherAuthService = {
 
       // Normal authorization check
       const assignedStudents = await this.getAssignedStudents(classId);
-      return assignedStudents.some(student => student._id === studentId);
+      return assignedStudents.some(student => student._id.toString() === studentId.toString());
     } catch (error) {
       console.error('Error checking student authorization:', error);
       return false;
