@@ -9,6 +9,7 @@ const Class = require('../models/Class');
 const Exam = require('../models/Exam');
 const Subject = require('../models/Subject');
 const ALevelResult = require('../models/ALevelResult');
+const NewALevelResult = require('../models/NewALevelResult');
 const CharacterAssessment = require('../models/CharacterAssessment');
 const SubjectCombination = require('../models/SubjectCombination');
 const logger = require('../utils/logger');
@@ -159,13 +160,44 @@ exports.getStudentReport = async (req, res) => {
     }
 
     // Get the student's results for this exam with retry logic
-    const results = await executeWithRetry(
+    // First, try to get results from the legacy ALevelResult model
+    let results = await executeWithRetry(
       () => ALevelResult.find({
-        student: studentId,
-        exam: examId
+        $or: [
+          { student: studentId, exam: examId },
+          { studentId: studentId, examId: examId }
+        ]
       }).populate('subject'),
-      `Error fetching results for student ${studentId} in exam ${examId}`
+      `Error fetching legacy results for student ${studentId} in exam ${examId}`
     );
+
+    // If no results found in legacy model, try the new model
+    if (results.length === 0) {
+      console.log(`No legacy results found for student ${studentId} in exam ${examId}, trying new model`);
+      const newResults = await executeWithRetry(
+        () => NewALevelResult.find({
+          studentId: studentId,
+          examId: examId
+        }).populate('subjectId'),
+        `Error fetching new results for student ${studentId} in exam ${examId}`
+      );
+
+      // If we found results in the new model, transform them to match the legacy format
+      if (newResults.length > 0) {
+        console.log(`Found ${newResults.length} results in new model for student ${studentId} in exam ${examId}`);
+        results = newResults.map(result => ({
+          _id: result._id,
+          student: result.studentId,
+          exam: result.examId,
+          subject: result.subjectId,
+          marksObtained: result.marksObtained,
+          grade: result.grade || aLevelGradeCalculator.calculateGrade(result.marksObtained),
+          points: result.points || aLevelGradeCalculator.calculatePoints(result.grade || aLevelGradeCalculator.calculateGrade(result.marksObtained)),
+          isPrincipal: result.isPrincipal,
+          isInCombination: result.isInCombination
+        }));
+      }
+    }
 
     if (results.length === 0) {
       logger.warn(`No results found for student ${studentId} in exam ${examId}`);
@@ -610,7 +642,8 @@ exports.getClassReport = async (req, res) => {
         console.log(`Processing student: ${student.firstName} ${student.lastName} (${student._id})`);
 
         // Get the student's results for this exam with retry logic
-        const results = await executeWithRetry(
+        // First, try to get results from the legacy ALevelResult model
+        let results = await executeWithRetry(
           () => ALevelResult.find({
             $and: [
               { $or: [
@@ -625,8 +658,36 @@ exports.getClassReport = async (req, res) => {
               ]}
             ]
           }).populate('subject'),
-          `Error fetching results for student ${student._id} in exam ${examId}`
+          `Error fetching legacy results for student ${student._id} in exam ${examId}`
         );
+
+        // If no results found in legacy model, try the new model
+        if (results.length === 0) {
+          console.log(`No legacy results found for student ${student._id} in exam ${examId}, trying new model`);
+          const newResults = await executeWithRetry(
+            () => NewALevelResult.find({
+              studentId: student._id,
+              examId: examId
+            }).populate('subjectId'),
+            `Error fetching new results for student ${student._id} in exam ${examId}`
+          );
+
+          // If we found results in the new model, transform them to match the legacy format
+          if (newResults.length > 0) {
+            console.log(`Found ${newResults.length} results in new model for student ${student._id} in exam ${examId}`);
+            results = newResults.map(result => ({
+              _id: result._id,
+              student: result.studentId,
+              exam: result.examId,
+              subject: result.subjectId,
+              marksObtained: result.marksObtained,
+              grade: result.grade || aLevelGradeCalculator.calculateGrade(result.marksObtained),
+              points: result.points || aLevelGradeCalculator.calculatePoints(result.grade || aLevelGradeCalculator.calculateGrade(result.marksObtained)),
+              isPrincipal: result.isPrincipal,
+              isInCombination: result.isInCombination
+            }));
+          }
+        }
 
         // Log the query for debugging
         console.log(`Query for student ${student._id} in exam ${examId}:`, {

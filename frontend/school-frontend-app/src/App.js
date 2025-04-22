@@ -119,8 +119,11 @@ import MarksHistoryDashboard from './components/marks/MarksHistoryDashboard';
 import MarksEntryDashboard from './components/results/MarksEntryDashboard';
 import ALevelBulkMarksEntry from './components/results/ALevelBulkMarksEntry';
 import SimplifiedALevelBulkMarksEntry from './components/results/SimplifiedALevelBulkMarksEntry';
+import LegacyALevelBulkMarksEntryPage from './pages/LegacyALevelBulkMarksEntryPage';
 import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
 import EnhancedBulkMarksEntry from './components/marks/EnhancedBulkMarksEntry';
+import NewALevelMarksEntry from './components/results/NewALevelMarksEntry';
+import NewALevelBulkMarksEntry from './components/results/NewALevelBulkMarksEntry';
 import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
 import ALevelComprehensiveReportRouter from './components/results/ALevelComprehensiveReportRouter';
 import ALevelClassReportSelector from './components/results/aLevel/ALevelClassReportSelector';
@@ -489,6 +492,23 @@ function App() {
                         <ALevelBulkMarksEntry />
                       </ProtectedRoute>
                     } />
+                    <Route path="/results/a-level/legacy-bulk-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <LegacyALevelBulkMarksEntryPage />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* New A-Level Marks Entry Routes */}
+                    <Route path="/results/new-a-level/marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <NewALevelMarksEntry />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/new-a-level/bulk-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <NewALevelBulkMarksEntry />
+                      </ProtectedRoute>
+                    } />
 
                     {/* Teacher-specific routes */}
                     <Route path="/teacher/o-level/marks-entry" element={
@@ -516,6 +536,16 @@ function App() {
                     <Route path="/teacher/a-level/bulk-marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <ALevelBulkMarksEntry />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/new-a-level/marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <NewALevelMarksEntry />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/new-a-level/bulk-marks-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <NewALevelBulkMarksEntry />
                       </ProtectedRoute>
                     } />
 

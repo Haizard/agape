@@ -306,6 +306,163 @@ router.get('/class/:classId', authenticateToken, authorizeTeacherForClass, async
   }
 });
 
+// Get A-Level student combinations by class ID
+router.get('/a-level-combinations/class/:classId', authenticateToken, async (req, res) => {
+  try {
+    const classId = req.params.classId;
+    console.log(`Fetching A-Level combinations for class: ${classId}`);
+
+    // Find all students in the specified class
+    const students = await Student.find({
+      class: classId,
+      educationLevel: 'A_LEVEL'
+    }).populate('subjectCombination');
+
+    console.log(`Found ${students.length} A-Level students in class ${classId}`);
+
+    // Format the combinations for easier use in the frontend
+    const formattedCombinations = [];
+
+    for (const student of students) {
+      console.log(`Processing student ${student._id} (${student.firstName} ${student.lastName})`);
+
+      // Skip students without a combination
+      if (!student.subjectCombination) {
+        console.log(`Student ${student._id} has no subject combination`);
+        continue;
+      }
+
+      const combination = student.subjectCombination;
+      console.log(`Student has combination: ${combination.name || combination._id}`);
+
+      // Get principal and subsidiary subjects
+      const principalSubjects = [];
+      const subsidiarySubjects = [];
+
+      // Regular subjects are considered principal
+      if (combination.subjects && Array.isArray(combination.subjects)) {
+        for (const subject of combination.subjects) {
+          principalSubjects.push(typeof subject === 'object' ? subject._id : subject);
+        }
+      }
+
+      // Compulsory subjects are considered subsidiary
+      if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+        for (const subject of combination.compulsorySubjects) {
+          subsidiarySubjects.push(typeof subject === 'object' ? subject._id : subject);
+        }
+      }
+
+      console.log(`Found ${principalSubjects.length} principal subjects and ${subsidiarySubjects.length} subsidiary subjects`);
+
+      // Create a subjects array with isPrincipal flag
+      const subjects = [
+        ...principalSubjects.map(subjectId => ({
+          subjectId,
+          isPrincipal: true
+        })),
+        ...subsidiarySubjects.map(subjectId => ({
+          subjectId,
+          isPrincipal: false
+        }))
+      ];
+
+      formattedCombinations.push({
+        student: {
+          _id: student._id,
+          firstName: student.firstName,
+          lastName: student.lastName
+        },
+        combinationId: combination._id,
+        name: combination.name,
+        code: combination.code,
+        subjects
+      });
+    }
+
+    console.log(`Formatted ${formattedCombinations.length} A-Level combinations for class ${classId}`);
+    res.json(formattedCombinations);
+  } catch (error) {
+    console.error('Error fetching A-Level combinations:', error);
+    res.status(500).json({ message: 'Error fetching A-Level combinations', error: error.message });
+  }
+});
+
+// Fallback endpoint for student combinations
+router.get('/student-combinations/class/:classId', authenticateToken, async (req, res) => {
+  try {
+    const classId = req.params.classId;
+    console.log(`Fetching student combinations for class: ${classId}`);
+
+    // Find all students in the specified class
+    const students = await Student.find({
+      class: classId
+    }).populate('subjectCombination');
+
+    console.log(`Found ${students.length} students in class ${classId}`);
+
+    // Format the combinations for easier use in the frontend
+    const formattedCombinations = [];
+
+    for (const student of students) {
+      // Skip students without a combination
+      if (!student.subjectCombination) {
+        continue;
+      }
+
+      const combination = student.subjectCombination;
+
+      // Get principal and subsidiary subjects
+      const principalSubjects = [];
+      const subsidiarySubjects = [];
+
+      // Regular subjects are considered principal
+      if (combination.subjects && Array.isArray(combination.subjects)) {
+        for (const subject of combination.subjects) {
+          principalSubjects.push(typeof subject === 'object' ? subject._id : subject);
+        }
+      }
+
+      // Compulsory subjects are considered subsidiary
+      if (combination.compulsorySubjects && Array.isArray(combination.compulsorySubjects)) {
+        for (const subject of combination.compulsorySubjects) {
+          subsidiarySubjects.push(typeof subject === 'object' ? subject._id : subject);
+        }
+      }
+
+      // Create a subjects array with isPrincipal flag
+      const subjects = [
+        ...principalSubjects.map(subjectId => ({
+          subjectId,
+          isPrincipal: true
+        })),
+        ...subsidiarySubjects.map(subjectId => ({
+          subjectId,
+          isPrincipal: false
+        }))
+      ];
+
+      formattedCombinations.push({
+        student: {
+          _id: student._id,
+          firstName: student.firstName,
+          lastName: student.lastName
+        },
+        combinationId: combination._id,
+        name: combination.name,
+        code: combination.code,
+        subjects
+      });
+    }
+
+    console.log(`Formatted ${formattedCombinations.length} student combinations for class ${classId}`);
+    res.json(formattedCombinations);
+  } catch (error) {
+    console.error('Error fetching student combinations:', error);
+    res.status(500).json({ message: 'Error fetching student combinations', error: error.message });
+  }
+});
+
 // Get A-Level students by class ID
 router.get('/a-level/class/:classId', authenticateToken, async (req, res) => {
   try {

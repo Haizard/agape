@@ -39,6 +39,8 @@ const resultReportRoutes = require('./routes/resultReportRoutes');
 // const aLevelResultRoutes = require('./routes/aLevelResultRoutes');
 const oLevelResultRoutes = require('./routes/oLevelResultRoutes');
 const aLevelResultBatchRoutes = require('./routes/aLevelResultBatchRoutes');
+const legacyALevelResultBatchRoutes = require('./routes/legacyALevelResultBatchRoutes');
+const legacyRedirectRoutes = require('./routes/legacyRedirectRoutes');
 const oLevelResultBatchRoutes = require('./routes/oLevelResultBatchRoutes');
 const aLevelComprehensiveReportRoutes = require('./routes/aLevelComprehensiveReportRoutes');
 const unifiedComprehensiveReportRoutes = require('./routes/unifiedComprehensiveReportRoutes');
@@ -46,6 +48,7 @@ const aLevelReportRoutes = require('./routes/aLevelReportRoutes');
 const characterAssessmentRoutes = require('./routes/characterAssessmentRoutes');
 const studentEducationLevelRoutes = require('./routes/studentEducationLevelRoutes');
 const checkMarksRoutes = require('./routes/checkMarksRoutes');
+const newALevelResultRoutes = require('./routes/newALevelResultRoutes');
 // Import v2 routes
 const v2ResultRoutes = require('./routes/v2/resultRoutes');
 // Import standardized O-Level routes
@@ -226,11 +229,17 @@ app.use('/api/results/report', (req, res, next) => {
 // Other routes
 app.use('/api/results/comprehensive', unifiedComprehensiveReportRoutes);
 app.use('/api/a-level-results/batch', criticalRoutesCors, aLevelResultBatchRoutes);
+// Legacy A-Level batch route
+app.use('/api/legacy-a-level-results/batch', criticalRoutesCors, legacyALevelResultBatchRoutes);
 app.use('/api/a-level-comprehensive', aLevelComprehensiveReportRoutes);
 app.use('/api/a-level-reports', criticalRoutesCors, aLevelReportRoutes);
 app.use('/api/character-assessments', characterAssessmentRoutes);
 app.use('/api/student-education-level', studentEducationLevelRoutes);
 app.use('/api/check-marks', checkMarksRoutes);
+
+// New A-Level routes
+app.use('/api/new-a-level', criticalRoutesCors, newALevelResultRoutes);
+console.log('New A-Level routes registered at /api/new-a-level');
 
 // Register v2 routes
 app.use('/api/v2/results', v2ResultRoutes);
@@ -270,6 +279,8 @@ app.use('/api/enhanced-teachers', enhancedTeacherRoutes);
 app.use('/api/teacher-subject-assignments', teacherSubjectAssignmentRoutes);
 // Public routes with no authentication required
 app.use('/api/public', criticalRoutesCors, publicReportRoutes);
+// Legacy redirect routes
+app.use('/api/legacy', legacyRedirectRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

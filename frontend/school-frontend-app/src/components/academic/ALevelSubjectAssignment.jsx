@@ -233,7 +233,9 @@ const ALevelSubjectAssignment = () => {
       // Update student with selected combination
       const response = await api.put(`/api/students/${selectedStudent}`, {
         subjectCombination: selectedCombination,
-        educationLevel: 'A_LEVEL' // Ensure the student is marked as A-Level
+        educationLevel: 'A_LEVEL', // Ensure the student is marked as A-Level
+        firstName: student.firstName, // Include required fields
+        lastName: student.lastName
       });
 
       console.log('Student updated successfully:', response.data);
@@ -314,7 +316,9 @@ const ALevelSubjectAssignment = () => {
       // Update each student to A-Level
       const updatePromises = nonALevelStudents.map(student =>
         api.put(`/api/students/${student._id}`, {
-          educationLevel: 'A_LEVEL'
+          educationLevel: 'A_LEVEL',
+          firstName: student.firstName, // Include required fields
+          lastName: student.lastName
         })
       );
 

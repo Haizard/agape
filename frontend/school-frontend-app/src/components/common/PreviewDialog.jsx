@@ -15,19 +15,24 @@ import {
   TableRow,
   Paper,
   CircularProgress,
-  Chip
+  Chip,
+  Divider
 } from '@mui/material';
+import {
+  Check as CheckIcon,
+  Warning as WarningIcon
+} from '@mui/icons-material';
 
 /**
  * A reusable preview dialog component for marks entry
  */
 const PreviewDialog = ({ open, onClose, onSubmit, data, loading, type = 'individual' }) => {
   console.log('PreviewDialog rendered with open:', open);
-  
+
   if (!open) {
     return null;
   }
-  
+
   return (
     <Dialog
       open={open}

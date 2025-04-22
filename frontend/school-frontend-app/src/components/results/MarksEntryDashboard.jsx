@@ -51,46 +51,91 @@ const MarksEntryDashboard = () => {
             </Box>
             <Divider sx={{ mb: 2 }} />
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Card variant="outlined" sx={{ height: '100%' }}>
+              <Grid item xs={12} md={4}>
+                <Card variant="outlined" sx={{ height: '100%', bgcolor: '#f0f7ff' }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      A-Level Bulk Marks Entry
+                      New A-Level Bulk Marks Entry
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Enter marks for multiple A-Level students at once. Supports principal subject designation and batch saving.
+                      <strong>Recommended:</strong> New and improved A-Level bulk marks entry with better validation and error handling.
                     </Typography>
                   </CardContent>
                   <CardActions>
                     <Button
                       variant="contained"
                       endIcon={<ArrowForwardIcon />}
-                      onClick={() => navigate('/results/a-level/bulk-marks-entry', { state: { educationLevel: 'A_LEVEL' } })}
+                      onClick={() => navigate('/results/new-a-level/bulk-marks-entry')}
                       fullWidth
                     >
-                      Go to A-Level Bulk Entry
+                      Go to New A-Level Bulk Entry
                     </Button>
                   </CardActions>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <Card variant="outlined" sx={{ height: '100%' }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      A-Level Individual Marks Entry
+                      New A-Level Individual Marks Entry
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Enter marks for individual A-Level students. Provides detailed options for each student.
+                      <strong>Recommended:</strong> New and improved A-Level individual marks entry with better validation and error handling.
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button
+                      variant="contained"
+                      endIcon={<ArrowForwardIcon />}
+                      onClick={() => navigate('/results/new-a-level/marks-entry')}
+                      fullWidth
+                    >
+                      Go to New A-Level Individual Entry
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Card variant="outlined" sx={{ height: '100%', bgcolor: '#e8f5e9', border: '1px solid #4caf50' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="success.main">
+                      Legacy A-Level Bulk Marks Entry (Recommended)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Use this option</strong> for A-Level bulk marks entry. This implementation uses the old version's approach to bypass issues with the new implementation.
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      endIcon={<ArrowForwardIcon />}
+                      onClick={() => navigate('/results/a-level/legacy-bulk-marks-entry')}
+                      fullWidth
+                    >
+                      Go to Legacy A-Level Bulk Entry
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Card variant="outlined" sx={{ height: '100%', opacity: 0.7 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Standard A-Level Marks Entry
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Standard A-Level marks entry system. May have issues with bulk entry.
                     </Typography>
                   </CardContent>
                   <CardActions>
                     <Button
                       variant="outlined"
                       endIcon={<ArrowForwardIcon />}
-                      onClick={() => navigate('/results/a-level/marks-entry')}
+                      onClick={() => navigate('/results/a-level/bulk-marks-entry', { state: { educationLevel: 'A_LEVEL' } })}
                       fullWidth
                     >
-                      Go to A-Level Individual Entry
+                      Go to Standard A-Level Entry
                     </Button>
                   </CardActions>
                 </Card>
