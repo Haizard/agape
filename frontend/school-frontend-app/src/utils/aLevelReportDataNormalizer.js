@@ -55,16 +55,29 @@ const normalizeStudentData = (student) => {
   const results = Array.isArray(student.results) ? student.results : [];
 
   // Normalize results
-  const normalizedResults = results.map(result => ({
-    subject: result.subject || '',
-    code: result.code || '',
-    marks: result.marks || result.marksObtained || 0,
-    grade: result.grade || '-',
-    points: result.points || 0,
-    remarks: result.remarks || '',
-    isPrincipal: result.isPrincipal || false,
-    isCompulsory: result.isCompulsory || false
-  }));
+  const normalizedResults = results.map(result => {
+    // Log the result structure to help debug
+    console.log('A-Level normalizer - Subject result structure:', {
+      subject: result.subject,
+      marks: result.marks,
+      marksObtained: result.marksObtained,
+      score: result.score,
+      grade: result.grade,
+      points: result.points
+    });
+
+    return {
+      subject: result.subject || '',
+      code: result.code || '',
+      // Try all possible property names for marks
+      marks: result.marks || result.marksObtained || result.score || 0,
+      grade: result.grade || '-',
+      points: result.points || 0,
+      remarks: result.remarks || '',
+      isPrincipal: result.isPrincipal || false,
+      isCompulsory: result.isCompulsory || false
+    };
+  });
 
   // Calculate total marks if not provided
   const totalMarks = student.totalMarks || normalizedResults.reduce((sum, result) => sum + (parseFloat(result.marks) || 0), 0);

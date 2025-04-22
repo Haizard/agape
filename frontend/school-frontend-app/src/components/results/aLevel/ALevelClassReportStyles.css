@@ -5,7 +5,9 @@
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Header styling */
@@ -34,7 +36,9 @@
   margin-bottom: 24px;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
-  overflow: hidden;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
 }
 
 .section-header {
@@ -58,24 +62,33 @@
 .report-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem; /* Smaller font size */
+  font-size: 16px; /* Microsoft Word size 16 equivalent */
+  table-layout: auto; /* Allow table to adjust based on content */
+  display: table;
+  overflow: visible;
+  border-spacing: 0;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .report-table th {
-  background-color: #1a237e;
+  background-color: #2e7d32; /* Green header like in the sample */
   color: white;
-  padding: 6px 4px; /* Reduced padding */
+  padding: 8px 6px; /* Significantly increased padding */
   text-align: center;
   font-weight: bold;
-  border: 1px solid #ddd;
+  border: 1px solid #1b5e20;
   white-space: nowrap; /* Prevent wrapping */
-  font-size: 0.8rem; /* Even smaller font for headers */
+  font-size: 16px; /* Microsoft Word size 16 equivalent */
+  vertical-align: middle;
 }
 
 .report-table td {
-  padding: 4px 2px; /* Reduced padding */
+  padding: 8px 6px; /* Significantly increased padding */
   border: 1px solid #ddd;
   text-align: center;
+  font-size: 16px; /* Microsoft Word size 16 equivalent */
+  vertical-align: middle;
 }
 
 .report-table tr:nth-child(even) {
@@ -88,23 +101,36 @@
 
 /* Compact table styles */
 .compact-table th {
-  padding: 4px 2px;
-  font-size: 0.75rem;
+  padding: 8px 6px;
+  font-size: 16px;
 }
 
 .compact-table td {
-  padding: 3px 2px;
-  font-size: 0.75rem;
+  padding: 8px 6px;
+  font-size: 16px;
+}
+
+/* Table container styles */
+.table-container {
+  max-height: none !important;
+  overflow: visible !important;
+  width: 100% !important;
+  overflow-x: visible !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
 }
 
 /* Subject column styles */
 .subject-column {
-  min-width: 70px !important;
-  max-width: 70px !important;
-  width: 70px !important;
-  overflow: hidden;
+  min-width: 45px !important;
+  max-width: 45px !important;
+  width: 45px !important;
+  overflow: visible;
   text-overflow: ellipsis;
   white-space: nowrap;
+  height: 120px !important;
+  border: 1px solid #1b5e20 !important;
 }
 
 /* Student row styling */
@@ -115,71 +141,79 @@
 .student-name {
   text-align: left;
   font-weight: bold;
+  font-size: 18px;
 }
 
 /* Grade styling */
 .grade-a {
-  color: #388e3c;
+  color: #1b5e20; /* Darker green */
   font-weight: bold;
+  font-size: 18px;
 }
 
 .grade-b {
-  color: #0288d1;
+  color: #0d47a1; /* Darker blue */
   font-weight: bold;
+  font-size: 18px;
 }
 
 .grade-c {
-  color: #7b1fa2;
+  color: #4a148c; /* Darker purple */
   font-weight: bold;
+  font-size: 18px;
 }
 
 .grade-d {
-  color: #f57c00;
+  color: #e65100; /* Darker orange */
   font-weight: bold;
+  font-size: 18px;
 }
 
 .grade-e, .grade-s {
-  color: #fbc02d;
+  color: #f57f17; /* Darker yellow */
   font-weight: bold;
+  font-size: 18px;
 }
 
 .grade-f {
-  color: #d32f2f;
+  color: #b71c1c; /* Darker red */
   font-weight: bold;
+  font-size: 18px;
 }
 
 /* Division styling */
 .division-chip {
-  padding: 2px 4px;
-  border-radius: 10px;
+  padding: 4px 6px;
+  border-radius: 4px;
   font-weight: bold;
   display: inline-block;
   min-width: 40px;
-  font-size: 0.7rem;
+  font-size: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .division-1 {
-  background-color: #4caf50;
+  background-color: #1b5e20; /* Darker green */
   color: white;
 }
 
 .division-2 {
-  background-color: #2196f3;
+  background-color: #0d47a1; /* Darker blue */
   color: white;
 }
 
 .division-3 {
-  background-color: #ff9800;
+  background-color: #e65100; /* Darker orange */
   color: white;
 }
 
 .division-4 {
-  background-color: #ff5722;
+  background-color: #b71c1c; /* Darker red */
   color: white;
 }
 
 .division-0 {
-  background-color: #f44336;
+  background-color: #424242; /* Darker grey */
   color: white;
 }
 
@@ -263,50 +297,109 @@
   }
 
   .report-header {
-    background-color: #1a237e !important;
+    background-color: #2e7d32 !important;
     color: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
   .report-table {
-    font-size: 7pt !important;
+    font-size: 12pt !important; /* Reduced from 16pt to fit more content */
     width: 100% !important;
-    table-layout: fixed !important;
+    table-layout: auto !important; /* Changed from fixed to auto to adapt to content */
+    page-break-inside: auto !important; /* Allow page breaks within table */
+    border-collapse: collapse !important;
+    margin: 0 !important;
   }
 
   .report-table th {
-    background-color: #1a237e !important;
+    background-color: #2e7d32 !important;
     color: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    padding: 2px !important;
-    font-size: 6pt !important;
+    padding: 3px 2px !important; /* Reduced padding */
+    font-size: 10pt !important; /* Reduced from 16pt */
+    text-align: center !important;
+    vertical-align: middle !important;
+    border: 1px solid #1b5e20 !important;
   }
 
   .report-table td {
-    padding: 1px !important;
-    font-size: 6pt !important;
+    padding: 3px 2px !important; /* Reduced padding */
+    font-size: 10pt !important; /* Reduced from 16pt */
+    text-align: center !important;
+    vertical-align: middle !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* Make student names larger and bolder */
+  .student-name {
+    font-size: 11pt !important; /* Reduced from 16pt */
+    font-weight: bold !important;
+    text-align: left !important;
   }
 
   .division-chip {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    font-size: 6pt !important;
-    padding: 1px 2px !important;
-    min-width: 30px !important;
+    font-size: 10pt !important; /* Reduced from 16pt */
+    padding: 1px 3px !important; /* Reduced padding */
+    min-width: 30px !important; /* Reduced width */
+    font-weight: bold !important;
+    border-radius: 3px !important;
+  }
+
+  /* Make grades more readable */
+  .grade-a, .grade-b, .grade-c, .grade-d, .grade-e, .grade-s, .grade-f {
+    font-size: 10pt !important; /* Reduced from 16pt */
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .subject-column {
-    min-width: 50px !important;
-    max-width: 50px !important;
-    width: 50px !important;
+    min-width: 35px !important; /* Reduced from 100px */
+    max-width: 35px !important; /* Reduced from 100px */
+    width: 35px !important; /* Reduced from 100px */
+    height: auto !important; /* Allow height to adjust */
+    overflow: visible !important;
+    border: 1px solid #1b5e20 !important;
   }
 
   /* Ensure the table fits on the page */
-  .TableContainer {
-    max-width: 100% !important;
-    width: 100% !important;
+  .table-container {
+    max-height: none !important;
     overflow: visible !important;
+    width: 100% !important;
+    page-break-inside: auto !important; /* Allow page breaks */
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Remove sticky headers in print mode */
+  .MuiTableCell-stickyHeader {
+    position: relative !important;
+  }
+
+  /* Ensure proper page breaks */
+  .report-section {
+    page-break-inside: avoid !important;
+    margin-bottom: 20px !important;
+  }
+
+  /* Landscape orientation for better fit */
+  @page {
+    size: landscape;
+    margin: 0.3cm; /* Reduced margin */
+    scale: 80%; /* Scale down to fit more content */
+  }
+
+  /* Adjust vertical headers for print */
+  [style*="transform: rotate(-90deg)"] {
+    transform: rotate(-90deg) scale(0.8) !important; /* Scale down rotated text */
+    width: 15px !important; /* Reduced width */
+    font-size: 9pt !important; /* Smaller font size */
   }
 }

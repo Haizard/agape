@@ -33,12 +33,12 @@ const generateALevelStudentReportPDF = (report, res) => {
   doc.font('Helvetica');
 
   // Add school header
-  doc.fontSize(16).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
-  doc.fontSize(18).text('Agape Lutheran Junior Seminary', { align: 'center' });
+  doc.fontSize(18).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
+  doc.fontSize(20).text('Agape Lutheran Junior Seminary', { align: 'center' });
   doc.moveDown(0.5);
 
   // Add contact information
-  doc.fontSize(10);
+  doc.fontSize(12);
   doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 50, 60);
 
   // Add Lutheran Church logo placeholder
@@ -56,16 +56,16 @@ const generateALevelStudentReportPDF = (report, res) => {
   }
 
   // Add right-side contact information
-  doc.fontSize(10);
+  doc.fontSize(12);
   doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 400, 60, { align: 'right' });
 
   // Add report title
-  doc.fontSize(14).text('A-LEVEL STUDENT RESULT REPORT', { align: 'center' });
-  doc.fontSize(12).text(`Academic Year: ${report.academicYear || 'Unknown'}`, { align: 'center' });
+  doc.fontSize(16).text('A-LEVEL STUDENT RESULT REPORT', { align: 'center' });
+  doc.fontSize(14).text(`Academic Year: ${report.academicYear || 'Unknown'}`, { align: 'center' });
   doc.moveDown();
 
   // Add student information
-  doc.fontSize(12);
+  doc.fontSize(14);
   doc.text(`Name: ${report.studentDetails?.name || report.student?.fullName || ''}`, 50, 120);
   doc.text(`Class: ${report.studentDetails?.class || report.class?.fullName || ''}`, 50, 140);
   doc.text(`Roll Number: ${report.studentDetails?.rollNumber || ''}`, 50, 160);
@@ -143,7 +143,7 @@ const generateALevelStudentReportPDF = (report, res) => {
 
   // Draw table headers
   doc.font('Helvetica-Bold');
-  doc.fontSize(10);
+  doc.fontSize(12);
 
   // Calculate column widths
   const pageWidth = doc.page.width - 2 * doc.page.margins.left;
@@ -168,6 +168,7 @@ const generateALevelStudentReportPDF = (report, res) => {
 
   // Draw table data
   doc.font('Helvetica');
+  doc.fontSize(12);
   let yPos = tableTop + 30;
 
   for (const row of tableData) {
@@ -186,7 +187,7 @@ const generateALevelStudentReportPDF = (report, res) => {
 
   // Add summary
   yPos += 20;
-  doc.font('Helvetica-Bold').text('SUMMARY', doc.page.margins.left, yPos);
+  doc.font('Helvetica-Bold').fontSize(14).text('SUMMARY', doc.page.margins.left, yPos);
   yPos += 20;
 
   const summary = report.summary || {};
@@ -196,7 +197,7 @@ const generateALevelStudentReportPDF = (report, res) => {
   const bestThreePoints = summary.bestThreePoints || report.bestThreePoints || 0;
   const division = summary.division || report.division || '';
 
-  doc.font('Helvetica');
+  doc.font('Helvetica').fontSize(12);
   doc.text(`Total Marks: ${totalMarks}`, doc.page.margins.left, yPos);
   doc.text(`Average Marks: ${averageMarks}`, doc.page.margins.left, yPos + 20);
   doc.text(`Total Points: ${totalPoints}`, doc.page.margins.left, yPos + 40);
@@ -206,20 +207,20 @@ const generateALevelStudentReportPDF = (report, res) => {
 
   // Add A-LEVEL specific information
   yPos += 80;
-  doc.font('Helvetica-Bold').text('PRINCIPAL SUBJECTS', doc.page.margins.left, yPos);
+  doc.font('Helvetica-Bold').fontSize(14).text('PRINCIPAL SUBJECTS', doc.page.margins.left, yPos);
   yPos += 20;
 
-  doc.font('Helvetica');
+  doc.font('Helvetica').fontSize(12);
   const principalText = principalSubjects.length > 0
     ? principalSubjects.map(s => `${s.subject}: ${s.grade} (${s.points})`).join(', ')
     : 'None';
   doc.text(principalText, doc.page.margins.left, yPos);
 
   yPos += 30;
-  doc.font('Helvetica-Bold').text('SUBSIDIARY SUBJECTS', doc.page.margins.left, yPos);
+  doc.font('Helvetica-Bold').fontSize(14).text('SUBSIDIARY SUBJECTS', doc.page.margins.left, yPos);
   yPos += 20;
 
-  doc.font('Helvetica');
+  doc.font('Helvetica').fontSize(12);
   const subsidiaryText = subsidiarySubjects.length > 0
     ? subsidiarySubjects.map(s => `${s.subject}: ${s.grade} (${s.points})`).join(', ')
     : 'None';
@@ -227,13 +228,13 @@ const generateALevelStudentReportPDF = (report, res) => {
 
   // Add character assessment
   yPos += 40;
-  doc.font('Helvetica-Bold').text('CHARACTER ASSESSMENT', doc.page.margins.left, yPos);
+  doc.font('Helvetica-Bold').fontSize(14).text('CHARACTER ASSESSMENT', doc.page.margins.left, yPos);
   yPos += 20;
 
   // Create a table for character assessment
   const characterAssessment = report.characterAssessment || {};
 
-  doc.font('Helvetica');
+  doc.font('Helvetica').fontSize(12);
   doc.text(`Punctuality: ${characterAssessment.punctuality || 'Good'}`, doc.page.margins.left, yPos);
   doc.text(`Discipline: ${characterAssessment.discipline || 'Good'}`, doc.page.margins.left + 200, yPos);
 
@@ -244,10 +245,10 @@ const generateALevelStudentReportPDF = (report, res) => {
   doc.text(`Overall: ${characterAssessment.overallAssessment || 'Good'}`, doc.page.margins.left + 200, yPos + 40);
 
   yPos += 70;
-  doc.font('Helvetica-Bold').text('TEACHER COMMENTS', doc.page.margins.left, yPos);
+  doc.font('Helvetica-Bold').fontSize(14).text('TEACHER COMMENTS', doc.page.margins.left, yPos);
   yPos += 20;
 
-  doc.font('Helvetica');
+  doc.font('Helvetica').fontSize(12);
   doc.text(characterAssessment.comments || 'No comments available', doc.page.margins.left, yPos, {
     width: 500,
     align: 'left'
@@ -256,10 +257,10 @@ const generateALevelStudentReportPDF = (report, res) => {
   // Add grade distribution if available
   if (summary.gradeDistribution) {
     yPos += 40;
-    doc.font('Helvetica-Bold').text('GRADE DISTRIBUTION', doc.page.margins.left, yPos);
+    doc.font('Helvetica-Bold').fontSize(14).text('GRADE DISTRIBUTION', doc.page.margins.left, yPos);
     yPos += 20;
 
-    doc.font('Helvetica');
+    doc.font('Helvetica').fontSize(12);
     const gradeDistribution = summary.gradeDistribution;
     let gradeText = '';
     for (const grade in gradeDistribution) {
@@ -339,9 +340,11 @@ const generateALevelClassReportPDF = (report, res) => {
   }
   // Create a new PDF document
   const doc = new PDFDocument({
-    margin: 30,
+    margin: 20,
     size: 'A3',
-    layout: 'landscape'
+    layout: 'landscape',
+    autoFirstPage: true,
+    bufferPages: true
   });
 
   // Pipe the PDF to the response with error handling
@@ -358,12 +361,12 @@ const generateALevelClassReportPDF = (report, res) => {
   doc.font('Helvetica');
 
   // Add school header
-  doc.fontSize(16).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
-  doc.fontSize(18).text('Agape Lutheran Junior Seminary', { align: 'center' });
+  doc.fontSize(18).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
+  doc.fontSize(20).text('Agape Lutheran Junior Seminary', { align: 'center' });
   doc.moveDown(0.5);
 
   // Add contact information
-  doc.fontSize(10);
+  doc.fontSize(12);
   doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 50, 60);
 
   // Add Lutheran Church logo placeholder
@@ -381,14 +384,14 @@ const generateALevelClassReportPDF = (report, res) => {
   }
 
   // Add right-side contact information
-  doc.fontSize(10);
+  doc.fontSize(12);
   doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 750, 60, { align: 'right' });
 
   // Add report title
-  doc.fontSize(14).text('A-LEVEL CLASS RESULT REPORT', { align: 'center' });
-  doc.fontSize(12).text(`Class: ${report.className || ''} ${report.section || ''}`, { align: 'center' });
-  doc.fontSize(12).text(`Academic Year: ${report.academicYear || 'Unknown'}`, { align: 'center' });
-  doc.fontSize(12).text(`Exam: ${report.examName || ''}`, { align: 'center' });
+  doc.fontSize(16).text('A-LEVEL CLASS RESULT REPORT', { align: 'center' });
+  doc.fontSize(14).text(`Class: ${report.className || ''} ${report.section || ''}`, { align: 'center' });
+  doc.fontSize(14).text(`Academic Year: ${report.academicYear || 'Unknown'}`, { align: 'center' });
+  doc.fontSize(14).text(`Exam: ${report.examName || ''}`, { align: 'center' });
   doc.moveDown();
 
   // Get all subjects from the first student (assuming all students have the same subjects)
@@ -422,16 +425,18 @@ const generateALevelClassReportPDF = (report, res) => {
 
   // Calculate column widths
   const pageWidth = doc.page.width - 2 * doc.page.margins.left;
-  const fixedColumnWidth = pageWidth * 0.05; // For #, Roll No., Total, Average, Points, Best 3, Division, Rank
-  const nameColumnWidth = pageWidth * 0.15; // For Name
+  const fixedColumnWidth = pageWidth * 0.04; // For #, Roll No., Total, Average, Points, Best 3, Division, Rank
+  const nameColumnWidth = pageWidth * 0.12; // For Name
 
   // Calculate remaining width for subject columns
   const remainingWidth = pageWidth - (fixedColumnWidth * 8) - nameColumnWidth;
-  const subjectColumnWidth = subjects.length > 0 ? remainingWidth / subjects.length : 0;
+  // Ensure minimum width for subject columns
+  const subjectColumnWidth = subjects.length > 0 ?
+    Math.max(40, remainingWidth / subjects.length) : 0;
 
   // Draw table headers
   doc.font('Helvetica-Bold');
-  doc.fontSize(10);
+  doc.fontSize(16);
 
   let xPos = doc.page.margins.left;
   let yPos = 150;
@@ -470,6 +475,7 @@ const generateALevelClassReportPDF = (report, res) => {
 
   // Draw student data
   doc.font('Helvetica');
+  doc.fontSize(16);
   yPos += 30;
 
   // Process each student
@@ -478,12 +484,19 @@ const generateALevelClassReportPDF = (report, res) => {
       const student = report.students[i];
 
       // Check if we need to add a new page
-      if (yPos > doc.page.height - 100) {
+      if (yPos > doc.page.height - 50) {
+        // Add a note that the report continues on the next page
+        doc.font('Helvetica-Italic');
+        doc.fontSize(10);
+        doc.text('(Continued on next page...)', doc.page.width / 2, doc.page.height - 40, { align: 'center' });
+
+        // Add a new page
         doc.addPage();
         yPos = 50;
 
         // Redraw headers on new page
         doc.font('Helvetica-Bold');
+        doc.fontSize(16);
         xPos = doc.page.margins.left;
 
         // Draw # header
@@ -517,6 +530,7 @@ const generateALevelClassReportPDF = (report, res) => {
            .stroke();
 
         doc.font('Helvetica');
+        doc.fontSize(16);
         yPos += 30;
       }
 
@@ -597,10 +611,10 @@ const generateALevelClassReportPDF = (report, res) => {
 
   // Add class summary
   yPos += 30;
-  doc.font('Helvetica-Bold').text('CLASS SUMMARY', doc.page.margins.left, yPos);
+  doc.font('Helvetica-Bold').fontSize(18).text('CLASS SUMMARY', doc.page.margins.left, yPos);
   yPos += 20;
 
-  doc.font('Helvetica');
+  doc.font('Helvetica').fontSize(16);
 
   // Calculate division distribution
   const divisions = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, 'V': 0 };
@@ -633,10 +647,10 @@ const generateALevelClassReportPDF = (report, res) => {
 
   // Add principal subjects information
   yPos += 30;
-  doc.font('Helvetica-Bold').text('PRINCIPAL SUBJECTS', doc.page.margins.left, yPos);
+  doc.font('Helvetica-Bold').fontSize(18).text('PRINCIPAL SUBJECTS', doc.page.margins.left, yPos);
   yPos += 20;
 
-  doc.font('Helvetica');
+  doc.font('Helvetica').fontSize(16);
   const principalSubjectsText = principalSubjects.length > 0
     ? principalSubjects.join(', ')
     : 'None defined';
@@ -648,7 +662,7 @@ const generateALevelClassReportPDF = (report, res) => {
     doc.switchToPage(i);
 
     // Add page number
-    doc.fontSize(8);
+    doc.fontSize(12);
     doc.text(
       `Page ${i + 1} of ${pageCount}`,
       doc.page.margins.left,
@@ -657,7 +671,7 @@ const generateALevelClassReportPDF = (report, res) => {
     );
 
     // Add A-LEVEL specific note
-    doc.fontSize(8);
+    doc.fontSize(12);
     doc.text(
       'Note: A-LEVEL Division is calculated based on best 3 principal subjects. Division I: 3-9 points, Division II: 10-12 points, Division III: 13-17 points, Division IV: 18-19 points, Division V: 20-21 points',
       doc.page.margins.left,

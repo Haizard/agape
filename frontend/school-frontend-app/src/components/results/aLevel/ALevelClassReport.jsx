@@ -57,7 +57,7 @@ function TabPanel(props) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 0, width: '100%' }}>
           {children}
         </Box>
       )}
@@ -374,7 +374,7 @@ const ALevelClassReport = ({ classId, examId, formLevel: propFormLevel, forceRef
 
   return (
     <AnimatedContainer animation="fadeIn" duration={0.5}>
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth={false} sx={{ mt: 4, mb: 4, px: 2 }}>
         {/* Cache notification */}
         {isFromCache && (
           <FadeIn>
@@ -420,7 +420,7 @@ const ALevelClassReport = ({ classId, examId, formLevel: propFormLevel, forceRef
       {/* Main report container */}
       <FadeIn delay={0.2}>
         <SectionContainer
-          sx={{ p: 3 }}
+          sx={{ p: 3, width: '100%', maxWidth: '100%' }}
           id="a-level-class-report-container"
           className="report-container print-container"
         >

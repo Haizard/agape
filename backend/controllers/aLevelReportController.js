@@ -231,15 +231,28 @@ exports.getStudentReport = async (req, res) => {
     } : null;
 
     // Format results for the response
-    const formattedResults = results.map(result => ({
-      subject: result.subject ? result.subject.name : 'Unknown Subject',
-      code: result.subject ? result.subject.code : 'UNK',
-      marks: result.marks || 0,
-      grade: result.grade || 'F',
-      points: result.points || 0,
-      remarks: aLevelGradeCalculator.getRemarks(result.grade),
-      isPrincipal: result.subject ? result.subject.isPrincipal : false
-    }));
+    const formattedResults = results.map(result => {
+      // Log the raw result for debugging
+      console.log('Raw result before formatting:', {
+        id: result._id,
+        subject: result.subject ? result.subject.name : 'Unknown Subject',
+        marks: result.marks,
+        marksObtained: result.marksObtained,
+        grade: result.grade,
+        points: result.points
+      });
+
+      return {
+        subject: result.subject ? result.subject.name : 'Unknown Subject',
+        code: result.subject ? result.subject.code : 'UNK',
+        // Use marksObtained if marks is not available
+        marks: result.marksObtained || result.marks || 0,
+        grade: result.grade || 'F',
+        points: result.points || 0,
+        remarks: aLevelGradeCalculator.getRemarks(result.grade),
+        isPrincipal: result.subject ? result.subject.isPrincipal : false
+      };
+    });
 
     // Get principal subjects results
     const principalResults = formattedResults.filter(result => result.isPrincipal);

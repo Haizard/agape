@@ -8,6 +8,10 @@
  * Geography, only those 7 students will be marked as 'Yes'.
  */
 
+// The formatALevelStudentName function is defined later in this file
+
+// The debugStudentData function is defined later in this file
+
 /**
  * Identifies which A-Level students take a specific subject
  * @param {Array} students - Array of student objects

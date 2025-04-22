@@ -36,12 +36,12 @@ const generateOLevelStudentReportPDF = (report, res) => {
   doc.font('Helvetica');
 
   // Add school header
-  doc.fontSize(16).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
-  doc.fontSize(18).text('Agape Lutheran Junior Seminary', { align: 'center' });
+  doc.fontSize(18).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
+  doc.fontSize(20).text('Agape Lutheran Junior Seminary', { align: 'center' });
   doc.moveDown(0.5);
 
   // Add contact information
-  doc.fontSize(10);
+  doc.fontSize(12);
   doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 50, 60);
 
   // Add Lutheran Church logo
@@ -59,15 +59,15 @@ const generateOLevelStudentReportPDF = (report, res) => {
   }
 
   // Add right-side contact information
-  doc.fontSize(10);
+  doc.fontSize(12);
   doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 500, 60, { align: 'right' });
 
   // Add report title
-  doc.fontSize(14).text('O-LEVEL STUDENT RESULT REPORT', { align: 'center' });
+  doc.fontSize(16).text('O-LEVEL STUDENT RESULT REPORT', { align: 'center' });
   doc.moveDown();
 
   // Add student information
-  doc.fontSize(12);
+  doc.fontSize(14);
   doc.text(`Name: ${report.studentDetails?.name || ''}`, 50);
   doc.text(`Class: ${report.studentDetails?.class || ''}`, 50);
   doc.text(`Roll Number: ${report.studentDetails?.rollNumber || ''}`, 50);
@@ -86,7 +86,7 @@ const generateOLevelStudentReportPDF = (report, res) => {
   const rowHeight = 25;
 
   // Draw table header
-  doc.fontSize(12).font('Helvetica-Bold');
+  doc.fontSize(14).font('Helvetica-Bold');
   doc.rect(tableLeft, tableTop, colWidths.reduce((a, b) => a + b, 0), rowHeight).stroke();
   doc.text('Subject', tableLeft + 5, tableTop + 7);
   doc.text('Marks', tableLeft + colWidths[0] + 5, tableTop + 7);
@@ -96,6 +96,7 @@ const generateOLevelStudentReportPDF = (report, res) => {
 
   // Draw table rows
   doc.font('Helvetica');
+  doc.fontSize(12);
   let currentY = tableTop + rowHeight;
 
   if (report.subjectResults) {
@@ -113,6 +114,7 @@ const generateOLevelStudentReportPDF = (report, res) => {
   // Add summary row
   doc.rect(tableLeft, currentY, colWidths.reduce((a, b) => a + b, 0), rowHeight).stroke();
   doc.font('Helvetica-Bold');
+  doc.fontSize(14);
   doc.text('Total', tableLeft + 5, currentY + 7);
   doc.text(report.summary?.totalMarks?.toString() || '', tableLeft + colWidths[0] + 5, currentY + 7);
   doc.text('', tableLeft + colWidths[0] + colWidths[1] + 5, currentY + 7);
@@ -122,9 +124,11 @@ const generateOLevelStudentReportPDF = (report, res) => {
 
   // Add summary information
   doc.font('Helvetica-Bold');
+  doc.fontSize(14);
   doc.text('Summary:', 50, currentY);
   currentY += 20;
   doc.font('Helvetica');
+  doc.fontSize(12);
   doc.text(`Average Marks: ${report.summary?.averageMarks || ''}`, 50, currentY);
   doc.text(`Best 7 Points: ${report.summary?.bestSevenPoints || ''}`, 250, currentY);
   doc.text(`Division: ${report.summary?.division || ''}`, 450, currentY);
@@ -134,9 +138,11 @@ const generateOLevelStudentReportPDF = (report, res) => {
   if (report.summary?.gradeDistribution) {
     currentY += 20;
     doc.font('Helvetica-Bold');
+    doc.fontSize(14);
     doc.text('Grade Distribution:', 50, currentY);
     currentY += 20;
     doc.font('Helvetica');
+    doc.fontSize(12);
 
     const dist = report.summary.gradeDistribution;
     const distTableTop = currentY;
@@ -235,12 +241,12 @@ const generateOLevelClassReportPDF = (report, res) => {
   doc.font('Helvetica');
 
   // Add school header
-  doc.fontSize(16).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
-  doc.fontSize(18).text('Agape Lutheran Junior Seminary', { align: 'center' });
+  doc.fontSize(18).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
+  doc.fontSize(20).text('Agape Lutheran Junior Seminary', { align: 'center' });
   doc.moveDown(0.5);
 
   // Add contact information
-  doc.fontSize(10);
+  doc.fontSize(12);
   doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 50, 60);
 
   // Add Lutheran Church logo
@@ -258,14 +264,14 @@ const generateOLevelClassReportPDF = (report, res) => {
   }
 
   // Add right-side contact information
-  doc.fontSize(10);
+  doc.fontSize(12);
   doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 750, 60, { align: 'right' });
 
   // Add report title
-  doc.fontSize(14).text('O-LEVEL CLASS RESULT REPORT', { align: 'center' });
-  doc.fontSize(12).text(`Class: ${report.className || ''} ${report.section || ''}`, { align: 'center' });
-  doc.fontSize(12).text(`Academic Year: ${report.academicYear || 'Unknown'}`, { align: 'center' });
-  doc.fontSize(12).text(`Exam: ${report.examName || ''}`, { align: 'center' });
+  doc.fontSize(16).text('O-LEVEL CLASS RESULT REPORT', { align: 'center' });
+  doc.fontSize(14).text(`Class: ${report.className || ''} ${report.section || ''}`, { align: 'center' });
+  doc.fontSize(14).text(`Academic Year: ${report.academicYear || 'Unknown'}`, { align: 'center' });
+  doc.fontSize(14).text(`Exam: ${report.examName || ''}`, { align: 'center' });
   doc.moveDown();
 
   // Get all subjects from the first student (assuming all students have the same subjects)
@@ -290,7 +296,7 @@ const generateOLevelClassReportPDF = (report, res) => {
 
   // Draw table headers
   doc.font('Helvetica-Bold');
-  doc.fontSize(10);
+  doc.fontSize(12);
 
   // Calculate column widths
   const pageWidth = doc.page.width - 2 * doc.page.margins.left;
@@ -319,6 +325,7 @@ const generateOLevelClassReportPDF = (report, res) => {
 
   // Draw table data
   doc.font('Helvetica');
+  doc.fontSize(12);
   let yPos = tableTop + 25;
 
   // Calculate division distribution
@@ -392,10 +399,12 @@ const generateOLevelClassReportPDF = (report, res) => {
   // Add division distribution
   yPos += 20;
   doc.font('Helvetica-Bold');
+  doc.fontSize(14);
   doc.text('Division Distribution:', doc.page.margins.left, yPos);
   yPos += 20;
 
   doc.font('Helvetica');
+  doc.fontSize(12);
   let divisionText = '';
   for (const division in divisions) {
     const count = divisions[division];
@@ -407,6 +416,12 @@ const generateOLevelClassReportPDF = (report, res) => {
 
   // Add class statistics
   yPos += 30;
+  doc.font('Helvetica-Bold');
+  doc.fontSize(14);
+  doc.text('Class Statistics:', doc.page.margins.left, yPos);
+  yPos += 20;
+  doc.font('Helvetica');
+  doc.fontSize(12);
   doc.text(`Total Students: ${report.students?.length || 0}`, doc.page.margins.left, yPos);
   doc.text(`Class Average: ${report.classAverage?.toFixed(2) || '0.00'}`, doc.page.margins.left + 200, yPos);
 

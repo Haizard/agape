@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { formatALevelDivision, formatALevelGrade, getALevelGradeRemarks } from './resultDataStructures';
+import { formatALevelStudentName } from './a-level-student-utils';
 
 /**
  * Generate a PDF for an A-Level student result report
@@ -12,36 +13,43 @@ export const generateALevelStudentResultPDF = (report) => {
   const doc = new jsPDF();
 
   // Add school header
-  doc.setFontSize(16);
+  doc.setFontSize(20); // Increased from 16
   doc.text('Evangelical Lutheran Church in Tanzania - Northern Diocese', 105, 15, { align: 'center' });
-  doc.setFontSize(18);
+  doc.setFontSize(24); // Increased from 18
   doc.text('Agape Lutheran Junior Seminary', 105, 25, { align: 'center' });
 
   // Add contact information
-  doc.setFontSize(10);
+  doc.setFontSize(12); // Increased from 10
   doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 20, 35);
 
-  // Add Lutheran Church logo
-  const logoUrl = `${window.location.origin}/images/lutheran_logo.png`;
+  // Add school logo
+  const logoUrl = `${window.location.origin}/images/logo.JPG`;
   try {
-    doc.addImage(logoUrl, 'PNG', 85, 30, 30, 30);
+    doc.addImage(logoUrl, 'JPEG', 85, 30, 30, 30);
   } catch (error) {
     console.error('Error adding logo to PDF:', error);
+    // Fallback to text if image fails
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AGAPE', 105, 40, { align: 'center' });
+    doc.text('LUTHERAN', 105, 47, { align: 'center' });
+    doc.text('SEMINARY', 105, 54, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
   }
 
   // Add right-side contact information
-  doc.setFontSize(10);
+  doc.setFontSize(12); // Increased from 10
   doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 170, 35, { align: 'right' });
 
   // Add report title
-  doc.setFontSize(14);
+  doc.setFontSize(20); // Increased from 14
   doc.text('A-LEVEL STUDENT RESULT REPORT', 105, 55, { align: 'center' });
-  doc.setFontSize(12);
+  doc.setFontSize(16); // Increased from 12
   doc.text(`Academic Year: ${report.academicYear || 'Unknown'}`, 105, 65, { align: 'center' });
 
   // Add student information
-  doc.setFontSize(12);
-  doc.text(`Name: ${report.studentDetails?.name || report.student?.fullName || ''}`, 20, 80);
+  doc.setFontSize(16); // Increased from 12
+  doc.text(`Name: ${formatALevelStudentName(report)}`, 20, 80);
   doc.text(`Class: ${report.studentDetails?.class || report.class?.fullName || ''}`, 20, 90);
   doc.text(`Roll Number: ${report.studentDetails?.rollNumber || ''}`, 20, 100);
   doc.text(`Rank: ${report.studentDetails?.rank || report.summary?.rank || 'N/A'} of ${report.studentDetails?.totalStudents || report.summary?.totalStudents || 'N/A'}`, 20, 110);
@@ -57,23 +65,34 @@ export const generateALevelStudentResultPDF = (report) => {
   const subsidiarySubjects = subjectResults.filter(result => !result.isPrincipal);
 
   // Add principal subjects table
-  doc.setFontSize(14);
+  doc.setFontSize(18); // Increased from 14
   doc.text('Principal Subjects', 20, 120);
 
   if (principalSubjects.length > 0) {
     doc.autoTable({
       startY: 125,
       head: [['Subject', 'Marks', 'Grade', 'Points', 'Remarks']],
-      body: principalSubjects.map(result => [
-        result.subject,
-        result.marks || result.marksObtained || 0,
-        result.grade || '',
-        result.points || 0,
-        result.remarks || ''
-      ]),
+      body: principalSubjects.map(result => {
+        // Try all possible property names for marks
+        const marks = result.marks || result.marksObtained || result.score || 0;
+        return [
+          result.subject,
+          marks,
+          result.grade || '',
+          result.points || 0,
+          result.remarks || ''
+        ];
+      }),
       theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 10 }
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
+      styles: { fontSize: 12 }, // Increased from 10
+      columnStyles: {
+        0: { cellWidth: 60 }, // Subject - wider column
+        1: { cellWidth: 30, halign: 'center' }, // Marks
+        2: { cellWidth: 30, halign: 'center' }, // Grade
+        3: { cellWidth: 30, halign: 'center' }, // Points
+        4: { cellWidth: 'auto' } // Remarks
+      }
     });
   } else {
     doc.text('No principal subjects found', 20, 100);
@@ -81,23 +100,34 @@ export const generateALevelStudentResultPDF = (report) => {
 
   // Add subsidiary subjects table
   const subsidiaryStartY = doc.autoTable.previous.finalY + 15 || 120;
-  doc.setFontSize(14);
+  doc.setFontSize(18); // Increased from 14
   doc.text('Subsidiary Subjects', 20, subsidiaryStartY);
 
   if (subsidiarySubjects.length > 0) {
     doc.autoTable({
       startY: subsidiaryStartY + 5,
       head: [['Subject', 'Marks', 'Grade', 'Points', 'Remarks']],
-      body: subsidiarySubjects.map(result => [
-        result.subject,
-        result.marks || result.marksObtained || 0,
-        result.grade || '',
-        result.points || 0,
-        result.remarks || ''
-      ]),
+      body: subsidiarySubjects.map(result => {
+        // Try all possible property names for marks
+        const marks = result.marks || result.marksObtained || result.score || 0;
+        return [
+          result.subject,
+          marks,
+          result.grade || '',
+          result.points || 0,
+          result.remarks || ''
+        ];
+      }),
       theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 10 }
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
+      styles: { fontSize: 12 }, // Increased from 10
+      columnStyles: {
+        0: { cellWidth: 60 }, // Subject - wider column
+        1: { cellWidth: 30, halign: 'center' }, // Marks
+        2: { cellWidth: 30, halign: 'center' }, // Grade
+        3: { cellWidth: 30, halign: 'center' }, // Points
+        4: { cellWidth: 'auto' } // Remarks
+      }
     });
   } else {
     doc.text('No subsidiary subjects found', 20, subsidiaryStartY + 10);
@@ -105,7 +135,7 @@ export const generateALevelStudentResultPDF = (report) => {
 
   // Add summary
   const summaryStartY = doc.autoTable.previous.finalY + 15 || 150;
-  doc.setFontSize(14);
+  doc.setFontSize(18); // Increased from 14
   doc.text('Performance Summary', 20, summaryStartY);
 
   // Extract summary data
@@ -122,8 +152,16 @@ export const generateALevelStudentResultPDF = (report) => {
     head: [['Total Marks', 'Average Marks', 'Total Points', 'Best 3 Points', 'Division', 'Rank']],
     body: [[totalMarks, `${averageMarks}%`, totalPoints, bestThreePoints, division, rank]],
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-    styles: { fontSize: 10 }
+    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
+    styles: { fontSize: 12 }, // Increased from 10
+    columnStyles: {
+      0: { halign: 'center' },
+      1: { halign: 'center' },
+      2: { halign: 'center' },
+      3: { halign: 'center' },
+      4: { halign: 'center' },
+      5: { halign: 'center' }
+    }
   });
 
   // Add grade distribution
@@ -251,31 +289,38 @@ export const generateALevelClassResultPDF = (report) => {
   const doc = new jsPDF('landscape');
 
   // Add school header
-  doc.setFontSize(16);
+  doc.setFontSize(20); // Increased from 16
   doc.text('Evangelical Lutheran Church in Tanzania - Northern Diocese', 150, 15, { align: 'center' });
-  doc.setFontSize(18);
+  doc.setFontSize(24); // Increased from 18
   doc.text('Agape Lutheran Junior Seminary', 150, 25, { align: 'center' });
 
   // Add contact information
-  doc.setFontSize(10);
+  doc.setFontSize(12); // Increased from 10
   doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 20, 35);
 
-  // Add Lutheran Church logo
-  const logoUrl = `${window.location.origin}/images/lutheran_logo.png`;
+  // Add school logo
+  const logoUrl = `${window.location.origin}/images/logo.JPG`;
   try {
-    doc.addImage(logoUrl, 'PNG', 135, 30, 30, 30);
+    doc.addImage(logoUrl, 'JPEG', 135, 30, 30, 30);
   } catch (error) {
     console.error('Error adding logo to PDF:', error);
+    // Fallback to text if image fails
+    doc.setFontSize(16); // Increased from 14
+    doc.setFont('helvetica', 'bold');
+    doc.text('AGAPE', 150, 40, { align: 'center' });
+    doc.text('LUTHERAN', 150, 47, { align: 'center' });
+    doc.text('SEMINARY', 150, 54, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
   }
 
   // Add right-side contact information
-  doc.setFontSize(10);
+  doc.setFontSize(12); // Increased from 10
   doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 280, 35, { align: 'right' });
 
   // Add report title
-  doc.setFontSize(14);
+  doc.setFontSize(20); // Increased from 14
   doc.text('A-LEVEL CLASS RESULT REPORT', 150, 55, { align: 'center' });
-  doc.setFontSize(12);
+  doc.setFontSize(16); // Increased from 12
   doc.text(`Class: ${report.className || ''} ${report.section || ''}`, 150, 65, { align: 'center' });
   doc.text(`Academic Year: ${report.academicYear || 'Unknown'}`, 150, 75, { align: 'center' });
   doc.text(`Exam: ${report.examName || ''}`, 150, 85, { align: 'center' });
@@ -333,13 +378,25 @@ export const generateALevelClassResultPDF = (report) => {
     // Add principal subject marks
     principalSubjects.forEach(subject => {
       const result = student.results.find(r => r.subject === subject);
-      row.push(result ? `${result.marks} (${result.grade})` : '-');
+      if (result) {
+        // Try all possible property names for marks
+        const marks = result.marks || result.marksObtained || result.score || 0;
+        row.push(`${marks} (${result.grade})`);
+      } else {
+        row.push('-');
+      }
     });
 
     // Add subsidiary subject marks
     subsidiarySubjects.forEach(subject => {
       const result = student.results.find(r => r.subject === subject);
-      row.push(result ? `${result.marks} (${result.grade})` : '-');
+      if (result) {
+        // Try all possible property names for marks
+        const marks = result.marks || result.marksObtained || result.score || 0;
+        row.push(`${marks} (${result.grade})`);
+      } else {
+        row.push('-');
+      }
     });
 
     // Add summary data
@@ -357,22 +414,32 @@ export const generateALevelClassResultPDF = (report) => {
 
   // Add student results table
   doc.autoTable({
-    startY: 65,
+    startY: 95, // Increased from 65 to give more space for header
     head: [headers],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-    styles: { fontSize: 8, cellPadding: 1 },
+    headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 10 }, // Green header like in the sample
+    styles: { fontSize: 9, cellPadding: 2 }, // Slightly increased font size
     columnStyles: {
-      0: { cellWidth: 10 }, // #
-      1: { cellWidth: 40 }, // Name
+      0: { cellWidth: 15 }, // #
+      1: { cellWidth: 50 }, // Name - wider for better readability
       2: { cellWidth: 20 }, // Roll No.
+    },
+    // Adjust table to fit page width without scrolling
+    margin: { left: 10, right: 10 },
+    tableWidth: 'auto',
+    horizontalPageBreak: true,
+    horizontalPageBreakRepeat: [0, 1, 2], // Repeat first 3 columns on new pages
+    didDrawPage: function(data) {
+      // Add page number at the bottom of each page
+      doc.setFontSize(8);
+      doc.text(`Page ${doc.internal.getNumberOfPages()}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
     }
   });
 
   // Add class summary
   const summaryStartY = doc.autoTable.previous.finalY + 15 || 180;
-  doc.setFontSize(14);
+  doc.setFontSize(18); // Increased from 14
   doc.text('Class Summary', 20, summaryStartY);
 
   // Extract class summary data
@@ -385,17 +452,17 @@ export const generateALevelClassResultPDF = (report) => {
     head: [['Total Students', 'Class Average']],
     body: [[totalStudents, `${classAverage.toFixed(2)}%`]],
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-    styles: { fontSize: 10 },
+    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
+    styles: { fontSize: 12 }, // Increased from 10
     columnStyles: {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 40 }
+      0: { cellWidth: 60, halign: 'center' }, // Wider and centered
+      1: { cellWidth: 60, halign: 'center' } // Wider and centered
     }
   });
 
   // Add A-Level division guide
   const guideStartY = doc.autoTable.previous.finalY + 15 || 210;
-  doc.setFontSize(14);
+  doc.setFontSize(18); // Increased from 14
   doc.text('A-Level Division Guide', 20, guideStartY);
 
   // Add division guide table
@@ -410,11 +477,11 @@ export const generateALevelClassResultPDF = (report) => {
       ['Division V', '20-21 points', '']
     ],
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-    styles: { fontSize: 10 },
+    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
+    styles: { fontSize: 12 }, // Increased from 10
     columnStyles: {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 40 },
+      0: { cellWidth: 60, halign: 'center' }, // Wider and centered
+      1: { cellWidth: 60, halign: 'center' }, // Wider and centered
       2: { cellWidth: 'auto' }
     }
   });
@@ -423,7 +490,7 @@ export const generateALevelClassResultPDF = (report) => {
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(10);
+    doc.setFontSize(12); // Increased from 10
     doc.text(`Page ${i} of ${pageCount}`, 150, 200, { align: 'center' });
     doc.text('Note: A-LEVEL Division is calculated based on best 3 principal subjects', 150, 205, { align: 'center' });
   }

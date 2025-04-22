@@ -103,6 +103,8 @@ import ALevelFormStudentReport from './components/results/ALevelFormStudentRepor
 import ALevelStudentReportRouter from './components/results/aLevel/ALevelStudentReportRouter';
 import ALevelClassReportRouter from './components/results/aLevel/ALevelClassReportRouter';
 import OLevelClassReportRouter from './components/results/oLevel/OLevelClassReportRouter';
+import EnhancedStudentResultReport from './components/results/aLevel/EnhancedStudentResultReport';
+import EnhancedOLevelStudentResultReport from './components/results/oLevel/EnhancedStudentResultReport';
 import OLevelClassReport from './components/reports/OLevelClassReport';
 import OLevelResultReport from './components/reports/OLevelResultReport';
 import DemoDataNavigator from './components/demo/DemoDataNavigator';
@@ -330,17 +332,29 @@ function App() {
                     {/* O-Level Student Report Route */}
                     <Route path="/results/o-level/student/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <EnhancedOLevelStudentResultReport />
+                      </ProtectedRoute>
+                    } />
+                    {/* Legacy O-Level Student Report Route */}
+                    <Route path="/results/o-level/student-legacy/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
                         <SingleStudentReport educationLevel="O_LEVEL" />
                       </ProtectedRoute>
                     } />
                     {/* A-Level Student Report Route */}
                     <Route path="/results/a-level/student/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-                        <ALevelStudentReportRouter />
+                        <EnhancedStudentResultReport />
                       </ProtectedRoute>
                     } />
                     {/* A-Level Clean Student Report Route */}
                     <Route path="/results/a-level/student-clean/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <EnhancedStudentResultReport />
+                      </ProtectedRoute>
+                    } />
+                    {/* Legacy A-Level Student Report Route */}
+                    <Route path="/results/a-level/student-legacy/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
                         <ALevelStudentReportRouter />
                       </ProtectedRoute>
@@ -371,6 +385,12 @@ function App() {
 
                     {/* O-Level Student Report Routes */}
                     <Route path="results/o-level/student-clean/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <EnhancedOLevelStudentResultReport />
+                      </ProtectedRoute>
+                    } />
+                    {/* Legacy O-Level Clean Student Report Route */}
+                    <Route path="results/o-level/student-clean-legacy/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
                         <OLevelResultReport />
                       </ProtectedRoute>

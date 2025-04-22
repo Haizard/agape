@@ -34,16 +34,29 @@ const normalizeReportData = (data) => {
     const studentDetails = data.studentDetails || {};
 
     // Normalize subject results
-    const subjectResults = (data.subjectResults || []).map(result => ({
-      subject: result.subject,
-      code: result.code || '',
-      marks: result.marks || result.marksObtained || 0,
-      grade: result.grade || '-',
-      points: result.points || 0,
-      remarks: result.remarks || '',
-      isPrincipal: result.isPrincipal || false,
-      isCompulsory: result.isCompulsory || false
-    }));
+    const subjectResults = (data.subjectResults || []).map(result => {
+      // Log the result structure to help debug
+      console.log('Subject result structure:', {
+        subject: result.subject,
+        marks: result.marks,
+        marksObtained: result.marksObtained,
+        score: result.score,
+        grade: result.grade,
+        points: result.points
+      });
+
+      return {
+        subject: result.subject,
+        code: result.code || '',
+        // Try all possible property names for marks
+        marks: result.marks || result.marksObtained || result.score || 0,
+        grade: result.grade || '-',
+        points: result.points || 0,
+        remarks: result.remarks || '',
+        isPrincipal: result.isPrincipal || false,
+        isCompulsory: result.isCompulsory || false
+      };
+    });
 
     // Normalize summary
     const summary = data.summary || {};
@@ -176,19 +189,32 @@ const fetchALevelStudentReport = async (studentId, examId, options = {}) => {
         console.error('Possible CORS or network error - no response received');
       }
 
-      // If the API returns a 404, use mock data instead
+      // If the API returns a 404, log the error but don't automatically use mock data
       if (apiError.response && apiError.response.status === 404) {
-        console.log('API returned 404, using mock student report data instead');
+        console.log('API returned 404 for A-Level student report');
+        console.error('Error details:', {
+          url: apiError.config?.url,
+          method: apiError.config?.method,
+          status: apiError.response?.status,
+          statusText: apiError.response?.statusText,
+          data: apiError.response?.data
+        });
 
-        // Return mock data
-        return getMockStudentReport(studentId, examId);
+        // Don't automatically return mock data
+        // Instead, throw the error so the UI can handle it appropriately
+        throw new Error('Student report not found. Please check if the student and exam exist.');
       }
 
-      // For development purposes, always fall back to mock data if there's any error
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development environment detected, falling back to mock student data');
-        return getMockStudentReport(studentId, examId);
-      }
+      // Don't automatically fall back to mock data in development
+      // This was causing the issue with always showing demo data
+      console.log('API error occurred:', apiError.message);
+      console.error('Full error details:', {
+        url: apiError.config?.url,
+        method: apiError.config?.method,
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data
+      });
 
       // Re-throw other errors
       throw apiError;
@@ -1027,13 +1053,215 @@ const getMockOLevelClassReport = (classId, examId, formLevel) => {
   };
 };
 
+/**
+ * Fetch O-Level student report
+ * @param {string} studentId - Student ID
+ * @param {string} examId - Exam ID
+ * @param {Object} options - Additional options
+ * @param {boolean} options.forceRefresh - Whether to bypass cache
+ * @param {AbortSignal} options.signal - AbortController signal for cancellation
+ * @returns {Promise<Object>} - Normalized report data
+ */
+const fetchOLevelStudentReport = async (studentId, examId, options = {}) => {
+  const { forceRefresh = false, signal } = options;
+
+  try {
+    // Add cache-busting parameter if forcing refresh
+    const params = forceRefresh ? { _t: Date.now() } : {};
+
+    try {
+      // Make the API request with cancellation support
+      console.log(`Fetching O-Level student report for student ${studentId}, exam ${examId}`);
+      // Log the full URL for debugging
+      // Use the standardized API endpoint for O-Level student reports
+      const endpoint = `/api/o-level/reports/student/${studentId}/${examId}`;
+
+      // Add query parameters if they exist in the URL
+      const urlParams = new URL(window.location.href).searchParams;
+      const academicYear = urlParams.get('academicYear');
+      const term = urlParams.get('term');
+
+      // Build query parameters
+      const queryParams = {};
+      if (academicYear) queryParams.academicYear = academicYear;
+      if (term) queryParams.term = term;
+      if (forceRefresh) queryParams._t = Date.now();
+      console.log('Full API URL for student report:', api.defaults.baseURL + endpoint);
+
+      // Get the authentication token
+      const token = getAuthToken();
+
+      const response = await api.get(
+        endpoint,
+        {
+          params: queryParams,
+          signal,
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined
+          }
+        }
+      );
+
+      // Check if the response has the expected structure
+      if (!response.data || !response.data.success) {
+        console.error('API response does not have expected structure:', response.data);
+        throw new Error(response.data?.message || 'Failed to fetch report data');
+      }
+
+      console.log('API response has expected structure');
+
+      // If the response data has a warning but no mock flag, explicitly set mock to false
+      // This ensures the frontend knows this is real data (even if empty)
+      if (response.data.data && response.data.data.warning && response.data.data.mock === undefined) {
+        console.log('Setting mock=false explicitly for data with warning');
+        response.data.data.mock = false;
+      }
+
+      // Normalize the data
+      const normalizedData = normalizeReportData(response.data.data);
+
+      return normalizedData;
+    } catch (apiError) {
+      // Log detailed error information
+      console.error('API Error Details for student report:', {
+        message: apiError.message,
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data,
+        url: apiError.config?.url,
+        method: apiError.config?.method
+      });
+
+      // Check for authentication errors
+      if (apiError.response && apiError.response.status === 401) {
+        console.error('Authentication error: Token missing or invalid');
+        // In production, you might want to redirect to login
+        // window.location.href = '/login';
+      }
+
+      // Check for CORS errors (typically no response)
+      if (!apiError.response) {
+        console.error('Possible CORS or network error - no response received');
+      }
+
+      // If the API returns a 404, log the error but don't automatically use mock data
+      if (apiError.response && apiError.response.status === 404) {
+        console.log('API returned 404 for O-Level student report');
+        console.error('Error details:', {
+          url: apiError.config?.url,
+          method: apiError.config?.method,
+          status: apiError.response?.status,
+          statusText: apiError.response?.statusText,
+          data: apiError.response?.data
+        });
+
+        // Don't automatically return mock data
+        // Instead, throw the error so the UI can handle it appropriately
+        throw new Error('Student report not found. Please check if the student and exam exist.');
+      }
+
+      // Don't automatically fall back to mock data in development
+      // This was causing the issue with always showing demo data
+      console.log('API error occurred:', apiError.message);
+      console.error('Full error details:', {
+        url: apiError.config?.url,
+        method: apiError.config?.method,
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data
+      });
+
+      // Re-throw other errors
+      throw apiError;
+    }
+  } catch (error) {
+    // Handle request cancellation
+    if (axios.isCancel(error)) {
+      console.log('Request cancelled:', error.message);
+      throw new Error('Report request was cancelled');
+    }
+
+    // Handle other errors
+    console.error('Error fetching O-Level student report:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get mock data for O-Level student report
+ * @param {string} studentId - Student ID
+ * @param {string} examId - Exam ID
+ * @returns {Object} - Mock student report data
+ */
+const getMockOLevelStudentReport = (studentId, examId) => {
+  console.log(`Generating mock O-Level student report for student ${studentId}, exam ${examId}`);
+
+  // Create a comprehensive mock data set
+  return {
+    studentDetails: {
+      id: studentId,
+      fullName: 'John Smith',
+      rollNumber: 'F2S001',
+      gender: 'Male',
+      className: 'Form 2',
+      stream: 'Science'
+    },
+    subjectResults: [
+      { subject: 'Mathematics', code: 'MAT', marks: 85, grade: 'A', points: 1, remarks: 'Excellent' },
+      { subject: 'English', code: 'ENG', marks: 78, grade: 'B', points: 2, remarks: 'Very Good' },
+      { subject: 'Kiswahili', code: 'KIS', marks: 92, grade: 'A', points: 1, remarks: 'Excellent' },
+      { subject: 'Physics', code: 'PHY', marks: 75, grade: 'B', points: 2, remarks: 'Very Good' },
+      { subject: 'Chemistry', code: 'CHE', marks: 80, grade: 'A', points: 1, remarks: 'Excellent' },
+      { subject: 'Biology', code: 'BIO', marks: 82, grade: 'A', points: 1, remarks: 'Excellent' },
+      { subject: 'History', code: 'HIS', marks: 70, grade: 'B', points: 2, remarks: 'Very Good' },
+      { subject: 'Geography', code: 'GEO', marks: 68, grade: 'C', points: 3, remarks: 'Good' },
+      { subject: 'Civics', code: 'CIV', marks: 75, grade: 'B', points: 2, remarks: 'Very Good' },
+      { subject: 'Bible Knowledge', code: 'BIK', marks: 90, grade: 'A', points: 1, remarks: 'Excellent' }
+    ],
+    summary: {
+      totalMarks: 795,
+      averageMarks: '79.50',
+      totalPoints: 16,
+      bestSevenPoints: 9,
+      division: 'I',
+      rank: 3,
+      totalStudents: 45,
+      gradeDistribution: {
+        'A': 5,
+        'B': 4,
+        'C': 1,
+        'D': 0,
+        'E': 0,
+        'F': 0
+      }
+    },
+    characterAssessment: {
+      attendance: 'Excellent',
+      punctuality: 'Very Good',
+      cleanliness: 'Good',
+      discipline: 'Excellent',
+      responsibility: 'Very Good',
+      cooperation: 'Excellent',
+      comments: 'John is a hardworking student who shows great potential. He participates actively in class and is always willing to help others.'
+    },
+    examName: 'Mid Term Examination',
+    term: 'Term 1',
+    academicYear: '2023-2024',
+    educationLevel: 'O_LEVEL',
+    mock: true,
+    warning: 'This is mock data for demonstration purposes only.'
+  };
+};
+
 // Create the service object
 const reportService = {
   fetchALevelStudentReport,
   fetchALevelClassReport,
   fetchOLevelClassReport,
+  fetchOLevelStudentReport,
   sendALevelReportSMS,
   getMockOLevelClassReport,
+  getMockOLevelStudentReport,
   normalizeReportData,
 
   // Helper method to get the API URL for debugging

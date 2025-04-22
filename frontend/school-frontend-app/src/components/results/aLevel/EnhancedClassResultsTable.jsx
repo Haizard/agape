@@ -28,7 +28,7 @@ import './ALevelClassReportStyles.css';
 const EnhancedClassResultsTable = ({ students, subjectCombination }) => {
   // State for pagination
   const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [rowsPerPage, setRowsPerPage] = React.useState(-1); // -1 means 'All'
 
   // Get unique subjects from all students
   const subjects = useMemo(() => {
@@ -98,35 +98,51 @@ const EnhancedClassResultsTable = ({ students, subjectCombination }) => {
           Class Results
         </Typography>
       </Box>
-      <TableContainer sx={{ maxHeight: 600, overflow: 'auto' }}>
-        <Table stickyHeader className="report-table compact-table" size="small">
+      <TableContainer className="table-container" sx={{ maxHeight: 'none', overflow: 'visible', width: '100%', overflowX: 'visible', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+        <Table stickyHeader className="report-table compact-table" size="small" sx={{ tableLayout: 'auto', minWidth: '100%' }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ minWidth: 40, maxWidth: 40, width: 40 }}><strong>Rank</strong></TableCell>
-              <TableCell sx={{ minWidth: 150, maxWidth: 180, width: 150 }}><strong>Student Name</strong></TableCell>
-              <TableCell sx={{ minWidth: 40, maxWidth: 40, width: 40 }}><strong>Sex</strong></TableCell>
-              <TableCell align="center" sx={{ minWidth: 60, maxWidth: 60, width: 60 }}><strong>Points</strong></TableCell>
-              <TableCell align="center" sx={{ minWidth: 70, maxWidth: 70, width: 70 }}><strong>Division</strong></TableCell>
+              <TableCell sx={{ minWidth: 40, maxWidth: 40, width: 40, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
+                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '30px' }}><strong>Rank</strong></div>
+              </TableCell>
+              <TableCell sx={{ minWidth: 200, maxWidth: 200, width: 200, fontSize: '16px', padding: '8px 6px' }}><strong>Student Name</strong></TableCell>
+              <TableCell sx={{ minWidth: 40, maxWidth: 40, width: 40, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
+                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '30px' }}><strong>Sex</strong></div>
+              </TableCell>
+              <TableCell align="center" sx={{ minWidth: 40, maxWidth: 40, width: 40, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
+                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '30px' }}><strong>Points</strong></div>
+              </TableCell>
+              <TableCell align="center" sx={{ minWidth: 40, maxWidth: 40, width: 40, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
+                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '30px' }}><strong>Division</strong></div>
+              </TableCell>
               {subjects.map(subject => (
-                <TableCell key={subject} align="center" className="subject-column">
-                  <strong title={subject}>{subject.length > 10 ? `${subject.substring(0, 8)}...` : subject}</strong>
+                <TableCell key={subject} align="center" className="subject-column" sx={{ minWidth: 40, maxWidth: 40, width: 40, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
+                  <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '30px' }} title={subject}>
+                    <strong>{subject.length > 12 ? `${subject.substring(0, 10)}...` : subject}</strong>
+                  </div>
                 </TableCell>
               ))}
-              <TableCell align="center" sx={{ minWidth: 60, maxWidth: 60, width: 60 }}><strong>Total</strong></TableCell>
-              <TableCell align="center" sx={{ minWidth: 60, maxWidth: 60, width: 60 }}><strong>Average</strong></TableCell>
-              <TableCell align="center" sx={{ minWidth: 40, maxWidth: 40, width: 40 }}><strong>Rank</strong></TableCell>
+              <TableCell align="center" sx={{ minWidth: 40, maxWidth: 40, width: 40, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
+                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '30px' }}><strong>Total</strong></div>
+              </TableCell>
+              <TableCell align="center" sx={{ minWidth: 40, maxWidth: 40, width: 40, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
+                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '30px' }}><strong>Average</strong></div>
+              </TableCell>
+              <TableCell align="center" sx={{ minWidth: 40, maxWidth: 40, width: 40, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
+                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '30px' }}><strong>Rank</strong></div>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {visibleRows.map((student, index) => (
               <TableRow key={student.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
-                <TableCell sx={{ fontSize: '0.75rem', padding: '2px 4px' }}>{student.rank}</TableCell>
-                <TableCell className="student-name" sx={{ fontSize: '0.75rem', padding: '2px 4px' }}>{student.name}</TableCell>
-                <TableCell sx={{ fontSize: '0.75rem', padding: '2px 4px' }}>{student.sex}</TableCell>
-                <TableCell align="center" sx={{ fontSize: '0.75rem', padding: '2px 4px' }}>{student.bestThreePoints || '-'}</TableCell>
-                <TableCell align="center" sx={{ padding: '2px 4px' }}>
+                <TableCell sx={{ fontSize: '16px', padding: '6px 8px' }}>{student.rank}</TableCell>
+                <TableCell className="student-name" sx={{ fontSize: '16px', padding: '6px 8px', fontWeight: 'bold' }}>{student.name}</TableCell>
+                <TableCell sx={{ fontSize: '16px', padding: '6px 8px' }}>{student.sex}</TableCell>
+                <TableCell align="center" sx={{ fontSize: '16px', padding: '6px 8px' }}>{student.bestThreePoints || '-'}</TableCell>
+                <TableCell align="center" sx={{ padding: '6px 8px', fontSize: '16px' }}>
                   {student.division && (
-                    <span className={`division-chip ${getDivisionClass(student.division)}`}>
+                    <span className={`division-chip ${getDivisionClass(student.division)}`} style={{ fontSize: '16px', padding: '4px 6px' }}>
                       {formatDivision(student.division)}
                     </span>
                   )}
@@ -134,14 +150,14 @@ const EnhancedClassResultsTable = ({ students, subjectCombination }) => {
                 {subjects.map(subject => {
                   const result = getStudentResult(student, subject);
                   return (
-                    <TableCell key={`${student.id}-${subject}`} align="center" className="subject-column">
+                    <TableCell key={`${student.id}-${subject}`} align="center" className="subject-column" sx={{ padding: '6px 8px' }}>
                       {result ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 0 }}>
-                          <Typography variant="body2" sx={{ fontSize: '0.75rem', lineHeight: 1.2, margin: 0 }}>
+                          <Typography variant="body2" sx={{ fontSize: '16px', lineHeight: 1.3, margin: 0 }}>
                             {formatNumber(result.marks)}
                           </Typography>
                           {result.grade && (
-                            <Typography variant="body2" className={getGradeClass(result.grade)} sx={{ fontSize: '0.7rem', lineHeight: 1, margin: 0 }}>
+                            <Typography variant="body2" className={getGradeClass(result.grade)} sx={{ fontSize: '16px', lineHeight: 1.2, margin: 0, fontWeight: 'bold' }}>
                               {result.grade}
                             </Typography>
                           )}
@@ -150,16 +166,16 @@ const EnhancedClassResultsTable = ({ students, subjectCombination }) => {
                     </TableCell>
                   );
                 })}
-                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>{formatNumber(student.totalMarks)}</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>{formatNumber(student.averageMarks)}</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>{student.rank}</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '16px', padding: '6px 8px' }}>{formatNumber(student.totalMarks)}</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '16px', padding: '6px 8px' }}>{formatNumber(student.averageMarks)}</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '16px', padding: '6px 8px' }}>{student.rank}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
       <TablePagination
-        rowsPerPageOptions={[10, 25, 50, 100]}
+        rowsPerPageOptions={[25, 50, 100, { label: 'All', value: -1 }]}
         component="div"
         count={students.length}
         rowsPerPage={rowsPerPage}

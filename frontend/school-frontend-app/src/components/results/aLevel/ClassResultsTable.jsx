@@ -74,7 +74,7 @@ const ClassResultsTable = ({ students, subjectCombination }) => {
         </Typography>
         <Divider sx={{ mb: 2 }} />
       </Box>
-      <TableContainer sx={{ maxHeight: 600 }}>
+      <TableContainer sx={{ maxHeight: 'none', overflow: 'visible' }}>
         <Table stickyHeader>
           <TableHead>
             <TableRow>

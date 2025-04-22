@@ -448,6 +448,16 @@ exports.getStudentReport = async (req, res) => {
     const studentRanking = studentRankings.find(r => r.studentId.toString() === studentId);
     const studentRank = studentRanking ? studentRanking.rank : 'N/A';
 
+    // Log student details for debugging
+    logger.debug(`Student details for report: ${JSON.stringify({
+      id: student._id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      fullName: `${student.firstName} ${student.lastName}`,
+      gender: student.gender,
+      rollNumber: student.rollNumber
+    })}`);
+
     // Format the report
     const report = {
       reportTitle: `${exam.name} Result Report`,
@@ -456,11 +466,24 @@ exports.getStudentReport = async (req, res) => {
       examName: exam.name,
       examDate: exam.startDate ? `${new Date(exam.startDate).toLocaleDateString()} - ${new Date(exam.endDate).toLocaleDateString()}` : 'N/A',
       studentDetails: {
-        name: `${student.firstName} ${student.lastName}`,
-        rollNumber: student.rollNumber,
+        name: `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+        fullName: `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+        firstName: student.firstName || '',
+        lastName: student.lastName || '',
+        rollNumber: student.rollNumber || '',
         class: `${classObj.name} ${classObj.section || ''} ${classObj.stream || ''}`.trim(),
-        gender: student.gender,
-        sex: student.gender // Include sex field as an alias for gender
+        className: `${classObj.name} ${classObj.section || ''} ${classObj.stream || ''}`.trim(),
+        gender: student.gender || '',
+        sex: student.gender || ''
+      },
+      // Include student object directly for compatibility
+      student: {
+        _id: student._id,
+        firstName: student.firstName || '',
+        lastName: student.lastName || '',
+        fullName: `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+        gender: student.gender || '',
+        rollNumber: student.rollNumber || ''
       },
       subjectResults,
       summary: {
@@ -474,7 +497,14 @@ exports.getStudentReport = async (req, res) => {
         totalStudents: classStudents.length,
         gradeDistribution
       },
-      educationLevel: 'O_LEVEL'
+      educationLevel: 'O_LEVEL',
+      // Add logs for debugging
+      logs: [
+        `Student ${student._id} name: ${student.firstName || ''} ${student.lastName || ''}`.trim(),
+        `Student has valid results: ${resultCount > 0}`,
+        `Student ${student._id} summary: totalMarks=${totalMarks}, resultCount=${resultCount}, averageMarks=${averageMarks.toFixed(2)}`,
+        `O-Level division calculation: Student ${student._id} division calculation: bestSevenPoints=${bestSevenPoints}, division=${division}`
+      ]
     };
 
     // Return JSON or generate PDF based on format

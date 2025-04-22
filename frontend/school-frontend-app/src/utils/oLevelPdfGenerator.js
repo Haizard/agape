@@ -11,35 +11,42 @@ export const generateOLevelStudentResultPDF = (report) => {
   const doc = new jsPDF();
 
   // Add school header
-  doc.setFontSize(16);
+  doc.setFontSize(20); // Increased from 16
   doc.text('Evangelical Lutheran Church in Tanzania - Northern Diocese', 105, 15, { align: 'center' });
-  doc.setFontSize(18);
+  doc.setFontSize(24); // Increased from 18
   doc.text('Agape Lutheran Junior Seminary', 105, 25, { align: 'center' });
 
   // Add contact information
-  doc.setFontSize(10);
+  doc.setFontSize(12); // Increased from 10
   doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 20, 35);
 
-  // Add Lutheran Church logo
-  const logoUrl = `${window.location.origin}/images/lutheran_logo.png`;
+  // Add school logo
+  const logoUrl = `${window.location.origin}/images/logo.JPG`;
   try {
-    doc.addImage(logoUrl, 'PNG', 85, 30, 30, 30);
+    doc.addImage(logoUrl, 'JPEG', 85, 30, 30, 30);
   } catch (error) {
     console.error('Error adding logo to PDF:', error);
+    // Fallback to text if image fails
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AGAPE', 105, 40, { align: 'center' });
+    doc.text('LUTHERAN', 105, 47, { align: 'center' });
+    doc.text('SEMINARY', 105, 54, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
   }
 
   // Add right-side contact information
-  doc.setFontSize(10);
-  doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.co', 170, 35, { align: 'right' });
+  doc.setFontSize(12); // Increased from 10
+  doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 170, 35, { align: 'right' });
 
   // Add report title
-  doc.setFontSize(14);
+  doc.setFontSize(20); // Increased from 14
   doc.text('O-LEVEL STUDENT RESULT REPORT', 105, 55, { align: 'center' });
-  doc.setFontSize(12);
+  doc.setFontSize(16); // Increased from 12
   doc.text(`Academic Year: ${report.academicYear || ''}`, 105, 65, { align: 'center' });
 
   // Add student information
-  doc.setFontSize(12);
+  doc.setFontSize(16); // Increased from 12
   doc.text(`Name: ${report.student?.fullName || report.studentDetails?.name || ''}`, 20, 80);
   doc.text(`Class: ${report.class?.fullName || report.studentDetails?.class || ''}`, 20, 90);
   doc.text(`Roll Number: ${report.student?.rollNumber || report.studentDetails?.rollNumber || ''}`, 20, 100);
@@ -100,9 +107,9 @@ export const generateOLevelStudentResultPDF = (report) => {
     head: [['Subject', 'Marks', 'Grade', 'Points', 'Remarks']],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-    footStyles: { fillColor: [41, 128, 185], textColor: 255 },
-    styles: { fontSize: 10, cellPadding: 3 },
+    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
+    footStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 14 }, // Increased from default
+    styles: { fontSize: 12, cellPadding: 3 }, // Increased from 10
     columnStyles: {
       0: { cellWidth: 60 },
       1: { cellWidth: 30, halign: 'center' },
@@ -129,8 +136,14 @@ export const generateOLevelStudentResultPDF = (report) => {
     head: [['Average Marks', 'Best 7 Points', 'Division', 'Rank']],
     body: [[`${averageMarks}%`, bestSevenPoints, displayDivision, rank]],
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-    styles: { fontSize: 10 }
+    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
+    styles: { fontSize: 12, cellPadding: 3 }, // Increased from 10
+    columnStyles: {
+      0: { halign: 'center' },
+      1: { halign: 'center' },
+      2: { halign: 'center' },
+      3: { halign: 'center' }
+    }
   });
 
   // Add grade distribution
@@ -190,35 +203,43 @@ export const generateOLevelClassResultPDF = (report) => {
   const doc = new jsPDF('landscape');
 
   // Add school header
-  doc.setFontSize(16);
+  doc.setFontSize(20); // Increased from 16
   doc.text('Evangelical Lutheran Church in Tanzania - Northern Diocese', 150, 15, { align: 'center' });
-  doc.setFontSize(18);
+  doc.setFontSize(24); // Increased from 18
   doc.text('Agape Lutheran Junior Seminary', 150, 25, { align: 'center' });
 
   // Add contact information
-  doc.setFontSize(10);
+  doc.setFontSize(12); // Increased from 10
   doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 20, 35);
 
-  // Add Lutheran Church logo
-  const logoUrl = `${window.location.origin}/images/lutheran_logo.png`;
+  // Add school logo
+  const logoUrl = `${window.location.origin}/images/logo.JPG`;
   try {
-    doc.addImage(logoUrl, 'PNG', 135, 30, 30, 30);
+    doc.addImage(logoUrl, 'JPEG', 135, 30, 30, 30);
   } catch (error) {
     console.error('Error adding logo to PDF:', error);
+    // Fallback to text if image fails
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AGAPE', 150, 40, { align: 'center' });
+    doc.text('LUTHERAN', 150, 47, { align: 'center' });
+    doc.text('SEMINARY', 150, 54, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
   }
 
   // Add right-side contact information
-  doc.setFontSize(10);
-  doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.co', 280, 35, { align: 'right' });
+  doc.setFontSize(12); // Increased from 10
+  doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 280, 35, { align: 'right' });
 
   // Add report title
-  doc.setFontSize(14);
+  doc.setFontSize(20); // Increased from 14
   doc.text('O-LEVEL CLASS RESULT REPORT', 150, 55, { align: 'center' });
-  doc.setFontSize(12);
+  doc.setFontSize(16); // Increased from 12
   doc.text(`${report.className || ''} ${report.section || ''} - ${report.examName || ''}`, 150, 65, { align: 'center' });
   doc.text(`Academic Year: ${report.academicYear || ''}`, 150, 75, { align: 'center' });
 
   // Add summary information
+  doc.setFontSize(16); // Increased from default
   doc.text(`Total Students: ${report.totalStudents || ''}`, 20, 90);
   doc.text(`Class Average: ${report.classAverage?.toFixed(2) || ''}%`, 100, 90);
 
@@ -290,12 +311,22 @@ export const generateOLevelClassResultPDF = (report) => {
     head: [headers],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 10 }, // Green header like in the sample
+    styles: { fontSize: 9, cellPadding: 2 }, // Slightly increased font size
     columnStyles: {
-      0: { cellWidth: 15 },
-      1: { cellWidth: 40 },
-      2: { cellWidth: 15 }
+      0: { cellWidth: 15, halign: 'center' },
+      1: { cellWidth: 50 }, // Wider for better readability
+      2: { cellWidth: 15, halign: 'center' }
+    },
+    // Adjust table to fit page width without scrolling
+    margin: { left: 10, right: 10 },
+    tableWidth: 'auto',
+    horizontalPageBreak: true,
+    horizontalPageBreakRepeat: [0, 1, 2], // Repeat first 3 columns on new pages
+    didDrawPage: function(data) {
+      // Add page number at the bottom of each page
+      doc.setFontSize(8);
+      doc.text(`Page ${doc.internal.getNumberOfPages()}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
     }
   });
 
