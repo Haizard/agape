@@ -16,10 +16,11 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
     console.error('Headers already sent, cannot generate PDF');
     return;
   }
-  // Create a new PDF document
+  // Create a new PDF document with landscape orientation for better content fitting
   const doc = new PDFDocument({
-    margin: 30,
-    size: 'A4'
+    margin: 40,  // Increased margins for better readability
+    size: 'A4',
+    layout: 'landscape'  // Use landscape orientation to fit more content horizontally
   });
 
   // Pipe the PDF to the response with error handling
@@ -35,15 +36,15 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
   // Set font
   doc.font('Helvetica');
 
-  // Add school header
+  // Add school header - centered and properly spaced for landscape orientation
   doc.fontSize(16).text('Evangelical Lutheran Church in Tanzania - Northern Diocese', { align: 'center' });
   doc.fontSize(18).text('Agape Lutheran Junior Seminary', { align: 'center' });
   doc.moveDown(0.5);
 
-  // Add contact information
+  // Add contact information - adjusted for landscape orientation
   doc.fontSize(10);
-  doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 50, 60);
-  doc.text('Tel: +255 27 2755088\nEmail: agapelutheran@elct.org', 400, 60, { align: 'right' });
+  doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 60, 60);
+  doc.text('Tel: +255 27 2755088\nEmail: agapelutheran@elct.org', doc.page.width - 60, 60, { align: 'right' });
 
   // Add report title
   doc.fontSize(14).text(`${report.formLevel === 5 ? 'Form 5' : report.formLevel === 6 ? 'Form 6' : 'A-Level'} Academic Report`, { align: 'center' });
@@ -65,20 +66,43 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
   doc.fontSize(12).text('Principal Subjects', { underline: true });
   doc.moveDown(0.5);
 
-  // Define table layout
+  // Define table layout - adjusted for landscape orientation with better spacing
   const principalTableTop = doc.y;
-  const principalTableLeft = 50;
-  const principalColWidths = [40, 200, 60, 60, 60, 80];
+  const principalTableLeft = 60;
+
+  // Calculate column widths based on page width for better fit
+  const tableWidth = doc.page.width - 120; // 60px margin on each side
+  const principalColWidths = [
+    tableWidth * 0.08,  // Code (8%)
+    tableWidth * 0.35,  // Subject (35%)
+    tableWidth * 0.12,  // Marks (12%)
+    tableWidth * 0.12,  // Grade (12%)
+    tableWidth * 0.12,  // Points (12%)
+    tableWidth * 0.21   // Remarks (21%)
+  ];
   const principalRowHeight = 25;
 
   // Draw table headers
   doc.font('Helvetica-Bold').fontSize(10);
-  doc.text('Code', principalTableLeft, principalTableTop);
-  doc.text('Subject', principalTableLeft + principalColWidths[0], principalTableTop);
-  doc.text('Marks', principalTableLeft + principalColWidths[0] + principalColWidths[1], principalTableTop);
-  doc.text('Grade', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2], principalTableTop);
-  doc.text('Points', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2] + principalColWidths[3], principalTableTop);
-  doc.text('Remarks', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2] + principalColWidths[3] + principalColWidths[4], principalTableTop);
+  let xPos = principalTableLeft;
+
+  // Draw each header at the calculated position
+  doc.text('Code', xPos, principalTableTop);
+  xPos += principalColWidths[0];
+
+  doc.text('Subject', xPos, principalTableTop);
+  xPos += principalColWidths[1];
+
+  doc.text('Marks', xPos, principalTableTop);
+  xPos += principalColWidths[2];
+
+  doc.text('Grade', xPos, principalTableTop);
+  xPos += principalColWidths[3];
+
+  doc.text('Points', xPos, principalTableTop);
+  xPos += principalColWidths[4];
+
+  doc.text('Remarks', xPos, principalTableTop);
 
   // Draw horizontal line
   doc.moveTo(principalTableLeft, principalTableTop + 15)
@@ -91,12 +115,26 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
 
   if (report.principalSubjects && report.principalSubjects.length > 0) {
     for (const subject of report.principalSubjects) {
-      doc.text(subject.code || '-', principalTableLeft, principalRowTop);
-      doc.text(subject.subject || '-', principalTableLeft + principalColWidths[0], principalRowTop);
-      doc.text(subject.marks !== undefined && subject.marks !== null ? subject.marks.toString() : '-', principalTableLeft + principalColWidths[0] + principalColWidths[1], principalRowTop);
-      doc.text(subject.grade || '-', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2], principalRowTop);
-      doc.text(subject.points !== undefined && subject.points !== null ? subject.points.toString() : '-', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2] + principalColWidths[3], principalRowTop);
-      doc.text(subject.remarks || '-', principalTableLeft + principalColWidths[0] + principalColWidths[1] + principalColWidths[2] + principalColWidths[3] + principalColWidths[4], principalRowTop);
+      // Reset xPos for each row
+      xPos = principalTableLeft;
+
+      // Draw each cell at the calculated position
+      doc.text(subject.code || '-', xPos, principalRowTop);
+      xPos += principalColWidths[0];
+
+      doc.text(subject.subject || '-', xPos, principalRowTop);
+      xPos += principalColWidths[1];
+
+      doc.text(subject.marks !== undefined && subject.marks !== null ? subject.marks.toString() : '-', xPos, principalRowTop);
+      xPos += principalColWidths[2];
+
+      doc.text(subject.grade || '-', xPos, principalRowTop);
+      xPos += principalColWidths[3];
+
+      doc.text(subject.points !== undefined && subject.points !== null ? subject.points.toString() : '-', xPos, principalRowTop);
+      xPos += principalColWidths[4];
+
+      doc.text(subject.remarks || '-', xPos, principalRowTop);
 
       principalRowTop += principalRowHeight;
     }
@@ -111,20 +149,34 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
   doc.fontSize(12).text('Subsidiary Subjects', { underline: true });
   doc.moveDown(0.5);
 
-  // Define table layout
+  // Define table layout - using the same layout as principal subjects for consistency
   const subsidiaryTableTop = doc.y;
-  const subsidiaryTableLeft = 50;
-  const subsidiaryColWidths = [40, 200, 60, 60, 60, 80];
+  const subsidiaryTableLeft = 60;
+  // Reuse the same column widths as principal subjects
+  const subsidiaryColWidths = principalColWidths;
   const subsidiaryRowHeight = 25;
 
   // Draw table headers
   doc.font('Helvetica-Bold').fontSize(10);
-  doc.text('Code', subsidiaryTableLeft, subsidiaryTableTop);
-  doc.text('Subject', subsidiaryTableLeft + subsidiaryColWidths[0], subsidiaryTableTop);
-  doc.text('Marks', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1], subsidiaryTableTop);
-  doc.text('Grade', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2], subsidiaryTableTop);
-  doc.text('Points', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2] + subsidiaryColWidths[3], subsidiaryTableTop);
-  doc.text('Remarks', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2] + subsidiaryColWidths[3] + subsidiaryColWidths[4], subsidiaryTableTop);
+  xPos = subsidiaryTableLeft;
+
+  // Draw each header at the calculated position
+  doc.text('Code', xPos, subsidiaryTableTop);
+  xPos += subsidiaryColWidths[0];
+
+  doc.text('Subject', xPos, subsidiaryTableTop);
+  xPos += subsidiaryColWidths[1];
+
+  doc.text('Marks', xPos, subsidiaryTableTop);
+  xPos += subsidiaryColWidths[2];
+
+  doc.text('Grade', xPos, subsidiaryTableTop);
+  xPos += subsidiaryColWidths[3];
+
+  doc.text('Points', xPos, subsidiaryTableTop);
+  xPos += subsidiaryColWidths[4];
+
+  doc.text('Remarks', xPos, subsidiaryTableTop);
 
   // Draw horizontal line
   doc.moveTo(subsidiaryTableLeft, subsidiaryTableTop + 15)
@@ -137,12 +189,26 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
 
   if (report.subsidiarySubjects && report.subsidiarySubjects.length > 0) {
     for (const subject of report.subsidiarySubjects) {
-      doc.text(subject.code || '-', subsidiaryTableLeft, subsidiaryRowTop);
-      doc.text(subject.subject || '-', subsidiaryTableLeft + subsidiaryColWidths[0], subsidiaryRowTop);
-      doc.text(subject.marks !== undefined && subject.marks !== null ? subject.marks.toString() : '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1], subsidiaryRowTop);
-      doc.text(subject.grade || '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2], subsidiaryRowTop);
-      doc.text(subject.points !== undefined && subject.points !== null ? subject.points.toString() : '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2] + subsidiaryColWidths[3], subsidiaryRowTop);
-      doc.text(subject.remarks || '-', subsidiaryTableLeft + subsidiaryColWidths[0] + subsidiaryColWidths[1] + subsidiaryColWidths[2] + subsidiaryColWidths[3] + subsidiaryColWidths[4], subsidiaryRowTop);
+      // Reset xPos for each row
+      xPos = subsidiaryTableLeft;
+
+      // Draw each cell at the calculated position
+      doc.text(subject.code || '-', xPos, subsidiaryRowTop);
+      xPos += subsidiaryColWidths[0];
+
+      doc.text(subject.subject || '-', xPos, subsidiaryRowTop);
+      xPos += subsidiaryColWidths[1];
+
+      doc.text(subject.marks !== undefined && subject.marks !== null ? subject.marks.toString() : '-', xPos, subsidiaryRowTop);
+      xPos += subsidiaryColWidths[2];
+
+      doc.text(subject.grade || '-', xPos, subsidiaryRowTop);
+      xPos += subsidiaryColWidths[3];
+
+      doc.text(subject.points !== undefined && subject.points !== null ? subject.points.toString() : '-', xPos, subsidiaryRowTop);
+      xPos += subsidiaryColWidths[4];
+
+      doc.text(subject.remarks || '-', xPos, subsidiaryRowTop);
 
       subsidiaryRowTop += subsidiaryRowHeight;
     }
@@ -163,29 +229,33 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
   doc.moveDown(0.5);
   doc.fontSize(10);
 
-  // Create a two-column layout for summary
-  const summaryLeft = 50;
-  const summaryMiddle = 300;
+  // Create a three-column layout for summary to better utilize landscape orientation
+  const summaryLeft = 60;
+  const summaryMiddle = doc.page.width / 3 + 30;
+  const summaryRight = (doc.page.width * 2 / 3) + 30;
   const summaryTop = doc.y;
 
+  // First column
   doc.text('Total Marks:', summaryLeft, summaryTop);
   doc.text(report.summary?.totalMarks !== undefined && report.summary.totalMarks !== null ? report.summary.totalMarks.toString() : 'N/A', summaryLeft + 150, summaryTop);
 
   doc.text('Average Marks:', summaryLeft, summaryTop + 20);
   doc.text(report.summary?.averageMarks || 'N/A', summaryLeft + 150, summaryTop + 20);
 
-  doc.text('Total Points:', summaryLeft, summaryTop + 40);
-  doc.text(report.summary?.totalPoints !== undefined && report.summary.totalPoints !== null ? report.summary.totalPoints.toString() : 'N/A', summaryLeft + 150, summaryTop + 40);
+  // Second column
+  doc.text('Total Points:', summaryMiddle, summaryTop);
+  doc.text(report.summary?.totalPoints !== undefined && report.summary.totalPoints !== null ? report.summary.totalPoints.toString() : 'N/A', summaryMiddle + 150, summaryTop);
 
-  doc.text('Best 3 Principal Points:', summaryLeft, summaryTop + 60);
-  doc.text(report.summary?.bestThreePoints !== undefined && report.summary.bestThreePoints !== null ? report.summary.bestThreePoints.toString() : 'N/A', summaryLeft + 150, summaryTop + 60);
+  doc.text('Best 3 Principal Points:', summaryMiddle, summaryTop + 20);
+  doc.text(report.summary?.bestThreePoints !== undefined && report.summary.bestThreePoints !== null ? report.summary.bestThreePoints.toString() : 'N/A', summaryMiddle + 150, summaryTop + 20);
 
-  doc.text('Division:', summaryMiddle, summaryTop);
-  doc.font('Helvetica-Bold').text(report.summary?.division || 'N/A', summaryMiddle + 150, summaryTop);
+  // Third column
+  doc.text('Division:', summaryRight, summaryTop);
+  doc.font('Helvetica-Bold').text(report.summary?.division || 'N/A', summaryRight + 100, summaryTop);
   doc.font('Helvetica');
 
-  doc.text('Rank in Class:', summaryMiddle, summaryTop + 20);
-  doc.text(`${report.summary?.rank || 'N/A'} of ${report.summary?.totalStudents || 'N/A'}`, summaryMiddle + 150, summaryTop + 20);
+  doc.text('Rank in Class:', summaryRight, summaryTop + 20);
+  doc.text(`${report.summary?.rank || 'N/A'} of ${report.summary?.totalStudents || 'N/A'}`, summaryRight + 100, summaryTop + 20);
 
   doc.moveDown(4);
 
@@ -196,37 +266,48 @@ const generateALevelComprehensiveReportPDF = (report, res) => {
 
   const assessmentTop = doc.y;
 
+  // Create a three-column layout for character assessment
   doc.text('Discipline:', summaryLeft, assessmentTop);
-  doc.text(report.characterAssessment?.discipline || 'Not assessed', summaryLeft + 150, assessmentTop);
+  doc.text(report.characterAssessment?.discipline || 'Not assessed', summaryLeft + 120, assessmentTop);
 
-  doc.text('Attendance:', summaryLeft, assessmentTop + 20);
-  doc.text(report.characterAssessment?.attendance || 'Not assessed', summaryLeft + 150, assessmentTop + 20);
+  doc.text('Attendance:', summaryMiddle, assessmentTop);
+  doc.text(report.characterAssessment?.attendance || 'Not assessed', summaryMiddle + 120, assessmentTop);
 
-  doc.text('Attitude:', summaryLeft, assessmentTop + 40);
-  doc.text(report.characterAssessment?.attitude || 'Not assessed', summaryLeft + 150, assessmentTop + 40);
+  doc.text('Attitude:', summaryRight, assessmentTop);
+  doc.text(report.characterAssessment?.attitude || 'Not assessed', summaryRight + 120, assessmentTop);
 
-  doc.moveDown();
+  doc.moveDown(2);
   doc.text('Comments:', summaryLeft);
   doc.moveDown(0.5);
-  doc.text(report.characterAssessment?.comments || 'No comments provided.', { width: 500 });
+  // Increase width to use more of the landscape page
+  doc.text(report.characterAssessment?.comments || 'No comments provided.', { width: doc.page.width - 120 });
 
   doc.moveDown(2);
 
-  // Add signature section
+  // Add signature section - adjusted for landscape orientation
   const signatureTop = doc.y;
 
-  doc.text('_______________________', 50, signatureTop);
-  doc.text('_______________________', 300, signatureTop);
-  doc.text('Class Teacher', 50, signatureTop + 20);
-  doc.text('Principal', 300, signatureTop + 20);
-  doc.text(`Date: ${new Date().toLocaleDateString()}`, 50, signatureTop + 40);
+  doc.text('_______________________', summaryLeft, signatureTop);
+  doc.text('_______________________', summaryRight, signatureTop);
+  doc.text('Class Teacher', summaryLeft, signatureTop + 20);
+  doc.text('Principal', summaryRight, signatureTop + 20);
+  doc.text(`Date: ${new Date().toLocaleDateString()}`, summaryLeft, signatureTop + 40);
 
   // Add footer with A-LEVEL specific note
-  doc.fontSize(8);
+  doc.fontSize(9);  // Slightly larger font for better readability
   doc.text(
     'Note: A-LEVEL Division is calculated based on best 3 principal subjects. Division I: 3-9 points, Division II: 10-12 points, Division III: 13-17 points, Division IV: 18-19 points, Division V: 20-21 points',
     doc.page.margins.left,
     doc.page.height - 30,
+    { align: 'center', width: doc.page.width - 80 }  // Set width to prevent text from going off page
+  );
+
+  // Add page number
+  doc.fontSize(9);
+  doc.text(
+    `Page 1 of 1 | Generated on: ${new Date().toLocaleDateString()}`,
+    doc.page.margins.left,
+    doc.page.height - 15,
     { align: 'center' }
   );
 

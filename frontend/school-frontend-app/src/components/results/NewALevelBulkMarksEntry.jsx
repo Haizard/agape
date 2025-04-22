@@ -732,8 +732,7 @@ const NewALevelBulkMarksEntry = () => {
               markData.examTypeId = examDetails.examTypeId;
             }
 
-            marksData.push(markData)
-            });
+            marksData.push(markData);
           } catch (err) {
             console.error(`Error processing student ${student._id}:`, err);
           }
