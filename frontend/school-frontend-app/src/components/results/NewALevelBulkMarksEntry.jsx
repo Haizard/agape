@@ -270,55 +270,59 @@ const NewALevelBulkMarksEntry = () => {
 
       try {
         setLoading(true);
+        setError(''); // Clear any previous errors
 
         console.log('Fetching students for class:', selectedClass);
         console.log('Selected subject:', selectedSubject);
         console.log('Selected exam:', selectedExam);
 
-        // Fetch students for the selected class
-        let studentsResponse;
-        if (isAdmin) {
-          // Admin can see all students
-          studentsResponse = await api.get(`/api/students?classId=${selectedClass}`);
-        } else {
-          // Teachers can only see assigned students
-          studentsResponse = await api.get(`/api/teachers/classes/${selectedClass}/students`);
+        // Import the A-Level student service for better filtering
+        const aLevelStudentService = await import('../../services/aLevelStudentService');
+
+        // Use the improved Prisma-based filtering
+        console.log('Using Prisma-based student filtering');
+        const filteredStudentsResponse = await aLevelStudentService.getStudentsFilteredBySubject(
+          selectedClass,
+          selectedSubject,
+          false // Only include eligible students (who take this subject)
+        );
+
+        if (!filteredStudentsResponse.success) {
+          console.error('Error filtering students:', filteredStudentsResponse.message);
+          setError(`Error filtering students: ${filteredStudentsResponse.message}`);
+          setLoading(false);
+          return;
         }
 
-        // Enhance student data with full details
-        const students = studentsResponse.data;
-        const enhancedStudents = [];
+        // Get the filtered students
+        const filteredStudentData = filteredStudentsResponse.data?.students || [];
+        console.log(`Prisma filtering returned ${filteredStudentData.length} eligible students`);
 
-        // Only process A-Level students
-        // Add more lenient filtering for education level
-        const aLevelStudents = students.filter(student => {
-          // Log student details to debug
-          console.log(`Student ${student._id}:`, {
-            firstName: student.firstName,
-            lastName: student.lastName,
-            level: student.level,
-            educationLevel: student.educationLevel,
-            class: student.class
-          });
+        // If no students were found, show a warning
+        if (filteredStudentData.length === 0) {
+          setError(`No students found who take ${filteredStudentsResponse.data?.subject?.name || 'this subject'}. Please check the subject and class selection.`);
+        }
 
-          // More lenient check for A-Level students
-          return true; // Show all students for now
-          // Uncomment below for stricter filtering
-          // return student.level === 'A' || student.educationLevel === 'A';
-        });
+        // Store the filtered students for later use
+        setFilteredStudents(filteredStudentData);
 
-        for (const student of aLevelStudents) {
-          try {
-            // Get full student details
-            const studentDetailsResponse = await api.get(`/api/students/${student._id}`);
-            enhancedStudents.push({
-              ...student,
-              ...studentDetailsResponse.data
-            });
-          } catch (err) {
-            console.error(`Error fetching details for student ${student._id}:`, err);
-            enhancedStudents.push(student);
-          }
+        // Create a simple array of enhanced students from the filtered data
+        const enhancedStudents = filteredStudentData.map(student => ({
+          _id: student.id || student.studentId,
+          id: student.id || student.studentId,
+          firstName: student.firstName || '',
+          lastName: student.lastName || '',
+          name: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student',
+          isPrincipal: student.isPrincipal || false,
+          isEligible: student.isEligible || true,
+          eligibilityMessage: student.eligibilityMessage || null
+        }));
+
+        console.log(`Processed ${enhancedStudents.length} students for marks entry`);
+
+        // Log a sample student for debugging
+        if (enhancedStudents.length > 0) {
+          console.log('Sample student:', enhancedStudents[0]);
         }
 
         // Get subject details

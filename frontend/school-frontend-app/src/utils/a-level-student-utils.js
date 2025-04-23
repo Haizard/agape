@@ -82,6 +82,44 @@ export const filterALevelStudentsBySubject = async (students, subjectId, isPrinc
       if (subjectData && subjectData.educationLevel === 'O_LEVEL') {
         console.log(`A-Level: Subject ${subjectIdStr} (${subjectData.name}) is an O-Level subject`);
         isOLevelSubject = true;
+
+        // For O-Level subjects, we need to check if any A-Level students take this subject
+        // This is typically for subsidiary subjects like General Paper
+        console.log('A-Level: O-Level subject detected, checking which A-Level students take this subject');
+
+        // Look for this subject in student combinations
+        const studentsWithSubject = [];
+
+        for (const student of students) {
+          const studentId = student._id?.toString();
+          const combination = combinationsMap && studentId ? combinationsMap[studentId] : null;
+
+          if (combination && combination.subjects) {
+            // Check if this O-Level subject is in the student's subjects
+            const hasSubject = combination.subjects.some(s => {
+              return s._id === subjectIdStr || s.subjectId === subjectIdStr;
+            });
+
+            if (hasSubject) {
+              studentsWithSubject.push({
+                ...student,
+                takesSubject: true,
+                isPrincipal: false,
+                matchReason: 'O-Level subject found in student subjects'
+              });
+            }
+          }
+        }
+
+        // If we found students who take this subject, return only those students
+        if (studentsWithSubject.length > 0) {
+          console.log(`A-Level: Found ${studentsWithSubject.length} A-Level students who take O-Level subject ${subjectIdStr}`);
+          return studentsWithSubject;
+        }
+
+        // If no students were found, return an empty array
+        console.log(`A-Level: No A-Level students found who take O-Level subject ${subjectIdStr}`);
+        return [];
       }
     }
   } catch (error) {

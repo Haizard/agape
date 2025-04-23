@@ -41,7 +41,7 @@ import { generateClassResultPDF } from '../../../utils/pdfGenerator';
 import { forcePrint } from '../../../utils/printForcer';
 import { fitTableToPage } from '../../../utils/tableFitter';
 import { printTableInNewWindow } from '../../../utils/printRenderer';
-import { printTableOnA4 } from '../../../utils/a4Renderer';
+import a4Renderer from '../../../utils/a4Renderer';
 // Import forced print styles
 import '../aLevel/PrintForcedStyles.css';
 import '../PrintableTableStyles.css';
@@ -136,7 +136,447 @@ const OLevelClassReport = (props) => {
 
   // Handle A4 paper print
   const handleA4Print = () => {
-    printTableOnA4('.report-table');
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!printWindow) {
+      alert('Please allow pop-ups to print the report.');
+      return;
+    }
+
+    // Get the main table
+    const mainTable = document.querySelector('.report-table');
+    if (!mainTable) {
+      alert('Report table not found.');
+      printWindow.close();
+      return;
+    }
+
+    // Find the Result Summary section
+    let resultSummarySection = null;
+    const resultSummaryHeadings = document.querySelectorAll('h6, .MuiTypography-h6');
+    for (const heading of resultSummaryHeadings) {
+      if (heading.textContent.includes('RESULT SUMMARY')) {
+        resultSummarySection = heading.closest('.MuiCard-root');
+        break;
+      }
+    }
+
+    // Find the Approval section
+    let approvalSection = null;
+    const approvalHeadings = document.querySelectorAll('h6, .MuiTypography-h6');
+    for (const heading of approvalHeadings) {
+      if (heading.textContent.includes('APPROVED BY')) {
+        approvalSection = heading.closest('.MuiCard-root');
+        break;
+      }
+    }
+
+    // Create the HTML content for the print window
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>O-Level Class Report</title>
+          <style>
+            /* A4 paper dimensions */
+            @page {
+              size: 297mm 210mm landscape;
+              margin: 10mm;
+              scale: 0.95; /* Slightly scale down to ensure all content fits */
+            }
+
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+              width: 297mm; /* Exact A4 width */
+              overflow-x: hidden;
+            }
+
+            .container {
+              width: 100%;
+              max-width: 277mm; /* 297mm - 20mm margins */
+              margin: 0 auto;
+              overflow-x: visible; /* Ensure content doesn't get cut off */
+              transform-origin: top left; /* For scaling */
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+              page-break-inside: avoid;
+              table-layout: fixed;
+            }
+
+            th, td {
+              border: 1px solid #000;
+              padding: 2px; /* Reduced padding */
+              text-align: center;
+              font-size: 9pt; /* Slightly smaller font */
+              font-weight: bold;
+              overflow: hidden;
+              white-space: nowrap;
+              text-overflow: ellipsis;
+              line-height: 1.1; /* Reduced line height */
+            }
+
+            table:not(.info-table) th {
+              height: 100px; /* Reduced height for vertical headers */
+              vertical-align: bottom;
+              padding-bottom: 5px; /* Reduced padding */
+            }
+
+            /* Vertical headers */
+            th .vertical-header {
+              writing-mode: vertical-rl;
+              transform: rotate(180deg);
+              white-space: nowrap;
+              display: inline-block;
+              height: 90px; /* Reduced height for vertical headers */
+              padding: 3px 0; /* Reduced padding */
+              text-align: center;
+              font-weight: bold;
+              font-size: 9pt; /* Smaller font size */
+            }
+
+            /* Column width settings */
+            table:not(.info-table) th:nth-child(1), table:not(.info-table) td:nth-child(1) { /* Rank column */
+              width: 30px;
+            }
+
+            table:not(.info-table) th:nth-child(2), table:not(.info-table) td:nth-child(2) { /* Name column */
+              width: 120px;
+            }
+
+            table:not(.info-table) td:nth-child(2) { /* Name column data */
+              text-align: left;
+            }
+
+            table:not(.info-table) td { /* Data cells */
+              height: 18px; /* Reduced height for data rows */
+            }
+
+            table:not(.info-table) th:nth-child(3), table:not(.info-table) td:nth-child(3) { /* Sex column */
+              width: 30px;
+            }
+
+            table:not(.info-table) th:nth-child(4), table:not(.info-table) td:nth-child(4) { /* Points column */
+              width: 40px;
+            }
+
+            table:not(.info-table) th:nth-child(5), table:not(.info-table) td:nth-child(5) { /* Division column */
+              width: 40px;
+            }
+
+            /* Subject columns (all columns between 6th and last 3) */
+            table:not(.info-table) th:nth-child(n+6):nth-child(-n+100),
+            table:not(.info-table) td:nth-child(n+6):nth-child(-n+100) {
+              width: 35px; /* Narrower width for subject columns */
+            }
+
+            /* Last three columns (Total, Average, Rank) */
+            table:not(.info-table) th:nth-last-child(3), table:not(.info-table) td:nth-last-child(3),
+            table:not(.info-table) th:nth-last-child(2), table:not(.info-table) td:nth-last-child(2),
+            table:not(.info-table) th:nth-last-child(1), table:not(.info-table) td:nth-last-child(1) {
+              width: 40px;
+            }
+
+            th {
+              background-color: #f0f0f0;
+            }
+
+            .section-title {
+              font-size: 14pt; /* Smaller font */
+              font-weight: bold;
+              text-align: center;
+              margin: 10px 0 5px 0; /* Reduced margin */
+            }
+
+            .approval-section {
+              margin-top: 15px; /* Reduced margin */
+              page-break-inside: avoid;
+            }
+
+            .signature-line {
+              border-top: 1px solid #000;
+              width: 180px; /* Slightly narrower */
+              display: inline-block;
+              margin-top: 15px; /* Reduced margin */
+            }
+
+            .signature-container {
+              margin-top: 10px; /* Reduced margin */
+            }
+
+            .signature-label {
+              font-weight: bold;
+              margin-top: 10px; /* Reduced margin */
+              font-size: 10pt; /* Smaller font */
+            }
+
+            .signature-title {
+              margin-top: 3px; /* Reduced margin */
+              font-size: 10pt; /* Smaller font */
+            }
+
+            /* Report Header Styles */
+            .report-header {
+              margin-bottom: 10px; /* Reduced margin */
+              page-break-inside: avoid;
+            }
+
+            .school-header {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin-bottom: 8px; /* Reduced margin */
+            }
+
+            .logo-container {
+              width: 60px; /* Smaller logo */
+              height: 60px; /* Smaller logo */
+              margin-right: 15px; /* Reduced margin */
+            }
+
+            .school-logo {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+            }
+
+            .school-info {
+              text-align: center;
+            }
+
+            .school-name {
+              font-size: 16pt; /* Smaller font */
+              font-weight: bold;
+              margin: 0 0 3px 0; /* Reduced margin */
+            }
+
+            .school-address {
+              font-size: 12pt; /* Smaller font */
+              font-weight: bold;
+              margin: 0 0 3px 0; /* Reduced margin */
+            }
+
+            .report-title {
+              font-size: 14pt; /* Smaller font */
+              font-weight: bold;
+              margin: 5px 0; /* Reduced margin */
+              text-decoration: underline;
+            }
+
+            .exam-info {
+              margin-bottom: 8px; /* Reduced margin */
+            }
+
+            .info-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 8px; /* Reduced margin */
+            }
+
+            .info-table th, .info-table td {
+              border: 1px solid #000;
+              padding: 3px 5px; /* Reduced padding */
+              font-size: 10pt; /* Smaller font */
+            }
+
+            .info-table th {
+              width: 20%;
+              text-align: right;
+              font-weight: bold;
+              background-color: #f0f0f0;
+            }
+
+            .info-table td {
+              width: 30%;
+              text-align: left;
+            }
+
+            .result-summary {
+              margin-top: 15px; /* Reduced margin */
+              page-break-inside: avoid;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <!-- Report Header -->
+            <div class="report-header">
+              <div class="school-header">
+                <div class="logo-container">
+                  <img src="/images/school-logo.png" alt="School Logo" class="school-logo" onerror="this.style.display='none'" />
+                </div>
+                <div class="school-info">
+                  <h1 class="school-name">AGAPE LUTHERAN JUNIOR SEMINARY</h1>
+                  <h2 class="school-address">P.O. BOX 376, MBEYA, TANZANIA</h2>
+                  <h3 class="report-title">O-LEVEL CLASS EXAMINATION RESULTS</h3>
+                </div>
+              </div>
+              <div class="exam-info">
+                <table class="info-table">
+                  <tr>
+                    <th>CLASS:</th>
+                    <td>${report?.className || 'Form 4'}</td>
+                    <th>ACADEMIC YEAR:</th>
+                    <td>${report?.academicYear || '2023'}</td>
+                  </tr>
+                  <tr>
+                    <th>EXAMINATION:</th>
+                    <td>${report?.examName || 'Final Examination'}</td>
+                    <th>TERM:</th>
+                    <td>${report?.term || 'Term 2'}</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+
+            <!-- Main Table -->
+            ${mainTable ? mainTable.outerHTML.replace(/<th([^>]*)>([^<]*)<\/th>/g, '<th$1><div class="vertical-header">$2</div></th>') : '<p>No data available</p>'}
+
+            <!-- Result Summary Section -->
+            <div class="result-summary">
+              <div class="section-title">RESULT SUMMARY</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th rowspan="2">SUBJECT NAME</th>
+                    <th rowspan="2">NO OF STUDENTS</th>
+                    <th colspan="5">PERFORMANCE</th>
+                    <th rowspan="2">GPA</th>
+                  </tr>
+                  <tr>
+                    <th>A</th>
+                    <th>B</th>
+                    <th>C</th>
+                    <th>D</th>
+                    <th>F</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${allSubjects.map(subject => {
+                    // Calculate grade distribution for this subject
+                    const gradeDistribution = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+                    let totalPoints = 0;
+                    let studentCount = 0;
+
+                    // Process each student's result for this subject
+                    report.students.forEach(student => {
+                      const result = student.results.find(r => r.code === subject.code);
+                      // Only include students who take this subject
+                      if (result && result.studentTakesSubject !== false) {
+                        if (result.grade && result.grade !== 'N/A') {
+                          gradeDistribution[result.grade] = (gradeDistribution[result.grade] || 0) + 1;
+                          totalPoints += result.points || 0;
+                          studentCount++;
+                        }
+                      }
+                    });
+
+                    // Calculate GPA (1-5 scale, A=1, F=5)
+                    const gpa = studentCount > 0 ?
+                      ((gradeDistribution.A * 1 + gradeDistribution.B * 2 + gradeDistribution.C * 3 +
+                        gradeDistribution.D * 4 + gradeDistribution.F * 5) / studentCount).toFixed(2) :
+                      '-';
+
+                    return `
+                      <tr>
+                        <td style="text-align: left; font-weight: bold;">${subject.name}</td>
+                        <td>${studentCount}</td>
+                        <td style="color: #4caf50; font-weight: bold;">${gradeDistribution.A || 0}</td>
+                        <td style="color: #2196f3; font-weight: bold;">${gradeDistribution.B || 0}</td>
+                        <td style="color: #ff9800; font-weight: bold;">${gradeDistribution.C || 0}</td>
+                        <td style="color: #ff5722; font-weight: bold;">${gradeDistribution.D || 0}</td>
+                        <td style="color: #f44336; font-weight: bold;">${gradeDistribution.F || 0}</td>
+                        <td style="font-weight: bold;">${gpa}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Approval Section -->
+            <div class="approval-section">
+              <div class="section-title">APPROVED BY</div>
+              <div style="display: flex; justify-content: space-between;">
+                <div style="width: 45%;">
+                  <div class="signature-label">1. ACADEMIC TEACHER NAME:</div>
+                  <div class="signature-container">
+                    <div class="signature-title">SIGN:</div>
+                    <div class="signature-line"></div>
+                  </div>
+                </div>
+                <div style="width: 45%;">
+                  <div class="signature-label">2. HEAD OF SCHOOL:</div>
+                  <div class="signature-container">
+                    <div class="signature-title">SIGN:</div>
+                    <div class="signature-line"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <script>
+            // Auto-print when loaded
+            window.onload = function() {
+              // Get the main table (skip the info-table)
+              const mainTable = document.querySelector('table:not(.info-table)');
+              if (mainTable) {
+                // Ensure all columns are visible
+                const columnCount = mainTable.rows[0].cells.length;
+                console.log('Column count:', columnCount);
+
+                // Calculate optimal width for subject columns
+                const fixedColumnsWidth = 280; // Width for fixed columns (rank, name, sex, points, div, total, avg, rank)
+                const remainingWidth = (277 - fixedColumnsWidth);
+                const subjectColumns = columnCount - 8; // Total columns minus fixed columns
+                const subjectColumnWidth = Math.max(25, Math.floor(remainingWidth / subjectColumns));
+
+                console.log('Subject column width:', subjectColumnWidth + 'px');
+
+                // Apply calculated widths to subject columns
+                const subjectCells = document.querySelectorAll('table:not(.info-table) th:nth-child(n+6):nth-child(-n+' + (columnCount-3) + ')');
+                subjectCells.forEach(cell => {
+                  cell.style.width = subjectColumnWidth + 'px';
+                });
+
+                // Ensure vertical headers are properly displayed
+                const allHeaders = document.querySelectorAll('table:not(.info-table) th .vertical-header');
+                allHeaders.forEach(header => {
+                  // Make sure vertical headers have proper height
+                  header.style.height = '90px';
+                  header.style.display = 'inline-block';
+                  header.style.writingMode = 'vertical-rl';
+                  header.style.transform = 'rotate(180deg)';
+                  header.style.whiteSpace = 'nowrap';
+                  header.style.textAlign = 'center';
+                  header.style.fontWeight = 'bold';
+                  header.style.fontSize = '9pt';
+                });
+              }
+
+              // Print after a short delay
+              setTimeout(function() {
+                window.print();
+                window.addEventListener('afterprint', function() {
+                  window.close();
+                });
+              }, 1000);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    // Write the HTML to the print window
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   // Handle PDF generation

@@ -25,7 +25,7 @@ import './PrintForcedStyles.css';
 import { forcePrint } from '../../../utils/printForcer';
 import { fitTableToPage } from '../../../utils/tableFitter';
 import { printTableInNewWindow } from '../../../utils/printRenderer';
-import { printTableOnA4 } from '../../../utils/a4Renderer';
+import a4Renderer from '../../../utils/a4Renderer';
 import '../PrintableTableStyles.css';
 
 /**
@@ -179,7 +179,7 @@ const EnhancedClassResultsTable = ({ students, subjectCombination }) => {
 
   // Function to handle A4 paper print
   const handleA4Print = () => {
-    printTableOnA4('.report-table', true); // true = print full report
+    a4Renderer.printTableOnA4('.report-table', true); // true = print full report
   };
 
   return (

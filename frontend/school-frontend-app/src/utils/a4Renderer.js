@@ -69,8 +69,9 @@ const calculateOptimalColumnWidths = (table) => {
  * Prints a full class report to fit exactly on A4 paper
  * @param {string} tableSelector - CSS selector for the table to print
  * @param {boolean} fullReport - Whether to print the full report with all sections
+ * @param {boolean} useDirectContent - Whether to use the selector's content directly without looking for report sections
  */
-export const printTableOnA4 = (tableSelector = '.report-table', fullReport = true) => {
+const printTableOnA4 = (tableSelector = '.report-table', fullReport = true, useDirectContent = false) => {
   // Get the table element
   const table = document.querySelector(tableSelector);
 
@@ -93,34 +94,62 @@ export const printTableOnA4 = (tableSelector = '.report-table', fullReport = tru
   // If fullReport is true, get all report sections
   let reportContent = '';
   if (fullReport) {
-    // Get the report container
-    const reportContainer = document.getElementById('a-level-class-report-container');
-    if (reportContainer) {
-      // Clone the report container
-      const reportClone = reportContainer.cloneNode(true);
+    // If useDirectContent is true, use the selector's content directly
+    if (useDirectContent) {
+      // Use the container directly - it should already have all the sections we need
+      const container = document.querySelector(tableSelector);
+      if (container) {
+        // Just use the entire container's HTML
+        reportContent = container.innerHTML;
+      }
+    } else {
+      // Get the report container - check for both A-level and O-level containers
+      const reportContainer = document.getElementById('a-level-class-report-container') ||
+                             document.getElementById('o-level-class-report-container') ||
+                             document.querySelector('.report-container');
 
-      // Remove non-printable elements
-      const nonPrintableElements = reportClone.querySelectorAll('.no-print');
-      nonPrintableElements.forEach(element => element.remove());
+      if (reportContainer) {
+        // Clone the report container
+        const reportClone = reportContainer.cloneNode(true);
 
-      // Get only the report sections we want
-      const headerSection = reportClone.querySelector('.report-header');
-      const resultsTable = reportClone.querySelector('.report-table')?.closest('.report-section');
-      const overallPerformance = Array.from(reportClone.querySelectorAll('.section-title'))
-        .find(el => el.textContent.includes('Overall Performance'))?.closest('.report-section');
-      const examPerformance = Array.from(reportClone.querySelectorAll('.section-title'))
-        .find(el => el.textContent.includes('Examination Performance'))?.closest('.report-section');
-      const subjectPerformance = Array.from(reportClone.querySelectorAll('.section-title'))
-        .find(el => el.textContent.includes('Subject Performance'))?.closest('.report-section');
+        // Remove non-printable elements
+        const nonPrintableElements = reportClone.querySelectorAll('.no-print');
+        nonPrintableElements.forEach(element => element.remove());
 
-      // Combine the sections
-      reportContent = `
-        ${headerSection ? headerSection.outerHTML : ''}
-        ${resultsTable ? resultsTable.outerHTML : ''}
-        ${overallPerformance ? overallPerformance.outerHTML : ''}
-        ${examPerformance ? examPerformance.outerHTML : ''}
-        ${subjectPerformance ? subjectPerformance.outerHTML : ''}
-      `;
+        // Get only the report sections we want
+        const headerSection = reportClone.querySelector('.report-header');
+        const resultsTable = reportClone.querySelector('.report-table')?.closest('.report-section') ||
+                            reportClone.querySelector('.report-table')?.closest('div');
+
+        // Look for Result Summary section
+        const resultSummary = Array.from(reportClone.querySelectorAll('h6, .MuiTypography-h6'))
+          .find(el => el.textContent.includes('RESULT SUMMARY'))?.closest('.MuiCard-root') ||
+          Array.from(reportClone.querySelectorAll('.section-title'))
+          .find(el => el.textContent.includes('Result Summary'))?.closest('.report-section');
+
+        // Look for Approval section
+        const approvalSection = Array.from(reportClone.querySelectorAll('h6, .MuiTypography-h6'))
+          .find(el => el.textContent.includes('APPROVED BY'))?.closest('.MuiCard-root');
+
+        // Look for other performance sections
+        const overallPerformance = Array.from(reportClone.querySelectorAll('.section-title'))
+          .find(el => el.textContent.includes('Overall Performance'))?.closest('.report-section');
+        const examPerformance = Array.from(reportClone.querySelectorAll('.section-title'))
+          .find(el => el.textContent.includes('Examination Performance'))?.closest('.report-section');
+        const subjectPerformance = Array.from(reportClone.querySelectorAll('.section-title'))
+          .find(el => el.textContent.includes('Subject Performance'))?.closest('.report-section');
+
+        // Combine the sections
+        reportContent = `
+          ${headerSection ? headerSection.outerHTML : ''}
+          ${resultsTable ? resultsTable.outerHTML : ''}
+          ${resultSummary ? resultSummary.outerHTML : ''}
+          ${approvalSection ? approvalSection.outerHTML : ''}
+          ${overallPerformance ? overallPerformance.outerHTML : ''}
+          ${examPerformance ? examPerformance.outerHTML : ''}
+          ${subjectPerformance ? subjectPerformance.outerHTML : ''}
+        `;
+      }
     }
   }
 
@@ -166,11 +195,42 @@ export const printTableOnA4 = (tableSelector = '.report-table', fullReport = tru
           }
 
           /* Report section styling */
-          .report-section {
+          .report-section, .MuiCard-root {
             width: 100%;
             margin-bottom: 10mm;
             page-break-inside: avoid;
             break-inside: avoid;
+          }
+
+          /* Result Summary and Approval sections */
+          .MuiCard-root {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10mm;
+          }
+
+          /* Typography for section headers */
+          .MuiTypography-h6 {
+            font-size: 16pt;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+          }
+
+          /* Table styling for Result Summary */
+          .MuiTableContainer-root table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5mm;
+          }
+
+          .MuiTableContainer-root th,
+          .MuiTableContainer-root td {
+            border: 0.5pt solid #000;
+            padding: 2pt;
+            text-align: center;
+            font-weight: bold;
           }
 
           /* Report header styling */
@@ -274,6 +334,58 @@ export const printTableOnA4 = (tableSelector = '.report-table', fullReport = tru
               });
             }
 
+            // Style Result Summary and Approval sections
+            // Find sections by looking for their headings and then getting the parent card
+            let resultSummarySection, approvalSection;
+
+            // Find all headings
+            const allHeadings = document.querySelectorAll('.MuiTypography-h6, h6');
+            allHeadings.forEach(heading => {
+              if (heading.textContent.includes('RESULT SUMMARY')) {
+                resultSummarySection = heading.closest('.MuiCard-root');
+              } else if (heading.textContent.includes('APPROVED BY')) {
+                approvalSection = heading.closest('.MuiCard-root');
+              }
+            });
+
+            // Apply styles to Material-UI components
+            const muiCards = document.querySelectorAll('.MuiCard-root');
+            muiCards.forEach(card => {
+              card.style.pageBreakInside = 'avoid';
+              card.style.marginBottom = '10mm';
+              card.style.border = '1px solid #e0e0e0';
+              card.style.borderRadius = '4px';
+              card.style.padding = '10px';
+
+              // Style tables within cards
+              const cardTables = card.querySelectorAll('table');
+              cardTables.forEach(table => {
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.style.fontSize = '10pt';
+                table.style.fontFamily = 'Arial, sans-serif';
+                table.style.fontWeight = 'bold';
+                table.style.border = '0.5pt solid #000';
+
+                // Style cells
+                const cells = table.querySelectorAll('th, td');
+                cells.forEach(cell => {
+                  cell.style.border = '0.5pt solid #000';
+                  cell.style.padding = '2pt';
+                  cell.style.textAlign = 'center';
+                });
+              });
+
+              // Style headings
+              const headings = card.querySelectorAll('.MuiTypography-h6');
+              headings.forEach(heading => {
+                heading.style.fontSize = '16pt';
+                heading.style.fontWeight = 'bold';
+                heading.style.marginBottom = '10px';
+                heading.style.textAlign = 'center';
+              });
+            });
+
             // Print after a short delay
             setTimeout(function() {
               window.print();
@@ -287,12 +399,15 @@ export const printTableOnA4 = (tableSelector = '.report-table', fullReport = tru
     </html>
   `;
 
-  // Write the HTML to the new window
+  // Write the HTML to the print window
   printWindow.document.open();
   printWindow.document.write(html);
   printWindow.document.close();
 };
 
-export default {
+// Export the function
+const a4Renderer = {
   printTableOnA4
 };
+
+export default a4Renderer;

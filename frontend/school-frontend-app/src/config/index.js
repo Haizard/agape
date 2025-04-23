@@ -19,8 +19,12 @@ if (apiUrl.includes('/api')) {
   console.log('Removed /api/ from API_URL:', apiUrl);
 }
 
-// Force a specific API URL for debugging
-apiUrl = 'http://localhost:5000/';
+// Use the current origin for API requests in development
+if (process.env.NODE_ENV === 'development') {
+  // Use the same origin as the frontend for API requests
+  apiUrl = `${window.location.origin}/`;
+  console.log('Using current origin for API requests:', apiUrl);
+}
 
 // Log the final API URL for debugging
 console.log('Final API URL configuration:', apiUrl);
@@ -31,11 +35,7 @@ if (process.env.NODE_ENV === 'production') {
   console.log('Production environment detected, forcing API URL to:', apiUrl);
 }
 
-// For local development, use localhost if not specified
-if (process.env.NODE_ENV === 'development' && !process.env.REACT_APP_API_URL) {
-  apiUrl = 'http://localhost:5000/';
-  console.log('Development environment detected, using proxy API URL:', apiUrl);
-}
+// This section is now handled above
 
 // Export configuration
 export const API_URL = apiUrl;

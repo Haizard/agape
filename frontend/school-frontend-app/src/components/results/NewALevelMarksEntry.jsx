@@ -269,30 +269,40 @@ const NewALevelMarksEntry = () => {
         // Pass false for onlyShowMatching to show all students but mark those who take the subject
         console.log('Filtering students for subject:', selectedSubject);
         console.log('Subject combinations map:', combinationsMap);
-        const studentsWithSubjectInfo = filterALevelStudentsBySubject(aLevelStudents, selectedSubject, false, combinationsMap);
-        console.log('Filtered students result:', studentsWithSubjectInfo);
 
-        console.log('Number of students to display:', studentsWithSubjectInfo.length);
+        try {
+          // Properly await the async function result
+          const studentsWithSubjectInfo = await filterALevelStudentsBySubject(aLevelStudents, selectedSubject, false, combinationsMap);
+          console.log('Filtered students result:', studentsWithSubjectInfo);
 
-        setStudents(studentsWithSubjectInfo);
-
-        // Show a message if no students are found
-        if (studentsWithSubjectInfo.length === 0) {
-          setError(`No students found in this class. Please select a different class.`);
-        } else {
-          // Clear any previous error message and set an informational message
-          setError('');
-
-          // Count students who take the subject
-          const takingSubject = studentsWithSubjectInfo.filter(s => s.takesSubject).length;
-
-          if (takingSubject === 0) {
-            // No students take this subject, but we're showing all students
-            setSuccess(`No students in this class take this subject. Showing all ${studentsWithSubjectInfo.length} students for manual entry if needed.`);
-          } else {
-            // Some students take the subject
-            setSuccess(`Showing ${studentsWithSubjectInfo.length} students. ${takingSubject} students take this subject.`);
+          // Check if we got a valid array back
+          if (!Array.isArray(studentsWithSubjectInfo)) {
+            console.error('Error: filterALevelStudentsBySubject did not return an array', studentsWithSubjectInfo);
+            // Show an error message instead of showing all students
+            setStudents([]);
+            setError('Error filtering students. Please try a different subject or contact support.');
+            return;
           }
+
+          console.log('Number of students to display:', studentsWithSubjectInfo.length);
+
+          setStudents(studentsWithSubjectInfo);
+
+          // Show a message if no students are found
+          if (studentsWithSubjectInfo.length === 0) {
+            setError(`No students found who take this subject. Please select a different subject.`);
+          } else {
+            // Clear any previous error message and set an informational message
+            setError('');
+
+            // All students in the filtered list take the subject
+            setSuccess(`Showing ${studentsWithSubjectInfo.length} students who take this subject.`);
+          }
+        } catch (err) {
+          console.error('Error in student filtering:', err);
+          // Instead of showing all students, show an error message
+          setStudents([]);
+          setError(`Error filtering students: ${err.message}. Please try a different subject or contact support.`);
         }
       } catch (err) {
         console.error('Error fetching students:', err);

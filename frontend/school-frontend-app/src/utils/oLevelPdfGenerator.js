@@ -129,12 +129,20 @@ export const generateOLevelStudentResultPDF = (report) => {
   const displayDivision = calculatedDivision || 'N/A';
   const rank = report.rank !== undefined ? report.rank :
               (report.summary?.rank !== undefined ? report.summary.rank : 'N/A');
+  const totalStudents = report.totalStudents !== undefined ? report.totalStudents :
+                       (report.summary?.totalStudents !== undefined ? report.summary.totalStudents : 'N/A');
+
+  // Add RESULT SUMMARY header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RESULT SUMMARY', 105, finalY, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
 
   // Add summary table
   doc.autoTable({
-    startY: finalY,
+    startY: finalY + 10,
     head: [['Average Marks', 'Best 7 Points', 'Division', 'Rank']],
-    body: [[`${averageMarks}%`, bestSevenPoints, displayDivision, rank]],
+    body: [[`${averageMarks}%`, bestSevenPoints, displayDivision, `${rank} of ${totalStudents}`]],
     theme: 'grid',
     headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
     styles: { fontSize: 12, cellPadding: 3 }, // Increased from 10
@@ -150,7 +158,9 @@ export const generateOLevelStudentResultPDF = (report) => {
   const gradeDistribution = report.gradeDistribution || report.summary?.gradeDistribution;
   if (gradeDistribution) {
     doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
     doc.text('Grade Distribution', 105, finalY + 70, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
 
     const gradeData = Object.entries(gradeDistribution).map(([grade, count]) => [
       grade, count
@@ -161,8 +171,13 @@ export const generateOLevelStudentResultPDF = (report) => {
       head: [['Grade', 'Count']],
       body: gradeData,
       theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 12 },
+      styles: { fontSize: 12, cellPadding: 3 },
       margin: { left: 50, right: 50 },
+      columnStyles: {
+        0: { halign: 'center' },
+        1: { halign: 'center' }
+      }
     });
   }
 
@@ -171,10 +186,54 @@ export const generateOLevelStudentResultPDF = (report) => {
   doc.text('Division Guide:', 20, finalY + 120);
   doc.text('Division I: 7-14 points | Division II: 15-21 points | Division III: 22-25 points | Division IV: 26-32 points | Division 0: 33+ points', 20, finalY + 130);
 
+  // Add approval section
+  const approvalY = finalY + 150;
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('APPROVED BY', 105, approvalY, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+
+  // Academic Teacher
+  doc.setFontSize(12);
+  doc.text('1. ACADEMIC TEACHER NAME:', 30, approvalY + 20);
+  doc.text('SIGN:', 30, approvalY + 35);
+  doc.line(60, approvalY + 35, 200, approvalY + 35); // Signature line
+
+  // Head of School
+  doc.text('2. HEAD OF SCHOOL:', 30, approvalY + 55);
+  doc.text('SIGN:', 30, approvalY + 70);
+  doc.line(60, approvalY + 70, 200, approvalY + 70); // Signature line
+
   // Add footer
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    doc.setFontSize(10);
+
+    // Check if we need to add a new page for the approval section
+    if (i === pageCount && approvalY + 90 > doc.internal.pageSize.height - 30) {
+      doc.addPage();
+
+      // Re-add the approval section on the new page
+      const newApprovalY = 30;
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('APPROVED BY', 105, newApprovalY, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+
+      // Academic Teacher
+      doc.setFontSize(12);
+      doc.text('1. ACADEMIC TEACHER NAME:', 30, newApprovalY + 20);
+      doc.text('SIGN:', 30, newApprovalY + 35);
+      doc.line(60, newApprovalY + 35, 200, newApprovalY + 35); // Signature line
+
+      // Head of School
+      doc.text('2. HEAD OF SCHOOL:', 30, newApprovalY + 55);
+      doc.text('SIGN:', 30, newApprovalY + 70);
+      doc.line(60, newApprovalY + 70, 200, newApprovalY + 70); // Signature line
+    }
+
+    // Add page number and footer text
     doc.setFontSize(10);
     doc.text(
       `Page ${i} of ${pageCount}`,
@@ -410,9 +469,39 @@ export const generateOLevelClassResultPDF = (report) => {
       doc.text(`Total Students: ${report.totalStudents || ''}`, 20, 90);
       doc.text(`Class Average: ${report.classAverage?.toFixed(2) || ''}%`, 100, 90);
 
+      // Check if this is the last page and we need to add the approval section
+      // This ensures the approval section is always visible on the last page
+      const totalPages = doc.internal.getNumberOfPages();
+      if (data.pageNumber === totalPages) {
+        // Check if we're close to the bottom of the page
+        const currentY = data.cursor?.y || doc.lastAutoTable?.finalY || 0;
+        const pageHeight = doc.internal.pageSize.height;
+
+        // If we're too close to the bottom and there's not enough space for approval section
+        if (currentY > pageHeight - 100) {
+          // Add a new page for the approval section
+          doc.addPage();
+
+          // Re-add the header on the new page
+          doc.setFontSize(20 * scaleFactor);
+          doc.text('Evangelical Lutheran Church in Tanzania - Northern Diocese', 150, 15, { align: 'center' });
+          doc.setFontSize(24 * scaleFactor);
+          doc.text('Agape Lutheran Junior Seminary', 150, 25, { align: 'center' });
+
+          // Add RESULT SUMMARY header on the new page
+          doc.setFontSize(18 * scaleFactor);
+          doc.setFont('helvetica', 'bold');
+          doc.text('RESULT SUMMARY (Continued)', 150, 40, { align: 'center' });
+          doc.setFont('helvetica', 'normal');
+        }
+      }
+
       // Add footer with scaled font
       doc.setFontSize(10 * scaleFactor);
-      doc.text('Note: O-LEVEL Division is calculated based on best 7 subjects', 150, doc.internal.pageSize.height - 10, { align: 'center' });
+      doc.text('Note: O-LEVEL Division is calculated based on best 7 subjects', 150, doc.internal.pageSize.height - 20, { align: 'center' });
+
+      // Add page numbers - using the pageCount variable already declared above
+      doc.text(`Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`, 150, doc.internal.pageSize.height - 10, { align: 'center' });
     },
     willDrawCell: function(data) {
       // Adaptive cell styling based on content type and column position
@@ -512,6 +601,128 @@ export const generateOLevelClassResultPDF = (report) => {
     },
     margin: { left: 100 * scaleFactor, right: 100 * scaleFactor },
   });
+
+  // Add RESULT SUMMARY section
+  const summaryY = doc.lastAutoTable.finalY + (20 * scaleFactor);
+
+  // Add RESULT SUMMARY header
+  doc.setFontSize(18 * scaleFactor);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RESULT SUMMARY', 150, summaryY, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+
+  // Create subject performance table
+  const subjectHeaders = ['SUBJECT NAME', 'NO OF STUDENTS', 'PERFORMANCE', '', '', '', '', 'GPA'];
+  const subjectSubHeaders = ['', '', 'A', 'B', 'C', 'D', 'F', ''];
+
+  // Prepare subject performance data
+  const subjectData = [];
+
+  // Get subjects from the report
+  const subjects = report.subjects || [];
+
+  // For each subject, calculate grade distribution and GPA
+  for (const subject of subjects) {
+    // Initialize grade counts
+    const gradeDistribution = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+    let totalStudents = 0;
+    let totalPoints = 0;
+
+    // Count grades for this subject
+    if (report.students) {
+      for (const student of report.students) {
+        const subjectResult = student.results?.find(
+          result => result.subjectId === subject.id || result.subject === subject.name
+        );
+
+        if (subjectResult && subjectResult.grade) {
+          totalStudents++;
+          const grade = subjectResult.grade;
+          if (gradeDistribution[grade] !== undefined) {
+            gradeDistribution[grade]++;
+          }
+
+          // Calculate points for GPA
+          const points = {
+            'A': 1, 'B': 2, 'C': 3, 'D': 4, 'F': 5
+          }[grade] || 0;
+
+          if (points > 0) {
+            totalPoints += points;
+          }
+        }
+      }
+    }
+
+    // Calculate GPA
+    const gpa = totalStudents > 0 ? (totalPoints / totalStudents).toFixed(2) : '-';
+
+    // Add row for this subject
+    subjectData.push([
+      subject.name,
+      totalStudents,
+      gradeDistribution.A,
+      gradeDistribution.B,
+      gradeDistribution.C,
+      gradeDistribution.D,
+      gradeDistribution.F,
+      gpa
+    ]);
+  }
+
+  // Add subject performance table
+  doc.autoTable({
+    startY: summaryY + (10 * scaleFactor),
+    head: [subjectHeaders, subjectSubHeaders],
+    body: subjectData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [46, 125, 50],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 14 * scaleFactor,
+      cellPadding: 3 * scaleFactor,
+      halign: 'center',
+      valign: 'middle'
+    },
+    styles: {
+      fontSize: 12 * scaleFactor,
+      cellPadding: 3 * scaleFactor,
+      halign: 'center',
+      fontWeight: 'bold'
+    },
+    columnStyles: {
+      0: { halign: 'left', cellWidth: 60 * scaleFactor }, // Subject name
+      1: { halign: 'center' }, // No of students
+      2: { halign: 'center' }, // A
+      3: { halign: 'center' }, // B
+      4: { halign: 'center' }, // C
+      5: { halign: 'center' }, // D
+      6: { halign: 'center' }, // F
+      7: { halign: 'center' }  // GPA
+    },
+    margin: { left: 20 * scaleFactor, right: 20 * scaleFactor },
+  });
+
+  // Add APPROVED BY section
+  const approvalY = doc.lastAutoTable.finalY + (20 * scaleFactor);
+
+  // Add APPROVED BY header
+  doc.setFontSize(16 * scaleFactor);
+  doc.setFont('helvetica', 'bold');
+  doc.text('APPROVED BY', 150, approvalY, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+
+  // Academic Teacher
+  doc.setFontSize(12 * scaleFactor);
+  doc.text('1. ACADEMIC TEACHER NAME:', 50, approvalY + (15 * scaleFactor));
+  doc.text('SIGN:', 50, approvalY + (25 * scaleFactor));
+  doc.line(80, approvalY + (25 * scaleFactor), 200, approvalY + (25 * scaleFactor)); // Signature line
+
+  // Head of School
+  doc.text('2. HEAD OF SCHOOL:', 50, approvalY + (40 * scaleFactor));
+  doc.text('SIGN:', 50, approvalY + (50 * scaleFactor));
+  doc.line(80, approvalY + (50 * scaleFactor), 200, approvalY + (50 * scaleFactor)); // Signature line
 
   // Footer is now handled in the didDrawPage function of the main table
   // to ensure it appears on every page consistently

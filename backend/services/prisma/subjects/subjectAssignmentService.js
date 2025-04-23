@@ -267,7 +267,7 @@ async function bulkAssignSubject({ studentIds, subjectId, isPrincipal = false })
  */
 async function getStudentsBySubject({ classId, subjectId, teacherId, includeIneligible = false }) {
   try {
-    logger.info(`[PrismaSubjectAssignmentService] Getting students for class ${classId}, subject ${subjectId}`);
+    logger.info(`[PrismaSubjectAssignmentService] Getting students for class ${classId}, subject ${subjectId}, includeIneligible=${includeIneligible}`);
 
     // Validate required fields
     if (!classId || !subjectId) {
@@ -278,7 +278,11 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
       };
     }
 
+    // Log the parameters for debugging
+    logger.debug(`[PrismaSubjectAssignmentService] Parameters: classId=${classId}, subjectId=${subjectId}, teacherId=${teacherId || 'none'}, includeIneligible=${includeIneligible}`);
+
     // Get class details
+    logger.debug(`[PrismaSubjectAssignmentService] Fetching class details for ID ${classId}`);
     const classObj = await prisma.class.findUnique({
       where: { id: classId },
       select: {
@@ -296,13 +300,18 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
       };
     }
 
+    logger.info(`[PrismaSubjectAssignmentService] Found class: ${classObj.name} (${classObj.educationLevel})`);
+
     // Get subject details
+    logger.debug(`[PrismaSubjectAssignmentService] Fetching subject details for ID ${subjectId}`);
     const subject = await prisma.subject.findUnique({
       where: { id: subjectId },
       select: {
         id: true,
         name: true,
-        code: true
+        code: true,
+        educationLevel: true,
+        type: true
       }
     });
 
@@ -314,9 +323,21 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
       };
     }
 
+    logger.info(`[PrismaSubjectAssignmentService] Found subject: ${subject.name} (${subject.code || 'No code'})`);
+
+    // Check if the education levels match
+    if (subject.educationLevel &&
+        classObj.educationLevel &&
+        subject.educationLevel !== 'BOTH' &&
+        subject.educationLevel !== classObj.educationLevel) {
+      logger.warn(`[PrismaSubjectAssignmentService] Education level mismatch: Class=${classObj.educationLevel}, Subject=${subject.educationLevel}`);
+      // We'll continue anyway but log a warning
+    }
+
     // Check if teacher is authorized to access this subject-class combination
     let isTeacherAuthorized = true;
     if (teacherId) {
+      logger.debug(`[PrismaSubjectAssignmentService] Checking authorization for teacher ${teacherId}`);
       // Check if the teacher is assigned to this subject in this class
       const teacherSubject = await prisma.teacherSubject.findFirst({
         where: {
@@ -344,13 +365,17 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
           }
         };
       }
+
+      logger.info(`[PrismaSubjectAssignmentService] Teacher ${teacherId} is authorized to access subject ${subject.name} in class ${classObj.name}`);
     }
 
     // Get all students in the class
+    logger.debug(`[PrismaSubjectAssignmentService] Fetching students for class ${classId}`);
     const students = await prisma.student.findMany({
       where: {
         classId,
-        educationLevel: classObj.educationLevel
+        educationLevel: classObj.educationLevel,
+        status: 'active' // Only include active students
       },
       include: {
         subjects: {
@@ -361,22 +386,37 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
         // Include subject combination information
         subjectCombination: {
           include: {
-            subjects: true
+            subjects: {
+              include: {
+                subject: true
+              }
+            }
           }
         }
+      },
+      orderBy: {
+        firstName: 'asc' // Order by first name for consistency
       }
     });
 
+    logger.info(`[PrismaSubjectAssignmentService] Found ${students.length} students in class ${classObj.name}`);
+
     // Process students to determine eligibility
+    logger.debug(`[PrismaSubjectAssignmentService] Processing ${students.length} students to determine eligibility`);
     const processedStudents = students.map(student => {
       // Check if student has this subject directly assigned
-      const hasDirectSubject = student.subjects.some(s => s.subjectId === subjectId);
-      const isPrincipal = student.subjects.find(s => s.subjectId === subjectId)?.isPrincipal || false;
+      const directSubjects = student.subjects.filter(s => s.subjectId === subjectId);
+      const hasDirectSubject = directSubjects.length > 0;
+      const directSubject = directSubjects[0];
+      const isPrincipal = directSubject?.isPrincipal || false;
 
       // Check if student has this subject in their combination
       let hasSubjectInCombination = false;
+      let combinationSubject = null;
+
       if (student.subjectCombination?.subjects) {
-        hasSubjectInCombination = student.subjectCombination.subjects.some(s => {
+        // Find the subject in the combination
+        combinationSubject = student.subjectCombination.subjects.find(s => {
           // Check by ID
           if (s.subjectId === subjectId) return true;
 
@@ -385,10 +425,21 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
 
           return false;
         });
+
+        hasSubjectInCombination = !!combinationSubject;
       }
 
       // Student is eligible if they have the subject directly assigned or in their combination
       const isEligible = hasDirectSubject || hasSubjectInCombination;
+
+      // Determine if it's a principal subject (from either direct assignment or combination)
+      const isPrincipalFromCombination = combinationSubject?.isPrincipal || false;
+      const finalIsPrincipal = isPrincipal || isPrincipalFromCombination;
+
+      // Log detailed eligibility information for debugging
+      logger.debug(`[PrismaSubjectAssignmentService] Student ${student.id} (${student.firstName} ${student.lastName}): ` +
+        `directAssignment=${hasDirectSubject}, inCombination=${hasSubjectInCombination}, ` +
+        `isPrincipal=${finalIsPrincipal}, isEligible=${isEligible}`);
 
       return {
         id: student.id,
@@ -397,7 +448,9 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
         lastName: student.lastName || '',
         name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student',
         isEligible,
-        isPrincipal,
+        isPrincipal: finalIsPrincipal,
+        hasDirectAssignment: hasDirectSubject,
+        hasSubjectInCombination,
         eligibilityMessage: isEligible ? null : 'Subject is not in student\'s combination'
       };
     });
@@ -407,13 +460,17 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
       ? processedStudents
       : processedStudents.filter(student => student.isEligible);
 
+    const eligibleCount = processedStudents.filter(s => s.isEligible).length;
+    logger.info(`[PrismaSubjectAssignmentService] ${eligibleCount} out of ${processedStudents.length} students are eligible for subject ${subject.name}`);
+    logger.info(`[PrismaSubjectAssignmentService] Returning ${filteredStudents.length} students (includeIneligible=${includeIneligible})`);
+
     return {
       success: true,
       data: {
         class: classObj,
         subject,
         students: filteredStudents,
-        eligibleCount: processedStudents.filter(s => s.isEligible).length,
+        eligibleCount,
         totalCount: processedStudents.length,
         authorized: isTeacherAuthorized
       }
@@ -423,7 +480,8 @@ async function getStudentsBySubject({ classId, subjectId, teacherId, includeInel
     return {
       success: false,
       message: `Error getting students by subject: ${error.message}`,
-      error
+      error: error.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
     };
   }
 }
