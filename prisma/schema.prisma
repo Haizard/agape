@@ -1,0 +1,297 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student   Student?
+  teacher   Teacher?
+}
+
+// Student model
+model Student {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @unique @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id])
+  firstName        String
+  lastName         String
+  middleName       String?
+  email            String?
+  dateOfBirth      DateTime?
+  gender           String
+  classId          String   @db.ObjectId
+  educationLevel   EducationLevel
+  form             Int
+  previousEducationLevel String?
+  subjectCombinationId String?   @db.ObjectId
+  admissionNumber  String   @unique
+  rollNumber       String?  @unique
+  status           String   @default("active")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  class            Class    @relation("ClassStudents", fields: [classId], references: [id])
+  results          Result[]
+  subjectSelections StudentSubjectSelection[]
+  subjectCombination SubjectCombination? @relation(fields: [subjectCombinationId], references: [id])
+}
+
+// Class model
+model Class {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  stream         String
+  section        String
+  academicYearId String   @db.ObjectId
+  educationLevel EducationLevel
+  capacity       Int
+  classTeacherId String?  @db.ObjectId
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  students       Student[]    @relation("ClassStudents")
+  subjects       ClassSubject[] @relation("ClassSubjects")
+  results        Result[]
+}
+
+// Subject model
+model Subject {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  code           String   @unique
+  type           SubjectType
+  educationLevel EducationLevel
+  isCompulsory   Boolean  @default(false)
+  isPrincipal    Boolean  @default(false)
+  description    String?
+  passMark       Int      @default(40)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  classSubjects  ClassSubject[] @relation("SubjectClassSubjects")
+  teacherSubjects TeacherSubject[] @relation("SubjectTeacherSubjects")
+  results        Result[]
+  selectionItems StudentSubjectSelectionItem[]
+  combinationItems SubjectCombinationItem[]
+}
+
+enum SubjectType {
+  CORE
+  OPTIONAL
+}
+
+enum EducationLevel {
+  O_LEVEL
+  A_LEVEL
+  BOTH
+}
+
+// Junction table for Class-Subject-Teacher relationship
+model ClassSubject {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  classId   String   @db.ObjectId
+  subjectId String   @db.ObjectId
+  teacherId String?  @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  class     Class    @relation("ClassSubjects", fields: [classId], references: [id])
+  subject   Subject  @relation("SubjectClassSubjects", fields: [subjectId], references: [id])
+  teacher   Teacher? @relation("TeacherClassSubjects", fields: [teacherId], references: [id])
+
+  @@unique([classId, subjectId])
+}
+
+// Teacher model
+model Teacher {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String?  @unique @db.ObjectId
+  user         User?    @relation(fields: [userId], references: [id])
+  firstName    String
+  lastName     String
+  email        String   @unique
+  contactNumber String?
+  qualification String
+  experience   String
+  employeeId   String   @unique
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  subjectAssignments ClassSubject[] @relation("TeacherClassSubjects")
+  teacherSubjects TeacherSubject[] @relation("TeacherTeacherSubjects")
+}
+
+// TeacherSubject model for direct teacher-subject assignments
+model TeacherSubject {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  teacherId String   @db.ObjectId
+  subjectId String   @db.ObjectId
+  classId   String   @db.ObjectId
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  teacher   Teacher  @relation("TeacherTeacherSubjects", fields: [teacherId], references: [id])
+  subject   Subject  @relation("SubjectTeacherSubjects", fields: [subjectId], references: [id])
+
+  @@unique([teacherId, subjectId, classId])
+}
+
+// Result model
+model Result {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId      String   @db.ObjectId
+  student        Student  @relation(fields: [studentId], references: [id])
+  examId         String   @db.ObjectId
+  exam           Exam     @relation(fields: [examId], references: [id])
+  subjectId      String   @db.ObjectId
+  subject        Subject  @relation(fields: [subjectId], references: [id])
+  classId        String   @db.ObjectId
+  class          Class    @relation(fields: [classId], references: [id])
+  academicYearId String   @db.ObjectId
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  marksObtained  Float
+  grade          String
+  points         Int
+  isPrincipal    Boolean  @default(false)
+  isSubsidiary   Boolean  @default(false)
+  comment        String?
+  enteredBy      String   @db.ObjectId
+  updatedBy      String?  @db.ObjectId
+  educationLevel EducationLevel
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([studentId, examId, subjectId])
+  @@index([classId, examId, subjectId])
+  @@index([studentId, examId])
+}
+
+// AcademicYear model
+model AcademicYear {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  results   Result[]
+}
+
+// StudentSubjectSelection model
+model StudentSubjectSelection {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId      String   @db.ObjectId
+  student        Student  @relation(fields: [studentId], references: [id])
+  selectionClassId String   @db.ObjectId
+  academicYearId String   @db.ObjectId
+  status         String   @default("PENDING")
+  selectionDate  DateTime @default(now())
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  subjects       StudentSubjectSelectionItem[]
+
+  @@unique([studentId, academicYearId])
+}
+
+// Junction table for StudentSubjectSelection-Subject relationship
+model StudentSubjectSelectionItem {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  selectionId    String   @db.ObjectId
+  selection      StudentSubjectSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  subjectId      String   @db.ObjectId
+  subject        Subject  @relation(fields: [subjectId], references: [id])
+  selectionType  SelectionType
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([selectionId, subjectId])
+}
+
+enum SelectionType {
+  CORE
+  OPTIONAL
+}
+
+// Exam model
+model Exam {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  type           String
+  examTypeId     String   @db.ObjectId
+  academicYearId String   @db.ObjectId
+  term           String
+  startDate      DateTime?
+  endDate        DateTime?
+  status         String   @default("DRAFT")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  results        Result[]
+}
+
+// SubjectCombination model for A-Level
+model SubjectCombination {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String   @unique
+  code           String   @unique
+  educationLevel EducationLevel @default(EducationLevel.A_LEVEL)
+  description    String?
+  isActive       Boolean  @default(true)
+  createdBy      String?  @db.ObjectId
+  updatedBy      String?  @db.ObjectId
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  subjects       SubjectCombinationItem[]
+  students       Student[]
+}
+
+// Junction table for SubjectCombination-Subject relationship
+model SubjectCombinationItem {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  combinationId  String   @db.ObjectId
+  combination    SubjectCombination @relation(fields: [combinationId], references: [id], onDelete: Cascade)
+  subjectId      String   @db.ObjectId
+  subject        Subject  @relation(fields: [subjectId], references: [id])
+  isCompulsory   Boolean  @default(false)
+  isPrincipal    Boolean  @default(false)
+  isSubsidiary   Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([combinationId, subjectId])
+}

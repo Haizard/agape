@@ -29,6 +29,9 @@ const standardizedOLevelRoutes = require('./routes/standardizedOLevelRoutes');
 const fixTeacherRoute = require('./routes/fixTeacherRoute');
 const enhancedTeacherRoutes = require('./routes/enhancedTeacherRoutes');
 
+// Import Prisma routes
+const prismaRoutes = require('./routes/prisma');
+
 const app = express();
 
 // Import custom CORS middleware
@@ -150,6 +153,10 @@ console.log('Fix teacher route registered at /api/fix-teacher');
 // Enhanced teacher routes with improved authentication
 app.use('/api/enhanced-teachers', enhancedTeacherRoutes);
 console.log('Enhanced teacher routes registered at /api/enhanced-teachers');
+
+// Register Prisma routes
+app.use('/api/prisma', prismaRoutes);
+console.log('Prisma routes registered at /api/prisma');
 
 // Add deprecation notice for old routes
 app.use('/api/o-level-results', (req, res, next) => {

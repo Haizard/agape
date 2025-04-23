@@ -305,33 +305,174 @@ export const generateOLevelClassResultPDF = (report) => {
     }
   }
 
-  // Add the results table
+  // INNOVATIVE APPROACH: Adaptive Single-Page Report for O-Level
+  // Calculate optimal font size based on number of students and subjects
+  const totalStudents = report.students?.length || 0;
+  const totalSubjects = headers.length - 6; // Excluding #, Name, Roll No, Total, Average, Division
+  const totalColumns = headers.length;
+
+  // Dynamic scaling factors based on content amount
+  const baseFontSize = 16; // Start with ideal font size
+  let scaleFactor = 1.0;
+
+  // Adjust scale factor based on content volume
+  if (totalStudents > 20 || totalColumns > 15) {
+    // More content needs smaller scale
+    scaleFactor = 0.7;
+  } else if (totalStudents > 15 || totalColumns > 12) {
+    scaleFactor = 0.8;
+  } else if (totalStudents > 10 || totalColumns > 10) {
+    scaleFactor = 0.9;
+  }
+
+  // Calculate font sizes based on scale factor
+  const headerFontSize = Math.max(Math.round(baseFontSize * scaleFactor), 10);
+  const contentFontSize = Math.max(Math.round((baseFontSize - 2) * scaleFactor), 8);
+  const subjectFontSize = Math.max(Math.round((baseFontSize - 4) * scaleFactor), 7);
+
+  // Calculate optimal cell padding based on scale factor
+  const cellPadding = Math.max(Math.round(4 * scaleFactor), 1);
+
+  // Calculate optimal column widths based on scale factor
+  // Make name column extremely narrow to save space
+  const nameColumnWidth = Math.max(Math.round(20 * scaleFactor), 12); // Even narrower
+  const rollColumnWidth = Math.max(Math.round(12 * scaleFactor), 6); // Even narrower
+  const numColumnWidth = Math.max(Math.round(6 * scaleFactor), 4); // Even narrower
+
+  // Add the results table with adaptive sizing
   doc.autoTable({
     startY: 100,
     head: [headers],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 10 }, // Green header like in the sample
-    styles: { fontSize: 9, cellPadding: 2 }, // Slightly increased font size
-    columnStyles: {
-      0: { cellWidth: 15, halign: 'center' },
-      1: { cellWidth: 50 }, // Wider for better readability
-      2: { cellWidth: 15, halign: 'center' }
+    headStyles: {
+      fillColor: [46, 125, 50],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: headerFontSize,
+      cellPadding: cellPadding,
+      valign: 'middle',
+      halign: 'center',
+      overflow: 'linebreak',
+      cellWidth: 'wrap'
     },
-    // Adjust table to fit page width without scrolling
-    margin: { left: 10, right: 10 },
-    tableWidth: 'auto',
-    horizontalPageBreak: true,
-    horizontalPageBreakRepeat: [0, 1, 2], // Repeat first 3 columns on new pages
+    styles: {
+      fontSize: contentFontSize,
+      cellPadding: cellPadding,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1,
+      overflow: 'linebreak',
+      cellWidth: 'wrap',
+      fontStyle: 'bold', // Increase font weight for all content
+      font: 'helvetica', // Use a more compact font
+      fontWeight: 700, // Maximum font weight for better readability
+      textColor: [0, 0, 0] // Ensure black text for better contrast
+    },
+    columnStyles: {
+      0: { cellWidth: numColumnWidth, halign: 'center' }, // #
+      1: {
+        cellWidth: nameColumnWidth,
+        halign: 'left',
+        cellPadding: 1, // Minimal padding for name column
+        overflow: 'ellipsize', // Truncate with ellipsis if too long
+        minCellWidth: 12 // Ensure minimum width
+      }, // Name
+      2: { cellWidth: rollColumnWidth, halign: 'center' }, // Roll No.
+    },
+    // CRITICAL: Ensure all content fits on one page
+    margin: { top: 100, right: 2, bottom: 20, left: 2 }, // Minimal margins
+    tableWidth: 'wrap', // Let table determine width based on content
+    horizontalPageBreak: false, // NO horizontal page breaks
+    pageBreak: 'avoid', // Avoid page breaks
+    rowPageBreak: 'avoid', // Avoid breaking rows across pages
+    columnStyles: {}, // Will be dynamically calculated
     didDrawPage: function(data) {
-      // Add page number at the bottom of each page
-      doc.setFontSize(8);
-      doc.text(`Page ${doc.internal.getNumberOfPages()}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
+      // Draw header only once with scaled font sizes
+      doc.setFontSize(20 * scaleFactor);
+      doc.text('Evangelical Lutheran Church in Tanzania - Northern Diocese', 150, 15, { align: 'center' });
+      doc.setFontSize(24 * scaleFactor);
+      doc.text('Agape Lutheran Junior Seminary', 150, 25, { align: 'center' });
+
+      // Add contact information with scaled font
+      doc.setFontSize(12 * scaleFactor);
+      doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 20, 35);
+      doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 280, 35, { align: 'right' });
+
+      // Add report title with scaled font
+      doc.setFontSize(18 * scaleFactor);
+      doc.text('O-LEVEL CLASS RESULT REPORT', 150, 55, { align: 'center' });
+      doc.setFontSize(16 * scaleFactor);
+      doc.text(`${report.className || ''} ${report.section || ''} - ${report.examName || ''}`, 150, 65, { align: 'center' });
+      doc.text(`Academic Year: ${report.academicYear || ''}`, 150, 75, { align: 'center' });
+
+      // Add summary information with scaled font
+      doc.setFontSize(16 * scaleFactor);
+      doc.text(`Total Students: ${report.totalStudents || ''}`, 20, 90);
+      doc.text(`Class Average: ${report.classAverage?.toFixed(2) || ''}%`, 100, 90);
+
+      // Add footer with scaled font
+      doc.setFontSize(10 * scaleFactor);
+      doc.text('Note: O-LEVEL Division is calculated based on best 7 subjects', 150, doc.internal.pageSize.height - 10, { align: 'center' });
+    },
+    willDrawCell: function(data) {
+      // Adaptive cell styling based on content type and column position
+      if (data.section === 'head') {
+        // For subject headers, use smaller font to save space
+        if (data.column.index > 2 && data.column.index < headers.length - 3) {
+          data.cell.styles.fontSize = subjectFontSize;
+          data.cell.styles.cellWidth = 'wrap';
+          data.cell.styles.minCellWidth = 12 * scaleFactor; // Even narrower
+          data.cell.styles.cellPadding = 1; // Minimal padding
+          data.cell.styles.overflow = 'linebreak'; // Break lines if needed
+        }
+      }
+      if (data.section === 'body') {
+        // For all cells, ensure content stays within cell
+        data.cell.styles.overflow = 'ellipsize'; // Use ellipsis for overflow
+        data.cell.styles.cellPadding = 1; // Minimal padding for all cells
+
+        // For subject marks and grades
+        if (data.column.index > 2 && data.column.index < headers.length - 3) {
+          data.cell.styles.fontSize = subjectFontSize;
+          data.cell.styles.cellWidth = 'wrap';
+          data.cell.styles.minCellWidth = 12 * scaleFactor; // Even narrower
+        }
+        // For summary columns (total, average, division)
+        else if (data.column.index >= headers.length - 3) {
+          data.cell.styles.fontSize = contentFontSize;
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontWeight = 700;
+          // Make division column narrower
+          if (data.column.raw === 'Division' || data.column.raw.includes('Division')) {
+            data.cell.styles.cellWidth = Math.max(Math.round(20 * scaleFactor), 12); // Even narrower
+          }
+        }
+        // For student name column
+        else if (data.column.index === 1) {
+          // Ensure student name is truncated if too long
+          data.cell.styles.overflow = 'ellipsize';
+          data.cell.styles.cellWidth = nameColumnWidth;
+          data.cell.styles.minCellWidth = 12; // Minimum width
+          data.cell.styles.maxCellWidth = nameColumnWidth; // Maximum width
+        }
+      }
+    },
+    // Handle table creation complete
+    didParseCell: function(data) {
+      // For subject headers, optimize text to save horizontal space
+      if (data.section === 'head' && data.column.index > 2 && data.column.index < headers.length - 3) {
+        const subject = data.cell.raw;
+        // Store original text and prepare for optimal display
+        data.cell.text = subject;
+        data.cell.styles.halign = 'center';
+        data.cell.styles.valign = 'middle';
+        data.cell.styles.cellWidth = 'wrap';
+      }
     }
   });
 
-  // Add division distribution
-  const finalY = doc.lastAutoTable.finalY + 10;
+  // Add division distribution with adaptive scaling
+  const finalY = doc.lastAutoTable.finalY + (10 * scaleFactor);
 
   // Calculate division distribution
   const divisions = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 };
@@ -352,32 +493,28 @@ export const generateOLevelClassResultPDF = (report) => {
   ]);
 
   doc.autoTable({
-    startY: finalY + 5,
+    startY: finalY + (5 * scaleFactor),
     head: [['Division', 'Count', 'Percentage']],
     body: divisionData,
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-    margin: { left: 100, right: 100 },
+    headStyles: {
+      fillColor: [46, 125, 50],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 16 * scaleFactor,
+      cellPadding: 5 * scaleFactor,
+      halign: 'center'
+    },
+    styles: {
+      fontSize: 14 * scaleFactor,
+      cellPadding: 5 * scaleFactor,
+      halign: 'center'
+    },
+    margin: { left: 100 * scaleFactor, right: 100 * scaleFactor },
   });
 
-  // Add footer
-  const pageCount = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(10);
-    doc.text(
-      `Page ${i} of ${pageCount}`,
-      150,
-      doc.internal.pageSize.height - 20,
-      { align: 'center' }
-    );
-    doc.text(
-      'Evangelical Lutheran Church in Tanzania - Northern Diocese',
-      150,
-      doc.internal.pageSize.height - 10,
-      { align: 'center' }
-    );
-  }
+  // Footer is now handled in the didDrawPage function of the main table
+  // to ensure it appears on every page consistently
 
   return doc;
 };

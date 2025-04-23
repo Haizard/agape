@@ -127,65 +127,94 @@ const NewALevelBulkMarksEntry = () => {
           console.log('Class subjects:', fetchClassResponse.data.subjects);
         }
 
+        // Get class name
+        setClassName(fetchClassResponse.data.name);
+
         // Fetch subjects for the selected class
         let response;
-
-        // Always fetch all subjects first
-        response = await api.get('/api/subjects');
-        console.log('All subjects:', response.data);
-
-        // Filter to only show A-Level subjects
-        response.data = response.data.filter(subject =>
-          subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
-        );
-        console.log('Filtered A-Level subjects:', response.data);
 
         if (isAdmin) {
           // Admin can see all subjects
           console.log('Admin user - showing all subjects');
+          // Fetch subjects using the prisma endpoint
+          response = await api.get(`/api/prisma/subjects/class/${selectedClass}`);
+          console.log('Prisma subjects response:', response.data);
+
+          if (response.data.success) {
+            setSubjects(response.data.data.subjects || []);
+          } else {
+            // Fallback to the old endpoint
+            response = await api.get('/api/subjects');
+            console.log('All subjects:', response.data);
+
+            // Filter to only show A-Level subjects
+            response.data = response.data.filter(subject =>
+              subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
+            );
+            console.log('Filtered A-Level subjects:', response.data);
+            setSubjects(response.data);
+          }
         } else {
           // Teachers can only see assigned subjects
           try {
-            // First try the teacher-subject-assignments endpoint
+            // Get teacher ID
             const teacherResponse = await api.get('/api/teachers/profile/me');
             const teacherId = teacherResponse.data._id;
             console.log('Teacher ID:', teacherId);
 
-            response = await api.get('/api/teacher-subject-assignments', {
-              params: { teacherId, classId: selectedClass }
-            });
-            console.log('Teacher subject assignments:', response.data);
+            try {
+              // Use the new teacher-subject-assignments endpoint with Prisma
+              response = await api.get(`/api/prisma/teacher-subject-assignments/teacher/${teacherId}/class/${selectedClass}`);
+              console.log('Prisma teacher subject assignments:', response.data);
 
-            // Transform the response to match the expected format
-            if (response.data && Array.isArray(response.data)) {
-              // Get the subject details for each assignment
-              const subjectIds = response.data.map(assignment => {
-                // Handle both string IDs and object IDs
-                console.log('Assignment:', assignment);
-                if (typeof assignment.subjectId === 'object' && assignment.subjectId !== null) {
-                  console.log('Subject ID is an object:', assignment.subjectId);
-                  return assignment.subjectId._id;
-                }
-                console.log('Subject ID is a string:', assignment.subjectId);
-                return assignment.subjectId;
-              }).filter(id => id); // Filter out any undefined or null IDs
+              if (response.data.success && response.data.data) {
+                // Extract subjects from the assignments
+                const teacherSubjects = response.data.data.map(assignment => assignment.subject);
+                console.log('Teacher subjects:', teacherSubjects);
+                setSubjects(teacherSubjects || []);
+              }
+            } catch (error) {
+              console.error('Error fetching from teacher-subject-assignments:', error);
 
-              console.log('Extracted subject IDs:', subjectIds);
-
-              // Get all subjects for the class instead of individual fetches
-              const allSubjectsResponse = await api.get(`/api/subjects?classId=${selectedClass}`);
-              const allSubjects = allSubjectsResponse.data;
-
-              console.log('All subjects for class:', allSubjects);
-
-              // Filter to only include the subjects assigned to this teacher
-              response.data = allSubjects.filter(subject => {
-                const isIncluded = subjectIds.includes(subject._id);
-                console.log(`Subject ${subject.name} (${subject._id}) included: ${isIncluded}`);
-                return isIncluded;
+              // Fallback to the old endpoint
+              console.log('Falling back to old teacher-subject-assignments endpoint');
+              response = await api.get('/api/teacher-subject-assignments', {
+                params: { teacherId, classId: selectedClass }
               });
+              console.log('Teacher subject assignments:', response.data);
 
-              console.log('Filtered subjects for teacher:', response.data);
+              // Transform the response to match the expected format
+              if (response.data && Array.isArray(response.data)) {
+                // Get the subject details for each assignment
+                const subjectIds = response.data.map(assignment => {
+                  // Handle both string IDs and object IDs
+                  console.log('Assignment:', assignment);
+                  if (typeof assignment.subjectId === 'object' && assignment.subjectId !== null) {
+                    console.log('Subject ID is an object:', assignment.subjectId);
+                    return assignment.subjectId._id;
+                  }
+                  console.log('Subject ID is a string:', assignment.subjectId);
+                  return assignment.subjectId;
+                }).filter(id => id); // Filter out any undefined or null IDs
+
+                console.log('Extracted subject IDs:', subjectIds);
+
+                // Get all subjects for the class instead of individual fetches
+                const allSubjectsResponse = await api.get(`/api/subjects?classId=${selectedClass}`);
+                const allSubjects = allSubjectsResponse.data;
+
+                console.log('All subjects for class:', allSubjects);
+
+                // Filter to only include the subjects assigned to this teacher
+                const filteredSubjects = allSubjects.filter(subject => {
+                  const isIncluded = subjectIds.includes(subject._id);
+                  console.log(`Subject ${subject.name} (${subject._id}) included: ${isIncluded}`);
+                  return isIncluded;
+                });
+
+                console.log('Filtered subjects for teacher:', filteredSubjects);
+                setSubjects(filteredSubjects);
+              }
             }
           } catch (error) {
             console.error('Error fetching from teacher-subject-assignments:', error);
@@ -195,14 +224,14 @@ const NewALevelBulkMarksEntry = () => {
             console.log('Falling back to subjects endpoint');
             response = await api.get(`/api/subjects?classId=${selectedClass}`);
             console.log('All subjects from fallback:', response.data);
+
+            // Filter to only show A-Level subjects
+            response.data = response.data.filter(subject =>
+              subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
+            );
+            setSubjects(response.data);
           }
         }
-
-        setSubjects(response.data);
-
-        // Get class name
-        const classNameResponse = await api.get(`/api/classes/${selectedClass}`);
-        setClassName(classNameResponse.data.name);
       } catch (err) {
         console.error('Error fetching subjects:', err);
         setError('Failed to load subjects. Please try again.');
@@ -703,6 +732,27 @@ const NewALevelBulkMarksEntry = () => {
               // No existing result
             }
 
+            // Check student eligibility for this subject
+            let eligibilityWarning = null;
+            try {
+              // Call the eligibility validation endpoint
+              const eligibilityResponse = await api.get('/api/prisma/marks/validate-eligibility', {
+                params: {
+                  studentId: student._id,
+                  subjectId: selectedSubject
+                }
+              });
+
+              console.log(`Eligibility check for student ${student._id}:`, eligibilityResponse.data);
+
+              // If student is not eligible, add a warning
+              if (eligibilityResponse.data.success && !eligibilityResponse.data.isEligible) {
+                eligibilityWarning = eligibilityResponse.data.message || 'Student may not be eligible for this subject';
+              }
+            } catch (error) {
+              console.error(`Error checking eligibility for student ${student._id}:`, error);
+            }
+
             // Add student to marks data
             const markData = {
               studentId: student._id,
@@ -716,6 +766,7 @@ const NewALevelBulkMarksEntry = () => {
               comment: existingResult ? existingResult.comment : '',
               isPrincipal: existingResult ? existingResult.isPrincipal : (isPrincipal || false),
               isInCombination: isInCombination,
+              eligibilityWarning: eligibilityWarning,
               _id: existingResult ? existingResult._id : null
             };
 
@@ -1156,6 +1207,14 @@ const NewALevelBulkMarksEntry = () => {
                         <InfoIcon />
                       </IconButton>
                     </Tooltip>
+                    <Tooltip title="Warning icon indicates student may not be eligible for this subject">
+                      <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                        <WarningIcon color="warning" fontSize="small" sx={{ mr: 0.5 }} />
+                        <Typography variant="caption" color="text.secondary">
+                          = Eligibility Warning
+                        </Typography>
+                      </Box>
+                    </Tooltip>
                   </Box>
                   <Box>
                     <Button
@@ -1220,7 +1279,16 @@ const NewALevelBulkMarksEntry = () => {
                           }}
                         >
                           <TableCell>{index + 1}</TableCell>
-                          <TableCell>{mark.studentName}</TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              {mark.studentName}
+                              {mark.eligibilityWarning && (
+                                <Tooltip title={mark.eligibilityWarning}>
+                                  <WarningIcon color="warning" fontSize="small" sx={{ ml: 1 }} />
+                                </Tooltip>
+                              )}
+                            </Box>
+                          </TableCell>
                           <TableCell>
                             <TextField
                               type="number"
@@ -1304,6 +1372,14 @@ const NewALevelBulkMarksEntry = () => {
                         <InfoIcon />
                       </IconButton>
                     </Tooltip>
+                    <Tooltip title="Warning icon indicates student may not be eligible for this subject">
+                      <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                        <WarningIcon color="warning" fontSize="small" sx={{ mr: 0.5 }} />
+                        <Typography variant="caption" color="text.secondary">
+                          = Eligibility Warning
+                        </Typography>
+                      </Box>
+                    </Tooltip>
                   </Box>
                   <Box>
                     <Button
@@ -1342,7 +1418,16 @@ const NewALevelBulkMarksEntry = () => {
                           }}
                         >
                           <TableCell>{index + 1}</TableCell>
-                          <TableCell>{mark.studentName}</TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              {mark.studentName}
+                              {mark.eligibilityWarning && (
+                                <Tooltip title={mark.eligibilityWarning}>
+                                  <WarningIcon color="warning" fontSize="small" sx={{ ml: 1 }} />
+                                </Tooltip>
+                              )}
+                            </Box>
+                          </TableCell>
                           <TableCell>{mark.marksObtained !== '' ? mark.marksObtained : '-'}</TableCell>
                           <TableCell>{mark.grade || '-'}</TableCell>
                           <TableCell>{mark.points || '-'}</TableCell>

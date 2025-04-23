@@ -38,6 +38,13 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import useOLevelClassReport from '../../../hooks/useOLevelClassReport';
 import { generateClassResultPDF } from '../../../utils/pdfGenerator';
+import { forcePrint } from '../../../utils/printForcer';
+import { fitTableToPage } from '../../../utils/tableFitter';
+import { printTableInNewWindow } from '../../../utils/printRenderer';
+import { printTableOnA4 } from '../../../utils/a4Renderer';
+// Import forced print styles
+import '../aLevel/PrintForcedStyles.css';
+import '../PrintableTableStyles.css';
 
 // Import enhanced components
 import {
@@ -110,6 +117,26 @@ const OLevelClassReport = (props) => {
   // Handle print
   const handlePrint = () => {
     window.print();
+  };
+
+  // Handle force print
+  const handleForcePrint = () => {
+    forcePrint('.report-table');
+  };
+
+  // Handle fit table to page
+  const handleFitTable = () => {
+    fitTableToPage('.report-table');
+  };
+
+  // Handle guaranteed print with all columns
+  const handleGuaranteedPrint = () => {
+    printTableInNewWindow('.report-table');
+  };
+
+  // Handle A4 paper print
+  const handleA4Print = () => {
+    printTableOnA4('.report-table');
   };
 
   // Handle PDF generation
@@ -504,6 +531,46 @@ const OLevelClassReport = (props) => {
 
             <GradientButton
               variant="contained"
+              color="primary"
+              startIcon={<PrintIcon />}
+              onClick={handleForcePrint}
+              sx={{ backgroundColor: '#1b5e20', '&:hover': { backgroundColor: '#0d3c10' } }}
+            >
+              Force Print (No Cut-off)
+            </GradientButton>
+
+            <GradientButton
+              variant="contained"
+              color="secondary"
+              startIcon={<PrintIcon />}
+              onClick={handleFitTable}
+              sx={{ backgroundColor: '#d32f2f', '&:hover': { backgroundColor: '#b71c1c' } }}
+            >
+              Auto-Fit to Page
+            </GradientButton>
+
+            <GradientButton
+              variant="contained"
+              color="info"
+              startIcon={<PrintIcon />}
+              onClick={handleGuaranteedPrint}
+              sx={{ backgroundColor: '#0288d1', '&:hover': { backgroundColor: '#01579b' } }}
+            >
+              Print All Columns
+            </GradientButton>
+
+            <GradientButton
+              variant="contained"
+              color="success"
+              startIcon={<PrintIcon />}
+              onClick={handleA4Print}
+              sx={{ backgroundColor: '#2e7d32', '&:hover': { backgroundColor: '#1b5e20' } }}
+            >
+              Fill A4 Paper
+            </GradientButton>
+
+            <GradientButton
+              variant="contained"
               color="secondary"
               startIcon={<PictureAsPdfIcon />}
               onClick={handleGeneratePDF}
@@ -784,7 +851,7 @@ const OLevelClassReport = (props) => {
               {report.students && report.students.length > 0 ? (
                 <>
                   <StyledTableContainer variant="outlined" sx={{ mt: 2 }}>
-                    <Table size="small" aria-label="o-level class results table">
+                    <Table size="small" aria-label="o-level class results table" className="report-table printable-table">
                       <StyledTableHead>
                         <StyledTableRow>
                           <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.85rem' }}>No.</TableCell>

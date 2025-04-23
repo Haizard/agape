@@ -975,12 +975,62 @@ export const createALevelCombinationsMap = (combinations) => {
 };
 
 /**
- * Formats an A-Level student's name consistently
+ * Formats an A-Level student's name consistently in a compact format
  * @param {Object} student - Student object
  * @returns {string} Formatted student name
  */
 export const formatALevelStudentName = (student) => {
-  if (!student) return 'Unknown Student';
+  if (!student) return 'Unknown';
+
+  /**
+   * Makes a student name more compact by using initials for middle names
+   * and abbreviating long names
+   * @param {string} name - Full student name
+   * @returns {string} Compact student name
+   */
+  function makeNameCompact(name) {
+    if (!name) return '';
+
+    // Split the name into parts
+    const nameParts = name.split(' ').filter(part => part.trim().length > 0);
+
+    // If only one part, return it
+    if (nameParts.length <= 1) return name;
+
+    // If two parts, make it extremely compact by reducing space
+    if (nameParts.length === 2) {
+      // If last name is long, abbreviate it
+      const firstName = nameParts[0];
+      let lastName = nameParts[1];
+
+      // If first name is longer than 4 chars, abbreviate it to just 3 chars
+      const compactFirstName = firstName.length > 4 ?
+        firstName.substring(0, 3) + '.' : firstName;
+
+      // If last name is longer than 4 chars, abbreviate it to just 3 chars
+      const compactLastName = lastName.length > 4 ?
+        lastName.substring(0, 3) + '.' : lastName;
+
+      // Use extremely tight spacing with no space between names
+      return `${compactFirstName}${compactLastName}`;
+    }
+
+    // For names with more than two parts, make it extremely compact
+    // Just use initials and abbreviated last name
+    const lastName = nameParts[nameParts.length - 1];
+
+    // Get initials for all names except last name
+    const initials = nameParts.slice(0, nameParts.length - 1)
+      .map(part => part.charAt(0))
+      .join('');
+
+    // If last name is longer than 4 chars, abbreviate it to just 3 chars
+    const compactLastName = lastName.length > 4 ?
+      lastName.substring(0, 3) + '.' : lastName;
+
+    // Use extremely compact format with just initials + last name with no spaces
+    return `${initials}${compactLastName}`;
+  }
 
   // Debug the student object structure
   const studentKeys = Object.keys(student);
@@ -988,23 +1038,27 @@ export const formatALevelStudentName = (student) => {
 
   // Check if we already have a formatted name
   if (student.name) {
-    console.log(`Using student.name: ${student.name}`);
-    return student.name;
+    // Make name more compact
+    const compactName = makeNameCompact(student.name);
+    console.log(`Using compact student.name: ${compactName}`);
+    return compactName;
   } else if (student.studentName) {
-    console.log(`Using student.studentName: ${student.studentName}`);
-    return student.studentName;
+    // Make name more compact
+    const compactName = makeNameCompact(student.studentName);
+    console.log(`Using compact student.studentName: ${compactName}`);
+    return compactName;
   }
 
   // Check if we have first and last name directly on the student object
   if (student.firstName || student.lastName) {
-    // Handle middle name if present
-    const middleName = student.middleName ? ` ${student.middleName} ` : ' ';
-    const formattedName = `${student.firstName || ''}${middleName}${student.lastName || ''}`.trim();
+    // Combine first and last name
+    const formattedName = `${student.firstName || ''} ${student.lastName || ''}`.trim();
 
-    // If we have a non-empty name, return it
+    // If we have a non-empty name, make it compact and return it
     if (formattedName) {
-      console.log(`Using firstName/lastName directly: ${formattedName}`);
-      return formattedName;
+      const compactName = makeNameCompact(formattedName);
+      console.log(`Using compact firstName/lastName directly: ${compactName}`);
+      return compactName;
     }
   }
 
@@ -1013,12 +1067,12 @@ export const formatALevelStudentName = (student) => {
     console.log('Found nested student object');
     if (student.student.firstName || student.student.lastName) {
       const firstName = student.student.firstName || '';
-      const middleName = student.student.middleName ? ` ${student.student.middleName} ` : ' ';
       const lastName = student.student.lastName || '';
-      const formattedName = `${firstName}${middleName}${lastName}`.trim();
+      const formattedName = `${firstName} ${lastName}`.trim();
       if (formattedName) {
-        console.log(`Using nested student firstName/lastName: ${formattedName}`);
-        return formattedName;
+        const compactName = makeNameCompact(formattedName);
+        console.log(`Using compact nested student firstName/lastName: ${compactName}`);
+        return compactName;
       }
     }
   }
@@ -1028,12 +1082,12 @@ export const formatALevelStudentName = (student) => {
     console.log('Found student in combinations format');
     if (student.student.firstName || student.student.lastName) {
       const firstName = student.student.firstName || '';
-      const middleName = student.student.middleName ? ` ${student.student.middleName} ` : ' ';
       const lastName = student.student.lastName || '';
-      const formattedName = `${firstName}${middleName}${lastName}`.trim();
+      const formattedName = `${firstName} ${lastName}`.trim();
       if (formattedName) {
-        console.log(`Using combinations format firstName/lastName: ${formattedName}`);
-        return formattedName;
+        const compactName = makeNameCompact(formattedName);
+        console.log(`Using compact combinations format firstName/lastName: ${compactName}`);
+        return compactName;
       }
     }
   }
@@ -1047,8 +1101,9 @@ export const formatALevelStudentName = (student) => {
       const lastName = studentCombination.student.lastName || '';
       const formattedName = `${firstName} ${lastName}`.trim();
       if (formattedName) {
-        console.log(`Using global combinations map for student ${studentId}: ${formattedName}`);
-        return formattedName;
+        const compactName = makeNameCompact(formattedName);
+        console.log(`Using compact global combinations map for student ${studentId}: ${compactName}`);
+        return compactName;
       }
     }
   }
@@ -1061,8 +1116,9 @@ export const formatALevelStudentName = (student) => {
         const firstName = student.student.firstName || '';
         const lastName = student.student.lastName || '';
         const formattedName = `${firstName} ${lastName}`.trim();
-        console.log(`Using subjects array student firstName/lastName: ${formattedName}`);
-        return formattedName;
+        const compactName = makeNameCompact(formattedName);
+        console.log(`Using compact subjects array student firstName/lastName: ${compactName}`);
+        return compactName;
       }
     } else if (typeof student.student === 'string') {
       // If student.student is just an ID, try to find the name elsewhere
@@ -1073,14 +1129,16 @@ export const formatALevelStudentName = (student) => {
 
   // Check for fullName property
   if (student.fullName) {
-    console.log(`Using student.fullName: ${student.fullName}`);
-    return student.fullName;
+    const compactName = makeNameCompact(student.fullName);
+    console.log(`Using compact student.fullName: ${compactName}`);
+    return compactName;
   }
 
   // Check for nested fullName property
   if (student.student && typeof student.student === 'object' && student.student.fullName) {
-    console.log(`Using student.student.fullName: ${student.student.fullName}`);
-    return student.student.fullName;
+    const compactName = makeNameCompact(student.student.fullName);
+    console.log(`Using compact student.student.fullName: ${compactName}`);
+    return compactName;
   }
 
   // Try to extract from the backend API response format
@@ -1090,14 +1148,17 @@ export const formatALevelStudentName = (student) => {
       const firstName = student.studentDetails.firstName || '';
       const lastName = student.studentDetails.lastName || '';
       const formattedName = `${firstName} ${lastName}`.trim();
-      console.log(`Using studentDetails firstName/lastName: ${formattedName}`);
-      return formattedName;
+      const compactName = makeNameCompact(formattedName);
+      console.log(`Using compact studentDetails firstName/lastName: ${compactName}`);
+      return compactName;
     } else if (student.studentDetails.fullName) {
-      console.log(`Using studentDetails.fullName: ${student.studentDetails.fullName}`);
-      return student.studentDetails.fullName;
+      const compactName = makeNameCompact(student.studentDetails.fullName);
+      console.log(`Using compact studentDetails.fullName: ${compactName}`);
+      return compactName;
     } else if (student.studentDetails.name) {
-      console.log(`Using studentDetails.name: ${student.studentDetails.name}`);
-      return student.studentDetails.name;
+      const compactName = makeNameCompact(student.studentDetails.name);
+      console.log(`Using compact studentDetails.name: ${compactName}`);
+      return compactName;
     }
   }
 

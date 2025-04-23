@@ -412,88 +412,257 @@ export const generateALevelClassResultPDF = (report) => {
     return row;
   });
 
-  // Add student results table
+  // INNOVATIVE APPROACH: Adaptive Single-Page Report
+  // Calculate optimal font size based on number of students and subjects
+  const totalStudents = students.length;
+  const totalSubjects = principalSubjects.length + subsidiarySubjects.length;
+  const totalColumns = headers.length;
+
+  // Dynamic scaling factors based on content amount
+  const baseFontSize = 16; // Start with ideal font size
+  let scaleFactor = 1.0;
+
+  // Adjust scale factor based on content volume
+  if (totalStudents > 20 || totalColumns > 15) {
+    // More content needs smaller scale
+    scaleFactor = 0.7;
+  } else if (totalStudents > 15 || totalColumns > 12) {
+    scaleFactor = 0.8;
+  } else if (totalStudents > 10 || totalColumns > 10) {
+    scaleFactor = 0.9;
+  }
+
+  // Calculate font sizes based on scale factor
+  const headerFontSize = Math.max(Math.round(baseFontSize * scaleFactor), 10);
+  const contentFontSize = Math.max(Math.round((baseFontSize - 2) * scaleFactor), 8);
+  const subjectFontSize = Math.max(Math.round((baseFontSize - 4) * scaleFactor), 7);
+
+  // Calculate optimal cell padding based on scale factor
+  const cellPadding = Math.max(Math.round(4 * scaleFactor), 1);
+
+  // Calculate optimal column widths based on scale factor
+  // Make name column extremely narrow to save space
+  const nameColumnWidth = Math.max(Math.round(20 * scaleFactor), 12); // Even narrower
+  const rollColumnWidth = Math.max(Math.round(12 * scaleFactor), 6); // Even narrower
+  const numColumnWidth = Math.max(Math.round(6 * scaleFactor), 4); // Even narrower
+
+  // Add student results table with adaptive sizing
   doc.autoTable({
-    startY: 95, // Increased from 65 to give more space for header
+    startY: 95, // Space for header
     head: [headers],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 10 }, // Green header like in the sample
-    styles: { fontSize: 9, cellPadding: 2 }, // Slightly increased font size
-    columnStyles: {
-      0: { cellWidth: 15 }, // #
-      1: { cellWidth: 50 }, // Name - wider for better readability
-      2: { cellWidth: 20 }, // Roll No.
+    headStyles: {
+      fillColor: [46, 125, 50],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: headerFontSize,
+      cellPadding: cellPadding,
+      valign: 'middle',
+      halign: 'center',
+      overflow: 'linebreak',
+      cellWidth: 'wrap'
     },
-    // Adjust table to fit page width without scrolling
-    margin: { left: 10, right: 10 },
-    tableWidth: 'auto',
-    horizontalPageBreak: true,
-    horizontalPageBreakRepeat: [0, 1, 2], // Repeat first 3 columns on new pages
+    styles: {
+      fontSize: contentFontSize,
+      cellPadding: cellPadding,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1,
+      overflow: 'linebreak',
+      cellWidth: 'wrap',
+      fontStyle: 'bold', // Increase font weight for all content
+      font: 'helvetica', // Use a more compact font
+      fontWeight: 700, // Maximum font weight for better readability
+      textColor: [0, 0, 0] // Ensure black text for better contrast
+    },
+    columnStyles: {
+      0: { cellWidth: numColumnWidth, halign: 'center' }, // #
+      1: {
+        cellWidth: nameColumnWidth,
+        halign: 'left',
+        cellPadding: 1, // Minimal padding for name column
+        overflow: 'ellipsize', // Truncate with ellipsis if too long
+        minCellWidth: 12 // Ensure minimum width
+      }, // Name
+      2: { cellWidth: rollColumnWidth, halign: 'center' }, // Roll No.
+    },
+    // CRITICAL: Ensure all content fits on one page
+    margin: { top: 95, right: 2, bottom: 20, left: 2 }, // Minimal margins
+    tableWidth: 'wrap', // Let table determine width based on content
+    horizontalPageBreak: false, // NO horizontal page breaks
+    pageBreak: 'avoid', // Avoid page breaks
+    rowPageBreak: 'avoid', // Avoid breaking rows across pages
+    columnStyles: {}, // Will be dynamically calculated
     didDrawPage: function(data) {
-      // Add page number at the bottom of each page
-      doc.setFontSize(8);
-      doc.text(`Page ${doc.internal.getNumberOfPages()}`, data.settings.margin.left, doc.internal.pageSize.height - 10);
+      // Draw header only once
+      doc.setFontSize(20 * scaleFactor);
+      doc.text('Evangelical Lutheran Church in Tanzania - Northern Diocese', 150, 15, { align: 'center' });
+      doc.setFontSize(24 * scaleFactor);
+      doc.text('Agape Lutheran Junior Seminary', 150, 25, { align: 'center' });
+
+      // Add contact information with scaled font
+      doc.setFontSize(12 * scaleFactor);
+      doc.text('P.O.BOX 8882,\nMoshi, Tanzania.', 20, 35);
+      doc.text('Mobile phone: 0759767735\nEmail: infoagapeseminary@gmail.com', 280, 35, { align: 'right' });
+
+      // Add report title with scaled font
+      doc.setFontSize(18 * scaleFactor);
+      doc.text('A-LEVEL CLASS RESULT REPORT', 150, 55, { align: 'center' });
+      doc.setFontSize(16 * scaleFactor);
+      doc.text(`Class: ${report.className || ''} ${report.section || ''}`, 150, 65, { align: 'center' });
+      doc.text(`Academic Year: ${report.academicYear || 'Unknown'}`, 150, 75, { align: 'center' });
+      doc.text(`Exam: ${report.examName || ''}`, 150, 85, { align: 'center' });
+
+      // Add footer with scaled font
+      doc.setFontSize(10 * scaleFactor);
+      doc.text('Note: A-LEVEL Division is calculated based on best 3 principal subjects', 150, doc.internal.pageSize.height - 10, { align: 'center' });
+    },
+    willDrawCell: function(data) {
+      // Adaptive cell styling based on content type and column position
+      if (data.section === 'head') {
+        // For subject headers, use vertical text to save space
+        if (data.column.index > 2 && data.column.index < headers.length - 5) {
+          data.cell.styles.fontSize = subjectFontSize;
+          data.cell.styles.cellWidth = 'wrap';
+          data.cell.styles.minCellWidth = 12 * scaleFactor; // Even narrower
+          data.cell.styles.cellPadding = 1; // Minimal padding
+          data.cell.styles.overflow = 'linebreak'; // Break lines if needed
+        }
+      }
+      if (data.section === 'body') {
+        // For all cells, ensure content stays within cell
+        data.cell.styles.overflow = 'ellipsize'; // Use ellipsis for overflow
+        data.cell.styles.cellPadding = 1; // Minimal padding for all cells
+
+        // For subject marks and grades
+        if (data.column.index > 2 && data.column.index < headers.length - 5) {
+          data.cell.styles.fontSize = subjectFontSize;
+          data.cell.styles.cellWidth = 'wrap';
+          data.cell.styles.minCellWidth = 12 * scaleFactor; // Even narrower
+        }
+        // For summary columns (total, average, points, etc.)
+        else if (data.column.index >= headers.length - 5) {
+          data.cell.styles.fontSize = contentFontSize;
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontWeight = 700;
+          // Make division column narrower
+          if (data.column.raw === 'Division' || data.column.raw.includes('Division')) {
+            data.cell.styles.cellWidth = Math.max(Math.round(20 * scaleFactor), 12); // Even narrower
+          }
+        }
+        // For student name column
+        else if (data.column.index === 1) {
+          // Ensure student name is truncated if too long
+          data.cell.styles.overflow = 'ellipsize';
+          data.cell.styles.cellWidth = nameColumnWidth;
+          data.cell.styles.minCellWidth = 12; // Minimum width
+          data.cell.styles.maxCellWidth = nameColumnWidth; // Maximum width
+        }
+      }
+    },
+    // Handle table creation complete
+    didParseCell: function(data) {
+      // For subject headers, rotate text to save horizontal space
+      if (data.section === 'head' && data.column.index > 2 && data.column.index < headers.length - 5) {
+        const subject = data.cell.raw;
+        // Store original text and prepare for rotation
+        data.cell.text = subject;
+        data.cell.styles.halign = 'center';
+        data.cell.styles.valign = 'middle';
+        data.cell.styles.cellWidth = 'wrap';
+      }
     }
   });
 
-  // Add class summary
-  const summaryStartY = doc.autoTable.previous.finalY + 15 || 180;
-  doc.setFontSize(18); // Increased from 14
+  // Add class summary with adaptive scaling
+  const summaryStartY = doc.autoTable.previous.finalY + (15 * scaleFactor) || 180;
+  doc.setFontSize(18 * scaleFactor);
   doc.text('Class Summary', 20, summaryStartY);
 
   // Extract class summary data
   const classAverage = report.classAverage || 0;
-  const totalStudents = report.totalStudents || students.length;
 
-  // Add class summary table
+  // Add class summary table with adaptive scaling
   doc.autoTable({
-    startY: summaryStartY + 5,
+    startY: summaryStartY + (5 * scaleFactor),
     head: [['Total Students', 'Class Average']],
     body: [[totalStudents, `${classAverage.toFixed(2)}%`]],
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
-    styles: { fontSize: 12 }, // Increased from 10
+    headStyles: {
+      fillColor: [46, 125, 50],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 16 * scaleFactor,
+      cellPadding: 5 * scaleFactor,
+      halign: 'center'
+    },
+    styles: {
+      fontSize: 16 * scaleFactor,
+      cellPadding: 5 * scaleFactor,
+      halign: 'center'
+    },
     columnStyles: {
-      0: { cellWidth: 60, halign: 'center' }, // Wider and centered
-      1: { cellWidth: 60, halign: 'center' } // Wider and centered
-    }
+      0: { cellWidth: 80 * scaleFactor }, // Scaled width
+      1: { cellWidth: 80 * scaleFactor } // Scaled width
+    },
+    margin: { left: 20, right: 20 }
   });
 
-  // Add A-Level division guide
-  const guideStartY = doc.autoTable.previous.finalY + 15 || 210;
-  doc.setFontSize(18); // Increased from 14
+  // Add A-Level division guide with adaptive scaling
+  const guideStartY = doc.autoTable.previous.finalY + (15 * scaleFactor) || 210;
+  doc.setFontSize(18 * scaleFactor);
   doc.text('A-Level Division Guide', 20, guideStartY);
 
-  // Add division guide table
-  doc.autoTable({
-    startY: guideStartY + 5,
-    head: [['Division', 'Points Range', 'Grade Points']],
-    body: [
+  // Simplify the division guide for smaller reports
+  let divisionGuideBody;
+  if (scaleFactor < 0.8) {
+    // Simplified version for very small scale factors
+    divisionGuideBody = [
+      ['Division I', '3-9', 'A=1, B=2, C=3, D=4, E=5, S=6, F=7'],
+      ['Division II', '10-12', ''],
+      ['Division III', '13-17', ''],
+      ['Division IV', '18-19', ''],
+      ['Division V', '20-21', '']
+    ];
+  } else {
+    // Full version for larger scale factors
+    divisionGuideBody = [
       ['Division I', '3-9 points', 'A (80-100%) = 1 point\nB (70-79%) = 2 points\nC (60-69%) = 3 points\nD (50-59%) = 4 points\nE (40-49%) = 5 points\nS (35-39%) = 6 points\nF (0-34%) = 7 points'],
       ['Division II', '10-12 points', ''],
       ['Division III', '13-17 points', ''],
       ['Division IV', '18-19 points', ''],
       ['Division V', '20-21 points', '']
-    ],
+    ];
+  }
+
+  // Add division guide table with adaptive scaling
+  doc.autoTable({
+    startY: guideStartY + (5 * scaleFactor),
+    head: [['Division', 'Points Range', 'Grade Points']],
+    body: divisionGuideBody,
     theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', fontSize: 14 }, // Increased from default
-    styles: { fontSize: 12 }, // Increased from 10
+    headStyles: {
+      fillColor: [46, 125, 50],
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 14 * scaleFactor,
+      cellPadding: 3 * scaleFactor,
+      halign: 'center'
+    },
+    styles: {
+      fontSize: 12 * scaleFactor,
+      cellPadding: 3 * scaleFactor
+    },
     columnStyles: {
-      0: { cellWidth: 60, halign: 'center' }, // Wider and centered
-      1: { cellWidth: 60, halign: 'center' }, // Wider and centered
-      2: { cellWidth: 'auto' }
-    }
+      0: { cellWidth: 60 * scaleFactor, halign: 'center' }, // Scaled width
+      1: { cellWidth: 60 * scaleFactor, halign: 'center' }, // Scaled width
+      2: { cellWidth: 'auto', fontSize: 10 * scaleFactor } // Scaled font for explanation
+    },
+    margin: { left: 10, right: 10 }
   });
 
-  // Add footer
-  const pageCount = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(12); // Increased from 10
-    doc.text(`Page ${i} of ${pageCount}`, 150, 200, { align: 'center' });
-    doc.text('Note: A-LEVEL Division is calculated based on best 3 principal subjects', 150, 205, { align: 'center' });
-  }
+  // Footer is now handled in the didDrawPage function of the main table
+  // to ensure it appears on every page consistently
 
   return doc;
 };

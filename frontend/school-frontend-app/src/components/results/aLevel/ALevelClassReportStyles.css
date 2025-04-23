@@ -140,56 +140,69 @@
 
 .student-name {
   text-align: left;
-  font-weight: bold;
+  font-weight: 700;
   font-size: 18px;
+  letter-spacing: -1px;
+  word-spacing: -2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 /* Grade styling */
 .grade-a {
   color: #1b5e20; /* Darker green */
-  font-weight: bold;
+  font-weight: 700;
   font-size: 18px;
+  letter-spacing: -0.5px;
 }
 
 .grade-b {
   color: #0d47a1; /* Darker blue */
-  font-weight: bold;
+  font-weight: 700;
   font-size: 18px;
+  letter-spacing: -0.5px;
 }
 
 .grade-c {
   color: #4a148c; /* Darker purple */
-  font-weight: bold;
+  font-weight: 700;
   font-size: 18px;
+  letter-spacing: -0.5px;
 }
 
 .grade-d {
   color: #e65100; /* Darker orange */
-  font-weight: bold;
+  font-weight: 700;
   font-size: 18px;
+  letter-spacing: -0.5px;
 }
 
 .grade-e, .grade-s {
   color: #f57f17; /* Darker yellow */
-  font-weight: bold;
+  font-weight: 700;
   font-size: 18px;
+  letter-spacing: -0.5px;
 }
 
 .grade-f {
   color: #b71c1c; /* Darker red */
-  font-weight: bold;
+  font-weight: 700;
   font-size: 18px;
+  letter-spacing: -0.5px;
 }
 
 /* Division styling */
 .division-chip {
-  padding: 4px 6px;
-  border-radius: 4px;
-  font-weight: bold;
+  padding: 3px 4px;
+  border-radius: 3px;
+  font-weight: 700;
   display: inline-block;
-  min-width: 40px;
+  min-width: 30px;
   font-size: 16px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  letter-spacing: -0.5px;
 }
 
 .division-1 {
@@ -304,12 +317,14 @@
   }
 
   .report-table {
-    font-size: 12pt !important; /* Reduced from 16pt to fit more content */
+    font-size: 10pt !important; /* Reduced size */
     width: 100% !important;
-    table-layout: auto !important; /* Changed from fixed to auto to adapt to content */
-    page-break-inside: auto !important; /* Allow page breaks within table */
+    table-layout: fixed !important; /* Fixed layout for better control */
+    page-break-inside: avoid !important; /* Avoid page breaks within table */
     border-collapse: collapse !important;
     margin: 0 !important;
+    border-spacing: 0 !important;
+    letter-spacing: -0.5pt !important; /* Reduce letter spacing */
   }
 
   .report-table th {
@@ -317,65 +332,143 @@
     color: white !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    padding: 3px 2px !important; /* Reduced padding */
-    font-size: 10pt !important; /* Reduced from 16pt */
+    padding: 1px !important; /* Minimal padding */
+    font-size: 9pt !important; /* Reduced size */
     text-align: center !important;
     vertical-align: middle !important;
     border: 1px solid #1b5e20 !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.5pt !important; /* Reduce letter spacing */
+    word-spacing: -1pt !important; /* Reduce word spacing */
+    height: 80px !important; /* Fixed height for vertical headers */
   }
 
   .report-table td {
-    padding: 3px 2px !important; /* Reduced padding */
-    font-size: 10pt !important; /* Reduced from 16pt */
+    padding: 1px !important; /* Minimal padding */
+    font-size: 10pt !important; /* Reduced size */
     text-align: center !important;
     vertical-align: middle !important;
     border: 1px solid #ddd !important;
+    letter-spacing: -0.5pt !important; /* Reduce letter spacing */
+    word-spacing: -1pt !important; /* Reduce word spacing */
+    height: 20px !important; /* Fixed height */
+    max-height: 20px !important; /* Maximum height */
+    overflow: hidden !important; /* Hide overflow */
+    white-space: nowrap !important; /* Prevent wrapping */
+    font-weight: 700 !important; /* Bold text */
   }
 
-  /* Make student names larger and bolder */
+  /* Make student names compact but readable */
   .student-name {
-    font-size: 11pt !important; /* Reduced from 16pt */
-    font-weight: bold !important;
+    font-size: 10pt !important; /* Reduced size to fit more content */
+    font-weight: 700 !important;
     text-align: left !important;
+    max-width: 80px !important; /* Force narrow width */
+    width: 80px !important; /* Force narrow width */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    letter-spacing: -0.5pt !important; /* Reduce letter spacing */
+    word-spacing: -1pt !important; /* Reduce word spacing */
+  }
+
+  /* Make sex column extremely narrow */
+  tr td:nth-child(3) {
+    max-width: 15px !important;
+    width: 15px !important;
+    min-width: 15px !important;
+    font-size: 8pt !important;
+    padding: 1px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Make points column narrow */
+  tr td:nth-child(4) {
+    max-width: 20px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    font-size: 8pt !important;
+    padding: 1px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Make rank columns narrow */
+  tr td:nth-child(1), tr td:last-child {
+    max-width: 20px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    font-size: 8pt !important;
+    padding: 1px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Make total and average columns narrow */
+  tr td:nth-last-child(2), tr td:nth-last-child(3) {
+    max-width: 25px !important;
+    width: 25px !important;
+    min-width: 25px !important;
+    font-size: 8pt !important;
+    padding: 1px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
   }
 
   .division-chip {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-    font-size: 10pt !important; /* Reduced from 16pt */
-    padding: 1px 3px !important; /* Reduced padding */
-    min-width: 30px !important; /* Reduced width */
-    font-weight: bold !important;
-    border-radius: 3px !important;
+    font-size: 10pt !important; /* Reduced size */
+    padding: 1px 2px !important; /* Minimal padding */
+    min-width: 20px !important; /* Reduced width */
+    max-width: 25px !important; /* Maximum width */
+    width: 20px !important; /* Fixed width */
+    font-weight: 700 !important;
+    border-radius: 2px !important;
+    letter-spacing: -0.5pt !important; /* Reduce letter spacing */
+    display: inline-block !important;
+    overflow: hidden !important;
   }
 
-  /* Make grades more readable */
+  /* Make grades compact but readable */
   .grade-a, .grade-b, .grade-c, .grade-d, .grade-e, .grade-s, .grade-f {
-    font-size: 10pt !important; /* Reduced from 16pt */
-    font-weight: bold !important;
+    font-size: 10pt !important; /* Reduced size */
+    font-weight: 700 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    letter-spacing: -0.5pt !important; /* Reduce letter spacing */
+    padding: 0 !important;
+    margin: 0 !important;
+    line-height: 1 !important;
   }
 
   .subject-column {
-    min-width: 35px !important; /* Reduced from 100px */
-    max-width: 35px !important; /* Reduced from 100px */
-    width: 35px !important; /* Reduced from 100px */
-    height: auto !important; /* Allow height to adjust */
-    overflow: visible !important;
+    min-width: 25px !important; /* Reduced width */
+    max-width: 25px !important; /* Reduced width */
+    width: 25px !important; /* Reduced width */
+    height: 80px !important; /* Fixed height */
+    overflow: hidden !important;
     border: 1px solid #1b5e20 !important;
+    padding: 1px !important; /* Minimal padding */
   }
 
   /* Ensure the table fits on the page */
   .table-container {
     max-height: none !important;
-    overflow: visible !important;
+    overflow: hidden !important; /* Hide overflow */
     width: 100% !important;
-    page-break-inside: auto !important; /* Allow page breaks */
+    page-break-inside: avoid !important; /* Avoid page breaks */
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
+    transform: scale(0.95) !important; /* Slightly scale down */
+    transform-origin: top left !important; /* Scale from top left */
   }
 
   /* Remove sticky headers in print mode */
@@ -392,14 +485,23 @@
   /* Landscape orientation for better fit */
   @page {
     size: landscape;
-    margin: 0.3cm; /* Reduced margin */
-    scale: 80%; /* Scale down to fit more content */
+    margin: 0.1cm !important; /* Extremely minimal margins */
+    scale: 75% !important; /* Further reduced scale to fit more content */
   }
 
   /* Adjust vertical headers for print */
   [style*="transform: rotate(-90deg)"] {
-    transform: rotate(-90deg) scale(0.8) !important; /* Scale down rotated text */
-    width: 15px !important; /* Reduced width */
-    font-size: 9pt !important; /* Smaller font size */
+    transform: rotate(-90deg) scale(0.7) !important; /* Further reduced scale */
+    width: 10px !important; /* Further reduced width */
+    font-size: 7pt !important; /* Further reduced font size */
+    letter-spacing: -0.8pt !important; /* Further reduce letter spacing */
+    word-spacing: -1.5pt !important; /* Further reduce word spacing */
+    white-space: nowrap !important; /* Prevent wrapping */
+    overflow: hidden !important; /* Hide overflow */
+    text-overflow: ellipsis !important; /* Add ellipsis for overflow */
+    max-width: 60px !important; /* Reduced maximum width */
+    font-weight: 700 !important; /* Bold text */
+    padding: 0 !important; /* No padding */
+    margin: 0 !important; /* No margin */
   }
 }

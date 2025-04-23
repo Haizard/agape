@@ -1,0 +1,228 @@
+/*
+ * FORCED PRINT STYLES
+ * These styles are specifically designed to force all content to be displayed
+ * in the printed document with absolutely no content being cut off.
+ */
+
+@media print {
+  /* Force the entire document to fit on one page */
+  html, body {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Force the table to fit on one page */
+  .report-table {
+    font-size: 5pt !important; /* Ultra small font size */
+    width: 100% !important;
+    table-layout: fixed !important; /* Fixed layout for better control */
+    page-break-inside: avoid !important; /* Avoid page breaks within table */
+    border-collapse: collapse !important;
+    margin: 0 !important;
+    border-spacing: 0 !important;
+    letter-spacing: -1pt !important; /* Extreme letter spacing reduction */
+    word-spacing: -2pt !important; /* Extreme word spacing reduction */
+    transform-origin: top left !important; /* Scale from top left */
+    max-width: 100% !important;
+    /* CRITICAL: This will force the table to fit the page width */
+    transform: scale(0.7) !important; /* Aggressively scale down */
+  }
+
+  /* Force all table cells to be visible */
+  .report-table th, .report-table td {
+    padding: 0 !important; /* No padding */
+    overflow: visible !important; /* Force content to be visible */
+    white-space: nowrap !important; /* Prevent wrapping */
+    font-weight: 700 !important; /* Bold text */
+    border: 0.5pt solid #000 !important; /* Thin borders */
+  }
+
+  /* Extremely narrow student name column */
+  .student-name {
+    font-size: 6pt !important; /* Extremely small font */
+    font-weight: 700 !important;
+    text-align: left !important;
+    max-width: 60px !important; /* Force narrow width */
+    width: 60px !important; /* Force narrow width */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    letter-spacing: -1pt !important; /* Extreme letter spacing reduction */
+    word-spacing: -1.5pt !important; /* Extreme word spacing reduction */
+  }
+
+  /* Extremely narrow sex column */
+  tr td:nth-child(3) {
+    max-width: 10px !important;
+    width: 10px !important;
+    min-width: 10px !important;
+    font-size: 6pt !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Extremely narrow points column */
+  tr td:nth-child(4) {
+    max-width: 15px !important;
+    width: 15px !important;
+    min-width: 15px !important;
+    font-size: 6pt !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Extremely narrow rank columns */
+  tr td:nth-child(1), tr td:last-child {
+    max-width: 15px !important;
+    width: 15px !important;
+    min-width: 15px !important;
+    font-size: 6pt !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Extremely narrow total and average columns */
+  tr td:nth-last-child(2), tr td:nth-last-child(3) {
+    max-width: 20px !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    font-size: 6pt !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Extremely narrow division column */
+  tr td:nth-child(5) {
+    max-width: 15px !important;
+    width: 15px !important;
+    min-width: 15px !important;
+    font-size: 6pt !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Extremely narrow division chip */
+  .division-chip {
+    font-size: 6pt !important;
+    padding: 0 !important;
+    min-width: 15px !important;
+    max-width: 15px !important;
+    width: 15px !important;
+    font-weight: 700 !important;
+    border-radius: 1px !important;
+    letter-spacing: -1pt !important;
+    display: inline-block !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Extremely narrow subject columns */
+  .subject-column {
+    min-width: 20px !important;
+    max-width: 20px !important;
+    width: 20px !important;
+    height: 60px !important;
+    overflow: hidden !important;
+    border: 0.5pt solid #000 !important;
+    padding: 0 !important;
+  }
+
+  /* Extremely small marks and grades */
+  .subject-column .MuiTypography-root {
+    font-size: 6pt !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-weight: 700 !important;
+    letter-spacing: -1pt !important;
+  }
+
+  /* Extremely small vertical headers */
+  [style*="transform: rotate(-90deg)"] {
+    transform: rotate(-90deg) scale(0.6) !important;
+    width: 8px !important;
+    font-size: 6pt !important;
+    letter-spacing: -1pt !important;
+    word-spacing: -1.5pt !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 50px !important;
+    font-weight: 700 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Force landscape orientation and minimal margins */
+  @page {
+    size: landscape;
+    margin: 0 !important; /* No margins */
+    scale: 60% !important; /* Ultra extreme scale reduction */
+  }
+
+  /* CRITICAL: Auto-fit table to page width */
+  @media print {
+    .table-container {
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: visible !important;
+      display: block !important;
+    }
+
+    .report-table {
+      width: 100% !important;
+      max-width: 100% !important;
+      table-layout: fixed !important;
+    }
+
+    /* Force all columns to have equal width */
+    .report-table th, .report-table td {
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: none !important;
+    }
+  }
+
+  /* Hide everything except the table */
+  body * {
+    visibility: hidden;
+  }
+
+  .report-table, .report-table * {
+    visibility: visible !important;
+  }
+
+  .report-table {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  /* Force the table container to be visible */
+  .table-container {
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    page-break-inside: avoid !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: scale(0.9) !important;
+    transform-origin: top left !important;
+  }
+}

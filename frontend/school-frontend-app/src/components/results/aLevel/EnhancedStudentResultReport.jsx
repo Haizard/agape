@@ -466,15 +466,17 @@ const EnhancedStudentResultReport = () => {
                 </Paper>
               </Grid>
               <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, bgcolor: getDivisionColor(summary.division), height: '100%' }}>
+                <Paper sx={{ p: 2, bgcolor: summary.missingPrincipalSubjects > 0 ? '#757575' : getDivisionColor(summary.division), height: '100%' }}>
                   <Typography variant="subtitle2" color="white" gutterBottom>
                     Division
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'white' }}>
-                    {summary.division || 'N/A'}
+                    {summary.missingPrincipalSubjects > 0 ? 'N/A' : (summary.division || 'N/A')}
                   </Typography>
                   <Typography variant="body2" color="white">
-                    Based on best 3 principal subjects
+                    {summary.missingPrincipalSubjects > 0 ?
+                      `Need ${summary.missingPrincipalSubjects} more principal subject(s)` :
+                      'Based on best 3 principal subjects'}
                   </Typography>
                 </Paper>
               </Grid>

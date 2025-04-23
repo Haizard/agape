@@ -1,0 +1,225 @@
+/**
+ * PRINTABLE TABLE STYLES
+ *
+ * This stylesheet is specifically designed to ensure that all table columns
+ * are visible when printing, with no horizontal pagination or hidden content.
+ */
+
+/* Only apply these styles when printing */
+@media print {
+  /* ===== CRITICAL PRINT SETTINGS ===== */
+  @page {
+    size: landscape; /* A4 landscape: 297mm × 210mm */
+    margin: 0.2cm; /* Minimal margins to maximize usable space */
+  }
+
+  /* Fill entire page with content */
+  html, body {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    height: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    /* A4 landscape dimensions minus minimal margins */
+    max-width: calc(297mm - 0.4cm) !important;
+    max-height: calc(210mm - 0.4cm) !important;
+    min-width: calc(297mm - 0.4cm) !important;
+    min-height: calc(210mm - 0.4cm) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide everything except the table during print */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Make the table and its contents visible */
+  .printable-table,
+  .printable-table * {
+    visibility: visible !important;
+  }
+
+  /* Fill the entire page with the table */
+  .printable-table {
+    position: relative;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 auto !important;
+    page-break-inside: auto !important;
+    box-sizing: border-box !important;
+    /* A4 landscape dimensions minus minimal margins */
+    max-width: calc(297mm - 0.4cm) !important;
+    min-width: calc(297mm - 0.4cm) !important;
+    max-height: calc(210mm - 0.4cm) !important;
+    min-height: calc(210mm - 0.4cm) !important;
+  }
+
+  /* ===== TABLE STRUCTURE ===== */
+  .printable-table {
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    font-size: 10pt !important; /* Larger font size for better readability */
+    font-family: Arial, sans-serif !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-inside: auto !important; /* Allow vertical page breaks */
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    border: 1pt solid #000 !important; /* Add outer border */
+  }
+
+  /* Ensure table header repeats on each page */
+  .printable-table thead {
+    display: table-header-group !important;
+  }
+
+  /* Allow rows to break across pages */
+  .printable-table tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* ===== CELL STYLING ===== */
+  .printable-table th,
+  .printable-table td {
+    border: 0.5pt solid #000 !important;
+    padding: 3pt !important; /* More padding for better readability */
+    text-align: center !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    font-weight: 700 !important;
+    max-width: none !important; /* Remove max-width constraints */
+    line-height: 1.3 !important; /* Improved line height */
+    font-size: 10pt !important; /* Consistent font size */
+  }
+
+  /* Make headers bold with background */
+  .printable-table th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Make student name column left-aligned */
+  .printable-table td:nth-child(2) {
+    text-align: left !important;
+    padding-left: 3pt !important;
+  }
+
+  /* ===== COLUMN WIDTHS ===== */
+  /* Rank column - narrow but readable */
+  .printable-table th:first-child,
+  .printable-table td:first-child,
+  .printable-table th:last-child,
+  .printable-table td:last-child {
+    width: 3% !important;
+  }
+
+  /* Student name column - wider for better readability */
+  .printable-table th:nth-child(2),
+  .printable-table td:nth-child(2) {
+    width: 12% !important;
+    text-align: left !important;
+  }
+
+  /* Sex column - narrow but readable */
+  .printable-table th:nth-child(3),
+  .printable-table td:nth-child(3) {
+    width: 2.5% !important;
+  }
+
+  /* Points column - narrow but readable */
+  .printable-table th:nth-child(4),
+  .printable-table td:nth-child(4) {
+    width: 3% !important;
+  }
+
+  /* Division column - narrow but readable */
+  .printable-table th:nth-child(5),
+  .printable-table td:nth-child(5) {
+    width: 3% !important;
+  }
+
+  /* Subject columns - equal width for remaining space */
+  .subject-column {
+    width: auto !important; /* Let browser distribute remaining width */
+    min-width: 4% !important; /* Ensure minimum width for readability */
+  }
+
+  /* Total and average columns - narrow but readable */
+  .printable-table th:nth-last-child(3),
+  .printable-table td:nth-last-child(3),
+  .printable-table th:nth-last-child(2),
+  .printable-table td:nth-last-child(2) {
+    width: 4% !important;
+  }
+
+  /* ===== TEXT STYLING ===== */
+  .printable-table * {
+    letter-spacing: -0.3pt !important; /* Less aggressive letter spacing */
+    word-spacing: -0.3pt !important; /* Less aggressive word spacing */
+    line-height: 1.2 !important; /* Improved line height */
+  }
+
+  /* Student name specific styling */
+  .student-name {
+    font-size: 8pt !important; /* Increased font size */
+    letter-spacing: -0.3pt !important; /* Less aggressive letter spacing */
+    word-spacing: -0.3pt !important; /* Less aggressive word spacing */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-weight: 700 !important;
+  }
+
+  /* Division chip styling */
+  .division-chip {
+    font-size: 8pt !important; /* Increased font size */
+    padding: 1pt 2pt !important; /* Added some padding */
+    border-radius: 2pt !important;
+    display: inline-block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    font-weight: 700 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Vertical headers */
+  [style*="transform: rotate(-90deg)"] {
+    transform: rotate(-90deg) scale(0.9) !important; /* Less aggressive scaling */
+    white-space: nowrap !important;
+    font-size: 8pt !important; /* Increased font size */
+    width: 100% !important;
+    letter-spacing: -0.3pt !important; /* Less aggressive letter spacing */
+    font-weight: 700 !important;
+  }
+
+  /* ===== DYNAMIC SCALING ===== */
+  /* This will be controlled by JavaScript */
+  .print-scaling-container {
+    transform-origin: center center !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+    /* A4 landscape dimensions minus minimal margins */
+    max-width: calc(297mm - 0.4cm) !important;
+    max-height: calc(210mm - 0.4cm) !important;
+    min-width: calc(297mm - 0.4cm) !important;
+    min-height: calc(210mm - 0.4cm) !important;
+  }
+}

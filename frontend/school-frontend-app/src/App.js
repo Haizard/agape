@@ -126,6 +126,7 @@ import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
 import EnhancedBulkMarksEntry from './components/marks/EnhancedBulkMarksEntry';
 import NewALevelMarksEntry from './components/results/NewALevelMarksEntry';
 import NewALevelBulkMarksEntry from './components/results/NewALevelBulkMarksEntry';
+import NewALevelBulkMarksEntryV2 from './components/results/NewALevelBulkMarksEntryV2';
 import ALevelComprehensiveReportSelector from './components/results/ALevelComprehensiveReportSelector';
 import ALevelComprehensiveReportRouter from './components/results/ALevelComprehensiveReportRouter';
 import ALevelClassReportSelector from './components/results/aLevel/ALevelClassReportSelector';
@@ -139,6 +140,10 @@ import { checkAndFixUserRole } from './utils/roleFixUtil';
 import AuthDebugPage from './components/auth/AuthDebugPage';
 import TokenInfoDisplay from './components/common/TokenInfoDisplay';
 import TokenRefreshButton from './components/common/TokenRefreshButton';
+import PrismaTest from './components/PrismaTest';
+import PrismaStudentResults from './components/results/PrismaStudentResults';
+import PrismaClassResults from './components/results/PrismaClassResults';
+import PrismaResultsDemo from './components/results/PrismaResultsDemo';
 // StudentPanel is already imported on line 25
 
 // Constants
@@ -383,6 +388,23 @@ function App() {
                       </ProtectedRoute>
                     } />
 
+                    {/* Prisma-based Routes */}
+                    <Route path="results/prisma" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <PrismaResultsDemo />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="results/prisma/student/:studentId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+                        <PrismaStudentResults />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="results/prisma/class/:classId/:examId" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <PrismaClassResults />
+                      </ProtectedRoute>
+                    } />
+
                     {/* O-Level Student Report Routes */}
                     <Route path="results/o-level/student-clean/:studentId/:examId" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
@@ -526,7 +548,12 @@ function App() {
                     } />
                     <Route path="/results/new-a-level/bulk-marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <NewALevelBulkMarksEntry />
+                        <NewALevelBulkMarksEntryV2 />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/results/new-a-level/bulk-marks-entry-v2" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <NewALevelBulkMarksEntryV2 />
                       </ProtectedRoute>
                     } />
 
@@ -565,7 +592,12 @@ function App() {
                     } />
                     <Route path="/teacher/new-a-level/bulk-marks-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
-                        <NewALevelBulkMarksEntry />
+                        <NewALevelBulkMarksEntryV2 />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/new-a-level/bulk-marks-entry-v2" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <NewALevelBulkMarksEntryV2 />
                       </ProtectedRoute>
                     } />
 
@@ -662,6 +694,13 @@ function App() {
                         <TokenInfoDisplay />
                       </Box>
                     </Box>} />
+
+                    {/* Prisma Test Page */}
+                    <Route path="/prisma-test" element={
+                      <ProtectedRoute allowedRoles={['admin']}>
+                        <PrismaTest />
+                      </ProtectedRoute>
+                    } />
 
                     <Route path="*" element={
                       <Navigate to={`/${user?.role || ''}`} replace />

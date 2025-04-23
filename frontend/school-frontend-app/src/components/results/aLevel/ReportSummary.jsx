@@ -11,19 +11,21 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip
+  Chip,
+  Tooltip
 } from '@mui/material';
-import { 
-  formatNumber, 
-  formatDivision, 
-  getDivisionColor, 
-  formatRank, 
-  getRankColor 
+import InfoIcon from '@mui/icons-material/Info';
+import {
+  formatNumber,
+  formatDivision,
+  getDivisionColor,
+  formatRank,
+  getRankColor
 } from '../../../utils/reportFormatUtils';
 
 /**
  * ReportSummary Component
- * 
+ *
  * Displays the performance summary and grade distribution in the A-Level result report.
  */
 const ReportSummary = ({ summary }) => {
@@ -58,14 +60,25 @@ const ReportSummary = ({ summary }) => {
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body1">
-                <strong>Division:</strong> {formatDivision(summary?.division)}
-                {summary?.division && (
-                  <Chip
-                    label={formatDivision(summary.division)}
-                    color={getDivisionColor(summary.division)}
-                    size="small"
-                    sx={{ ml: 1 }}
-                  />
+                <strong>Division:</strong>
+                {summary?.missingPrincipalSubjects > 0 ? (
+                  <Tooltip title={`Cannot calculate division: Need ${summary.missingPrincipalSubjects} more principal subject(s)`}>
+                    <span>
+                      N/A <InfoIcon color="warning" fontSize="small" sx={{ verticalAlign: 'middle', ml: 0.5 }} />
+                    </span>
+                  </Tooltip>
+                ) : (
+                  <>
+                    {formatDivision(summary?.division)}
+                    {summary?.division && (
+                      <Chip
+                        label={formatDivision(summary.division)}
+                        color={getDivisionColor(summary.division)}
+                        size="small"
+                        sx={{ ml: 1 }}
+                      />
+                    )}
+                  </>
                 )}
               </Typography>
             </Grid>
@@ -132,6 +145,7 @@ ReportSummary.propTypes = {
     division: PropTypes.string,
     rank: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     totalStudents: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    missingPrincipalSubjects: PropTypes.number,
     gradeDistribution: PropTypes.shape({
       A: PropTypes.number,
       B: PropTypes.number,
