@@ -473,6 +473,25 @@ const calculateClassPassRate = (students) => {
   return (passedStudents / students.length) * 100;
 };
 
+// Add standalone calculateGrade and calculatePoints for compatibility
+function calculateGrade(marks) {
+  return calculateGradeAndPoints(marks).grade;
+}
+
+function calculatePoints(grade) {
+  // Map grade to points as per ACSEE system
+  switch (grade) {
+    case 'A': return 1;
+    case 'B': return 2;
+    case 'C': return 3;
+    case 'D': return 4;
+    case 'E': return 5;
+    case 'S': return 6;
+    case 'F': return 7;
+    default: return 0;
+  }
+}
+
 module.exports = {
   calculateGradeAndPoints,
   calculateDivision,
@@ -485,5 +504,8 @@ module.exports = {
   calculateSubjectGPA,
   calculateSubjectPassRate,
   calculateExaminationGPA,
-  calculateClassPassRate
+  calculateClassPassRate,
+  // Add these for compatibility with A-Level report controller
+  calculateGrade,
+  calculatePoints
 };

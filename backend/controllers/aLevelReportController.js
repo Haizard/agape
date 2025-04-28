@@ -721,35 +721,38 @@ exports.getClassReport = async (req, res) => {
 
         // Create a map of subject ID to result for quick lookup
         const resultsBySubjectId = {};
-        const subjectsWithResults = new Set(); // Track subjects that have results
-
         for (const result of results) {
           if (result.subject?.['_id']) {
             resultsBySubjectId[result.subject._id.toString()] = result;
-            subjectsWithResults.add(result.subject._id.toString());
           }
         }
 
-        // Create a map of subject ID to subject for quick lookup
-        const subjectsById = {};
-        for (const subject of subjectsForReport) {
-          if (subject?.['_id']) {
-            subjectsById[subject._id.toString()] = subject;
+        // For each subject in the class, always include a result (real or placeholder)
+        const formattedResults = subjectsForReport.map(subject => {
+          const result = resultsBySubjectId[subject._id.toString()];
+          if (result) {
+            return {
+              subject: subject.name,
+              code: subject.code,
+              marks: result.marksObtained || result.marks || 0,
+              grade: result.grade || 'F',
+              points: result.points || 0,
+              remarks: aLevelGradeCalculator.getRemarks(result.grade),
+              isPrincipal: subject.isPrincipal || false
+            };
+          } else {
+            return {
+              subject: subject.name,
+              code: subject.code,
+              marks: 0,
+              grade: 'N/A',
+              points: 0,
+              remarks: 'No marks entered',
+              isPrincipal: subject.isPrincipal || false
+            };
           }
-        }
-
-        // Create formatted results for all subjects with marks (not just in combination)
-        const formattedResults = results.map(result => {
-          return {
-            subject: result.subject ? result.subject.name : 'Unknown Subject',
-            code: result.subject ? result.subject.code : 'UNK',
-            marks: result.marksObtained || result.marks || 0,
-            grade: result.grade || 'F',
-            points: result.points || 0,
-            remarks: aLevelGradeCalculator.getRemarks(result.grade),
-            isPrincipal: result.subject ? result.subject.isPrincipal : false
-          };
         });
+
         // Always include all subjects with marks, not just those in the combination
         const resultsForAverage = formattedResults; // Use all results for average
         const totalMarks = resultsForAverage.reduce((sum, result) => sum + (result.marks || 0), 0);
