@@ -117,7 +117,16 @@ const ALevelClassReport = ({ classId, examId, formLevel: propFormLevel, forceRef
     if (resolvedClassId && resolvedExamId) {
       fetchReport(true);
     }
-  }, [formLevel, resolvedClassId, resolvedExamId, fetchReport]);
+  }, [resolvedClassId, resolvedExamId, fetchReport]);
+
+  // Add polling for real-time auto-refresh
+  useEffect(() => {
+    if (!resolvedClassId || !resolvedExamId) return;
+    const interval = setInterval(() => {
+      refreshReport();
+    }, 60000); // 60 seconds
+    return () => clearInterval(interval);
+  }, [resolvedClassId, resolvedExamId, refreshReport]);
 
   // Prepare exam info for ClassInfoSection
   const examInfo = useMemo(() => {

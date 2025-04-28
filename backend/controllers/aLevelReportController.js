@@ -257,7 +257,9 @@ exports.getStudentReport = async (req, res) => {
     const averageMarks = resultsForAverage.length > 0 ? (totalMarks / resultsForAverage.length).toFixed(2) : '0.00';
 
     // Get principal subjects results
-    const principalResults = formattedResults.filter(result => result.isPrincipal);
+    const principalResults = formattedResults.filter(
+      result => result.isPrincipal && result.marks !== '' && result.marks !== undefined && result.marks !== null && result.marks !== 0
+    );
 
     // Get subsidiary subjects results
     const subsidiaryResults = formattedResults.filter(result => !result.isPrincipal);
@@ -638,64 +640,34 @@ exports.getClassReport = async (req, res) => {
       filteredStudents.map(async (student) => {
         console.log(`Processing student: ${student.firstName} ${student.lastName} (${student._id})`);
 
-        // Get the student's results for this exam with retry logic
-        // First, try to get results from the legacy ALevelResult model
+        // Always use NewALevelResult for fetching results
         let results = await executeWithRetry(
-          () => ALevelResult.find({
-            $and: [
-              { $or: [
-                { student: student._id },
-                { studentId: student._id }
-              ]},
-              { $or: [
-                { exam: examId },
-                { examId: examId }
-              ]}
-            ]
-          }).populate('subject'),
-          `Error fetching legacy results for student ${student._id} in exam ${examId}`
+          () => NewALevelResult.find({
+            studentId: student._id,
+            examId: examId
+          }).populate('subjectId'),
+          `Error fetching new results for student ${student._id} in exam ${examId}`
         );
 
-        // If no results found in legacy model, try the new model
-        if (results.length === 0) {
-          console.log(`No legacy results found for student ${student._id} in exam ${examId}, trying new model`);
-          const newResults = await executeWithRetry(
-            () => NewALevelResult.find({
-              studentId: student._id,
-              examId: examId
-            }).populate('subjectId'),
-            `Error fetching new results for student ${student._id} in exam ${examId}`
-          );
-
-          // If we found results in the new model, transform them to match the legacy format
-          if (newResults.length > 0) {
-            console.log(`Found ${newResults.length} results in new model for student ${student._id} in exam ${examId}`);
-            results = newResults.map(result => ({
-              _id: result._id,
-              student: result.studentId,
-              exam: result.examId,
-              subject: result.subjectId,
-              marksObtained: result.marksObtained,
-              grade: result.grade || aLevelGradeCalculator.calculateGrade(result.marksObtained),
-              points: result.points || aLevelGradeCalculator.calculatePoints(result.grade || aLevelGradeCalculator.calculateGrade(result.marksObtained)),
-              isPrincipal: result.isPrincipal,
-              isInCombination: result.isInCombination
-            }));
-          }
+        // Transform results to match the expected format
+        if (results.length > 0) {
+          results = results.map(result => ({
+            _id: result._id,
+            student: result.studentId,
+            exam: result.examId,
+            subject: result.subjectId,
+            marksObtained: result.marksObtained,
+            grade: result.grade || aLevelGradeCalculator.calculateGrade(result.marksObtained),
+            points: result.points || aLevelGradeCalculator.calculatePoints(result.grade || aLevelGradeCalculator.calculateGrade(result.marksObtained)),
+            isPrincipal: result.isPrincipal,
+            isInCombination: result.isInCombination
+          }));
         }
 
         // Log the query for debugging
         console.log(`Query for student ${student._id} in exam ${examId}:`, {
-          $and: [
-            { $or: [
-              { student: student._id },
-              { studentId: student._id }
-            ]},
-            { $or: [
-              { exam: examId },
-              { examId: examId }
-            ]}
-          ]
+          studentId: student._id,
+          examId: examId
         });
 
         console.log(`Found ${results.length} results for student ${student._id} in exam ${examId}`);
@@ -730,28 +702,54 @@ exports.getClassReport = async (req, res) => {
         // For each subject in the class, always include a result (real or placeholder)
         const formattedResults = subjectsForReport.map(subject => {
           const result = resultsBySubjectId[subject._id.toString()];
+          // Always set isPrincipal from the subject combination definition
+          const isPrincipal = subject.isPrincipal || false;
           if (result) {
+            // If marks are undefined, null, or 0, set to blank string
+            let marksValue = '';
+            if (result.marksObtained !== undefined && result.marksObtained !== null && result.marksObtained !== 0) {
+              marksValue = result.marksObtained;
+            }
             return {
               subject: subject.name,
               code: subject.code,
-              marks: result.marksObtained || result.marks || 0,
-              grade: result.grade || 'F',
+              marks: marksValue,
+              grade: result.grade || '',
               points: result.points || 0,
               remarks: aLevelGradeCalculator.getRemarks(result.grade),
-              isPrincipal: subject.isPrincipal || false
+              isPrincipal: isPrincipal
             };
           } else {
             return {
               subject: subject.name,
               code: subject.code,
-              marks: 0,
-              grade: 'N/A',
+              marks: '', // Blank if no marks entered
+              grade: '', // Blank if no marks entered
               points: 0,
               remarks: 'No marks entered',
-              isPrincipal: subject.isPrincipal || false
+              isPrincipal: isPrincipal
             };
           }
         });
+
+        // Identify principal subjects for the class
+        const principalSubjectIds = subjectsForReport
+          .filter(subject => subject.isPrincipal)
+          .map(subject => subject._id.toString());
+
+        // For each student, get their principal subject results
+        const principalResults = formattedResults.filter(
+          result => result.isPrincipal && result.marks !== '' && result.marks !== undefined && result.marks !== null && result.marks !== 0
+        );
+
+        // Only calculate division and GPA if all three principal subjects have marks
+        let division = '-';
+        let bestThreePoints = '-';
+        if (principalResults.length === 3) {
+          principalResults.sort((a, b) => (a.points || 0) - (b.points || 0));
+          bestThreePoints = principalResults.reduce((sum, result) => sum + (result.points || 0), 0);
+          division = aLevelGradeCalculator.calculateDivision(bestThreePoints);
+        }
 
         // Always include all subjects with marks, not just those in the combination
         const resultsForAverage = formattedResults; // Use all results for average
@@ -760,19 +758,6 @@ exports.getClassReport = async (req, res) => {
 
         // Calculate points and best three points
         const points = formattedResults.reduce((sum, result) => sum + (result.points || 0), 0);
-
-        // Get principal subjects results
-        const principalResults = formattedResults.filter(result => result.isPrincipal);
-
-        // Sort principal results by points (ascending, since lower points are better)
-        principalResults.sort((a, b) => (a.points || 0) - (b.points || 0));
-
-        // Take the best three principal subjects (or fewer if not enough)
-        const bestThreeResults = principalResults.slice(0, 3);
-        const bestThreePoints = bestThreeResults.reduce((sum, result) => sum + (result.points || 0), 0);
-
-        // Determine division based on best three points
-        const division = aLevelGradeCalculator.calculateDivision(bestThreePoints);
 
         return {
           id: student._id,
@@ -798,8 +783,14 @@ exports.getClassReport = async (req, res) => {
     // Calculate division distribution
     const divisionDistribution = { 'I': 0, 'II': 0, 'III': 0, 'IV': 0, '0': 0 };
     for (const student of studentsWithResults) {
-      const divKey = student.division?.toString().replace('Division ', '');
-      divisionDistribution[divKey] = (divisionDistribution[divKey] || 0) + 1;
+      // Only count students with a valid division (I, II, III, IV)
+      if (['I', 'II', 'III', 'IV'].includes(student.division)) {
+        divisionDistribution[student.division] = (divisionDistribution[student.division] || 0) + 1;
+      }
+      // Optionally, count '0' if you want to track students with invalid/incomplete divisions
+      // else if (student.division === '0') {
+      //   divisionDistribution['0'] = (divisionDistribution['0'] || 0) + 1;
+      // }
     }
 
     // Calculate class average

@@ -234,24 +234,36 @@ exports.getStudentsByClassAndSubject = async (req, res) => {
     const filtered = students.filter(s => s.subjectCombination);
 
     // For each student, build a flat array of subject IDs (from both subjects and compulsorySubjects)
-    const data = filtered.map(s => {
-      const subjectIds = [];
-      for (const subj of s.subjectCombination?.subjects ?? []) {
-        if (subj && subj._id) subjectIds.push(subj._id.toString());
-      }
-      for (const subj of s.subjectCombination?.compulsorySubjects ?? []) {
-        if (subj && subj._id) subjectIds.push(subj._id.toString());
-      }
-      return {
-        _id: s._id,
-        firstName: s.firstName,
-        lastName: s.lastName,
-        rollNumber: s.rollNumber,
-        admissionNumber: s.admissionNumber,
-        subjectCombination: s.subjectCombination,
-        subjectIds // <-- new field for easy eligibility check
-      };
-    });
+    const data = filtered
+      .filter(s => {
+        // Check if the student takes the subject (principal or compulsory)
+        const subjectIds = [];
+        for (const subj of s.subjectCombination?.subjects ?? []) {
+          if (subj && subj._id) subjectIds.push(subj._id.toString());
+        }
+        for (const subj of s.subjectCombination?.compulsorySubjects ?? []) {
+          if (subj && subj._id) subjectIds.push(subj._id.toString());
+        }
+        return subjectIds.includes(subjectId.toString());
+      })
+      .map(s => {
+        const subjectIds = [];
+        for (const subj of s.subjectCombination?.subjects ?? []) {
+          if (subj && subj._id) subjectIds.push(subj._id.toString());
+        }
+        for (const subj of s.subjectCombination?.compulsorySubjects ?? []) {
+          if (subj && subj._id) subjectIds.push(subj._id.toString());
+        }
+        return {
+          _id: s._id,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          rollNumber: s.rollNumber,
+          admissionNumber: s.admissionNumber,
+          subjectCombination: s.subjectCombination,
+          subjectIds // <-- new field for easy eligibility check
+        };
+      });
 
     res.json({
       success: true,
