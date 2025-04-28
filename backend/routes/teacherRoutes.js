@@ -804,10 +804,8 @@ router.get('/:id/classes', authenticateToken, async (req, res) => {
     const { academicYearId } = req.query;
 
     // Build query
-    const query = { teacher: mongoose.Types.ObjectId(teacherId) };
-    if (academicYearId) {
-      query.academicYear = mongoose.Types.ObjectId(academicYearId);
-    }
+    const query = { teacher: new mongoose.Types.ObjectId(teacherId) };
+    query.academicYear = new mongoose.Types.ObjectId(academicYearId);
 
     // Find all assignments for this teacher
     const assignments = await TeacherAssignment.find(query)

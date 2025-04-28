@@ -352,16 +352,34 @@ const NewALevelBulkMarksEntryV2 = () => {
 
     setSaving(true);
     try {
-      // Patch marks to ensure correct types for backend
-      const patchedMarks = previewData.marks.map(mark => ({
-        ...mark,
-        academicYearId: mark.academicYearId?._id || mark.academicYearId || '',
-        examTypeId: mark.examTypeId?._id || mark.examTypeId || '',
-        marksObtained: mark.marksObtained === '' ? '' : Number(mark.marksObtained)
-      }));
+      // Patch marks to ensure correct types for backend and strip out MongoDB Extended JSON and extra fields
+      const patchedMarks = previewData.marks.map(mark => {
+        // Helper to extract string from { $oid: ... } or just return the string
+        const extractId = (id) => {
+          if (!id) return '';
+          if (typeof id === 'string') return id;
+          if (typeof id === 'object' && id.$oid) return id.$oid;
+          return '';
+        };
+        return {
+          studentId: extractId(mark.studentId),
+          examId: extractId(mark.examId),
+          academicYearId: extractId(mark.academicYearId),
+          examTypeId: extractId(mark.examTypeId),
+          subjectId: extractId(selectedSubject),
+          classId: extractId(mark.classId),
+          marksObtained: mark.marksObtained === '' ? '' : Number(mark.marksObtained),
+          comment: mark.comment || '',
+          isPrincipal: !!mark.isPrincipal,
+          isInCombination: mark.isInCombination !== undefined ? !!mark.isInCombination : true
+        };
+      });
 
       // Log the data being sent
       console.log('Sending marks data (patched):', patchedMarks);
+
+      // Log the subjectIds being sent
+      console.log('Payload subjectIds:', patchedMarks.map(m => m.subjectId));
 
       // Submit to the new A-Level API endpoint
       const response = await newALevelResultService.batchCreateResults(patchedMarks);

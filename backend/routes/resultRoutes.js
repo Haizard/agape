@@ -155,11 +155,11 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
 
     // Get classes where this teacher teaches
     const classes = await Class.find({
-      'subjects.teacher': mongoose.Types.ObjectId(teacherId)
+      'subjects.teacher': new mongoose.Types.ObjectId(teacherId)
     });
 
     const classIds = classes.map(cls => cls._id);
-    const filteredClassIds = classId ? [mongoose.Types.ObjectId(classId)] : classIds;
+    const filteredClassIds = classId ? [new mongoose.Types.ObjectId(classId)] : classIds;
 
     // Get students in these classes
     const students = await Student.find({

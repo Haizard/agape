@@ -29,8 +29,8 @@ exports.getStudentReport = async (req, res) => {
     const { formLevel } = req.query; // Optional form level filter (5 or 6)
 
     // Convert IDs to ObjectId
-    if (studentId && typeof studentId === 'string') studentId = mongoose.Types.ObjectId(studentId);
-    if (examId && typeof examId === 'string') examId = mongoose.Types.ObjectId(examId);
+    if (studentId && typeof studentId === 'string') studentId = new mongoose.Types.ObjectId(studentId);
+    if (examId && typeof examId === 'string') examId = new mongoose.Types.ObjectId(examId);
 
     logger.info(`Generating standardized A-Level student report for student ${studentId}, exam ${examId}`);
     console.log(`Generating A-Level student report: studentId=${studentId}, examId=${examId}, formLevel=${formLevel || 'not specified'}`);
@@ -369,8 +369,8 @@ exports.getClassReport = async (req, res) => {
     const { formLevel } = req.query; // Optional form level filter (5 or 6)
 
     // Convert IDs to ObjectId
-    if (classId && typeof classId === 'string') classId = mongoose.Types.ObjectId(classId);
-    if (examId && typeof examId === 'string') examId = mongoose.Types.ObjectId(examId);
+    if (classId && typeof classId === 'string') classId = new mongoose.Types.ObjectId(classId);
+    if (examId && typeof examId === 'string') examId = new mongoose.Types.ObjectId(examId);
 
     logger.info(`Generating standardized A-Level class report for class ${classId}, exam ${examId}, formLevel: ${formLevel || 'all'}`);
     console.log(`Generating A-Level class report: classId=${classId}, examId=${examId}, formLevel=${formLevel || 'all'}`);

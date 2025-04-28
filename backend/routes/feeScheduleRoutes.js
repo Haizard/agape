@@ -15,8 +15,8 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'finance']), async (r
     
     // Build query
     const query = {};
-    if (academicYear) query.academicYear = mongoose.Types.ObjectId(academicYear);
-    if (classId) query.class = mongoose.Types.ObjectId(classId);
+    if (academicYear) query.academicYear = new mongoose.Types.ObjectId(academicYear);
+    if (classId) query.class = new mongoose.Types.ObjectId(classId);
     if (active === 'true') query.isActive = true;
     
     const schedules = await FeeSchedule.find(query)
@@ -292,8 +292,8 @@ router.get('/upcoming-installments', authenticateToken, authorizeRole(['admin', 
       'installments.dueDate': { $gte: currentDate, $lte: endDate }
     };
     
-    if (academicYear) query.academicYear = mongoose.Types.ObjectId(academicYear);
-    if (classId) query.class = mongoose.Types.ObjectId(classId);
+    if (academicYear) query.academicYear = new mongoose.Types.ObjectId(academicYear);
+    if (classId) query.class = new mongoose.Types.ObjectId(classId);
     
     // Find student fees with upcoming installments
     const studentFees = await StudentFee.find(query)

@@ -331,13 +331,12 @@ exports.batchCreateResults = async (req, res) => {
         }
 
         // Convert all string IDs to ObjectId
-        const mongoose = require('mongoose');
-        const studentId = mongoose.Types.ObjectId(mark.studentId);
-        const examId = mongoose.Types.ObjectId(mark.examId);
-        const subjectId = mongoose.Types.ObjectId(mark.subjectId);
-        const classId = mongoose.Types.ObjectId(mark.classId);
-        const academicYearId = mark.academicYearId ? mongoose.Types.ObjectId(mark.academicYearId) : undefined;
-        const examTypeId = mark.examTypeId ? mongoose.Types.ObjectId(mark.examTypeId) : undefined;
+        const studentId = new mongoose.Types.ObjectId(mark.studentId);
+        const examId = new mongoose.Types.ObjectId(mark.examId);
+        const subjectId = new mongoose.Types.ObjectId(mark.subjectId);
+        const classId = new mongoose.Types.ObjectId(mark.classId);
+        const academicYearId = mark.academicYearId ? new mongoose.Types.ObjectId(mark.academicYearId) : undefined;
+        const examTypeId = mark.examTypeId ? new mongoose.Types.ObjectId(mark.examTypeId) : undefined;
 
         // Validate student is A-Level
         const student = await Student.findById(studentId);

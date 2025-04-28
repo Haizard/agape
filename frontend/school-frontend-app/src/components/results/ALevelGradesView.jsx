@@ -102,6 +102,11 @@ const ALevelGradesView = ({
                         </Tooltip>
                       )}
                     </Box>
+                    {/* Debug: Show subjectId info */}
+                    <Box sx={{ fontSize: '0.7em', color: '#888', mt: 0.5 }}>
+                      <div>selectedSubjectId: {mark.subjectId?.toString?.() || mark.subjectId}</div>
+                      <div>backendSubjectId: {mark._backendSubjectId || '-'}</div>
+                    </Box>
                   </TableCell>
                   <TableCell>{mark.marksObtained !== '' ? mark.marksObtained : '-'}</TableCell>
                   <TableCell>{mark.grade || '-'}</TableCell>

@@ -129,12 +129,30 @@ export const formatStudentsForMarksEntry = async (students, subjectId, examId, c
         try {
           const resultsResponse = await api.get(`/api/new-a-level/results/student/${studentId}/exam/${examId}`);
           if (resultsResponse.data?.results) {
-            existingResult = resultsResponse.data.results.find(
-              result => result.subjectId &&
-              (result.subjectId === subjectId ||
-               (result.subjectId._id && result.subjectId._id === subjectId) ||
-               (result.subjectId.toString() === subjectId.toString()))
-            );
+            // Log the full API response for debugging
+            console.log('API response for student:', studentId, resultsResponse.data);
+            existingResult = resultsResponse.data.results.find(result => {
+              if (!result.subjectId) return false;
+              // Log both the selected subjectId and the backend result subjectId for debugging
+              console.log('[DEBUG] Comparing subjectIds:', {
+                selectedSubjectId: subjectId,
+                backendSubjectId: result.subjectId,
+                backendSubjectId_id: result.subjectId._id,
+                backendSubjectId_idString: result.subjectId._id ? result.subjectId._id.toString() : undefined
+              });
+              // If subjectId is an object with _id
+              if (typeof result.subjectId === 'object' && result.subjectId._id) {
+                return result.subjectId._id === subjectId || result.subjectId._id.toString() === subjectId.toString();
+              }
+              // If subjectId is an object with id
+              if (typeof result.subjectId === 'object' && result.subjectId.id) {
+                return result.subjectId.id === subjectId || result.subjectId.id.toString() === subjectId.toString();
+              }
+              // If subjectId is a string
+              return result.subjectId === subjectId || result.subjectId.toString() === subjectId.toString();
+            });
+            // Log the mapping for debugging
+            console.log('Student:', studentId, 'Existing result:', existingResult);
           }
         } catch (err) {
           console.log(`No existing result for student ${studentId}:`, err.message);
@@ -159,7 +177,9 @@ export const formatStudentsForMarksEntry = async (students, subjectId, examId, c
           isPrincipal: existingResult ? existingResult.isPrincipal : isPrincipalSubject,
           isInCombination: takesSubject,
           eligibilityWarning: eligibilityMessage,
-          _id: existingResult ? existingResult._id : null
+          _id: existingResult ? existingResult._id : null,
+          // Debug: add backend subjectId for UI
+          _backendSubjectId: existingResult?.subjectId?._id ? existingResult.subjectId._id : (typeof existingResult?.subjectId === 'string' ? existingResult.subjectId : undefined)
         };
 
         // Add academicYearId and examTypeId if available

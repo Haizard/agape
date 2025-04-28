@@ -1201,8 +1201,8 @@ router.get('/payments', authenticateToken, authorizeRole(['admin', 'finance']), 
 
     // Match stage after lookup for academicYear and class
     const lookupMatch = {};
-    if (academicYear) lookupMatch['studentFeeDetails.academicYear'] = mongoose.Types.ObjectId(academicYear);
-    if (classId) lookupMatch['studentFeeDetails.class'] = mongoose.Types.ObjectId(classId);
+    if (academicYear) lookupMatch['studentFeeDetails.academicYear'] = new mongoose.Types.ObjectId(academicYear);
+    if (classId) lookupMatch['studentFeeDetails.class'] = new mongoose.Types.ObjectId(classId);
 
     if (Object.keys(lookupMatch).length > 0) {
       matchStages.push({ $match: lookupMatch });

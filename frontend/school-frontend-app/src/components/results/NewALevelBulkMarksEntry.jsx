@@ -124,11 +124,11 @@ const NewALevelBulkMarksEntry = () => {
         console.log('Class details:', fetchClassResponse.data);
 
         if (fetchClassResponse.data && fetchClassResponse.data.subjects) {
-          console.log('Class subjects:', fetchClassResponse.data.subjects);
+          console.log('Class subjects:', fetchClassResponse.data?.subjects);
         }
 
         // Get class name
-        setClassName(fetchClassResponse.data.name);
+        setClassName(fetchClassResponse.data?.name);
 
         // Fetch subjects for the selected class
         let response;
@@ -586,8 +586,7 @@ const NewALevelBulkMarksEntry = () => {
             // Method 1: Check in combinationsMap
             if (combinationsMap[student._id] && combinationsMap[student._id].subjects) {
               isInCombination = combinationsMap[student._id].subjects.some(s =>
-                s.subjectId === selectedSubject ||
-                s.subjectId.toString() === selectedSubject.toString()
+                subjectIdMatches(s.subjectId, selectedSubject)
               );
               console.log(`Method 1 (combinationsMap): Student ${student._id} isInCombination=${isInCombination}`);
             }
@@ -595,8 +594,7 @@ const NewALevelBulkMarksEntry = () => {
             // Method 2: Check in student.subjects (from API)
             if (!isInCombination && student.subjects && Array.isArray(student.subjects)) {
               isInCombination = student.subjects.some(s =>
-                s.subjectId === selectedSubject ||
-                s.subjectId.toString() === selectedSubject.toString()
+                subjectIdMatches(s.subjectId, selectedSubject)
               );
               console.log(`Method 2 (student.subjects): Student ${student._id} isInCombination=${isInCombination}`);
             }
@@ -604,10 +602,7 @@ const NewALevelBulkMarksEntry = () => {
             // Method 3: Check in studentSubjectsMap
             if (!isInCombination && studentSubjectsMap[student._id]) {
               isInCombination = studentSubjectsMap[student._id].some(s =>
-                s._id === selectedSubject ||
-                s.subjectId === selectedSubject ||
-                s._id?.toString() === selectedSubject.toString() ||
-                s.subjectId?.toString() === selectedSubject.toString()
+                subjectIdMatches(s._id, selectedSubject)
               );
               console.log(`Method 3 (studentSubjectsMap): Student ${student._id} isInCombination=${isInCombination}`);
             }
@@ -629,8 +624,7 @@ const NewALevelBulkMarksEntry = () => {
             // Then check in combinationsMap
             else if (combinationsMap[student._id] && combinationsMap[student._id].subjects) {
               const subjectEntry = combinationsMap[student._id].subjects.find(s =>
-                s.subjectId === selectedSubject ||
-                s.subjectId.toString() === selectedSubject.toString()
+                subjectIdMatches(s.subjectId, selectedSubject)
               );
               if (subjectEntry) {
                 isPrincipal = !!subjectEntry.isPrincipal;
@@ -639,8 +633,7 @@ const NewALevelBulkMarksEntry = () => {
             // Then check in student.subjects
             else if (student.subjects && Array.isArray(student.subjects)) {
               const subjectEntry = student.subjects.find(s =>
-                s.subjectId === selectedSubject ||
-                s.subjectId.toString() === selectedSubject.toString()
+                subjectIdMatches(s.subjectId, selectedSubject)
               );
               if (subjectEntry) {
                 isPrincipal = !!subjectEntry.isPrincipal;
@@ -649,10 +642,7 @@ const NewALevelBulkMarksEntry = () => {
             // Finally check in studentSubjectsMap
             else if (studentSubjectsMap[student._id]) {
               const subjectEntry = studentSubjectsMap[student._id].find(s =>
-                s._id === selectedSubject ||
-                s.subjectId === selectedSubject ||
-                s._id?.toString() === selectedSubject.toString() ||
-                s.subjectId?.toString() === selectedSubject.toString()
+                subjectIdMatches(s._id, selectedSubject)
               );
               if (subjectEntry) {
                 isPrincipal = !!subjectEntry.isPrincipal;
@@ -669,16 +659,19 @@ const NewALevelBulkMarksEntry = () => {
                 const resultsResponse = await api.get(`/api/new-a-level/results/student/${student._id}/exam/${selectedExam}`);
                 if (resultsResponse.data && resultsResponse.data.results) {
                   existingResult = resultsResponse.data.results.find(
-                    result => result.subjectId &&
-                    (result.subjectId === selectedSubject ||
-                     (result.subjectId._id && result.subjectId._id === selectedSubject) ||
-                     (result.subjectId.toString() === selectedSubject.toString()))
+                    result => subjectIdMatches(result.subjectId, selectedSubject)
                   );
                 }
               }
             } catch (err) {
               console.log(`No existing result for student ${student._id}:`, err.message);
               // No existing result
+            }
+
+            // Fallback: If student.subjects is undefined or empty, but an existing result exists for this subject, include the student
+            if (!isInCombination && (!student.subjects || student.subjects.length === 0) && existingResult) {
+              isInCombination = true;
+              console.log(`Fallback: Student ${student._id} included due to existing result for subject ${selectedSubject}`);
             }
 
             // Check student eligibility for this subject
@@ -813,7 +806,7 @@ const NewALevelBulkMarksEntry = () => {
         studentSubjects = studentSubjectsMap[mark.studentId].map(subject => ({
           name: subject.name || 'Unknown Subject',
           isPrincipal: !!subject.isPrincipal,
-          isCurrentSubject: subject._id === selectedSubject || subject.subjectId === selectedSubject
+          isCurrentSubject: subjectIdMatches(subject._id, selectedSubject) || subjectIdMatches(subject.subjectId, selectedSubject)
         }));
       }
       // Try to get subjects from student.subjects
@@ -823,7 +816,7 @@ const NewALevelBulkMarksEntry = () => {
           studentSubjects = student.subjects.map(subject => ({
             name: subject.name || 'Unknown Subject',
             isPrincipal: !!subject.isPrincipal,
-            isCurrentSubject: subject.subjectId === selectedSubject
+            isCurrentSubject: subjectIdMatches(subject.subjectId, selectedSubject)
           }));
         }
       }
@@ -916,26 +909,26 @@ const NewALevelBulkMarksEntry = () => {
 
   // Handle save marks button click
   const handleSaveMarks = () => {
-    // Validate marks
-    if (marks.length === 0) {
-      setError('No students found for this class and subject');
-      return;
-    }
-
     // Filter out marks that haven't been entered
-    const marksToSave = marks.filter(mark => mark.marksObtained !== '');
+    let marksToSave = marks.filter(mark => mark.marksObtained !== '');
 
     if (marksToSave.length === 0) {
       setError('Please enter marks for at least one student');
       return;
     }
 
+    // Patch subjectId for all marks to ensure it matches the selected subject
+    marksToSave = marksToSave.map(mark => ({
+      ...mark,
+      subjectId: selectedSubject
+    }));
+
     // Set preview data
     setPreviewData({
       marks: marksToSave,
       className,
-      subjectName: subjectDetails ? subjectDetails.name : 'Unknown Subject',
-      examName: examDetails ? examDetails.name : 'Unknown Exam'
+      subjectName: subjectDetails?.name || 'Unknown Subject',
+      examName: examDetails?.name || 'Unknown Exam'
     });
 
     // Open preview dialog
@@ -975,7 +968,7 @@ const NewALevelBulkMarksEntry = () => {
       // Set success message with view grades button
       setSuccess(
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography>{`Saved ${savedCount} marks successfully`}</Typography>
+          <Typography>Saved {savedCount} marks successfully</Typography>
           <Box>
             <Button
               variant="contained"
@@ -1034,6 +1027,15 @@ const NewALevelBulkMarksEntry = () => {
     // Navigate to marks history page
     navigate(`/results/history/${studentId}/${selectedSubject}/${selectedExam}`);
   };
+
+  // Utility function for robust subjectId comparison
+  function subjectIdMatches(subjectId, selectedSubject) {
+    if (!subjectId || !selectedSubject) return false;
+    if (typeof subjectId === 'object' && subjectId._id) {
+      return subjectId._id === selectedSubject || subjectId._id.toString() === selectedSubject.toString();
+    }
+    return subjectId === selectedSubject || subjectId.toString() === selectedSubject.toString();
+  }
 
   return (
     <Box sx={{ p: 3 }}>
