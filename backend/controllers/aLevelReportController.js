@@ -240,20 +240,9 @@ exports.getStudentReport = async (req, res) => {
 
     // Format results for the response
     const formattedResults = results.map(result => {
-      // Log the raw result for debugging
-      console.log('Raw result before formatting:', {
-        id: result._id,
-        subject: result.subject ? result.subject.name : 'Unknown Subject',
-        marks: result.marks,
-        marksObtained: result.marksObtained,
-        grade: result.grade,
-        points: result.points
-      });
-
       return {
         subject: result.subject ? result.subject.name : 'Unknown Subject',
         code: result.subject ? result.subject.code : 'UNK',
-        // Use marksObtained if marks is not available
         marks: result.marksObtained || result.marks || 0,
         grade: result.grade || 'F',
         points: result.points || 0,
@@ -262,10 +251,8 @@ exports.getStudentReport = async (req, res) => {
       };
     });
 
-    // Only use subjects in the subject combination for average
-    const resultsForAverage = formattedResults.filter(result =>
-      combinationSubjectCodes.includes(result.code)
-    );
+    // Always include all subjects with marks, not just those in the combination
+    const resultsForAverage = formattedResults; // Use all results for average
     const totalMarks = resultsForAverage.reduce((sum, result) => sum + (result.marks || 0), 0);
     const averageMarks = resultsForAverage.length > 0 ? (totalMarks / resultsForAverage.length).toFixed(2) : '0.00';
 
@@ -526,33 +513,16 @@ exports.getClassReport = async (req, res) => {
       () => Student.find({ class: classId, educationLevel: 'A_LEVEL' }),
       `Error fetching students for class ${classId}`
     );
-
+    let filteredStudents = students;
     // Filter by form level if provided
     if (formLevel) {
       console.log(`Filtering students by form level: ${formLevel}`);
       console.log('Student form levels before filtering:', students.map(s => ({ id: s._id, name: `${s.firstName} ${s.lastName}`, form: s.form })));
-
-      // Map UI form levels to database form levels
-      // For A-Level, UI shows Form 5 and Form 6, but database stores Form 1 and Form 2
-      // So we need to map Form 5 to Form 1 and Form 6 to Form 2 for database comparison
-      // But we also need to map Form 1 to Form 5 and Form 2 to Form 6 for UI display
-      // This is confusing, so let's be explicit about the mapping
-
-      // If the requested form level is 1, we need to look for students with form 5
-      // If the requested form level is 2, we need to look for students with form 6
-      // If the requested form level is 5, we need to look for students with form 1
-      // If the requested form level is 6, we need to look for students with form 2
       const mappedFormLevel = formLevel === '5' ? '1' : (formLevel === '6' ? '2' : (formLevel === '1' ? '5' : (formLevel === '2' ? '6' : formLevel)));
       console.log(`Mapped form level ${formLevel} to ${mappedFormLevel} for database comparison`);
-
-      students = students.filter(student => {
-        // Get the raw form level from the student object
+      filteredStudents = students.filter(student => {
         const rawFormLevel = student.form;
-        console.log(`Student ${student._id} (${student.firstName} ${student.lastName}) has raw form level ${rawFormLevel}`);
-
-        // For A-Level students, we need to handle the mapping correctly
-        // If we're looking for form level 1, we need to match students with form 1
-        // If we're looking for form level 5, we need to match students with form 1
+        console.log('Student', student._id, '(', student.firstName, student.lastName, ') has raw form level', rawFormLevel);
         const match = rawFormLevel && (
           rawFormLevel.toString() === formLevel.toString() ||
           (formLevel === '5' && rawFormLevel.toString() === '1') ||
@@ -560,15 +530,13 @@ exports.getClassReport = async (req, res) => {
           (formLevel === '1' && rawFormLevel.toString() === '5') ||
           (formLevel === '2' && rawFormLevel.toString() === '6')
         );
-
-        console.log(`Student ${student._id} (${student.firstName} ${student.lastName}) has raw form level ${rawFormLevel}, match with ${formLevel}: ${match}`);
+        console.log('Student', student._id, '(', student.firstName, student.lastName, ') has raw form level', rawFormLevel, ', match with', formLevel, ':', match);
         return match;
       });
-
-      console.log(`After filtering, ${students.length} students remain`);
+      console.log(`After filtering, ${filteredStudents.length} students remain`);
     }
 
-    if (students.length === 0) {
+    if (filteredStudents.length === 0) {
       logger.warn(`No A-Level students found in class ${classId}`);
       console.log('WARNING: No students found matching the criteria. Returning mock data as a fallback.');
       console.log('This is a temporary solution until real data is available.');
@@ -653,20 +621,21 @@ exports.getClassReport = async (req, res) => {
       allSubjects.map(s => s ? { name: s.name, code: s.code, isPrincipal: s.isPrincipal } : 'undefined'));
 
     // If no subjects found in combination, fetch all A-Level subjects as a fallback
-    if (allSubjects.length === 0) {
+    let subjectsForReport = allSubjects;
+    if (subjectsForReport.length === 0) {
       console.log('No subjects found in combination, fetching all A-Level subjects as fallback');
       const allALevelSubjects = await executeWithRetry(
         () => Subject.find({ educationLevel: { $in: ['A_LEVEL', 'BOTH'] } }),
         'Error fetching all A-Level subjects'
       );
-      allSubjects = allALevelSubjects;
-      console.log(`Found ${allSubjects.length} A-Level subjects as fallback:`,
-        allSubjects.map(s => s ? { name: s.name, code: s.code, isPrincipal: s.isPrincipal } : 'undefined'));
+      subjectsForReport = allALevelSubjects;
+      console.log('Found', subjectsForReport.length, 'A-Level subjects as fallback:',
+        subjectsForReport.map(s => s ? { name: s.name, code: s.code, isPrincipal: s.isPrincipal } : 'undefined'));
     }
 
     // Get results for each student
     const studentsWithResults = await Promise.all(
-      students.map(async (student) => {
+      filteredStudents.map(async (student) => {
         console.log(`Processing student: ${student.firstName} ${student.lastName} (${student._id})`);
 
         // Get the student's results for this exam with retry logic
@@ -763,54 +732,26 @@ exports.getClassReport = async (req, res) => {
 
         // Create a map of subject ID to subject for quick lookup
         const subjectsById = {};
-        for (const subject of allSubjects) {
+        for (const subject of subjectsForReport) {
           if (subject?.['_id']) {
             subjectsById[subject._id.toString()] = subject;
           }
         }
 
-        // Create formatted results for all subjects in the combination
-        let formattedResults = allSubjects.map(subject => {
-          if (!subject || !subject._id) return null;
-
-          const subjectId = subject._id.toString();
-          const result = resultsBySubjectId[subjectId];
-
+        // Create formatted results for all subjects with marks (not just in combination)
+        const formattedResults = results.map(result => {
           return {
-            subject: subject.name,
-            code: subject.code,
-            marks: result ? (result.marksObtained || 0) : 0, // Use marksObtained instead of marks
-            grade: result ? (result.grade || 'F') : 'F',
-            points: result ? (result.points || 0) : 0,
-            remarks: result ? aLevelGradeCalculator.getRemarks(result.grade) : 'No Result',
-            isPrincipal: subject.isPrincipal
+            subject: result.subject ? result.subject.name : 'Unknown Subject',
+            code: result.subject ? result.subject.code : 'UNK',
+            marks: result.marksObtained || result.marks || 0,
+            grade: result.grade || 'F',
+            points: result.points || 0,
+            remarks: aLevelGradeCalculator.getRemarks(result.grade),
+            isPrincipal: result.subject ? result.subject.isPrincipal : false
           };
-        }).filter(Boolean); // Remove null entries
-
-        // Add subjects that have results but aren't in the combination
-        for (const result of results) {
-          if (result.subject?.['_id']) {
-            const subjectId = result.subject._id.toString();
-            if (!subjectsById[subjectId]) {
-              // This subject has results but isn't in the combination
-              formattedResults.push({
-                subject: result.subject.name,
-                code: result.subject.code,
-                marks: result.marksObtained || 0,
-                grade: result.grade || 'F',
-                points: result.points || 0,
-                remarks: aLevelGradeCalculator.getRemarks(result.grade),
-                isPrincipal: result.subject.isPrincipal
-              });
-            }
-          }
-        }
-
-        // Only use subjects in the subject combination for average
-        const combinationSubjectCodes = (subjectCombination?.subjects || []).map(s => s.code);
-        const resultsForAverage = formattedResults.filter(result =>
-          combinationSubjectCodes.includes(result.code)
-        );
+        });
+        // Always include all subjects with marks, not just those in the combination
+        const resultsForAverage = formattedResults; // Use all results for average
         const totalMarks = resultsForAverage.reduce((sum, result) => sum + (result.marks || 0), 0);
         const averageMarks = resultsForAverage.length > 0 ? (totalMarks / resultsForAverage.length).toFixed(2) : '0.00';
 

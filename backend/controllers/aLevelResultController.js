@@ -233,17 +233,30 @@ exports.getStudentsByClassAndSubject = async (req, res) => {
     // Only keep students whose subjectCombination is not null (i.e., they take the subject)
     const filtered = students.filter(s => s.subjectCombination);
 
-    res.json({
-      success: true,
-      count: filtered.length,
-      data: filtered.map(s => ({
+    // For each student, build a flat array of subject IDs (from both subjects and compulsorySubjects)
+    const data = filtered.map(s => {
+      const subjectIds = [];
+      for (const subj of s.subjectCombination?.subjects ?? []) {
+        if (subj && subj._id) subjectIds.push(subj._id.toString());
+      }
+      for (const subj of s.subjectCombination?.compulsorySubjects ?? []) {
+        if (subj && subj._id) subjectIds.push(subj._id.toString());
+      }
+      return {
         _id: s._id,
         firstName: s.firstName,
         lastName: s.lastName,
         rollNumber: s.rollNumber,
         admissionNumber: s.admissionNumber,
-        subjectCombination: s.subjectCombination
-      }))
+        subjectCombination: s.subjectCombination,
+        subjectIds // <-- new field for easy eligibility check
+      };
+    });
+
+    res.json({
+      success: true,
+      count: data.length,
+      data
     });
   } catch (error) {
     logger.error(`Error getting A-Level students by class and subject: ${error.message}`);

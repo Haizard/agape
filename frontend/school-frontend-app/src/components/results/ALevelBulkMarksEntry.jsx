@@ -108,7 +108,7 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
       // Clear global variables
       if (window.aLevelCombinationsMap) {
         console.log('Cleaning up global combinations map');
-        delete window.aLevelCombinationsMap;
+        window.aLevelCombinationsMap = undefined;
       }
     };
   }, []);
@@ -893,44 +893,47 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
             return true;
           }
 
+          // Use the new subjectIds array for eligibility check
+          if (Array.isArray(student.subjectIds) && student.subjectIds.length > 0) {
+            // Get all possible subject IDs to check (original IDs if available)
+            const subjectIdsToCheck = selectedSubjectObj?.originalIds?.length > 0 ?
+              selectedSubjectObj.originalIds : [selectedSubject];
+            const hasSubject = subjectIdsToCheck.some(subjectId => student.subjectIds.includes(subjectId));
+            console.log(`Student ${student.firstName} ${student.lastName} ${hasSubject ? 'has' : 'does not have'} subject ${selectedSubjectObj?.name || selectedSubject} in their subjectIds`);
+            return hasSubject;
+          }
+
+          // If student doesn't have subjectIds, fallback to old logic (optional)
           // If student has a subject combination
           if (student.subjectCombination &&
               typeof student.subjectCombination === 'object') {
-
             // Check if the combination is fully populated
             const isPopulated = student.subjectCombination.subjects &&
                               Array.isArray(student.subjectCombination.subjects);
-
             if (isPopulated) {
               // Check if the selected subject is in the student's principal subjects
               const principalSubjectIds = student.subjectCombination.subjects.map(s =>
                 typeof s === 'object' ? s._id : s
               );
-
               // Check if the selected subject is in the student's subsidiary subjects
               const subsidiarySubjectIds = student.subjectCombination.compulsorySubjects ?
                 student.subjectCombination.compulsorySubjects.map(s =>
                   typeof s === 'object' ? s._id : s
                 ) : [];
-
               // Combine all subject IDs
               const allSubjectIds = [...principalSubjectIds, ...subsidiarySubjectIds];
-
               // Get all possible subject IDs to check (original IDs if available)
               const subjectIdsToCheck = selectedSubjectObj?.originalIds?.length > 0 ?
                 selectedSubjectObj.originalIds : [selectedSubject];
-
               // Check if any of the subject IDs are in the student's combination
               const hasSubject = subjectIdsToCheck.some(subjectId => allSubjectIds.includes(subjectId));
-              console.log(`Student ${student.firstName} ${student.lastName} ${hasSubject ? 'has' : 'does not have'} subject ${selectedSubjectObj?.name || selectedSubject} in their combination`);
-
-              // Only include students who have the selected subject in their combination
+              console.log(`Student ${student.firstName} ${student.lastName} ${hasSubject ? 'has' : 'does not have'} subject ${selectedSubjectObj?.name || selectedSubject} in their combination (fallback)`);
               return hasSubject;
             }
           }
 
           // If student doesn't have a populated subject combination, exclude them
-          console.log(`Student ${student.firstName} ${student.lastName} has no valid subject combination, excluding from marks entry`);
+          console.log(`Student ${student.firstName} ${student.lastName} has no valid subject combination or subjectIds, excluding from marks entry`);
           return false;
         }) : aLevelStudents;
 
@@ -1009,19 +1012,19 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
 
               // Create a map of student IDs to their selected subjects
               const studentSubjectsMap = {};
-              selections.forEach(selection => {
+              for (const selection of selections) {
                 if (selection.student) {
                   const studentId = typeof selection.student === 'object' ? selection.student._id : selection.student;
 
                   // Combine core and optional subjects
                   const allSubjects = [
-                    ...(selection.coreSubjects || []).map(s => typeof s === 'object' ? s._id : s),
-                    ...(selection.optionalSubjects || []).map(s => typeof s === 'object' ? s._id : s)
+                    ...(selection.coreSubjects ?? []).map(s => typeof s === 'object' ? s._id : s),
+                    ...(selection.optionalSubjects ?? []).map(s => typeof s === 'object' ? s._id : s)
                   ];
 
                   studentSubjectsMap[studentId] = allSubjects;
                 }
-              });
+              }
 
               console.log('Student subjects map:', studentSubjectsMap);
 
@@ -1090,7 +1093,7 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
 
               // Create a map of student IDs to their names from the combinations data
               const studentNamesMap = {};
-              combinationsResponse.data.forEach(combination => {
+              for (const combination of combinationsResponse.data) {
                 if (combination.student && combination.student._id) {
                   const studentId = combination.student._id.toString();
 
@@ -1118,7 +1121,7 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
                     console.log(`Mapped student ${studentId} to name: ${studentNamesMap[studentId]}`);
                   }
                 }
-              });
+              }
 
               // Get the subject details to determine if it's principal
               const subjectObj = subjects.find(s => s._id === selectedSubject);
@@ -1146,7 +1149,7 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
               const combinedStudents = [];
 
               // Add principal students first with names from the combinations data
-              principalStudents.forEach(student => {
+              for (const student of principalStudents) {
                 studentIds.add(student._id);
                 const studentId = student._id.toString();
                 // Add the name from the combinations data if available
@@ -1174,10 +1177,10 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
                 student.isPrincipal = true;
                 student.isInCombination = true;
                 combinedStudents.push(student);
-              });
+              }
 
               // Add subsidiary students that aren't already included
-              subsidiaryStudents.forEach(student => {
+              for (const student of subsidiaryStudents) {
                 if (!studentIds.has(student._id)) {
                   const studentId = student._id.toString();
                   // Add the name from the combinations data if available
@@ -1206,7 +1209,7 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
                   student.isInCombination = true;
                   combinedStudents.push(student);
                 }
-              });
+              }
 
               console.log(`Combined ${combinedStudents.length} students who take subject ${subjectObj?.name || selectedSubject}`);
 
@@ -1249,15 +1252,15 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
 
             // Create a map of student IDs to their names from the combinations data
             const studentNamesMap = {};
-            combinations.forEach(combination => {
-              if (combination.student && combination.student._id) {
+            for (const combination of combinations) {
+              if (combination.student?.['_id']) {
                 const studentId = combination.student._id.toString();
                 const firstName = combination.student.firstName || '';
                 const lastName = combination.student.lastName || '';
                 studentNamesMap[studentId] = `${firstName} ${lastName}`.trim();
                 console.log(`Mapped student ${studentId} to name: ${studentNamesMap[studentId]} (fallback approach)`);
               }
-            });
+            }
 
             // Get the subject details to determine if it's principal
             const subjectObj = subjects.find(s => s._id === selectedSubject);
@@ -1277,7 +1280,7 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
             const combinedStudents = [];
 
             // Add principal students first with names from the combinations data
-            principalStudents.forEach(student => {
+            for (const student of principalStudents) {
               studentIds.add(student._id);
               const studentId = student._id.toString();
               // Add the name from the combinations data if available
@@ -1288,10 +1291,10 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
                 console.log(`Added name to principal student ${studentId}: ${student.name} (fallback approach)`);
               }
               combinedStudents.push(student);
-            });
+            }
 
             // Add subsidiary students that aren't already included
-            subsidiaryStudents.forEach(student => {
+            for (const student of subsidiaryStudents) {
               if (!studentIds.has(student._id)) {
                 const studentId = student._id.toString();
                 // Add the name from the combinations data if available
@@ -1303,7 +1306,7 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
                 }
                 combinedStudents.push(student);
               }
-            });
+            }
 
             console.log(`Combined ${combinedStudents.length} students who take subject ${subjectObj?.name || selectedSubject}`);
 
