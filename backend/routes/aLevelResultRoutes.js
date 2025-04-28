@@ -15,6 +15,9 @@ router.get('/exam/:examId', auth, aLevelResultController.getResultsByExam);
 // Get A-Level results by student ID and exam ID
 router.get('/student/:studentId/exam/:examId', auth, aLevelResultController.getResultsByStudentAndExam);
 
+// Get A-Level students in a class who take a specific subject
+router.get('/students-by-class-and-subject', auth, aLevelResultController.getStudentsByClassAndSubject);
+
 // Create a new A-Level result
 router.post('/', auth, aLevelResultController.createResult);
 

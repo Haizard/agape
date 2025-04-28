@@ -675,55 +675,20 @@ const ALevelBulkMarksEntry = ({ educationLevel: propEducationLevel }) => {
         } else {
           // For A-Level classes, try multiple approaches to get students
           if (isALevelClass) {
-            console.log(`A-Level class detected, using multiple approaches to fetch students for class ${selectedClass}`);
-
-            // Try multiple approaches to get students
-            let studentsFound = false;
-
-            // Approach 1: Try the teacher-specific endpoint
+            // Use the new endpoint to fetch only students who take the selected subject
             try {
-              console.log(`Approach 1: Using /api/teachers/classes/${selectedClass}/students endpoint`);
-              const response = await api.get(`/api/teachers/classes/${selectedClass}/students`);
-
-              // Check if the response has data
-              if (response.data) {
-                if (Array.isArray(response.data)) {
-                  studentsData = response.data;
-                  studentsFound = true;
-                } else if (response.data.students && Array.isArray(response.data.students)) {
-                  studentsData = response.data.students;
-                  studentsFound = true;
+              console.log(`Fetching A-Level students for class ${selectedClass} and subject ${selectedSubject} using new endpoint`);
+              const response = await api.get('/api/new-a-level/students-by-class-and-subject', {
+                params: {
+                  classId,
+                  subjectId: selectedSubject
                 }
-              }
-
-              console.log(`Approach 1: Found ${studentsData.length} students`);
-            } catch (error1) {
-              console.error('Approach 1 failed:', error1);
-            }
-
-            // Approach 2: Try the general students endpoint
-            if (!studentsFound || studentsData.length === 0) {
-              try {
-                console.log(`Approach 2: Using /api/students/class/${selectedClass} endpoint`);
-                const response = await api.get(`/api/students/class/${selectedClass}`);
-
-                if (response.data) {
-                  studentsData = response.data;
-                  studentsFound = true;
-                }
-
-                console.log(`Approach 2: Found ${studentsData.length} students`);
-              } catch (error2) {
-                console.error('Approach 2 failed:', error2);
-              }
-            }
-
-            // If no students found after all approaches, show an error
-            if (!studentsFound || studentsData.length === 0) {
-              console.log('No students found for this class after trying all approaches');
-              setError('No students found for this class. Please contact an administrator.');
-            } else {
-              console.log(`Successfully found ${studentsData.length} students for class ${selectedClass}`);
+              });
+              studentsData = response.data.data || [];
+              console.log(`Found ${studentsData.length} A-Level students for class ${selectedClass} and subject ${selectedSubject}`);
+            } catch (error) {
+              console.error('Error fetching A-Level students by class and subject:', error);
+              setError('Failed to fetch students for this subject. Please try again.');
             }
           } else {
             // For non-A-Level classes, use the standard approach

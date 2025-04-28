@@ -196,7 +196,13 @@ exports.getResultsByStudentAndExam = async (req, res) => {
   try {
     const { studentId, examId } = req.params;
 
+    // Log the query parameters
+    console.log('[DEBUG] getResultsByStudentAndExam query:', { studentId, examId });
+
     const results = await NewALevelResult.findByStudentAndExam(studentId, examId);
+
+    // Log the results found
+    console.log('[DEBUG] getResultsByStudentAndExam results:', results);
 
     // Calculate total points and division
     const { totalPoints, division } = await NewALevelResult.calculateTotalPoints(studentId, examId);
@@ -304,103 +310,82 @@ exports.deleteResult = async (req, res) => {
 exports.batchCreateResults = async (req, res) => {
   // Track performance
   const startTime = Date.now();
+  const results = [];
+  const errors = [];
+
+  // Log the incoming payload for debugging
+  console.log('[DEBUG] Incoming batchCreateResults payload:', JSON.stringify(req.body, null, 2));
 
   try {
-    // Validate request body
-    if (!Array.isArray(req.body) || req.body.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid request body. Expected an array of marks.'
-      });
-    }
-
-    // Process each mark
-    const results = [];
-    const errors = [];
-
-    // Process marks one by one without using a transaction
-    for (const mark of req.body) {
+    for (const [i, mark] of req.body.entries()) {
       try {
+        // Log each mark before processing
+        console.log(`[DEBUG] Processing mark #${i + 1}:`, mark);
+
         // Validate required fields
         if (!mark.studentId || !mark.examId || !mark.subjectId || !mark.classId || mark.marksObtained === undefined) {
-          errors.push({
-            mark,
-            error: 'Missing required fields',
-            requiredFields: ['studentId', 'examId', 'subjectId', 'classId', 'marksObtained']
-          });
+          const errorMsg = `[ERROR] Missing required fields for mark #${i + 1}: ${JSON.stringify(mark)}`;
+          console.error(errorMsg);
+          errors.push({ mark, error: errorMsg });
           continue;
         }
 
-        // Log the mark data for debugging
-        console.log(`Processing mark: ${JSON.stringify({
-          studentId: mark.studentId,
-          examId: mark.examId,
-          academicYearId: mark.academicYearId,
-          examTypeId: mark.examTypeId,
-          subjectId: mark.subjectId,
-          classId: mark.classId,
-          marksObtained: mark.marksObtained
-        })}`);
+        // Convert all string IDs to ObjectId
+        const mongoose = require('mongoose');
+        const studentId = mongoose.Types.ObjectId(mark.studentId);
+        const examId = mongoose.Types.ObjectId(mark.examId);
+        const subjectId = mongoose.Types.ObjectId(mark.subjectId);
+        const classId = mongoose.Types.ObjectId(mark.classId);
+        const academicYearId = mark.academicYearId ? mongoose.Types.ObjectId(mark.academicYearId) : undefined;
+        const examTypeId = mark.examTypeId ? mongoose.Types.ObjectId(mark.examTypeId) : undefined;
 
-        // Check if a result already exists
-        const existingResult = await NewALevelResult.findOne({
-          studentId: mark.studentId,
-          examId: mark.examId,
-          subjectId: mark.subjectId
-        });
-
-        let result;
-
-        if (existingResult) {
-          // Update existing result
-          console.log(`Updating existing result for student ${mark.studentId}, subject ${mark.subjectId}, exam ${mark.examId}`);
-
-          existingResult.marksObtained = mark.marksObtained;
-          existingResult.comment = mark.comment || '';
-          existingResult.isPrincipal = mark.isPrincipal || false;
-          existingResult.isInCombination = mark.isInCombination !== undefined ? mark.isInCombination : true;
-          existingResult.updatedBy = req.user ? req.user.id : null;
-          existingResult.updatedAt = Date.now();
-
-          // Save the updated result
-          result = await existingResult.save();
-        } else {
-          // Create new result object
-          const newResult = new NewALevelResult({
-            studentId: mark.studentId,
-            examId: mark.examId,
-            academicYearId: mark.academicYearId,
-            examTypeId: mark.examTypeId,
-            subjectId: mark.subjectId,
-            classId: mark.classId,
-            marksObtained: mark.marksObtained,
-            comment: mark.comment || '',
-            isPrincipal: mark.isPrincipal || false,
-            isInCombination: mark.isInCombination !== undefined ? mark.isInCombination : true,
-            createdBy: req.user ? req.user.id : null
-          });
-
-          // Save the new result
-          result = await newResult.save();
+        // Validate student is A-Level
+        const student = await Student.findById(studentId);
+        if (!student) {
+          const errorMsg = `[ERROR] Student not found for mark #${i + 1}: ${mark.studentId}`;
+          console.error(errorMsg);
+          errors.push({ mark, error: errorMsg });
+          continue;
+        }
+        if (student.educationLevel !== 'A_LEVEL') {
+          const errorMsg = `[ERROR] Student is not A-Level for mark #${i + 1}: ${mark.studentId}`;
+          console.error(errorMsg);
+          errors.push({ mark, error: errorMsg });
+          continue;
         }
 
-        // Add to results array
-        results.push(result);
+        // Upsert (update if exists, otherwise create)
+        const upsertData = {
+          studentId,
+          examId,
+          academicYearId,
+          examTypeId,
+          subjectId,
+          classId,
+          marksObtained: mark.marksObtained,
+          comment: mark.comment,
+          isPrincipal: mark.isPrincipal || false,
+          isInCombination: mark.isInCombination !== undefined ? mark.isInCombination : true,
+          updatedAt: new Date(),
+          updatedBy: req.user ? req.user.id : null
+        };
+        const savedResult = await NewALevelResult.findOneAndUpdate(
+          { studentId, examId, subjectId },
+          { $set: upsertData, $setOnInsert: { createdBy: req.user ? req.user.id : null, createdAt: new Date() } },
+          { new: true, upsert: true }
+        );
+        console.log('[DEBUG] Upserted result:', savedResult);
+        results.push(savedResult);
       } catch (error) {
-        console.error(`Error processing mark for student ${mark.studentId}, subject ${mark.subjectId}:`, error);
-
         // Check for duplicate key error
         if (error.code === 11000) {
-          errors.push({
-            mark,
-            error: 'Duplicate entry',
-            message: 'Result already exists for this student, exam, and subject'
-          });
+          const errorMsg = `[ERROR] Duplicate entry for mark #${i + 1}: ${JSON.stringify(mark)}`;
+          console.error(errorMsg);
+          errors.push({ mark, error: 'Duplicate entry', message: errorMsg });
         } else {
-          errors.push({
-            mark,
-            error: error.message
-          });
+          const errorMsg = `[ERROR] Exception for mark #${i + 1}: ${error.message}`;
+          console.error(errorMsg);
+          errors.push({ mark, error: error.message, message: errorMsg });
         }
       }
     }
@@ -408,6 +393,12 @@ exports.batchCreateResults = async (req, res) => {
     // Calculate performance metrics
     const endTime = Date.now();
     const processingTime = endTime - startTime;
+
+    // Log the final results and errors
+    console.log(`[DEBUG] Batch create finished. Saved: ${results.length}, Errors: ${errors.length}`);
+    if (errors.length > 0) {
+      console.log('[DEBUG] Errors:', JSON.stringify(errors, null, 2));
+    }
 
     // Return response
     res.status(201).json({
@@ -423,9 +414,8 @@ exports.batchCreateResults = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(`Error in batch creating A-Level results: ${error.message}`);
+    console.error(`[ERROR] Error in batch creating A-Level results: ${error.message}`);
     logger.error(`Error in batch creating A-Level results: ${error.message}`);
-
     res.status(500).json({
       success: false,
       message: 'Error in batch creating A-Level results',

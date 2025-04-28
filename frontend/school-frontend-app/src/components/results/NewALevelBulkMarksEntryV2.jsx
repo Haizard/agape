@@ -108,15 +108,29 @@ const NewALevelBulkMarksEntryV2 = () => {
       }
 
       // Set class and subject details from the response
-      setClassName(studentsResponse.data.class.name);
-      setSubjectDetails(studentsResponse.data.subject);
+      setClassName(studentsResponse.data.class && studentsResponse.data.class.name ? studentsResponse.data.class.name : 'Unknown Class');
+      setSubjectDetails(studentsResponse.data.subject ? studentsResponse.data.subject : { name: 'Unknown Subject' });
 
       console.log('Prisma filtered students response:', studentsResponse);
-      console.log(`Found ${studentsResponse.data.students.length} students in class ${classId}`);
-      console.log(`${studentsResponse.data.eligibleCount} students take subject ${subjectId}`);
+
+      // Defensive check for students array (handle both shapes)
+      let studentsArray = [];
+      if (Array.isArray(studentsResponse.data?.students)) {
+        studentsArray = studentsResponse.data.students;
+      } else if (Array.isArray(studentsResponse.data)) {
+        studentsArray = studentsResponse.data;
+      } else {
+        console.error('API did not return students array:', studentsResponse);
+        setError('Failed to load students. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log(`Found ${studentsArray.length} students in class ${classId}`);
+      console.log(`${studentsResponse.data?.eligibleCount || 0} students take subject ${subjectId}`);
 
       // Check if students array exists and is not empty
-      if (!studentsResponse.data.students || !Array.isArray(studentsResponse.data.students) || studentsResponse.data.students.length === 0) {
+      if (!studentsArray || !Array.isArray(studentsArray) || studentsArray.length === 0) {
         setError('No students found in this class. Please select a different class.');
         setLoading(false);
         return;
@@ -124,7 +138,7 @@ const NewALevelBulkMarksEntryV2 = () => {
 
       // Format students for marks entry
       const marksData = await aLevelStudentService.formatStudentsForMarksEntry(
-        studentsResponse.data.students,
+        studentsArray,
         subjectId,
         examId,
         classId,
@@ -162,10 +176,9 @@ const NewALevelBulkMarksEntryV2 = () => {
         // Log the first student's data structure to understand what we're working with
         if (marksData.length > 0) {
           console.log('First student data structure:', JSON.stringify(marksData[0], null, 2));
-
           // If we have the original student data, log that too
-          if (studentsResponse.data.students && studentsResponse.data.students.length > 0) {
-            console.log('Original first student data:', JSON.stringify(studentsResponse.data.students[0], null, 2));
+          if (studentsArray.length > 0) {
+            console.log('Original first student data:', JSON.stringify(studentsArray[0], null, 2));
           }
         }
       }
@@ -198,6 +211,12 @@ const NewALevelBulkMarksEntryV2 = () => {
           </Box>
         );
       }
+
+      console.log('studentsArray:', studentsArray);
+      console.log('subjectId being checked:', subjectId);
+      studentsArray.forEach(student => {
+        console.log('Student:', student._id, 'Subjects:', student.subjects || student.subjectCombinations || student.combination);
+      });
     } catch (err) {
       console.error('Error fetching students:', err);
       setError('Failed to load students. Please try again.');
@@ -333,11 +352,19 @@ const NewALevelBulkMarksEntryV2 = () => {
 
     setSaving(true);
     try {
+      // Patch marks to ensure correct types for backend
+      const patchedMarks = previewData.marks.map(mark => ({
+        ...mark,
+        academicYearId: mark.academicYearId?._id || mark.academicYearId || '',
+        examTypeId: mark.examTypeId?._id || mark.examTypeId || '',
+        marksObtained: mark.marksObtained === '' ? '' : Number(mark.marksObtained)
+      }));
+
       // Log the data being sent
-      console.log('Sending marks data:', previewData.marks);
+      console.log('Sending marks data (patched):', patchedMarks);
 
       // Submit to the new A-Level API endpoint
-      const response = await newALevelResultService.batchCreateResults(previewData.marks);
+      const response = await newALevelResultService.batchCreateResults(patchedMarks);
       console.log('Response from batch create:', response);
 
       const savedCount = response?.savedCount || previewData.marks.length;

@@ -101,58 +101,18 @@ const ALevelMarksEntryForm = ({
             const teacherResponse = await api.get('/api/teachers/profile/me');
             const teacherId = teacherResponse.data._id;
 
-            try {
-              // Use the new teacher-subject-assignments endpoint with Prisma
-              response = await api.get(`/api/prisma/teacher-subject-assignments/teacher/${teacherId}/class/${selectedClass}`);
+            // Fetch teacher's assigned subjects for the class
+            const assignmentsResponse = await api.get('/api/teacher-subject-assignments', {
+              params: { teacherId, classId: selectedClass }
+            });
 
-              if (response.data.success && response.data.data) {
-                // Extract subjects from the assignments
-                const teacherSubjects = response.data.data.map(assignment => assignment.subject);
-                setSubjects(teacherSubjects || []);
-              }
-            } catch (error) {
-              console.warn('Error fetching from Prisma teacher-subject-assignments endpoint:', error.message);
-              console.log('Falling back to the old endpoint');
-
-              // Fallback to the old endpoint
-              response = await api.get('/api/teacher-subject-assignments', {
-                params: { teacherId, classId: selectedClass }
-              });
-
-              // Transform the response to match the expected format
-              if (response.data && Array.isArray(response.data)) {
-                // Get the subject details for each assignment
-                const subjectIds = response.data.map(assignment => {
-                  // Handle both string IDs and object IDs
-                  if (typeof assignment.subjectId === 'object' && assignment.subjectId !== null) {
-                    return assignment.subjectId._id;
-                  }
-                  return assignment.subjectId;
-                }).filter(id => id); // Filter out any undefined or null IDs
-
-                // Get all subjects for the class instead of individual fetches
-                const allSubjectsResponse = await api.get(`/api/subjects?classId=${selectedClass}`);
-                const allSubjects = allSubjectsResponse.data;
-
-                // Filter to only include the subjects assigned to this teacher
-                const filteredSubjects = allSubjects.filter(subject => {
-                  return subjectIds.includes(subject._id);
-                });
-
-                setSubjects(filteredSubjects);
-              }
-            }
+            // assignmentsResponse.data is an array of assignments
+            // Each assignment has a subjectId object
+            const subjects = assignmentsResponse.data.map(a => a.subjectId);
+            setSubjects(subjects);
           } catch (error) {
-            console.error('Error fetching from teacher-subject-assignments:', error);
-
-            // Fallback to subjects endpoint
-            response = await api.get(`/api/subjects?classId=${selectedClass}`);
-
-            // Filter to only show A-Level subjects
-            response.data = response.data.filter(subject =>
-              subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
-            );
-            setSubjects(response.data);
+            console.error('Error fetching teacher subject assignments:', error);
+            setSubjects([]);
           }
         }
       } catch (err) {
@@ -260,11 +220,13 @@ const ALevelMarksEntryForm = ({
                 <MenuItem value="">
                   <em>Select a subject</em>
                 </MenuItem>
-                {Array.isArray(subjects) && subjects.map(subject => (
-                  <MenuItem key={subject._id} value={subject._id}>
-                    {subject.name}
-                  </MenuItem>
-                ))}
+                {Array.isArray(subjects) && subjects
+                  .filter((s, i, arr) => arr.findIndex(x => x._id === s._id) === i)
+                  .map(subject => (
+                    <MenuItem key={subject._id} value={subject._id}>
+                      {subject.name}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
           </Grid>

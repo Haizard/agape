@@ -9,9 +9,7 @@
     "node": "18.x"
   },
   "dependencies": {
-    "@prisma/client": "^6.6.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.1",
-    "prisma": "^6.6.0"
+    "jspdf": "^3.0.1"
   }
 }

@@ -11,6 +11,7 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const { checkStudentEducationLevel, checkClassEducationLevel } = require('../middleware/educationLevelCheck');
 const { checkTeacherSubjectAssignments } = require('../middleware/teacherSubjectCheck');
 const logger = require('../utils/logger');
+const aLevelResultController = require('../controllers/aLevelResultController');
 
 // Log all requests to this router
 router.use((req, res, next) => {
@@ -134,6 +135,17 @@ router.get('/teacher-subjects',
       });
     }
   }
+);
+
+/**
+ * @route   GET /api/new-a-level/students-by-class-and-subject
+ * @desc    Get students by class and subject
+ * @access  Private (Admin, Teacher)
+ */
+router.get('/students-by-class-and-subject',
+  authenticateToken,
+  authorizeRole(['admin', 'teacher']),
+  aLevelResultController.getStudentsByClassAndSubject
 );
 
 module.exports = router;

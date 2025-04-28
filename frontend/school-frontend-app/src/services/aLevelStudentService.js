@@ -10,11 +10,9 @@ import api from '../utils/api';
  * Get A-Level students filtered by subject for a class
  * @param {string} classId - Class ID
  * @param {string} subjectId - Subject ID
- * @param {boolean} includeIneligible - Whether to include students who don't take the subject
  * @returns {Promise<Object>} - Result with filtered students
  */
-export const getStudentsFilteredBySubject = async (classId, subjectId, includeIneligible = false) => {
-  // Validate parameters
+export const getStudentsFilteredBySubject = async (classId, subjectId) => {
   if (!classId) {
     console.error('Missing required parameter: classId');
     return {
@@ -31,118 +29,25 @@ export const getStudentsFilteredBySubject = async (classId, subjectId, includeIn
     };
   }
 
-  console.log(`Getting A-Level students for class ${classId} filtered by subject ${subjectId}, includeIneligible=${includeIneligible}`);
-
   try {
-    // First try the Prisma endpoint
-    console.log('Attempting to use Prisma endpoint for student filtering');
-    const response = await api.get('/api/prisma/subject-assignments/students-by-subject', {
+    // Use the correct API endpoint with /api prefix
+    const response = await api.get('/api/new-a-level/students-by-class-and-subject', {
       params: {
         classId,
-        subjectId,
-        includeIneligible
+        subjectId
       }
     });
-
-    // Check if the response is valid
-    if (!response.data) {
-      throw new Error('Invalid response from Prisma endpoint');
-    }
-
-    // Check if the teacher is authorized to access this subject-class combination
-    if (!response.data.success && response.data.data && response.data.data.authorized === false) {
-      console.error('Teacher is not authorized to access this subject in this class');
-      return {
-        success: false,
-        message: 'You are not authorized to access this subject in this class. Please contact an administrator.'
-      };
-    }
-
-    // If the response is successful, log and return it
-    if (response.data.success) {
-      const eligibleCount = response.data.data?.eligibleCount || 0;
-      const totalCount = response.data.data?.totalCount || 0;
-      console.log(`Prisma endpoint returned ${response.data.data?.students?.length || 0} students (${eligibleCount}/${totalCount} eligible)`);
-      return response.data;
-    }
-    
-    // If the response is not successful, log the error and throw an exception
-    console.error('Prisma endpoint returned an error:', response.data.message);
-    throw new Error(response.data.message || 'Unknown error from Prisma endpoint');
-  } catch (prismaError) {
-    console.warn('Prisma endpoint failed, falling back to legacy approach:', prismaError.message);
-
-    try {
-      // Try the A-Level specific endpoint first
-      console.log('Attempting to use A-Level specific endpoint');
-      const aLevelResponse = await api.get('/api/prisma/marks/a-level/students-by-subject', {
-        params: {
-          classId,
-          subjectId,
-          includeIneligible
-        }
-      });
-
-      if (aLevelResponse.data?.success) {
-        console.log(`A-Level specific endpoint returned ${aLevelResponse.data.data?.students?.length || 0} students`);
-        return aLevelResponse.data;
-      }
-      
-      console.warn('A-Level specific endpoint failed:', aLevelResponse.data?.message || 'Unknown error');
-    } catch (aLevelError) {
-      console.warn('A-Level specific endpoint failed, continuing to legacy approach:', aLevelError.message);
-    }
-
-    try {
-      // If both Prisma endpoints fail, use the legacy approach
-      console.log('Using legacy approach to get students and filter them client-side');
-      
-      // Get all students for the class
-      const studentsResponse = await api.get(`/api/students?classId=${classId}`);
-      
-      // Filter for A-Level students
-      const aLevelStudents = studentsResponse.data.filter(student => {
-        return student.level === 'A' || student.educationLevel === 'A_LEVEL' || student.educationLevel === 'A';
-      });
-      
-      // Get subject details
-      const subjectResponse = await api.get(`/api/subjects/${subjectId}`);
-      const subject = subjectResponse.data;
-      
-      // Get class details
-      const classResponse = await api.get(`/api/classes/${classId}`);
-      const classDetails = classResponse.data;
-      
-      // Process students to determine eligibility (simplified for brevity)
-      const processedStudents = aLevelStudents.map(student => ({
-        id: student._id || student.id,
-        studentId: student._id || student.id,
-        firstName: student.firstName || '',
-        lastName: student.lastName || '',
-        name: student.firstName && student.lastName ? `${student.firstName} ${student.lastName}` : (student.name || 'Unknown Student'),
-        isEligible: true, // Simplified - assume all students are eligible in fallback mode
-        isPrincipal: false
-      }));
-      
-      // Return the processed students
-      return {
-        success: true,
-        data: {
-          class: classDetails,
-          subject,
-          students: processedStudents,
-          eligibleCount: processedStudents.length,
-          totalCount: processedStudents.length
-        }
-      };
-    } catch (legacyError) {
-      console.error('Legacy approach failed:', legacyError);
-      return {
-        success: false,
-        message: `Failed to get students: ${legacyError.message}`,
-        error: legacyError
-      };
-    }
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    console.error('Error fetching students by class and subject:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch students by class and subject',
+      error
+    };
   }
 };
 
@@ -170,6 +75,49 @@ export const formatStudentsForMarksEntry = async (students, subjectId, examId, c
       if (!student) {
         console.warn('Skipping undefined or null student');
         continue;
+      }
+
+      // Debug: Log student subject combinations
+      console.log('Student:', student._id || student.id, 'Possible subject fields:', student.subjects, student.subjectCombinations, student.combination, student.subjectCombination);
+
+      // Determine if student takes the subject and if it is principal or subsidiary
+      let takesSubject = false;
+      let isPrincipalSubject = false;
+      let eligibilityMessage = '';
+      // Check various possible fields for subject combinations
+      if (student.subjectCombination && Array.isArray(student.subjectCombination.subjects)) {
+        // Check principal subjects
+        takesSubject = student.subjectCombination.subjects.some(s => {
+          const match = (typeof s === 'string' ? s : s._id || s.subjectId) === subjectId;
+          if (match && (typeof s === 'object' && s.isPrincipal)) {
+            isPrincipalSubject = true;
+          }
+          return match;
+        });
+        // Check compulsory (subsidiary) subjects if not found in principal
+        if (!takesSubject && Array.isArray(student.subjectCombination.compulsorySubjects)) {
+          takesSubject = student.subjectCombination.compulsorySubjects.some(s => {
+            const match = (typeof s === 'string' ? s : s._id || s.subjectId) === subjectId;
+            if (match) {
+              isPrincipalSubject = false;
+            }
+            return match;
+          });
+        }
+        eligibilityMessage = 'Checked student.subjectCombination.subjects and compulsorySubjects';
+      } else if (Array.isArray(student.subjects)) {
+        takesSubject = student.subjects.some(s => (typeof s === 'string' ? s : s._id || s.subjectId) === subjectId);
+        eligibilityMessage = 'Checked student.subjects';
+      } else if (Array.isArray(student.subjectCombinations)) {
+        takesSubject = student.subjectCombinations.some(comb =>
+          Array.isArray(comb.subjects) && comb.subjects.some(s => (typeof s === 'string' ? s : s._id || s.subjectId) === subjectId)
+        );
+        eligibilityMessage = 'Checked student.subjectCombinations';
+      } else if (student.combination && Array.isArray(student.combination.subjects)) {
+        takesSubject = student.combination.subjects.some(s => (typeof s === 'string' ? s : s._id || s.subjectId) === subjectId);
+        eligibilityMessage = 'Checked student.combination.subjects';
+      } else {
+        eligibilityMessage = 'No subject combination found';
       }
 
       try {
@@ -208,9 +156,9 @@ export const formatStudentsForMarksEntry = async (students, subjectId, examId, c
           grade: existingResult ? existingResult.grade : '',
           points: existingResult ? existingResult.points : '',
           comment: existingResult ? existingResult.comment : '',
-          isPrincipal: existingResult ? existingResult.isPrincipal : (student.isPrincipal || false),
-          isInCombination: student.isEligible || false,
-          eligibilityWarning: student.eligibilityMessage || 'Subject may not be in student\'s combination',
+          isPrincipal: existingResult ? existingResult.isPrincipal : isPrincipalSubject,
+          isInCombination: takesSubject,
+          eligibilityWarning: eligibilityMessage,
           _id: existingResult ? existingResult._id : null
         };
 

@@ -1,5 +1,6 @@
 const ALevelResult = require('../models/ALevelResult');
 const logger = require('../utils/logger');
+const mongoose = require('mongoose');
 
 // Get all A-Level results
 exports.getAllResults = async (req, res) => {
@@ -202,5 +203,50 @@ exports.deleteResult = async (req, res) => {
       message: 'Error deleting A-Level result',
       error: error.message
     });
+  }
+};
+
+// Get A-Level students in a class who take a specific subject
+exports.getStudentsByClassAndSubject = async (req, res) => {
+  try {
+    const { classId, subjectId } = req.query;
+    if (!classId || !subjectId) {
+      return res.status(400).json({ success: false, message: 'classId and subjectId are required' });
+    }
+    const Student = require('../models/Student');
+    const SubjectCombination = require('../models/SubjectCombination');
+
+    // Find students in the class, A_LEVEL, with a subjectCombination
+    const students = await Student.find({
+      class: classId,
+      educationLevel: 'A_LEVEL',
+      subjectCombination: { $ne: null }
+    }).populate({
+      path: 'subjectCombination',
+      populate: {
+        path: 'subjects compulsorySubjects',
+        model: 'Subject',
+        select: 'name code type educationLevel isPrincipal isCompulsory'
+      }
+    });
+
+    // Only keep students whose subjectCombination is not null (i.e., they take the subject)
+    const filtered = students.filter(s => s.subjectCombination);
+
+    res.json({
+      success: true,
+      count: filtered.length,
+      data: filtered.map(s => ({
+        _id: s._id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        rollNumber: s.rollNumber,
+        admissionNumber: s.admissionNumber,
+        subjectCombination: s.subjectCombination
+      }))
+    });
+  } catch (error) {
+    logger.error(`Error getting A-Level students by class and subject: ${error.message}`);
+    res.status(500).json({ success: false, message: 'Error getting students', error: error.message });
   }
 };

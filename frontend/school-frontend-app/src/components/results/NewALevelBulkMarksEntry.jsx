@@ -160,76 +160,19 @@ const NewALevelBulkMarksEntry = () => {
             // Get teacher ID
             const teacherResponse = await api.get('/api/teachers/profile/me');
             const teacherId = teacherResponse.data._id;
-            console.log('Teacher ID:', teacherId);
 
-            try {
-              // Use the new teacher-subject-assignments endpoint with Prisma
-              response = await api.get(`/api/prisma/teacher-subject-assignments/teacher/${teacherId}/class/${selectedClass}`);
-              console.log('Prisma teacher subject assignments:', response.data);
+            // Fetch teacher's assigned subjects for the class
+            const assignmentsResponse = await api.get('/api/teacher-subject-assignments', {
+              params: { teacherId, classId: selectedClass }
+            });
 
-              if (response.data.success && response.data.data) {
-                // Extract subjects from the assignments
-                const teacherSubjects = response.data.data.map(assignment => assignment.subject);
-                console.log('Teacher subjects:', teacherSubjects);
-                setSubjects(teacherSubjects || []);
-              }
-            } catch (error) {
-              console.error('Error fetching from teacher-subject-assignments:', error);
-
-              // Fallback to the old endpoint
-              console.log('Falling back to old teacher-subject-assignments endpoint');
-              response = await api.get('/api/teacher-subject-assignments', {
-                params: { teacherId, classId: selectedClass }
-              });
-              console.log('Teacher subject assignments:', response.data);
-
-              // Transform the response to match the expected format
-              if (response.data && Array.isArray(response.data)) {
-                // Get the subject details for each assignment
-                const subjectIds = response.data.map(assignment => {
-                  // Handle both string IDs and object IDs
-                  console.log('Assignment:', assignment);
-                  if (typeof assignment.subjectId === 'object' && assignment.subjectId !== null) {
-                    console.log('Subject ID is an object:', assignment.subjectId);
-                    return assignment.subjectId._id;
-                  }
-                  console.log('Subject ID is a string:', assignment.subjectId);
-                  return assignment.subjectId;
-                }).filter(id => id); // Filter out any undefined or null IDs
-
-                console.log('Extracted subject IDs:', subjectIds);
-
-                // Get all subjects for the class instead of individual fetches
-                const allSubjectsResponse = await api.get(`/api/subjects?classId=${selectedClass}`);
-                const allSubjects = allSubjectsResponse.data;
-
-                console.log('All subjects for class:', allSubjects);
-
-                // Filter to only include the subjects assigned to this teacher
-                const filteredSubjects = allSubjects.filter(subject => {
-                  const isIncluded = subjectIds.includes(subject._id);
-                  console.log(`Subject ${subject.name} (${subject._id}) included: ${isIncluded}`);
-                  return isIncluded;
-                });
-
-                console.log('Filtered subjects for teacher:', filteredSubjects);
-                setSubjects(filteredSubjects);
-              }
-            }
+            // assignmentsResponse.data is an array of assignments
+            // Each assignment has a subjectId object
+            const subjects = assignmentsResponse.data.map(a => a.subjectId);
+            setSubjects(subjects);
           } catch (error) {
-            console.error('Error fetching from teacher-subject-assignments:', error);
-
-            // Skip the enhanced teachers endpoint since it's returning 404
-            // and go directly to the subjects endpoint as fallback
-            console.log('Falling back to subjects endpoint');
-            response = await api.get(`/api/subjects?classId=${selectedClass}`);
-            console.log('All subjects from fallback:', response.data);
-
-            // Filter to only show A-Level subjects
-            response.data = response.data.filter(subject =>
-              subject.educationLevel === 'A_LEVEL' || subject.educationLevel === 'BOTH'
-            );
-            setSubjects(response.data);
+            console.error('Error fetching teacher subject assignments:', error);
+            setSubjects([]);
           }
         }
       } catch (err) {
@@ -287,15 +230,17 @@ const NewALevelBulkMarksEntry = () => {
           false // Only include eligible students (who take this subject)
         );
 
-        if (!filteredStudentsResponse.success) {
-          console.error('Error filtering students:', filteredStudentsResponse.message);
-          setError(`Error filtering students: ${filteredStudentsResponse.message}`);
+        console.log('filteredStudentsResponse:', filteredStudentsResponse);
+
+        // Defensive check and logging for students array
+        const filteredStudentData = filteredStudentsResponse?.data?.students;
+        if (!Array.isArray(filteredStudentData)) {
+          console.error('API did not return students array:', filteredStudentsResponse);
+          setFilteredStudents([]);
+          setError('Failed to load students. Please try again.');
           setLoading(false);
           return;
         }
-
-        // Get the filtered students
-        const filteredStudentData = filteredStudentsResponse.data?.students || [];
         console.log(`Prisma filtering returned ${filteredStudentData.length} eligible students`);
 
         // If no students were found, show a warning
@@ -494,9 +439,9 @@ const NewALevelBulkMarksEntry = () => {
 
             // Create a map of principal students for quick lookup
             const principalStudentMap = {};
-            principalStudents.forEach(student => {
+            for (const student of principalStudents) {
               principalStudentMap[student._id] = true;
-            });
+            }
 
             // Process all students with the subject, marking them as principal or subsidiary
             const combinedStudents = allStudentsWithSubject.map(student => ({

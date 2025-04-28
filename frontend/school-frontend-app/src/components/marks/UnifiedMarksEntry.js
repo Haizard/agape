@@ -113,34 +113,17 @@ const UnifiedMarksEntry = () => {
           setEducationLevel(classData.educationLevel);
         }
 
-        // If user is a teacher, fetch only subjects they teach
-        if (currentUser.role === 'teacher' && currentUser.teacherId) {
-          const teacherSubjectsResponse = await axios.get(`/api/prisma/teacher-subject-assignments/teacher/${currentUser.teacherId}/class/${selectedClass}`, {
-            headers: {
-              Authorization: `Bearer ${currentUser.token}`
-            }
-          });
-
-          if (teacherSubjectsResponse.data.success) {
-            // Extract subjects from teacher assignments
-            const teacherSubjects = teacherSubjectsResponse.data.data.map(assignment => assignment.subject);
-            setSubjects(teacherSubjects || []);
-          } else {
-            setError('Failed to fetch teacher subjects');
+        // For admin users, fetch all subjects for the class
+        const response = await axios.get(`/api/prisma/subjects/class/${selectedClass}`, {
+          headers: {
+            Authorization: `Bearer ${currentUser.token}`
           }
+        });
+
+        if (response.data.success) {
+          setSubjects(response.data.data.subjects || []);
         } else {
-          // For admin users, fetch all subjects for the class
-          const response = await axios.get(`/api/prisma/subjects/class/${selectedClass}`, {
-            headers: {
-              Authorization: `Bearer ${currentUser.token}`
-            }
-          });
-
-          if (response.data.success) {
-            setSubjects(response.data.data.subjects || []);
-          } else {
-            setError('Failed to fetch subjects');
-          }
+          setError('Failed to fetch subjects');
         }
       } catch (error) {
         console.error('Error fetching subjects:', error);
