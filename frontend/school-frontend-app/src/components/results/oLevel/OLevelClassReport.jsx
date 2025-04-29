@@ -1366,7 +1366,7 @@ const OLevelClassReport = (props) => {
                                   width: '10px',
                                   minWidth: '10px',
                                   maxWidth: '10px',
-                                  height: '30px'
+                                  height: '20px'
                                 }}
                               >
                                 <div style={{ 
