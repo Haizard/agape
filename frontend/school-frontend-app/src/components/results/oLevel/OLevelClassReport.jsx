@@ -412,7 +412,7 @@ const OLevelClassReport = (props) => {
                 </div>
                 <div class="school-info">
                   <h1 class="school-name">AGAPE LUTHERAN JUNIOR SEMINARY</h1>
-                  <h2 class="school-address">P.O. BOX 376, MBEYA, TANZANIA</h2>
+                  <h2 class="school-address">P.O. BOX 8882, MOSHI, TANZANIA</h2>
                   <h3 class="report-title">O-LEVEL CLASS EXAMINATION RESULTS</h3>
                 </div>
               </div>
