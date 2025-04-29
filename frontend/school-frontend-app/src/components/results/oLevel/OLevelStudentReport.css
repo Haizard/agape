@@ -1,0 +1,61 @@
+.student-info-header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 0.5pt solid #ccc;
+  margin-bottom: 8px;
+}
+
+.student-info-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 6.5pt;
+  line-height: 1.1;
+}
+
+.student-info-label {
+  font-weight: bold;
+  color: #333;
+  white-space: nowrap;
+}
+
+.student-info-value {
+  color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Update table styles */
+.subject-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+
+.subject-table th,
+.subject-table td {
+  border: 0.5pt solid #ccc;
+  padding: 2px 4px;
+  font-size: 6.5pt;
+  line-height: 1.1;
+}
+
+.subject-table th {
+  font-weight: bold;
+  background-color: #f5f5f5;
+}
+
+.subject-header {
+  font-size: 7pt;
+  font-weight: bold;
+  margin: 4px 0;
+}
+
+/* Compact text utility class */
+.compact-text {
+  font-size: 6pt;
+  line-height: 1.1;
+} 

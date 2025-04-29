@@ -1,0 +1,254 @@
+/* Optimized Print Styles for Student Reports */
+
+/* Common Print Styles */
+@media print {
+  /* Reset page settings */
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+
+  /* Base document styles */
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 9pt !important;
+  }
+
+  /* Hide non-printable elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Report container */
+  .report-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.5cm;
+    box-sizing: border-box;
+    page-break-inside: avoid;
+  }
+
+  /* School header */
+  .school-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5cm;
+    transform: scale(0.95);
+    transform-origin: top center;
+  }
+
+  .school-logo {
+    max-width: 60px;
+    max-height: 60px;
+    object-fit: contain;
+  }
+
+  .school-info {
+    text-align: center;
+    flex: 1;
+    margin: 0 10px;
+  }
+
+  .school-name {
+    font-size: 14pt;
+    font-weight: bold;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .school-details {
+    font-size: 8pt;
+    margin: 2px 0;
+    line-height: 1.1;
+  }
+
+  /* Student information */
+  .student-info {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 0.3cm 0;
+    font-size: 8pt;
+    line-height: 1.2;
+  }
+
+  .student-info-item {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Results table */
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+    margin: 0.3cm 0;
+  }
+
+  .results-table th,
+  .results-table td {
+    border: 0.5pt solid #000;
+    padding: 2px 4px;
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .results-table th {
+    font-weight: bold;
+    background-color: #f5f5f5;
+  }
+
+  /* Subject results */
+  .subject-result {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .subject-grade {
+    font-weight: bold;
+    min-width: 20px;
+  }
+
+  /* Summary section */
+  .results-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.3cm;
+    margin: 0.3cm 0;
+    font-size: 8pt;
+  }
+
+  .summary-box {
+    border: 0.5pt solid #000;
+    padding: 5px;
+  }
+
+  .summary-title {
+    font-weight: bold;
+    margin-bottom: 3px;
+    font-size: 9pt;
+  }
+
+  /* Comments section */
+  .comments-section {
+    margin: 0.3cm 0;
+    font-size: 8pt;
+  }
+
+  .comment-box {
+    border: 0.5pt solid #000;
+    padding: 5px;
+    margin-bottom: 0.2cm;
+  }
+
+  .signature-line {
+    margin-top: 0.2cm;
+    border-top: 0.5pt solid #000;
+    padding-top: 2px;
+  }
+
+  /* Footer */
+  .report-footer {
+    margin-top: 0.3cm;
+    font-size: 7pt;
+    text-align: center;
+    border-top: 0.5pt solid #000;
+    padding-top: 0.1cm;
+  }
+
+  /* Specific styles for A-Level */
+  .a-level-report {
+    .subject-type-header {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      padding: 2px 0;
+      margin: 0.2cm 0;
+    }
+
+    .principal-subjects {
+      margin-bottom: 0.2cm;
+    }
+
+    .subsidiary-subjects {
+      margin-bottom: 0.2cm;
+    }
+  }
+
+  /* Specific styles for O-Level */
+  .o-level-report {
+    .grade-distribution {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+      margin: 0.2cm 0;
+      font-size: 8pt;
+    }
+
+    .best-subjects {
+      font-weight: bold;
+      background-color: #f0f0f0;
+    }
+  }
+
+  /* Grade colors */
+  .grade-a { color: #2e7d32; }
+  .grade-b { color: #1976d2; }
+  .grade-c { color: #ed6c02; }
+  .grade-d { color: #d32f2f; }
+  .grade-e, .grade-s { color: #9c27b0; }
+  .grade-f { color: #d32f2f; }
+
+  /* Division colors */
+  .division-i { color: #2e7d32; }
+  .division-ii { color: #1976d2; }
+  .division-iii { color: #ed6c02; }
+  .division-iv { color: #d32f2f; }
+}
+
+/* Print optimization */
+@media print {
+  /* Force content to fit on one page */
+  .report-container {
+    zoom: 0.9;
+    transform-origin: top center;
+  }
+
+  /* Ensure no page breaks within sections */
+  .school-header,
+  .student-info,
+  .results-table,
+  .results-summary,
+  .comments-section,
+  .report-footer {
+    page-break-inside: avoid;
+  }
+
+  /* Compress spacing in tight scenarios */
+  @media (max-height: 297mm) {
+    .report-container {
+      zoom: 0.85;
+    }
+
+    .school-header {
+      margin-bottom: 0.3cm;
+    }
+
+    .student-info,
+    .results-table,
+    .results-summary,
+    .comments-section {
+      margin: 0.2cm 0;
+    }
+
+    .comment-box {
+      margin-bottom: 0.1cm;
+    }
+  }
+} 

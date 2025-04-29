@@ -1290,194 +1290,275 @@ const OLevelClassReport = (props) => {
 
               {report.students && report.students.length > 0 ? (
                 <>
-                  <StyledTableContainer variant="outlined" sx={{ mt: 2 }}>
-                    <Table size="small" aria-label="o-level class results table" className="report-table printable-table">
+                  <StyledTableContainer variant="outlined" sx={{ 
+                    mt: 2,
+                    '@media print': {
+                      transform: 'scale(0.45)',
+                      transformOrigin: 'top left',
+                      margin: 0,
+                      padding: 0,
+                      border: 'none',
+                      boxShadow: 'none',
+                      pageBreakInside: 'avoid',
+                      pageBreakAfter: 'avoid',
+                      width: '210%'
+                    }
+                  }}>
+                    <Table size="small" aria-label="o-level class results table" className="report-table printable-table" sx={{
+                      tableLayout: 'fixed',
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      '@media print': {
+                        fontSize: '3.5pt',
+                        border: 'none',
+                        '& td, & th': {
+                          border: '0.25pt solid #000',
+                          padding: '0.25pt',
+                          height: 'auto',
+                          lineHeight: 1
+                        }
+                      }
+                    }}>
                       <StyledTableHead>
-                        <StyledTableRow>
-                          <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.85rem' }}>No.</TableCell>
-                          <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.85rem' }}>Student Name (3 NAMES)</TableCell>
-                          <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.85rem' }}>SEX</TableCell>
+                        <StyledTableRow sx={{ height: 'auto' }}>
+                          <TableCell sx={{ 
+                            fontWeight: 'bold', 
+                            borderRight: '1px solid rgba(224, 224, 224, 1)', 
+                            fontSize: '3.5pt',
+                            padding: '0.25pt',
+                            width: '8px',
+                            minWidth: '8px',
+                            maxWidth: '8px',
+                            height: '30px'
+                          }}>No.</TableCell>
+                          <TableCell sx={{ 
+                            fontWeight: 'bold', 
+                            borderRight: '1px solid rgba(224, 224, 224, 1)', 
+                            fontSize: '3.5pt',
+                            padding: '0.25pt',
+                            width: '30px',
+                            minWidth: '30px',
+                            maxWidth: '30px'
+                          }}>Name</TableCell>
+                          <TableCell sx={{ 
+                            fontWeight: 'bold', 
+                            borderRight: '1px solid rgba(224, 224, 224, 1)', 
+                            fontSize: '3.5pt',
+                            padding: '0.25pt',
+                            width: '8px',
+                            minWidth: '8px',
+                            maxWidth: '8px'
+                          }}>SEX</TableCell>
                           {allSubjects.map(subject => {
-                            // Truncate long subject names
                             const displayName = subject.name || subject.code;
-                            const truncatedName = displayName.length > 12 ?
-                              `${displayName.substring(0, 10)}...` : displayName;
-
+                            const truncatedName = displayName.length > 3 ? 
+                              `${displayName.substring(0, 2)}..` : displayName;
+                            
                             return (
-                              <TableCell
-                                key={subject.code}
-                                align="center"
-                                sx={{
-                                  fontWeight: 'bold',
-                                  borderRight: '1px solid rgba(224, 224, 224, 1)',
-                                  borderLeft: '1px solid rgba(224, 224, 224, 1)',
-                                  position: 'relative',
-                                  fontSize: '0.75rem',
-                                  padding: '6px 4px',
-                                  '&:hover::after': {
-                                    content: displayName.length > 12 ? `"${displayName}"` : '""',
-                                    display: displayName.length > 12 ? 'block' : 'none',
-                                    position: 'absolute',
-                                    backgroundColor: 'rgba(97, 97, 97, 0.9)',
-                                    color: '#fff',
-                                    padding: '5px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '12px',
-                                    zIndex: 1000,
-                                    top: '100%',
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    whiteSpace: 'nowrap'
-                                  }
+                              <TableCell 
+                                key={subject.code} 
+                                align="center" 
+                                sx={{ 
+                                  fontWeight: 'bold', 
+                                  borderRight: '1px solid rgba(224, 224, 224, 1)', 
+                                  fontSize: '3.5pt',
+                                  padding: '0.25pt',
+                                  width: '10px',
+                                  minWidth: '10px',
+                                  maxWidth: '10px',
+                                  height: '30px'
                                 }}
                               >
-                                {truncatedName}
+                                <div style={{ 
+                                  transform: 'rotate(-90deg)', 
+                                  whiteSpace: 'nowrap',
+                                  width: '8px',
+                                  fontWeight: 700,
+                                  fontSize: '3.5pt',
+                                  marginTop: '10px',
+                                  letterSpacing: '-0.1px'
+                                }}>
+                                  {truncatedName}
+                                </div>
                               </TableCell>
                             );
                           })}
-                          <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', borderLeft: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.85rem' }}>Total</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.85rem' }}>Average</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.85rem' }}>Division</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.85rem' }}>POINTS</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Rank</TableCell>
+                          <TableCell align="center" sx={{ 
+                            fontWeight: 'bold', 
+                            borderRight: '1px solid rgba(224, 224, 224, 1)', 
+                            fontSize: '3.5pt',
+                            padding: '0.25pt',
+                            width: '15px',
+                            minWidth: '15px',
+                            maxWidth: '15px'
+                          }}>Total</TableCell>
+                          <TableCell align="center" sx={{ 
+                            fontWeight: 'bold', 
+                            borderRight: '1px solid rgba(224, 224, 224, 1)', 
+                            fontSize: '3.5pt',
+                            padding: '0.25pt',
+                            width: '15px',
+                            minWidth: '15px',
+                            maxWidth: '15px'
+                          }}>Avg</TableCell>
+                          <TableCell align="center" sx={{ 
+                            fontWeight: 'bold', 
+                            borderRight: '1px solid rgba(224, 224, 224, 1)', 
+                            fontSize: '3.5pt',
+                            padding: '0.25pt',
+                            width: '10px',
+                            minWidth: '10px',
+                            maxWidth: '10px'
+                          }}>Div</TableCell>
+                          <TableCell align="center" sx={{ 
+                            fontWeight: 'bold', 
+                            borderRight: '1px solid rgba(224, 224, 224, 1)', 
+                            fontSize: '3.5pt',
+                            padding: '0.25pt',
+                            width: '10px',
+                            minWidth: '10px',
+                            maxWidth: '10px'
+                          }}>Pts</TableCell>
+                          <TableCell align="center" sx={{ 
+                            fontWeight: 'bold',
+                            fontSize: '3.5pt',
+                            padding: '0.25pt',
+                            width: '10px',
+                            minWidth: '10px',
+                            maxWidth: '10px'
+                          }}>Rank</TableCell>
                         </StyledTableRow>
                       </StyledTableHead>
                       <TableBody>
-                        {report.students.map((student, index) => {
-                          // Create a map of subject code to result for this student
-                          const studentResults = {};
-                          student.results.forEach(result => {
-                            studentResults[result.code] = result;
-                          });
-
-                          // Check if this student has any valid results
-                          const hasValidResults = student.hasResults === true ||
-                            (student.results && student.results.some(r => r.marks > 0 && r.grade !== 'N/A'));
-
-                          console.log(`Rendering student ${student.name}: hasValidResults=${hasValidResults}`);
-
-                          return (
-                            <StyledTableRow
-                              key={student.id}
-                              hover
-                              sx={{
-                                '&:nth-of-type(odd)': {
-                                  backgroundColor: 'rgba(76, 175, 80, 0.04)',
-                                },
-                                '&:hover': {
-                                  backgroundColor: 'rgba(76, 175, 80, 0.08)',
-                                },
-                                // Highlight students with no results
-                                ...(hasValidResults ? {} : {
-                                  backgroundColor: 'rgba(255, 235, 235, 0.5)',
-                                  '&:hover': {
-                                    backgroundColor: 'rgba(255, 235, 235, 0.7)',
-                                  }
-                                })
-                              }}
-                            >
-                              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.8rem', padding: '6px 8px' }}>{index + 1}</TableCell>
-                              <TableCell sx={{ fontWeight: 500, borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.8rem', padding: '6px 8px' }}>
-                                {student.name}
-                                {!hasValidResults && (
-                                  <Typography variant="caption" color="error" sx={{ display: 'block' }}>
-                                    (No marks entered)
-                                  </Typography>
-                                )}
-                              </TableCell>
-                              <TableCell sx={{ fontWeight: 500, borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.8rem', padding: '6px 8px' }}>{student.gender || student.sex || '-'}</TableCell>
-                              {allSubjects.map(subject => {
-                                const result = studentResults[subject.code];
-                                const hasValidResult = result && result.marks > 0 && result.grade !== 'N/A';
-                                // Check if student takes this subject
-                                const studentTakesSubject = result ? result.studentTakesSubject !== false : false;
-
-                                return (
-                                  <TableCell
-                                    key={subject.code}
-                                    align="center"
-                                    sx={{
-                                      borderRight: '1px solid rgba(224, 224, 224, 1)',
-                                      borderLeft: '1px solid rgba(224, 224, 224, 1)',
-                                      fontSize: '0.75rem',
-                                      padding: '4px 2px',
-                                      // Gray out subjects the student doesn't take
-                                      backgroundColor: !studentTakesSubject ? 'rgba(0, 0, 0, 0.04)' : 'inherit',
-                                      position: 'relative'
-                                    }}
-                                  >
-                                    {/* Show a tooltip for subjects the student doesn't take */}
-                                    {!studentTakesSubject && (
-                                      <Tooltip title="Student doesn't take this subject" placement="top">
-                                        <Box
-                                          sx={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            right: 0,
-                                            width: '8px',
-                                            height: '8px',
-                                            backgroundColor: '#bdbdbd',
-                                            borderRadius: '50%'
-                                          }}
-                                        />
-                                      </Tooltip>
-                                    )}
-
-                                    {hasValidResult ? (
-                                      <Box>
-                                        <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>{result.marks}</Typography>
-                                        <Typography
-                                          variant="caption"
-                                          sx={{
-                                            color: result.grade === 'F' ? '#f44336' :
-                                                   result.grade === 'A' ? '#4caf50' :
-                                                   result.grade === 'B' ? '#2196f3' :
-                                                   result.grade === 'C' ? '#ff9800' :
-                                                   result.grade === 'D' ? '#ff5722' :
-                                                   'text.secondary',
-                                            fontWeight: 'bold',
-                                            fontSize: '0.7rem'
-                                          }}
-                                        >
-                                          {result.grade}
-                                        </Typography>
-                                      </Box>
-                                    ) : (
-                                      <Typography variant="body2" color="text.secondary">
-                                        {studentTakesSubject ? '-' : 'N/A'}
-                                      </Typography>
-                                    )}
-                                  </TableCell>
-                                );
-                              })}
-                              <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', borderLeft: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.8rem', padding: '6px 4px' }}>
-                                {hasValidResults ? student.totalMarks : '-'}
-                              </TableCell>
-                              <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.8rem', padding: '6px 4px' }}>
-                                {hasValidResults ? student.averageMarks : '-'}
-                              </TableCell>
-                              <TableCell align="center" sx={{
-                                fontWeight: 'bold',
-                                borderRight: '1px solid rgba(224, 224, 224, 1)',
-                                fontSize: '0.8rem',
-                                padding: '6px 4px',
-                                color: student.division === 'I' ? '#4caf50' :
-                                       student.division === 'II' ? '#2196f3' :
-                                       student.division === 'III' ? '#ff9800' :
-                                       student.division === 'IV' ? '#f44336' :
-                                       'text.primary'
-                              }}>
-                                {hasValidResults ? student.division : '-'}
-                              </TableCell>
-                              <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid rgba(224, 224, 224, 1)', fontSize: '0.8rem', padding: '6px 4px' }}>
-                                {hasValidResults ? (student.bestSevenPoints || student.totalPoints || student.points || '-') : '-'}
-                              </TableCell>
-                              <TableCell align="center" sx={{ fontWeight: 'bold', fontSize: '0.8rem', padding: '6px 4px' }}>
-                                {hasValidResults ? student.rank : '-'}
-                              </TableCell>
-                            </StyledTableRow>
-                          );
-                        })}
+                        {report.students.map((student, index) => (
+                          <StyledTableRow
+                            key={student.id}
+                            sx={{
+                              height: 'auto',
+                              '&:nth-of-type(even)': {
+                                backgroundColor: '#f5f5f5'
+                              }
+                            }}
+                          >
+                            <TableCell sx={{ 
+                              fontSize: '3.5pt',
+                              padding: '0.25pt',
+                              height: 'auto',
+                              width: '8px'
+                            }}>{index + 1}</TableCell>
+                            <TableCell sx={{ 
+                              fontSize: '3.5pt',
+                              padding: '0.25pt',
+                              height: 'auto',
+                              width: '30px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>{student.name}</TableCell>
+                            <TableCell sx={{ 
+                              fontSize: '3.5pt',
+                              padding: '0.25pt',
+                              height: 'auto',
+                              width: '8px'
+                            }}>{student.gender || student.sex || '-'}</TableCell>
+                            {allSubjects.map(subject => {
+                              const result = student.results.find(r => r.code === subject.code);
+                              const hasValidResult = result && result.marks > 0 && result.grade !== 'N/A';
+                              const studentTakesSubject = result ? result.studentTakesSubject !== false : false;
+                              
+                              return (
+                                <TableCell 
+                                  key={`${student.id}-${subject.code}`} 
+                                  align="center" 
+                                  sx={{ 
+                                    fontSize: '3.5pt',
+                                    padding: '0.25pt',
+                                    height: 'auto',
+                                    width: '10px'
+                                  }}
+                                >
+                                  {hasValidResult ? (
+                                    <Box sx={{ 
+                                      display: 'flex', 
+                                      flexDirection: 'column', 
+                                      alignItems: 'center',
+                                      padding: 0,
+                                      margin: 0
+                                    }}>
+                                      <Typography sx={{ 
+                                        fontSize: '3.5pt',
+                                        lineHeight: 1,
+                                        margin: 0,
+                                        padding: 0,
+                                        fontWeight: 700
+                                      }}>{result.marks}</Typography>
+                                      <Typography sx={{
+                                        fontSize: '3.5pt',
+                                        lineHeight: 1,
+                                        margin: 0,
+                                        padding: 0,
+                                        fontWeight: 700,
+                                        color: result.grade === 'F' ? '#f44336' :
+                                               result.grade === 'A' ? '#4caf50' :
+                                               result.grade === 'B' ? '#2196f3' :
+                                               result.grade === 'C' ? '#ff9800' :
+                                               result.grade === 'D' ? '#ff5722' :
+                                               'inherit'
+                                      }}>{result.grade}</Typography>
+                                    </Box>
+                                  ) : (
+                                    <Typography sx={{ 
+                                      fontSize: '3.5pt',
+                                      color: 'text.secondary'
+                                    }}>
+                                      {studentTakesSubject ? '-' : 'N/A'}
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                              );
+                            })}
+                            <TableCell align="center" sx={{ 
+                              fontSize: '3.5pt',
+                              padding: '0.25pt',
+                              height: 'auto',
+                              width: '15px',
+                              fontWeight: 700
+                            }}>{student.totalMarks || '-'}</TableCell>
+                            <TableCell align="center" sx={{ 
+                              fontSize: '3.5pt',
+                              padding: '0.25pt',
+                              height: 'auto',
+                              width: '15px',
+                              fontWeight: 700
+                            }}>{student.averageMarks || '-'}</TableCell>
+                            <TableCell align="center" sx={{ 
+                              fontSize: '3.5pt',
+                              padding: '0.25pt',
+                              height: 'auto',
+                              width: '10px',
+                              fontWeight: 700,
+                              color: student.division === 'I' ? '#4caf50' :
+                                     student.division === 'II' ? '#2196f3' :
+                                     student.division === 'III' ? '#ff9800' :
+                                     student.division === 'IV' ? '#f44336' :
+                                     'inherit'
+                            }}>{student.division || '-'}</TableCell>
+                            <TableCell align="center" sx={{ 
+                              fontSize: '3.5pt',
+                              padding: '0.25pt',
+                              height: 'auto',
+                              width: '10px',
+                              fontWeight: 700
+                            }}>{student.bestSevenPoints || student.totalPoints || '-'}</TableCell>
+                            <TableCell align="center" sx={{ 
+                              fontSize: '3.5pt',
+                              padding: '0.25pt',
+                              height: 'auto',
+                              width: '10px',
+                              fontWeight: 700
+                            }}>{student.rank || '-'}</TableCell>
+                          </StyledTableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   </StyledTableContainer>

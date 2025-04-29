@@ -1,0 +1,475 @@
+/* Optimized Print Styles for Student Reports */
+
+@media print {
+  /* Page Setup */
+  @page {
+    size: A4 portrait;
+    margin: 0.3cm;
+  }
+
+  /* Base Document Styles */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    font-size: 6pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide Non-Printable Elements */
+  .no-print, 
+  button:not(.print-show),
+  .MuiButton-root:not(.print-show) {
+    display: none !important;
+  }
+
+  /* Report Container */
+  .report-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0.1cm !important;
+    box-sizing: border-box !important;
+    background-color: white !important;
+    transform: scale(0.95) !important;
+    transform-origin: top center !important;
+  }
+
+  /* School Header */
+  .school-header {
+    text-align: center !important;
+    margin-bottom: 0.1cm !important;
+    padding: 0.05cm !important;
+  }
+
+  .school-logo {
+    height: 1cm !important;
+    width: auto !important;
+    margin: 0 auto 0.1cm !important;
+  }
+
+  .school-name {
+    font-size: 9pt !important;
+    font-weight: bold !important;
+    margin: 0 0 0.05cm 0 !important;
+    line-height: 1 !important;
+  }
+
+  .school-details {
+    font-size: 5pt !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+  }
+
+  /* Student Information */
+  .student-info {
+    margin: 0.2cm 0 !important;
+    padding: 0.1cm !important;
+    border: 0.5pt solid #000 !important;
+  }
+
+  .student-info-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.1cm !important;
+    font-size: 6.5pt !important;
+  }
+
+  .info-item {
+    margin: 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Results Table */
+  .results-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 0.2cm 0 !important;
+    font-size: 6.5pt !important;
+  }
+
+  .results-table th,
+  .results-table td {
+    border: 0.5pt solid #000 !important;
+    padding: 1pt 2pt !important;
+    text-align: center !important;
+    line-height: 1.1 !important;
+  }
+
+  .results-table th {
+    font-size: 6.5pt !important;
+    font-weight: bold !important;
+    background-color: #f0f0f0 !important;
+  }
+
+  /* Subject Results */
+  .subject-result {
+    font-size: 6.5pt !important;
+  }
+
+  .subject-grade {
+    font-size: 6.5pt !important;
+    font-weight: bold !important;
+  }
+
+  /* Summary Section */
+  .summary-section {
+    margin: 0.2cm 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.1cm !important;
+  }
+
+  .summary-box {
+    border: 0.5pt solid #000 !important;
+    padding: 0.1cm !important;
+    font-size: 6.5pt !important;
+  }
+
+  .summary-title {
+    font-size: 7pt !important;
+    font-weight: bold !important;
+    margin-bottom: 2pt !important;
+  }
+
+  /* Comments Section */
+  .comments-section {
+    margin: 0.2cm 0 !important;
+    font-size: 6.5pt !important;
+  }
+
+  .comment-box {
+    border: 0.5pt solid #000 !important;
+    padding: 0.1cm !important;
+    margin-bottom: 0.1cm !important;
+    font-size: 6.5pt !important;
+  }
+
+  .signature-line {
+    margin-top: 0.1cm !important;
+    border-top: 0.5pt solid #000 !important;
+    padding-top: 0.1cm !important;
+    font-size: 6.5pt !important;
+  }
+
+  /* Footer */
+  .report-footer {
+    margin-top: 0.2cm !important;
+    font-size: 6pt !important;
+    text-align: center !important;
+    border-top: 0.5pt solid #000 !important;
+    padding-top: 0.1cm !important;
+  }
+
+  /* Grade Colors */
+  .grade-a { color: #2e7d32 !important; }
+  .grade-b { color: #1976d2 !important; }
+  .grade-c { color: #ed6c02 !important; }
+  .grade-d { color: #d32f2f !important; }
+  .grade-e, .grade-s { color: #9c27b0 !important; }
+  .grade-f { color: #d32f2f !important; }
+
+  /* Division Colors */
+  .division-i { color: #2e7d32 !important; }
+  .division-ii { color: #1976d2 !important; }
+  .division-iii { color: #ed6c02 !important; }
+  .division-iv { color: #d32f2f !important; }
+
+  /* A-Level Specific */
+  .a-level-report {
+    .subject-type-header {
+      font-size: 7pt !important;
+      font-weight: bold !important;
+      padding: 1pt 0 !important;
+      margin: 0.1cm 0 !important;
+      background-color: #f0f0f0 !important;
+    }
+
+    .principal-subjects,
+    .subsidiary-subjects {
+      margin-bottom: 0.1cm !important;
+      font-size: 6.5pt !important;
+    }
+  }
+
+  /* O-Level Specific */
+  .o-level-report {
+    .grade-distribution {
+      font-size: 6.5pt !important;
+      gap: 0.1cm !important;
+      margin: 0.1cm 0 !important;
+    }
+
+    .best-subjects {
+      font-size: 6.5pt !important;
+      font-weight: bold !important;
+    }
+  }
+
+  /* Grade and Division text */
+  .grade, .division {
+    font-size: 6.5pt !important;
+    font-weight: bold !important;
+  }
+
+  /* Table Headers */
+  .vertical-header {
+    font-size: 6pt !important;
+    white-space: nowrap !important;
+    transform-origin: center !important;
+  }
+
+  /* Student Name in tables */
+  .student-name {
+    font-size: 6.5pt !important;
+    font-weight: bold !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Marks and Points */
+  .marks, .points {
+    font-size: 6.5pt !important;
+    font-weight: normal !important;
+  }
+
+  /* Compact Mode for Tight Fits */
+  @media (min-height: 297mm) {
+    .report-container {
+      transform: scale(0.95) !important;
+    }
+
+    .school-header {
+      margin-bottom: 0.2cm !important;
+    }
+
+    .student-info,
+    .results-table,
+    .summary-section,
+    .comments-section {
+      margin: 0.15cm 0 !important;
+    }
+
+    .comment-box {
+      margin-bottom: 0.1cm !important;
+    }
+
+    .signature-line {
+      margin-top: 0.1cm !important;
+    }
+  }
+
+  /* Ultra Compact Mode for Very Tight Fits */
+  @media (max-height: 297mm) {
+    .report-container {
+      transform: scale(0.90) !important;
+    }
+
+    body {
+      font-size: 8pt !important;
+    }
+
+    .school-header {
+      margin-bottom: 0.15cm !important;
+    }
+
+    .student-info,
+    .results-table,
+    .summary-section,
+    .comments-section {
+      margin: 0.1cm 0 !important;
+    }
+
+    .results-table th,
+    .results-table td {
+      padding: 1pt 2pt !important;
+    }
+
+    .comment-box {
+      margin-bottom: 0.05cm !important;
+    }
+
+    .signature-line {
+      margin-top: 0.05cm !important;
+    }
+  }
+
+  /* Results Table Specific Adjustments */
+  .report-table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  .report-table th,
+  .report-table td {
+    padding: 1pt !important;
+    font-size: 5.5pt !important;
+    line-height: 1 !important;
+  }
+
+  /* Vertical Headers */
+  .report-table th div[style*="rotate"] {
+    font-size: 5.5pt !important;
+    transform: rotate(-90deg) translateX(-2pt) !important;
+    width: 15px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Student Name Column */
+  .student-name {
+    font-size: 5.5pt !important;
+    padding: 1pt 2pt !important;
+    max-width: 60px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Subject Columns */
+  .subject-column {
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    padding: 1pt !important;
+  }
+
+  /* Grade and Division Display */
+  .grade-chip,
+  .division-chip {
+    font-size: 5.5pt !important;
+    padding: 0 1pt !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+    max-width: 18px !important;
+  }
+
+  /* Marks and Points */
+  .marks,
+  .points {
+    font-size: 5.5pt !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+  }
+
+  /* Ultra Compact Mode */
+  @media (max-height: 297mm) {
+    .report-container {
+      transform: scale(0.90) !important;
+    }
+
+    .report-table th,
+    .report-table td {
+      padding: 0.5pt !important;
+      font-size: 5pt !important;
+    }
+
+    .student-name {
+      font-size: 5pt !important;
+      max-width: 50px !important;
+    }
+
+    .subject-column {
+      width: 18px !important;
+      min-width: 18px !important;
+      max-width: 18px !important;
+    }
+  }
+
+  /* Prevent Page Breaks */
+  .report-table {
+    page-break-inside: avoid !important;
+  }
+
+  /* Student Information Header Styles */
+  .student-info-header {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5pt;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    page-break-inside: avoid;
+  }
+
+  .student-info-item {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    min-height: 12pt;
+  }
+
+  .student-info-label {
+    font-size: 5pt;
+    font-weight: bold;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    color: #000;
+  }
+
+  .student-info-value {
+    font-size: 5pt;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    color: #000;
+  }
+
+  .report-container {
+    transform: scale(0.45);
+    transform-origin: top left;
+    margin: 0;
+    padding: 0;
+    width: 210%;
+    page-break-inside: avoid;
+  }
+
+  .student-info-header {
+    margin-bottom: 2pt;
+    page-break-inside: avoid;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5pt;
+  }
+
+  .student-info-item {
+    page-break-inside: avoid;
+    margin-bottom: 1pt;
+  }
+
+  .student-info-label {
+    font-size: 5pt;
+    line-height: 1;
+    margin-bottom: 0.5pt;
+  }
+
+  .student-info-value {
+    font-size: 5pt;
+    line-height: 1;
+  }
+
+  /* Subject Headers */
+  .subject-header {
+    font-size: 6pt;
+    font-weight: bold;
+    margin: 2pt 0;
+    padding: 0;
+    line-height: 1;
+    page-break-after: avoid;
+  }
+
+  /* No Subjects Message */
+  .no-subjects-message {
+    font-size: 5pt;
+    color: #666;
+    margin: 1pt 0;
+    padding: 0;
+    line-height: 1;
+  }
+} 

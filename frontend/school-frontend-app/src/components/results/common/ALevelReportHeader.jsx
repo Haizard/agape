@@ -34,7 +34,7 @@ const ALevelReportHeader = ({ formLevel, academicYear }) => {
             AGAPE LUTHERAN JUNIOR SEMINARY
           </Typography>
           <Typography variant="subtitle2">
-            P.O. BOX 1090, MBEYA
+            P.O. BOX 8882, MOSHI
           </Typography>
         </Grid>
 

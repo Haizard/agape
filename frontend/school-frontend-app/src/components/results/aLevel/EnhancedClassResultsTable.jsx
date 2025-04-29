@@ -27,6 +27,7 @@ import { fitTableToPage } from '../../../utils/tableFitter';
 import { printTableInNewWindow } from '../../../utils/printRenderer';
 import a4Renderer from '../../../utils/a4Renderer';
 import '../PrintableTableStyles.css';
+import '../StudentReportPrintStyles.css';
 
 /**
  * EnhancedClassResultsTable Component
@@ -183,160 +184,351 @@ const EnhancedClassResultsTable = ({ students, subjectCombination }) => {
   };
 
   return (
-    <Paper className="report-section" sx={{ mb: 3 }}>
-      <Box className="section-header" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" className="section-title" gutterBottom>
-          Class Results
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleForcePrint}
-            className="no-print"
-            sx={{
-              backgroundColor: '#2e7d32',
-              '&:hover': { backgroundColor: '#1b5e20' },
-              fontWeight: 'bold'
-            }}
-          >
-            Force Print (No Cut-off)
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={handleFitTable}
-            className="no-print"
-            sx={{
-              backgroundColor: '#d32f2f',
-              '&:hover': { backgroundColor: '#b71c1c' },
-              fontWeight: 'bold'
-            }}
-          >
-            Auto-Fit to Page
-          </Button>
+    <div className="report-container a-level-report" style={{
+      width: '100%',
+      margin: 0,
+      padding: 0,
+      '@media print': {
+        transform: 'scale(0.45)',  // Much more aggressive scaling
+        transformOrigin: 'top left',
+        maxWidth: '100%',
+        pageBreakAfter: 'avoid',
+        pageBreakInside: 'avoid',
+        margin: 0,
+        padding: 0
+      }
+    }}>
+      <Paper className="report-section" sx={{ 
+        m: 0,
+        p: 0,
+        '@media print': {
+          boxShadow: 'none',
+          margin: 0,
+          padding: 0,
+          width: '210%'  // Increase width to compensate for scaling
+        }
+      }}>
+        <Box className="section-header" sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 0,
+          '@media print': {
+            display: 'none'  // Hide header in print to save space
+          }
+        }}>
+          <Typography variant="h6" className="section-title" gutterBottom>
+            Class Results
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleForcePrint}
+              className="no-print"
+              sx={{
+                backgroundColor: '#2e7d32',
+                '&:hover': { backgroundColor: '#1b5e20' },
+                fontWeight: 'bold'
+              }}
+            >
+              Force Print (No Cut-off)
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleFitTable}
+              className="no-print"
+              sx={{
+                backgroundColor: '#d32f2f',
+                '&:hover': { backgroundColor: '#b71c1c' },
+                fontWeight: 'bold'
+              }}
+            >
+              Auto-Fit to Page
+            </Button>
 
-          <Button
-            variant="contained"
-            color="info"
-            onClick={handleGuaranteedPrint}
-            className="no-print"
-            sx={{
-              backgroundColor: '#0288d1',
-              '&:hover': { backgroundColor: '#01579b' },
-              fontWeight: 'bold'
-            }}
-          >
-            Print All Columns
-          </Button>
+            <Button
+              variant="contained"
+              color="info"
+              onClick={handleGuaranteedPrint}
+              className="no-print"
+              sx={{
+                backgroundColor: '#0288d1',
+                '&:hover': { backgroundColor: '#01579b' },
+                fontWeight: 'bold'
+              }}
+            >
+              Print All Columns
+            </Button>
 
-          <Button
-            variant="contained"
-            color="success"
-            onClick={handleA4Print}
-            className="no-print"
-            sx={{
-              backgroundColor: '#2e7d32',
-              '&:hover': { backgroundColor: '#1b5e20' },
-              fontWeight: 'bold'
-            }}
-          >
-            Fill A4 Paper
-          </Button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleA4Print}
+              className="no-print"
+              sx={{
+                backgroundColor: '#2e7d32',
+                '&:hover': { backgroundColor: '#1b5e20' },
+                fontWeight: 'bold'
+              }}
+            >
+              Fill A4 Paper
+            </Button>
+          </Box>
         </Box>
-      </Box>
-      <TableContainer className="table-container" sx={{ maxHeight: 'none', overflow: 'visible', width: '100%', overflowX: 'visible', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-        <Table ref={tableRef} stickyHeader className="report-table compact-table printable-table" size="small" sx={{ tableLayout: 'auto', minWidth: '100%' }}>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ minWidth: 20, maxWidth: 20, width: 20, fontSize: '16px', padding: '8px 2px', height: '100px' }}>
-                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '14px' }}>Rank</div>
-              </TableCell>
-              <TableCell sx={{ minWidth: 80, maxWidth: 80, width: 80, fontSize: '16px', padding: '8px 6px', fontWeight: 700 }}>Student Name</TableCell>
-              <TableCell sx={{ minWidth: 15, maxWidth: 15, width: 15, fontSize: '16px', padding: '8px 2px', height: '100px' }}>
-                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '15px', fontWeight: 700, fontSize: '14px' }}>Sex</div>
-              </TableCell>
-              <TableCell align="center" sx={{ minWidth: 20, maxWidth: 20, width: 20, fontSize: '16px', padding: '8px 2px', height: '100px' }}>
-                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '14px' }}>Pts</div>
-              </TableCell>
-              <TableCell align="center" sx={{ minWidth: 20, maxWidth: 20, width: 20, fontSize: '16px', padding: '8px 6px', height: '100px' }}>
-                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700 }}>Div</div>
-              </TableCell>
-              {subjects.map(subject => (
-                <TableCell key={subject} align="center" className="subject-column" sx={{ minWidth: 25, maxWidth: 25, width: 25, fontSize: '16px', padding: '8px 2px', height: '100px' }}>
-                  <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '14px', letterSpacing: '-0.5px' }} title={subject}>
-                    {subject.length > 8 ? `${subject.substring(0, 6)}..` : subject}
-                  </div>
+        <TableContainer className="table-container" sx={{ 
+          overflow: 'visible', 
+          width: '100%', 
+          m: 0,
+          p: 0,
+          border: 'none',
+          '@media print': {
+            transform: 'scale(0.45)',  // Additional scaling at table level
+            transformOrigin: 'top left',
+            margin: 0,
+            padding: 0,
+            border: 'none',
+            boxShadow: 'none',
+            pageBreakInside: 'avoid',
+            pageBreakAfter: 'avoid',
+            width: '210%'  // Match paper width
+          }
+        }}>
+          <Table ref={tableRef} stickyHeader={false} className="report-table compact-table printable-table" size="small" sx={{ 
+            tableLayout: 'fixed',
+            width: '100%',
+            borderCollapse: 'collapse',
+            '@media print': {
+              fontSize: '3.5pt',  // Even smaller font
+              border: 'none',
+              '& td, & th': {
+                border: '0.25pt solid #000',
+                padding: '0.25pt',
+                height: 'auto',
+                lineHeight: 1
+              }
+            },
+            '& .MuiTableCell-root': {
+              padding: '0.25pt',
+              fontSize: '3.5pt',
+              lineHeight: 1,
+              height: 'auto'
+            }
+          }}>
+            <TableHead>
+              <TableRow sx={{ height: 'auto' }}>
+                <TableCell sx={{ 
+                  minWidth: 8, 
+                  maxWidth: 8, 
+                  width: 8, 
+                  fontSize: '3.5pt', 
+                  padding: '0.25pt', 
+                  height: '20px'  // Reduced from 30px
+                }}>
+                  <div style={{ 
+                    transform: 'rotate(-90deg)', 
+                    whiteSpace: 'nowrap', 
+                    width: '8px', 
+                    fontWeight: 700, 
+                    fontSize: '3.5pt',
+                    marginTop: '8px'  // Reduced from 10px
+                  }}>Rank</div>
                 </TableCell>
-              ))}
-              <TableCell align="center" sx={{ minWidth: 25, maxWidth: 25, width: 25, fontSize: '16px', padding: '8px 2px', height: '100px' }}>
-                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '14px' }}>Total</div>
-              </TableCell>
-              <TableCell align="center" sx={{ minWidth: 25, maxWidth: 25, width: 25, fontSize: '16px', padding: '8px 2px', height: '100px' }}>
-                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '14px' }}>Avg</div>
-              </TableCell>
-              <TableCell align="center" sx={{ minWidth: 20, maxWidth: 20, width: 20, fontSize: '16px', padding: '8px 2px', height: '100px' }}>
-                <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '14px' }}>Rank</div>
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {visibleRows.map((student, index) => (
-              <TableRow key={student.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
-                <TableCell sx={{ fontSize: '14px', padding: '2px', fontWeight: 700, minWidth: 20, maxWidth: 20, width: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{student.rank}</TableCell>
-                <TableCell className="student-name" sx={{ fontSize: '16px', padding: '6px 8px', fontWeight: 700, letterSpacing: '-1px', wordSpacing: '-2px', maxWidth: '80px', width: '80px', minWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{student.name}</TableCell>
-                <TableCell sx={{ fontSize: '14px', padding: '2px', fontWeight: 700, minWidth: 15, maxWidth: 15, width: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{student.sex}</TableCell>
-                <TableCell align="center" sx={{ fontSize: '14px', padding: '2px', fontWeight: 700, minWidth: 20, maxWidth: 20, width: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{student.bestThreePoints || '-'}</TableCell>
-                <TableCell align="center" sx={{ padding: '6px 2px', fontSize: '16px', minWidth: 20, maxWidth: 20, width: 20 }}>
-                  {student.bestThreePoints ? (
-                    <span className={`division-chip ${getDivisionClass(student.division)}`} style={{ fontSize: '14px', padding: '1px 2px', letterSpacing: '-1px', fontWeight: 700, maxWidth: '20px', overflow: 'hidden', display: 'inline-block' }}>
-                      {formatDivision(student.division)}
-                    </span>
-                  ) : '-'}
+                <TableCell sx={{ 
+                  minWidth: 30, 
+                  maxWidth: 30, 
+                  width: 30, 
+                  fontSize: '3.5pt', 
+                  padding: '0.25pt', 
+                  fontWeight: 700 
+                }}>Name</TableCell>
+                <TableCell sx={{ 
+                  minWidth: 8, 
+                  maxWidth: 8, 
+                  width: 8, 
+                  fontSize: '3.5pt', 
+                  padding: '0.25pt', 
+                  height: '20px'  // Reduced from 30px
+                }}>
+                  <div style={{ 
+                    transform: 'rotate(-90deg)', 
+                    whiteSpace: 'nowrap', 
+                    width: '8px', 
+                    fontWeight: 700, 
+                    fontSize: '3.5pt',
+                    marginTop: '8px'  // Reduced from 10px
+                  }}>Sex</div>
                 </TableCell>
-                {subjects.map(subject => {
-                  const result = getStudentResult(student, subject);
-                  // Check if student takes this subject
-                  const studentTakesSubject = student.subjects?.some(s => s.subject === subject) ||
-                                             student.results?.some(r => r.subject === subject) ||
-                                             (student.subjectCombination?.subjects?.some(s => s.subject?.name === subject || s.subject === subject));
-
-                  return (
-                    <TableCell key={`${student.id}-${subject}`} align="center" className="subject-column" sx={{ padding: '2px', minWidth: 25, maxWidth: 25, width: 25 }}>
-                      {result ? (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 0, margin: 0 }}>
-                          <Typography variant="body2" sx={{ fontSize: '14px', lineHeight: 1.1, margin: 0, padding: 0, fontWeight: 700, letterSpacing: '-0.5px' }}>
-                            {result.marks !== undefined && result.marks !== null ? formatNumber(result.marks) : '-'}
-                          </Typography>
-                          {result.grade && (
-                            <Typography variant="body2" className={getGradeClass(result.grade)} sx={{ fontSize: '14px', lineHeight: 1.1, margin: 0, padding: 0, fontWeight: 700, letterSpacing: '-0.5px' }}>
-                              {result.grade}
-                            </Typography>
-                          )}
-                        </Box>
-                      ) : studentTakesSubject ? '-' : 'N/L'}
-                    </TableCell>
-                  );
-                })}
-                <TableCell align="center" sx={{ fontWeight: 700, fontSize: '14px', padding: '2px', minWidth: 25, maxWidth: 25, width: 25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatNumber(student.totalMarks)}</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700, fontSize: '14px', padding: '2px', minWidth: 25, maxWidth: 25, width: 25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatNumber(student.averageMarks)}</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700, fontSize: '14px', padding: '2px', minWidth: 20, maxWidth: 20, width: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{student.rank}</TableCell>
+                <TableCell align="center" sx={{ minWidth: 20, maxWidth: 20, width: 20, fontSize: '3.5pt', padding: '0.25pt', height: '30px', '@media print': { height: '20px' } }}>
+                  <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '3.5pt' }}>Pts</div>
+                </TableCell>
+                <TableCell align="center" sx={{ minWidth: 20, maxWidth: 20, width: 20, fontSize: '3.5pt', padding: '0.25pt', height: '30px', '@media print': { height: '20px' } }}>
+                  <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '3.5pt' }}>Div</div>
+                </TableCell>
+                {subjects.map(subject => (
+                  <TableCell key={subject} align="center" className="subject-column" sx={{ 
+                    minWidth: 10, 
+                    maxWidth: 10, 
+                    width: 10, 
+                    fontSize: '3.5pt', 
+                    padding: '0.25pt', 
+                    height: '30px'
+                  }}>
+                    <div style={{ 
+                      transform: 'rotate(-90deg)', 
+                      whiteSpace: 'nowrap', 
+                      width: '8px', 
+                      fontWeight: 700, 
+                      fontSize: '3.5pt',
+                      marginTop: '10px',
+                      letterSpacing: '-0.1px' 
+                    }} title={subject}>
+                      {subject.length > 3 ? `${subject.substring(0, 2)}..` : subject}
+                    </div>
+                  </TableCell>
+                ))}
+                <TableCell align="center" sx={{ minWidth: 25, maxWidth: 25, width: 25, fontSize: '3.5pt', padding: '0.25pt', height: '30px', '@media print': { height: '20px' } }}>
+                  <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '3.5pt' }}>Total</div>
+                </TableCell>
+                <TableCell align="center" sx={{ minWidth: 25, maxWidth: 25, width: 25, fontSize: '3.5pt', padding: '0.25pt', height: '30px', '@media print': { height: '20px' } }}>
+                  <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '3.5pt' }}>Avg</div>
+                </TableCell>
+                <TableCell align="center" sx={{ minWidth: 20, maxWidth: 20, width: 20, fontSize: '3.5pt', padding: '0.25pt', height: '30px', '@media print': { height: '20px' } }}>
+                  <div style={{ transform: 'rotate(-90deg)', whiteSpace: 'nowrap', width: '20px', fontWeight: 700, fontSize: '3.5pt' }}>Rank</div>
+                </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <TablePagination
-        rowsPerPageOptions={[25, 50, 100, { label: 'All', value: -1 }]}
-        component="div"
-        count={processedStudents.length}
-        rowsPerPage={rowsPerPage}
-        page={page}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        className="no-print"
-      />
-    </Paper>
+            </TableHead>
+            <TableBody>
+              {visibleRows.map((student, index) => (
+                <TableRow key={student.id} sx={{
+                  height: 'auto',
+                  '&:nth-of-type(even)': {
+                    backgroundColor: '#f5f5f5'
+                  }
+                }}>
+                  <TableCell sx={{ 
+                    fontSize: '3.5pt', 
+                    padding: '0.25pt', 
+                    height: 'auto',
+                    width: 8
+                  }}>{student.rank}</TableCell>
+                  <TableCell sx={{ 
+                    fontSize: '3.5pt', 
+                    padding: '0.25pt', 
+                    height: 'auto',
+                    width: 30,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>{student.name}</TableCell>
+                  <TableCell sx={{ 
+                    padding: '0.25pt', 
+                    fontSize: '3.5pt', 
+                    minWidth: 8, 
+                    maxWidth: 8, 
+                    width: 8,
+                    height: 'auto'
+                  }}>{student.sex === 'Female' ? 'F' : student.sex === 'Male' ? 'M' : student.sex}</TableCell>
+                  <TableCell align="center" sx={{ 
+                    padding: '0.25pt', 
+                    fontSize: '3.5pt', 
+                    minWidth: 20, 
+                    maxWidth: 20, 
+                    width: 20,
+                    height: 'auto'
+                  }}>{student.bestThreePoints || '-'}</TableCell>
+                  <TableCell align="center" sx={{ 
+                    padding: '0.25pt', 
+                    fontSize: '3.5pt', 
+                    minWidth: 20, 
+                    maxWidth: 20, 
+                    width: 20,
+                    height: 'auto'
+                  }}>
+                    {student.bestThreePoints ? (
+                      <span className={`division-chip ${getDivisionClass(student.division)}`} style={{ 
+                        fontSize: '3.5pt', 
+                        padding: '0 0.1pt', 
+                        letterSpacing: '-0.1px', 
+                        fontWeight: 700, 
+                        maxWidth: '8px', 
+                        overflow: 'hidden', 
+                        display: 'inline-block' 
+                      }}>
+                        {formatDivision(student.division)}
+                      </span>
+                    ) : '-'}
+                  </TableCell>
+                  {subjects.map(subject => {
+                    const result = getStudentResult(student, subject);
+                    // Check if student takes this subject
+                    const studentTakesSubject = student.subjects?.some(s => s.subject === subject) ||
+                                               student.results?.some(r => r.subject === subject) ||
+                                               (student.subjectCombination?.subjects?.some(s => s.subject?.name === subject || s.subject === subject));
+
+                    return (
+                      <TableCell key={`${student.id}-${subject}`} align="center" className="subject-column" sx={{ 
+                        padding: '0.25pt', 
+                        minWidth: 10, 
+                        maxWidth: 10, 
+                        width: 10,
+                        height: 'auto'
+                      }}>
+                        {result ? (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 0, margin: 0 }}>
+                            <Typography variant="body2" sx={{ fontSize: '3.5pt', lineHeight: 1.1, margin: 0, padding: 0, fontWeight: 700, letterSpacing: '-0.1px' }}>
+                              {result.marks !== undefined && result.marks !== null ? formatNumber(result.marks) : '-'}
+                            </Typography>
+                          </Box>
+                        ) : studentTakesSubject ? '-' : 'N/L'}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell align="center" sx={{ 
+                    padding: '0.25pt', 
+                    fontWeight: 700, 
+                    fontSize: '3.5pt', 
+                    minWidth: 25, 
+                    maxWidth: 25, 
+                    width: 25,
+                    height: 'auto'
+                  }}>{formatNumber(student.totalMarks)}</TableCell>
+                  <TableCell align="center" sx={{ 
+                    padding: '0.25pt', 
+                    fontWeight: 700, 
+                    fontSize: '3.5pt', 
+                    minWidth: 25, 
+                    maxWidth: 25, 
+                    width: 25,
+                    height: 'auto'
+                  }}>{formatNumber(student.averageMarks)}</TableCell>
+                  <TableCell align="center" sx={{ 
+                    padding: '0.25pt', 
+                    fontWeight: 700, 
+                    fontSize: '3.5pt', 
+                    minWidth: 20, 
+                    maxWidth: 20, 
+                    width: 20,
+                    height: 'auto'
+                  }}>{student.rank}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <TablePagination
+          sx={{ display: 'none' }}  // Hide pagination completely
+          rowsPerPageOptions={[{ label: 'All', value: -1 }]}
+          component="div"
+          count={processedStudents.length}
+          rowsPerPage={-1}
+          page={0}
+          onPageChange={() => {}}
+          onRowsPerPageChange={() => {}}
+        />
+      </Paper>
+    </div>
   );
 };
 
