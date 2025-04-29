@@ -487,7 +487,7 @@ const ContactPage = () => {
       {/* Google Map */}
       <Box sx={{ height: '400px', width: '100%', mb: 0 }}>
         <iframe
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.8177679933237!2d36.82221597486775!3d-1.2834802356327383!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d22f42bf05%3A0x5f90b691d4f7f3ea!2sNairobi%2C%20Kenya!5e0!3m2!1sen!2sus!4v1684234762982!5m2!1sen!2sus"
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d912.9184788278!2d37.5141662051571!3d-3.312908397904904!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1839c5be3dae698d%3A0xff4caf04d7b475de!2sAgape%20Lutheran%20Junior%20Seminary%20Secondary%20School!5e1!3m2!1sen!2stz!4v1745899184498!5m2!1sen!2stz" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
           width="100%"
           height="100%"
           style={{ border: 0 }}
