@@ -32,7 +32,8 @@ import {
 } from '@mui/icons-material';
 import { generateOLevelStudentResultPDF } from '../../../utils/oLevelPdfGenerator';
 import useOLevelReport from '../../../hooks/useOLevelReport';
-import '../aLevel/ALevelResultReport.css'; // Reuse the same CSS
+import '../aLevel/ALevelResultReport.css'; // Base CSS
+import './OLevelReportPrint.css'; // Custom print styles for O-Level reports
 
 /**
  * Enhanced O-Level Student Result Report Component
@@ -94,6 +95,29 @@ const EnhancedStudentResultReport = () => {
       alert('There was an error generating the PDF. Please try again.');
     }
   }, [report]);
+
+  // Handle print function
+  const handlePrint = useCallback(() => {
+    // Add a class to the body to trigger print-specific styles
+    document.body.classList.add('printing-o-level-report');
+
+    // Make sure the print container is visible
+    const printContainer = document.getElementById('o-level-report-container');
+    if (printContainer) {
+      printContainer.style.display = 'block';
+      printContainer.style.visibility = 'visible';
+    }
+
+    // Print the document
+    window.print();
+
+    // Remove the class after printing
+    setTimeout(() => {
+      document.body.classList.remove('printing-o-level-report');
+    }, 1000);
+
+    console.log('Print function executed');
+  }, []);
 
   // Extract exam info for display
   const examInfo = report ? {
@@ -207,12 +231,25 @@ const EnhancedStudentResultReport = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }} className="o-level-report-main-container">
+      {/* Inline print styles for direct application */}
+      <style type="text/css" media="print">
+        {`
+          @page { size: A4 portrait; margin: 0.5cm; }
+          body * { visibility: hidden; }
+          #o-level-report-container, #o-level-report-container * { visibility: visible !important; }
+          #o-level-report-container { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+          .school-logo { display: block !important; visibility: visible !important; }
+        `}
+      </style>
+
       {/* Cache notification */}
       {isFromCache && (
         <Alert
           severity="info"
           sx={{ mb: 2 }}
+          className="no-print"
           action={
             <Button color="inherit" size="small" onClick={handleRefresh}>
               Refresh
@@ -232,19 +269,31 @@ const EnhancedStudentResultReport = () => {
           overflow: 'hidden'
         }}
         id="o-level-report-container"
-        className="print-container"
+        className="print-container single-page-report"
       >
         {/* School Header */}
-        <Box sx={{ textAlign: 'center', mb: 3 }}>
-          <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-            Agape Lutheran Junior Seminary
-          </Typography>
-          <Typography variant="subtitle1" gutterBottom>
-            Evangelical Lutheran Church in Tanzania - Northern Diocese
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            P.O.BOX 8882, Moshi, Tanzania • Mobile: 0759767735 • Email: infoagapeseminary@gmail.com
-          </Typography>
+        <Box sx={{ textAlign: 'center', mb: 3 }} className="report-header">
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={12} sx={{ position: 'relative' }}>
+              <Box sx={{ position: 'absolute', left: '10px', top: '0', width: '80px', height: '80px' }}>
+                <img
+                  src="/images/logo.JPG"
+                  alt="School Logo"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  className="school-logo"
+                />
+              </Box>
+              <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: '#1a237e' }}>
+                Agape Lutheran Junior Seminary
+              </Typography>
+              <Typography variant="subtitle1" gutterBottom>
+                Evangelical Lutheran Church in Tanzania - Northern Diocese
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                P.O.BOX 8882, Moshi, Tanzania • Mobile: 0759767735 • Email: infoagapeseminary@gmail.com
+              </Typography>
+            </Grid>
+          </Grid>
           <Divider sx={{ mt: 2, mb: 2 }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#1a237e', mt: 2 }}>
             O-LEVEL STUDENT RESULT REPORT
@@ -255,111 +304,105 @@ const EnhancedStudentResultReport = () => {
         </Box>
 
         {/* Student Information Card */}
-        <Card sx={{ mb: 4, boxShadow: 2, borderRadius: 2 }}>
-          <CardContent>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={1}>
-                <Avatar
-                  sx={{
-                    width: 60,
-                    height: 60,
-                    bgcolor: '#1a237e',
-                    boxShadow: 1
-                  }}
-                >
-                  <PersonIcon fontSize="large" />
-                </Avatar>
-              </Grid>
-              <Grid item xs={12} md={7}>
-                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+        <Card sx={{ mb: 2, boxShadow: 2, borderRadius: 2 }} className="student-info-card">
+          <CardContent sx={{ p: 2 }}>
+            <Grid container spacing={1} alignItems="center">
+              <Grid item xs={12} md={8}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
                   {studentDetails.name || 'Unknown Student'}
                 </Typography>
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={6} md={4}>
-                    <Typography variant="body2" color="text.secondary">
+                <Grid container spacing={1}>
+                  <Grid item xs={4}>
+                    <Typography variant="body2" color="text.secondary" display="inline">
                       Roll Number:
-                    </Typography>
-                    <Typography variant="body1">
+                    </Typography>{' '}
+                    <Typography variant="body2" display="inline">
                       {studentDetails.rollNumber || 'N/A'}
                     </Typography>
                   </Grid>
-                  <Grid item xs={6} md={4}>
-                    <Typography variant="body2" color="text.secondary">
+                  <Grid item xs={4}>
+                    <Typography variant="body2" color="text.secondary" display="inline">
                       Gender:
-                    </Typography>
-                    <Typography variant="body1">
+                    </Typography>{' '}
+                    <Typography variant="body2" display="inline">
                       {studentDetails.gender || 'N/A'}
                     </Typography>
                   </Grid>
-                  <Grid item xs={6} md={4}>
-                    <Typography variant="body2" color="text.secondary">
+                  <Grid item xs={4}>
+                    <Typography variant="body2" color="text.secondary" display="inline">
                       Class:
-                    </Typography>
-                    <Typography variant="body1">
+                    </Typography>{' '}
+                    <Typography variant="body2" display="inline">
                       {studentDetails.class || studentDetails.className || 'N/A'}
                     </Typography>
                   </Grid>
                 </Grid>
               </Grid>
               <Grid item xs={12} md={4}>
-                <Card sx={{ bgcolor: '#f5f5f5', boxShadow: 'none' }}>
-                  <CardContent>
-                    <Typography variant="body2" color="text.secondary">
-                      Exam Information:
-                    </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                      {examInfo?.name || 'Unknown Exam'}
-                    </Typography>
-                    <Typography variant="body2">
-                      {examInfo?.term || 'Unknown Term'}, {examInfo?.year || 'Unknown Year'}
-                    </Typography>
-                  </CardContent>
-                </Card>
+                <Box sx={{ bgcolor: '#f5f5f5', p: 1, borderRadius: 1 }}>
+                  <Typography variant="body2" color="text.secondary" display="inline">
+                    Exam:
+                  </Typography>{' '}
+                  <Typography variant="body2" display="inline" sx={{ fontWeight: 'medium' }}>
+                    {examInfo?.name || 'Unknown Exam'}
+                  </Typography>
+                  <br />
+                  <Typography variant="body2" color="text.secondary" display="inline">
+                    Term/Year:
+                  </Typography>{' '}
+                  <Typography variant="body2" display="inline">
+                    {examInfo?.term || 'Unknown Term'}, {examInfo?.year || 'Unknown Year'}
+                  </Typography>
+                </Box>
               </Grid>
             </Grid>
           </CardContent>
         </Card>
 
         {/* Subject Results Table */}
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#1a237e' }}>
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold', color: '#1a237e' }} className="section-heading">
           Subject Results
         </Typography>
 
-        <TableContainer component={Paper} sx={{ mb: 4, boxShadow: 2, borderRadius: 2 }}>
-          <Table>
+        <TableContainer component={Paper} sx={{ mb: 2, boxShadow: 1, borderRadius: 2 }} className="subject-results-table">
+          <Table size="small">
             <TableHead sx={{ bgcolor: '#1a237e' }}>
               <TableRow>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Subject</TableCell>
-                <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Marks (%)</TableCell>
-                <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Grade</TableCell>
-                <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold' }}>Points</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Remarks</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 0.5 }}>Subject</TableCell>
+                <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold', py: 0.5 }}>Marks (%)</TableCell>
+                <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold', py: 0.5 }}>Grade</TableCell>
+                <TableCell align="center" sx={{ color: 'white', fontWeight: 'bold', py: 0.5 }}>Points</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold', py: 0.5 }}>Remarks</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {subjectResults.length > 0 ? (
                 subjectResults.map((subject, index) => (
-                  <TableRow key={index} sx={{ '&:nth-of-type(odd)': { bgcolor: '#f5f5f5' } }}>
-                    <TableCell sx={{ fontWeight: 'medium' }}>{subject.subject}</TableCell>
-                    <TableCell align="center">{subject.marks}</TableCell>
-                    <TableCell align="center">
+                  <TableRow key={index} sx={{ '&:nth-of-type(odd)': { bgcolor: '#f5f5f5' }, height: '30px' }}>
+                    <TableCell sx={{ fontWeight: 'medium', py: 0.5 }}>{subject.subject}</TableCell>
+                    <TableCell align="center" sx={{ py: 0.5 }}>{subject.marks}</TableCell>
+                    <TableCell align="center" sx={{ py: 0.5 }}>
                       <Chip
                         label={subject.grade}
                         size="small"
                         sx={{
                           fontWeight: 'bold',
                           bgcolor: getGradeColor(subject.grade),
-                          color: 'white'
+                          color: 'white',
+                          height: '20px',
+                          '& .MuiChip-label': {
+                            px: 1
+                          }
                         }}
                       />
                     </TableCell>
-                    <TableCell align="center">{subject.points}</TableCell>
-                    <TableCell>{subject.remarks || getRemarks(subject.grade)}</TableCell>
+                    <TableCell align="center" sx={{ py: 0.5 }}>{subject.points}</TableCell>
+                    <TableCell sx={{ py: 0.5 }}>{subject.remarks || getRemarks(subject.grade)}</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">No subjects found</TableCell>
+                  <TableCell colSpan={5} align="center" sx={{ py: 0.5 }}>No subjects found</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -367,87 +410,87 @@ const EnhancedStudentResultReport = () => {
         </TableContainer>
 
         {/* Summary Card */}
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#1a237e' }}>
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold', color: '#1a237e' }} className="section-heading">
           Performance Summary
         </Typography>
-        <Card sx={{ mb: 4, boxShadow: 2, borderRadius: 2 }}>
-          <CardContent>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, bgcolor: '#f5f5f5', height: '100%' }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        <Card sx={{ mb: 2, boxShadow: 1, borderRadius: 2 }} className="performance-summary-card">
+          <CardContent sx={{ p: 1 }}>
+            <Grid container spacing={1}>
+              <Grid item xs={6} md={2}>
+                <Paper sx={{ p: 1, bgcolor: '#f5f5f5', height: '100%' }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Total Marks
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a237e', fontSize: '1rem' }}>
                     {summary.totalMarks || '0'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
                     Out of {subjectResults.length * 100}
                   </Typography>
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, bgcolor: '#f5f5f5', height: '100%' }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              <Grid item xs={6} md={2}>
+                <Paper sx={{ p: 1, bgcolor: '#f5f5f5', height: '100%' }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Average Marks
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a237e', fontSize: '1rem' }}>
                     {summary.averageMarks || '0.00'}%
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Class Average: {summary.classAverage || 'N/A'}%
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                    Class Avg: {summary.classAverage || 'N/A'}%
                   </Typography>
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, bgcolor: '#f5f5f5', height: '100%' }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              <Grid item xs={6} md={2}>
+                <Paper sx={{ p: 1, bgcolor: '#f5f5f5', height: '100%' }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Class Position
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                    {summary.rank || 'N/A'} / {summary.totalStudents || 'N/A'}
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a237e', fontSize: '1rem' }}>
+                    {summary.rank || 'N/A'}/{summary.totalStudents || 'N/A'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Based on average marks
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, bgcolor: '#f5f5f5', height: '100%' }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Total Points
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                    {summary.totalPoints || '0'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Sum of all subject points
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                    By average marks
                   </Typography>
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, bgcolor: '#f5f5f5', height: '100%' }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Best 7 Subjects Points
+              <Grid item xs={6} md={2}>
+                <Paper sx={{ p: 1, bgcolor: '#f5f5f5', height: '100%' }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    GPA
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a237e', fontSize: '1rem' }}>
+                    {calculateGPA(subjectResults) || 'N/A'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                    4.0 Scale
+                  </Typography>
+                </Paper>
+              </Grid>
+              <Grid item xs={6} md={2}>
+                <Paper sx={{ p: 1, bgcolor: '#f5f5f5', height: '100%' }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    Best 7 Points
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a237e', fontSize: '1rem' }}>
                     {summary.bestSevenPoints || '0'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Used for division calculation
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                    For division
                   </Typography>
                 </Paper>
               </Grid>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, bgcolor: getDivisionColor(summary.division), height: '100%' }}>
-                  <Typography variant="subtitle2" color="white" gutterBottom>
+              <Grid item xs={6} md={2}>
+                <Paper sx={{ p: 1, bgcolor: getDivisionColor(summary.division), height: '100%' }}>
+                  <Typography variant="subtitle2" color="white" sx={{ fontSize: '0.7rem' }}>
                     Division
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'white' }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>
                     {summary.division || 'N/A'}
                   </Typography>
-                  <Typography variant="body2" color="white">
-                    Based on best 7 subjects
+                  <Typography variant="body2" color="white" sx={{ fontSize: '0.6rem' }}>
+                    Best 7 subjects
                   </Typography>
                 </Paper>
               </Grid>
@@ -456,26 +499,30 @@ const EnhancedStudentResultReport = () => {
         </Card>
 
         {/* Grade Distribution */}
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#1a237e' }}>
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold', color: '#1a237e' }} className="section-heading">
           Grade Distribution
         </Typography>
-        <Card sx={{ mb: 4, boxShadow: 2, borderRadius: 2 }}>
-          <CardContent>
-            <Grid container spacing={2}>
+        <Card sx={{ mb: 2, boxShadow: 1, borderRadius: 2 }} className="grade-distribution-card">
+          <CardContent sx={{ p: 1 }}>
+            <Grid container spacing={1}>
               {summary.gradeDistribution && Object.entries(summary.gradeDistribution).map(([grade, count]) => (
-                <Grid item xs={6} sm={4} md={2} key={grade}>
+                <Grid item xs={4} sm={2} md={2} key={grade}>
                   <Paper
                     sx={{
-                      p: 2,
+                      p: 1,
                       textAlign: 'center',
                       bgcolor: getGradeColor(grade),
-                      color: 'white'
+                      color: 'white',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
                     }}
                   >
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
                       {grade}
                     </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
                       {count}
                     </Typography>
                   </Paper>
@@ -488,20 +535,20 @@ const EnhancedStudentResultReport = () => {
         {/* Character Assessment Section */}
         {report.characterAssessment && (
           <>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#1a237e' }}>
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold', color: '#1a237e' }} className="section-heading">
               Character Assessment
             </Typography>
-            <Card sx={{ mb: 4, boxShadow: 2, borderRadius: 2 }}>
-              <CardContent>
-                <Grid container spacing={2}>
+            <Card sx={{ mb: 2, boxShadow: 1, borderRadius: 2 }} className="character-assessment-card">
+              <CardContent sx={{ p: 1 }}>
+                <Grid container spacing={1}>
                   {Object.entries(report.characterAssessment).map(([key, value]) => {
                     if (key === 'comments' || key === '_id' || key === 'studentId' || key === 'examId') return null;
                     return (
-                      <Grid item xs={12} sm={6} md={4} key={key}>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          {formatCharacterTrait(key)}
+                      <Grid item xs={6} sm={4} md={3} key={key}>
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                          {formatCharacterTrait(key)}:
                         </Typography>
-                        <Typography variant="body1">
+                        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                           {value || 'Not assessed'}
                         </Typography>
                       </Grid>
@@ -509,12 +556,12 @@ const EnhancedStudentResultReport = () => {
                   })}
                 </Grid>
                 {report.characterAssessment.comments && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Teacher's Comments
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                      Teacher's Comments:
                     </Typography>
-                    <Paper sx={{ p: 2, bgcolor: '#f5f5f5' }}>
-                      <Typography variant="body1">
+                    <Paper sx={{ p: 1, bgcolor: '#f5f5f5' }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                         {report.characterAssessment.comments}
                       </Typography>
                     </Paper>
@@ -526,41 +573,41 @@ const EnhancedStudentResultReport = () => {
         )}
 
         {/* Approval Section */}
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#1a237e' }}>
+        <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold', color: '#1a237e' }} className="section-heading">
           Approvals
         </Typography>
-        <Card sx={{ mb: 4, boxShadow: 2, borderRadius: 2 }}>
-          <CardContent>
-            <Grid container spacing={4}>
-              <Grid item xs={12} md={4}>
+        <Card sx={{ mb: 2, boxShadow: 1, borderRadius: 2 }} className="approvals-card">
+          <CardContent sx={{ p: 1 }}>
+            <Grid container spacing={1}>
+              <Grid item xs={4}>
                 <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Class Teacher
                   </Typography>
-                  <Divider sx={{ mt: 4, mb: 1 }} />
-                  <Typography variant="body2">
+                  <Divider sx={{ mt: 1, mb: 0.5 }} />
+                  <Typography variant="body2" sx={{ fontSize: '0.6rem' }}>
                     Name & Signature
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={4}>
                 <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Academic Master
                   </Typography>
-                  <Divider sx={{ mt: 4, mb: 1 }} />
-                  <Typography variant="body2">
+                  <Divider sx={{ mt: 1, mb: 0.5 }} />
+                  <Typography variant="body2" sx={{ fontSize: '0.6rem' }}>
                     Name & Signature
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={4}>
                 <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     Headmaster
                   </Typography>
-                  <Divider sx={{ mt: 4, mb: 1 }} />
-                  <Typography variant="body2">
+                  <Divider sx={{ mt: 1, mb: 0.5 }} />
+                  <Typography variant="body2" sx={{ fontSize: '0.6rem' }}>
                     Name & Signature
                   </Typography>
                 </Box>
@@ -570,21 +617,27 @@ const EnhancedStudentResultReport = () => {
         </Card>
 
         {/* Footer */}
-        <Box sx={{ mt: 4, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
-            This is an official report from Agape Lutheran Junior Seminary.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Generated on {new Date().toLocaleDateString()}
+        <Box sx={{ mt: 1, textAlign: 'center' }} className="report-footer">
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+            This is an official report from Agape Lutheran Junior Seminary. Generated on {new Date().toLocaleDateString()}
           </Typography>
         </Box>
       </Paper>
 
       {/* Action Buttons */}
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 2 }}>
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 2 }} className="no-print">
         <Button
           variant="contained"
           color="primary"
+          startIcon={<PrintIcon />}
+          onClick={handlePrint}
+          size="large"
+        >
+          Print Report
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
           startIcon={<DownloadIcon />}
           onClick={handleGeneratePdf}
           size="large"

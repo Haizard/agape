@@ -12,6 +12,29 @@ const ALevelResultSchema = new mongoose.Schema({
   subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
   classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
   marksObtained: { type: Number, required: true },
+  
+  // Assessment marks
+  assessments: [{
+    name: { type: String, required: true },
+    weightage: { type: Number, required: true, min: 0, max: 100 },
+    marksObtained: { type: Number, required: true, min: 0, max: 100 },
+    term: { type: String, required: true },
+    examDate: Date,
+    status: {
+      type: String,
+      enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED'],
+      default: 'PENDING'
+    }
+  }],
+  totalWeightage: {
+    type: Number,
+    validate: {
+      validator: function(v) {
+        return this.assessments.reduce((sum, a) => sum + a.weightage, 0) === 100;
+      },
+      message: 'Total weightage must equal 100%'
+    }
+  },
 
   // Result processing fields
   grade: { type: String },
@@ -41,6 +64,16 @@ ALevelResultSchema.pre('save', function(next) {
   this.examType = this.examTypeId;
   this.subject = this.subjectId;
   this.class = this.classId;
+
+  // Calculate final marks based on weighted assessments if they exist
+  if (this.assessments && this.assessments.length > 0) {
+    const totalWeightedMarks = this.assessments.reduce((sum, assessment) => {
+      return sum + (assessment.marksObtained * (assessment.weightage / 100));
+    }, 0);
+    this.marksObtained = Math.round(totalWeightedMarks * 100) / 100; // Round to 2 decimal places
+    
+    logger.debug(`[A-LEVEL] Calculated weighted marks: ${this.marksObtained} from ${this.assessments.length} assessments`);
+  }
 
   // Calculate grade and points based on A-LEVEL grading system
   if (this.marksObtained !== undefined) {

@@ -1,0 +1,217 @@
+/* O-Level Report Print Styles */
+
+/* Basic styles that apply to all elements */
+.o-level-report-main-container {
+  font-family: Arial, sans-serif;
+}
+
+/* Print-specific styles for single-page report */
+@media print {
+  /* Hide UI elements not needed for printing */
+  .no-print,
+  .MuiAppBar-root,
+  .MuiDrawer-root,
+  .MuiAlert-root,
+  .print-hide,
+  button,
+  .action-buttons {
+    display: none !important;
+  }
+
+  /* Show only the report container */
+  body * {
+    visibility: hidden;
+  }
+
+  .print-container, .print-container * {
+    visibility: visible !important;
+  }
+
+  .print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0.5cm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Ensure the body has proper print settings */
+  body {
+    background-color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    width: 100% !important;
+    height: 100% !important;
+    font-size: 9pt !important;
+  }
+
+  /* Prevent any page breaks */
+  .MuiContainer-root,
+  .MuiPaper-root,
+  .MuiCard-root,
+  .MuiCardContent-root,
+  .MuiGrid-container,
+  .MuiGrid-item,
+  table,
+  tr,
+  td,
+  th,
+  .MuiTableContainer-root,
+  .MuiTable-root,
+  .MuiTableHead-root,
+  .MuiTableBody-root,
+  .MuiTableRow-root,
+  .MuiTableCell-root {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Set page size to A4 portrait */
+  @page {
+    size: A4 portrait;
+    margin: 0.5cm;
+  }
+
+  /* Header section */
+  .report-header {
+    margin-bottom: 0.3cm !important;
+  }
+
+  /* School header */
+  .MuiTypography-h4 {
+    font-size: 14pt !important;
+    margin-bottom: 0.1cm !important;
+  }
+
+  .MuiTypography-subtitle1 {
+    font-size: 10pt !important;
+    margin-bottom: 0.1cm !important;
+  }
+
+  .MuiTypography-body2 {
+    font-size: 8pt !important;
+  }
+
+  .MuiTypography-h5 {
+    font-size: 12pt !important;
+    margin-top: 0.1cm !important;
+    margin-bottom: 0.1cm !important;
+  }
+
+  /* Section headings */
+  .section-heading {
+    font-size: 11pt !important;
+    margin-top: 0.2cm !important;
+    margin-bottom: 0.1cm !important;
+  }
+
+  /* Dividers */
+  .MuiDivider-root {
+    margin: 0.1cm 0 !important;
+  }
+
+  /* Student info card */
+  .student-info-card {
+    margin-bottom: 0.2cm !important;
+    box-shadow: none !important;
+  }
+
+  .student-info-card .MuiCardContent-root {
+    padding: 0.2cm !important;
+  }
+
+  /* Student name */
+  .MuiTypography-h6 {
+    font-size: 11pt !important;
+  }
+
+  /* Grid spacing */
+  .MuiGrid-container {
+    margin-top: 0 !important;
+  }
+
+  .MuiGrid-item {
+    padding: 0.1cm !important;
+  }
+
+  /* Table styles */
+  .subject-results-table {
+    margin-bottom: 0.2cm !important;
+  }
+
+  .MuiTableCell-root {
+    padding: 0.1cm 0.2cm !important;
+    font-size: 8pt !important;
+  }
+
+  .MuiTableHead-root .MuiTableCell-root {
+    font-size: 8pt !important;
+    font-weight: bold !important;
+  }
+
+  /* Chips */
+  .MuiChip-root {
+    height: 18px !important;
+    font-size: 7pt !important;
+  }
+
+  /* Summary cards */
+  .performance-summary-card {
+    margin-bottom: 0.2cm !important;
+  }
+
+  .performance-summary-card .MuiCardContent-root {
+    padding: 0.1cm !important;
+  }
+
+  /* Grade distribution */
+  .grade-distribution-card {
+    margin-bottom: 0.2cm !important;
+  }
+
+  .grade-distribution-card .MuiCardContent-root {
+    padding: 0.1cm !important;
+  }
+
+  /* Character assessment */
+  .character-assessment-card {
+    margin-bottom: 0.2cm !important;
+  }
+
+  .character-assessment-card .MuiCardContent-root {
+    padding: 0.1cm !important;
+  }
+
+  /* Approvals section */
+  .approvals-card {
+    margin-bottom: 0.2cm !important;
+  }
+
+  .approvals-card .MuiCardContent-root {
+    padding: 0.1cm !important;
+  }
+
+  /* Footer */
+  .report-footer {
+    margin-top: 0.2cm !important;
+  }
+
+  /* School logo */
+  .school-logo {
+    max-width: 80px !important;
+    max-height: 80px !important;
+    position: relative !important;
+    z-index: 1 !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+}
+
+/* Styles for when printing is triggered via JavaScript */
+body.printing-o-level-report {
+  background-color: white !important;
+}

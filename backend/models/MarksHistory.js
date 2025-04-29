@@ -75,7 +75,16 @@ const MarksHistorySchema = new mongoose.Schema({
     grade: { type: String },
     points: { type: Number },
     comment: { type: String },
-    isPrincipal: { type: Boolean } // For A-Level only
+    isPrincipal: { type: Boolean }, // For A-Level only
+    assessments: [{
+      name: { type: String },
+      weightage: { type: Number },
+      marksObtained: { type: Number },
+      term: { type: String },
+      examDate: Date,
+      status: { type: String }
+    }],
+    totalWeightage: { type: Number }
   },
   
   // New values (after change)
@@ -84,7 +93,16 @@ const MarksHistorySchema = new mongoose.Schema({
     grade: { type: String, required: true },
     points: { type: Number, required: true },
     comment: { type: String },
-    isPrincipal: { type: Boolean } // For A-Level only
+    isPrincipal: { type: Boolean }, // For A-Level only
+    assessments: [{
+      name: { type: String },
+      weightage: { type: Number },
+      marksObtained: { type: Number },
+      term: { type: String },
+      examDate: Date,
+      status: { type: String }
+    }],
+    totalWeightage: { type: Number }
   },
   
   // Additional metadata
