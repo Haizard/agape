@@ -11,98 +11,53 @@ const mongoose = require('mongoose');
 const teacherAuthController = require('../controllers/teacherAuthController');
 const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
 
+// Import teacher profile middleware
+const { validateTeacherProfileData, ensureTeacherProfileCreation } = require('../middleware/teacherProfileCreation');
+const { validateEnhancedTeacherProfile, ensureTeacherProfileIntegrity } = require('../middleware/enhancedTeacherProfileValidation');
+const teacherProfileService = require('../services/teacherProfileService');
+
 // Create a new teacher
-router.post('/', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.post('/',
+  authenticateToken,
+  authorizeRole(['admin']),
+  validateTeacherProfileData,
+  validateEnhancedTeacherProfile,
+  async (req, res) => {
   try {
     console.log('POST /api/teachers - Creating teacher with data:', req.body);
 
-    // Check if email already exists
-    const existingTeacher = await Teacher.findOne({ email: req.body.email });
-    if (existingTeacher) {
-      console.log(`Teacher with email ${req.body.email} already exists`);
-      return res.status(400).json({ message: 'Teacher with this email already exists' });
-    }
+    // Generate username from email or name
+    const username = req.body.username || 
+      `${req.body.firstName.toLowerCase()}.${req.body.lastName.toLowerCase()}`;
 
-    // Check if employeeId already exists
-    if (req.body.employeeId) {
-      const existingEmployeeId = await Teacher.findOne({ employeeId: req.body.employeeId });
-      if (existingEmployeeId) {
-        console.log(`Teacher with employeeId ${req.body.employeeId} already exists`);
-        return res.status(400).json({ message: 'Teacher with this Employee ID already exists' });
-      }
-    }
+    // Generate password if not provided
+    const password = req.body.password || 
+      Math.random().toString(36).slice(-8) + '1A!'; // Ensure it meets complexity requirements
 
-    // Create user account if createAccount flag is true
-    let userId;
-    let generatedPassword;
-    let username;
-
-    if (req.body.createAccount) {
-      const User = require('../models/User');
-
-      // Generate a username from email or employeeId
-      username = req.body.employeeId || req.body.email.split('@')[0];
-
-      // Check if username already exists
-      const existingUsername = await User.findOne({ username });
-      if (existingUsername) {
-        console.log(`Username ${username} already exists`);
-        return res.status(400).json({ message: 'Username already exists. Please use a different employee ID.' });
-      }
-
-      // Generate a password if not provided
-      if (!req.body.password) {
-        // Generate a random password with 8 characters
-        generatedPassword = Math.random().toString(36).slice(-8) + '1A!'; // Ensure it meets complexity requirements
-      } else {
-        generatedPassword = req.body.password;
-      }
-
-      // Hash the password
-      const bcrypt = require('bcrypt');
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(generatedPassword, salt);
-
-      // Create the user
-      const newUser = new User({
-        username: username,
-        email: req.body.email,
-        password: hashedPassword,
-        role: 'teacher'
-      });
-
-      const savedUser = await newUser.save();
-      userId = savedUser._id;
-      console.log(`Created user account for teacher: ${userId} with username: ${username}`);
-    } else {
-      console.log('No user account created for this teacher');
-    }
-
-    // Create the teacher
-    const teacher = new Teacher({
-      ...req.body,
-      userId: userId, // Always include userId if it exists
-      status: req.body.status || 'active'
+    // Create teacher with user account using the service
+    const result = await teacherProfileService.createTeacherWithUser({
+      username,
+      email: req.body.email,
+      password,
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      contactNumber: req.body.contactNumber,
+      qualification: req.body.qualification,
+      experience: req.body.experience,
+      subjects: req.body.subjects || []
     });
 
-    console.log('Creating teacher with userId:', userId);
+    console.log('Teacher created successfully:', result.teacher);
 
-    const savedTeacher = await teacher.save();
-    console.log('Teacher created successfully:', savedTeacher);
-
-    // Return the teacher data along with login credentials if a user account was created
-    if (userId && generatedPassword) {
-      res.status(201).json({
-        teacher: savedTeacher,
-        userAccount: {
-          username: username,
-          password: generatedPassword,
-          role: 'teacher'
-        }
-      });
-    } else {
-      res.status(201).json(savedTeacher);
-    }
+    // Return the teacher data along with login credentials
+    res.status(201).json({
+      teacher: result.teacher,
+      userAccount: {
+        username: result.user.username,
+        password: password, // Only return if it was just generated
+        role: 'teacher'
+      }
+    });
   } catch (error) {
     console.error('Error creating teacher:', error);
     res.status(400).json({
@@ -113,47 +68,20 @@ router.post('/', authenticateToken, authorizeRole(['admin']), async (req, res) =
 });
 
 // Update a teacher
-router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
+router.put('/:id', authenticateToken, authorizeRole(['admin']), validateTeacherProfileData, validateEnhancedTeacherProfile, async (req, res) => {
   try {
     console.log(`PUT /api/teachers/${req.params.id} - Updating teacher with data:`, req.body);
 
-    // Check if teacher exists
-    const teacher = await Teacher.findById(req.params.id);
-    if (!teacher) {
-      console.log(`Teacher not found with ID: ${req.params.id}`);
-      return res.status(404).json({ message: 'Teacher not found' });
-    }
-
-    // Check if email already exists (for another teacher)
-    if (req.body.email && req.body.email !== teacher.email) {
-      const existingTeacher = await Teacher.findOne({
-        email: req.body.email,
-        _id: { $ne: req.params.id }
-      });
-      if (existingTeacher) {
-        console.log(`Another teacher with email ${req.body.email} already exists`);
-        return res.status(400).json({ message: 'Another teacher with this email already exists' });
-      }
-    }
-
-    // Check if employeeId already exists (for another teacher)
-    if (req.body.employeeId && req.body.employeeId !== teacher.employeeId) {
-      const existingEmployeeId = await Teacher.findOne({
-        employeeId: req.body.employeeId,
-        _id: { $ne: req.params.id }
-      });
-      if (existingEmployeeId) {
-        console.log(`Another teacher with employeeId ${req.body.employeeId} already exists`);
-        return res.status(400).json({ message: 'Another teacher with this Employee ID already exists' });
-      }
-    }
-
-    // Update the teacher
-    const updatedTeacher = await Teacher.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+    // Update teacher profile using the service
+    const updatedTeacher = await teacherProfileService.updateTeacherProfile(req.params.id, {
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      email: req.body.email,
+      contactNumber: req.body.contactNumber,
+      qualification: req.body.qualification,
+      experience: req.body.experience,
+      subjects: req.body.subjects
+    });
 
     console.log('Teacher updated successfully:', updatedTeacher);
     res.json(updatedTeacher);
@@ -167,7 +95,7 @@ router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res)
 });
 
 // Get the current teacher's profile
-router.get('/profile/me', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+router.get('/profile/me', authenticateToken, authorizeRole(['teacher', 'admin']), ensureTeacherProfileIntegrity, async (req, res) => {
   try {
     console.log('GET /api/teachers/profile/me - Fetching current teacher profile');
 
@@ -179,14 +107,19 @@ router.get('/profile/me', authenticateToken, authorizeRole(['teacher', 'admin'])
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    // Find the teacher profile by userId
-    const teacher = await Teacher.findOne({ userId })
-      .populate('subjects', 'name code type description educationLevel');
-
-    if (!teacher) {
-      console.log(`No teacher found with userId: ${userId}`);
-
-      // For admin users, create a temporary teacher profile
+    try {
+      // Sync and get teacher profile using the service
+      const teacher = await teacherProfileService.syncTeacherProfile(userId);
+      
+      // Get full profile with user details and subjects
+      const fullProfile = await teacherProfileService.getTeacherWithUser(teacher._id);
+      
+      res.json({
+        success: true,
+        teacher: fullProfile
+      });
+    } catch (error) {
+      // For admin users, create a temporary profile
       if (req.user.role === 'admin') {
         console.log('Creating temporary teacher profile for admin user');
         const adminUser = await User.findById(userId);
@@ -1937,7 +1870,7 @@ router.get('/simple-classes', authenticateToken, authorizeRole(['teacher', 'admi
 });
 
 // Get current teacher profile (for logged-in teacher)
-router.get('/profile/me', authenticateToken, authorizeRole(['teacher', 'admin']), async (req, res) => {
+router.get('/profile/me', authenticateToken, authorizeRole(['teacher', 'admin']), ensureTeacherProfileIntegrity, async (req, res) => {
   try {
     console.log('GET /api/teachers/profile/me - Fetching teacher profile for user:', req.user);
     const userId = req.user.userId;

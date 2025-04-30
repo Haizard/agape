@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './contexts/AuthContext';
 import { AssessmentProvider } from './contexts/AssessmentContext';
 import theme from './theme';
+import AssessmentList from './components/assessment/AssessmentList';
 
 // Layout Components
 import MainLayout from './components/layout/MainLayout';
@@ -37,8 +38,9 @@ const App = () => {
                   <Route path="/" element={<Dashboard />} />
                   
                   {/* Assessment Routes */}
-                  <Route path="/assessments" element={<DepartmentLayout />}>
-                    <Route index element={<AssessmentManagement />} />
+                  <Route path="/assessments" element={<AssessmentManagement />}>
+                    <Route index element={<AssessmentList />} />
+                    <Route path="manage" element={<AssessmentList />} />
                     <Route path="bulk-entry" element={<BulkAssessmentEntry />} />
                     <Route path="report" element={<AssessmentReport />} />
                     <Route path="student/:studentId" element={<StudentResultView />} />

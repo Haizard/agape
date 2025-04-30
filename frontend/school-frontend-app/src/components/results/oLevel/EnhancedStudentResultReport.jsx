@@ -714,4 +714,29 @@ const formatCharacterTrait = (trait) => {
     .trim();
 };
 
+// Add GPA calculation function
+const calculateGPA = (gradeDistribution) => {
+  if (!gradeDistribution) return 0;
+  
+  const totalStudents = Object.values(gradeDistribution).reduce((sum, count) => sum + count, 0);
+  if (totalStudents === 0) return 0;
+  
+  const gradePoints = {
+    'A': 1,
+    'B': 2,
+    'C': 3,
+    'D': 4,
+    'E': 5,
+    'S': 6,
+    'F': 7
+  };
+  
+  let weightedSum = 0;
+  for (const [grade, count] of Object.entries(gradeDistribution)) {
+    weightedSum += (gradePoints[grade] || 7) * count;
+  }
+  
+  return weightedSum / totalStudents;
+};
+
 export default EnhancedStudentResultReport;
