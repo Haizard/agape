@@ -1,82 +1,92 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
-module.exports = function(app) {
-  // Determine the backend URL - use localhost:5000 for local development
+// Single source of truth for API configuration
+const getApiConfig = () => {
   const isLocalDevelopment = process.env.NODE_ENV === 'development';
-  const backendUrl = isLocalDevelopment
+  const apiUrl = isLocalDevelopment
     ? 'http://localhost:5000'
     : (process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com');
 
-  console.log(`Setting up proxy to: ${backendUrl}`);
-  console.log(`Local development mode: ${isLocalDevelopment ? 'Yes' : 'No'}`);
+  return {
+    baseUrl: apiUrl,
+    prefix: '/api',
+    isLocalDevelopment
+  };
+};
 
-  // Proxy API requests to the backend server
-  app.use(
-    '/api',
-    createProxyMiddleware({
-      target: backendUrl,
-      changeOrigin: true,
-      pathRewrite: {
-        '^/api': '/api', // No rewrite needed if backend expects /api prefix
-      },
-      // Log proxy activity
-      logLevel: 'debug',
-      // Handle proxy errors
-      onError: (err, req, res) => {
-        console.error('Proxy error:', err);
-        res.writeHead(500, {
-          'Content-Type': 'application/json',
-        });
-        res.end(JSON.stringify({
-          error: 'Proxy error',
-          message: 'Could not connect to the backend server',
-          details: err.message
-        }));
-      },
-      // Add custom headers
-      onProxyReq: (proxyReq, req, res) => {
-        // Add a custom header to identify proxy requests
-        proxyReq.setHeader('X-Proxied-By', 'setupProxy.js');
+module.exports = function(app) {
+  const apiConfig = getApiConfig();
+  console.log(`API Configuration:`);
+  console.log(`- Base URL: ${apiConfig.baseUrl}`);
+  console.log(`- API Prefix: ${apiConfig.prefix}`);
+  console.log(`- Environment: ${apiConfig.isLocalDevelopment ? 'Development' : 'Production'}`);
 
-        // Forward the authorization header if present
-        const authHeader = req.headers.authorization;
-        if (authHeader) {
-          console.log('Forwarding Authorization header to backend');
-          proxyReq.setHeader('Authorization', authHeader);
+  // Proxy middleware configuration
+  const proxyConfig = {
+    target: apiConfig.baseUrl,
+    changeOrigin: true,
+    secure: !apiConfig.isLocalDevelopment,
+    pathRewrite: {
+      [`^${apiConfig.prefix}`]: apiConfig.prefix
+    },
+    logLevel: apiConfig.isLocalDevelopment ? 'debug' : 'error',
+    onError: (err, req, res) => {
+      console.error('Proxy Error:', err);
+      res.writeHead(500, {
+        'Content-Type': 'application/json'
+      });
+      res.end(JSON.stringify({
+        error: 'Proxy Error',
+        message: 'Unable to connect to the backend server',
+        details: apiConfig.isLocalDevelopment ? err.message : 'Internal Server Error'
+      }));
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      // Forward authorization header
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        proxyReq.setHeader('Authorization', authHeader);
+      }
 
-          // Log the token format (without exposing the full token)
-          const tokenPreview = authHeader.length > 20
-            ? `${authHeader.substring(0, 10)}...${authHeader.substring(authHeader.length - 5)}`
-            : '[INVALID TOKEN FORMAT]';
-          console.log(`Token format: ${tokenPreview}`);
-        } else {
-          console.warn('No Authorization header found in request');
+      // Add request ID for tracking
+      const requestId = Math.random().toString(36).substring(7);
+      proxyReq.setHeader('X-Request-ID', requestId);
+      console.log(`[${requestId}] Proxying ${req.method} ${req.path} to ${apiConfig.baseUrl}`);
 
-          // Add a default admin token for testing purposes
-          // WARNING: This is for development only and should be removed in production
-          if (isLocalDevelopment) {
-            const defaultToken = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwZTJiZjJlNzM5YzJjMDAyMjY4ZjEyMyIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTYyNTQ5MjMzNCwiZXhwIjoxNjI1NTc4NzM0fQ.7B-qhNvHxwPzBlgYpF-lZ1wHZFZO7UiU2UQVIwfmD5A';
-            console.log('Adding default admin token for development');
-            proxyReq.setHeader('Authorization', defaultToken);
-          }
-        }
+      // Handle request body if present
+      if (req.body) {
+        const bodyData = JSON.stringify(req.body);
+        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+        proxyReq.write(bodyData);
+      }
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      const requestId = req.headers['x-request-id'];
+      console.log(`[${requestId}] Proxy response: ${proxyRes.statusCode}`);
 
-        // Add CORS headers
-        proxyReq.setHeader('Access-Control-Allow-Origin', '*');
-        proxyReq.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        proxyReq.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-      },
+      // Add security headers
+      proxyRes.headers['X-Content-Type-Options'] = 'nosniff';
+      proxyRes.headers['X-Frame-Options'] = 'SAMEORIGIN';
+      proxyRes.headers['X-XSS-Protection'] = '1; mode=block';
 
-      // Handle proxy response
-      onProxyRes: (proxyRes, req, res) => {
-        // Log response status
-        console.log(`Proxy response: ${proxyRes.statusCode} ${proxyRes.statusMessage}`);
-
-        // Add CORS headers to response
+      // Add CORS headers in development
+      if (apiConfig.isLocalDevelopment) {
         proxyRes.headers['Access-Control-Allow-Origin'] = '*';
         proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-        proxyRes.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, Authorization';
+        proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
       }
-    })
-  );
+    }
+  };
+
+  // Apply proxy middleware
+  app.use(apiConfig.prefix, createProxyMiddleware(proxyConfig));
+
+  // Health check endpoint
+  app.get('/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      environment: apiConfig.isLocalDevelopment ? 'development' : 'production',
+      apiUrl: apiConfig.baseUrl
+    });
+  });
 };

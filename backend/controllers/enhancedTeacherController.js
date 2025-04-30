@@ -10,6 +10,8 @@ const Teacher = mongoose.model('Teacher');
 const Class = mongoose.model('Class');
 const Subject = mongoose.model('Subject');
 const Student = mongoose.model('Student');
+const TeacherSubject = mongoose.model('TeacherSubject');
+const TeacherAssignment = mongoose.model('TeacherAssignment');
 
 // Import the enhanced teacher subject service
 const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
@@ -42,7 +44,7 @@ exports.getAssignedSubjects = async (req, res) => {
     }
 
     // Find the teacher by userId
-    const teacher = await Teacher.findOne({ userId });
+    const teacher = await Teacher.findOne({ userId }).select('_id firstName lastName email');
     if (!teacher) {
       console.log(`[EnhancedTeacherController] No teacher found with userId: ${userId}`);
       return res.status(404).json({ message: 'Teacher profile not found' });
@@ -55,29 +57,72 @@ exports.getAssignedSubjects = async (req, res) => {
       return res.json(allSubjects);
     }
 
+    // First check if the class exists and get its education level
+    const classObj = await Class.findById(classId).select('educationLevel');
+    if (!classObj) {
+      console.log(`[EnhancedTeacherController] Class not found: ${classId}`);
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
     // Use the enhanced teacher subject service to get the teacher's subjects
-    console.log(`[EnhancedTeacherController] Calling getTeacherSubjects with teacherId: ${teacher._id}, classId: ${classId}`);
-    const subjects = await enhancedTeacherSubjectService.getTeacherSubjects(teacher._id, classId, false);
+    // with proper population limits and error handling
+    try {
+      console.log(`[EnhancedTeacherController] Fetching subjects for teacher ${teacher._id} in class ${classId}`);
+      const subjects = await TeacherSubject.find({
+        teacherId: teacher._id,
+        classId: classId,
+        status: 'active'
+      })
+      .populate('subjectId', 'name code type description educationLevel')
+      .lean();
 
-    // Return the subjects
-    res.json(subjects);
-  } catch (error) {
-    console.error('[EnhancedTeacherController] Error fetching assigned subjects for marks entry:', error);
+      // If no subjects found through TeacherSubject, check TeacherAssignment
+      if (subjects.length === 0) {
+        const assignments = await TeacherAssignment.find({
+          teacher: teacher._id,
+          class: classId
+        })
+        .populate('subject', 'name code type description educationLevel')
+        .lean();
 
-    // Provide more specific error messages based on the error type
-    if (error.name === 'CastError' && error.kind === 'ObjectId') {
-      return res.status(400).json({
+        // Map assignments to subject format
+        const subjectsFromAssignments = assignments.map(assignment => ({
+          _id: assignment.subject._id,
+          name: assignment.subject.name,
+          code: assignment.subject.code,
+          type: assignment.subject.type,
+          description: assignment.subject.description,
+          educationLevel: assignment.subject.educationLevel
+        }));
+
+        return res.json(subjectsFromAssignments);
+      }
+
+      // Map TeacherSubject results to subject format
+      const mappedSubjects = subjects.map(ts => ({
+        _id: ts.subjectId._id,
+        name: ts.subjectId.name,
+        code: ts.subjectId.code,
+        type: ts.subjectId.type,
+        description: ts.subjectId.description,
+        educationLevel: ts.subjectId.educationLevel
+      }));
+
+      return res.json(mappedSubjects);
+    } catch (error) {
+      console.error('[EnhancedTeacherController] Error fetching teacher subjects:', error);
+      return res.status(500).json({
         success: false,
-        message: 'Invalid class ID format',
+        message: 'Error fetching teacher subjects',
         error: error.message
       });
     }
-
+  } catch (error) {
+    console.error('[EnhancedTeacherController] Error in getAssignedSubjects:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching assigned subjects',
-      error: error.message,
-      details: 'There was an error retrieving the subjects you are assigned to teach.'
+      error: error.message
     });
   }
 };
@@ -111,28 +156,45 @@ exports.getAssignedStudents = async (req, res) => {
     }
 
     // Find the teacher by userId
-    const teacher = await Teacher.findOne({ userId });
+    const teacher = await Teacher.findOne({ userId }).select('_id');
     if (!teacher) {
       console.log(`[EnhancedTeacherController] No teacher found with userId: ${userId}`);
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
     // Use the enhanced teacher subject service to get the teacher's students
-    const students = await enhancedTeacherSubjectService.getTeacherStudents(teacher._id, classId);
+    // with proper error handling and no circular population
+    try {
+      const students = await Student.find({ class: classId })
+        .select('_id firstName lastName rollNumber admissionNumber gender form')
+        .lean();
 
-    // If no students found, return empty array with error message
-    if (students.length === 0) {
-      console.log(`[EnhancedTeacherController] No students found for teacher ${teacher._id} in class ${classId}, returning empty array`);
-      return res.status(403).json({
-        message: 'You are not assigned to teach any students in this class.',
-        students: []
+      // Get the subjects this teacher teaches in this class
+      const teacherSubjects = await TeacherSubject.find({
+        teacherId: teacher._id,
+        classId: classId,
+        status: 'active'
+      }).select('subjectId');
+
+      const teacherSubjectIds = teacherSubjects.map(ts => ts.subjectId.toString());
+
+      // Filter students who are taking the teacher's subjects
+      const filteredStudents = students.filter(student => {
+        // For now, return all students since subject selection data model needs to be implemented
+        return true;
+      });
+
+      return res.json(filteredStudents);
+    } catch (error) {
+      console.error('[EnhancedTeacherController] Error fetching students:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error fetching students',
+        error: error.message
       });
     }
-
-    // Return the students
-    res.json(students);
   } catch (error) {
-    console.error('[EnhancedTeacherController] Error fetching assigned students:', error);
+    console.error('[EnhancedTeacherController] Error in getAssignedStudents:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching assigned students',

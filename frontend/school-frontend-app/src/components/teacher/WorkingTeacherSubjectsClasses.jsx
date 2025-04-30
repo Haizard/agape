@@ -1,46 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import PropTypes from 'prop-types';
 import {
   Box,
+  Paper,
+  Tabs,
+  Tab,
   Typography,
-  Grid,
+  Button,
   Card,
   CardContent,
   CardActions,
-  Button,
-  CircularProgress,
-  Alert,
-  Divider,
-  Tabs,
-  Tab,
+  Avatar,
   List,
   ListItem,
-  ListItemText,
   ListItemIcon,
-  Avatar,
-  Paper,
-  Tooltip,
+  ListItemText,
+  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
-  Snackbar
+  Alert,
+  CircularProgress,
+  Grid,
+  Tooltip,
+  Snackbar,
 } from '@mui/material';
 import {
-  Class as ClassIcon,
   Book as BookIcon,
-  People as PeopleIcon,
+  Class as ClassIcon,
+  Refresh as RefreshIcon,
+  CleaningServices as CleaningServicesIcon,
+  Delete as DeleteIcon,
   Edit as EditIcon,
   Assessment as AssessmentIcon,
+  People as PeopleIcon,
   Notifications as NotificationsIcon,
-  CleaningServices as CleaningServicesIcon,
-  Refresh as RefreshIcon,
-  Delete as DeleteIcon
 } from '@mui/icons-material';
-import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
-import api from '../../services/api';
-import PropTypes from 'prop-types';
+import apiService from '../../services/unifiedApi';
 
 // TabPanel component for the tabs
 function TabPanel(props) {
@@ -70,6 +70,7 @@ TabPanel.propTypes = {
 };
 
 const WorkingTeacherSubjectsClasses = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [teacherProfile, setTeacherProfile] = useState(null);
@@ -83,76 +84,44 @@ const WorkingTeacherSubjectsClasses = () => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const user = useSelector((state) => state.user?.user);
 
-  // Fetch teacher data
+  const fetchTeacherData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch teacher profile
+      const profileResponse = await apiService.get('teachers/profile/me');
+      setTeacherProfile(profileResponse);
+      
+      // Fetch teacher classes
+      const classesResponse = await apiService.get('classes/teacher/me');
+      setTeacherClasses(classesResponse);
+      
+      // Fetch teacher subjects
+      const subjectsResponse = await apiService.get('subjects/teacher/me');
+      setTeacherSubjects(subjectsResponse);
+      setError(null);
+    } catch (error) {
+      console.error('Error fetching teacher data:', error);
+      setError('Failed to load teacher data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchTeacherData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    let mounted = true;
 
-        // Try to get the teacher profile
-        try {
-          const profileResponse = await api.get('/api/teachers/profile/me');
-          setTeacherProfile(profileResponse.data);
-        } catch (profileError) {
-          console.log('Error fetching teacher profile:', profileError);
-          // Continue even if profile fetch fails
-        }
-
-        // Try to get teacher's classes
-        try {
-          const classesResponse = await api.get('/api/teacher-classes/my-classes');
-          setClasses(classesResponse.data);
-        } catch (classesError) {
-          console.log('Error fetching teacher classes:', classesError);
-
-          // If user is admin, try to get all classes
-          if (user?.role === 'admin') {
-            const allClassesResponse = await api.get('/api/classes');
-            setClasses(allClassesResponse.data);
-          } else {
-            // Create a default class if no classes found
-            setClasses([{
-              _id: 'default-class',
-              name: 'Default Class',
-              stream: 'A',
-              section: 'General'
-            }]);
-          }
-        }
-
-        // Try to get teacher's subjects
-        try {
-          const subjectsResponse = await api.get('/api/teacher-classes/my-subjects');
-          setSubjects(subjectsResponse.data);
-        } catch (subjectsError) {
-          console.log('Error fetching teacher subjects:', subjectsError);
-
-          // Create default subjects with a default class
-          // This avoids dependency on the classes state variable
-          setSubjects([{
-            _id: 'default-subject',
-            name: 'Default Subject',
-            code: 'DEF',
-            type: 'Core',
-            classes: [{
-              _id: 'default-class',
-              name: 'Default Class',
-              stream: 'A',
-              section: 'General'
-            }]
-          }]);
-        }
-      } catch (err) {
-        console.error('Error fetching teacher data:', err);
-        setError('Failed to load data. Please try again.');
-      } finally {
-        setLoading(false);
+    const loadData = async () => {
+      if (mounted) {
+        await fetchTeacherData();
       }
     };
 
-    fetchTeacherData();
-  }, [user]);
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchTeacherData]);
 
   // Handle tab change
   const handleTabChange = (_, newValue) => {
@@ -165,23 +134,19 @@ const WorkingTeacherSubjectsClasses = () => {
     setCleanupResult(null);
 
     try {
-      // Call the cleanup endpoint
-      const response = await api.post('/api/teachers/cleanup-subject-assignments');
-      console.log('Cleanup response:', response.data);
+      const response = await UnifiedApiService.post('/api/teachers/cleanup-subject-assignments');
+      console.log('Cleanup response:', response);
 
-      // Set the cleanup result
-      setCleanupResult(response.data);
+      setCleanupResult(response);
 
-      // Show a success message
-      if (response.data.removedSubjects && response.data.removedSubjects.length > 0) {
-        setSnackbarMessage(`Successfully removed ${response.data.removedSubjects.length} unused subject assignments`);
+      if (response.removedSubjects && response.removedSubjects.length > 0) {
+        setSnackbarMessage(`Successfully removed ${response.removedSubjects.length} unused subject assignments`);
       } else {
         setSnackbarMessage('No unused subject assignments found');
       }
       setSnackbarOpen(true);
 
-      // Refresh the data after cleanup
-      handleRefresh();
+      await fetchTeacherData();
     } catch (error) {
       console.error('Error cleaning up subject assignments:', error);
       setCleanupResult({
@@ -193,6 +158,27 @@ const WorkingTeacherSubjectsClasses = () => {
       setSnackbarOpen(true);
     } finally {
       setCleanupLoading(false);
+    }
+  };
+
+  // Handle deleting a subject assignment
+  const handleDeleteSubject = async (subjectId, subjectName) => {
+    try {
+      setLoading(true);
+
+      const response = await UnifiedApiService.delete(`/api/teachers/subject-assignment/${subjectId}`);
+      console.log('Delete subject response:', response);
+
+      setSnackbarMessage(`Successfully removed ${subjectName} from your assignments`);
+      setSnackbarOpen(true);
+
+      await fetchTeacherData();
+    } catch (error) {
+      console.error('Error deleting subject assignment:', error);
+      setSnackbarMessage(`Failed to remove ${subjectName} from your assignments`);
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -211,95 +197,10 @@ const WorkingTeacherSubjectsClasses = () => {
     setSnackbarOpen(false);
   };
 
-  // Handle deleting a subject assignment
-  const handleDeleteSubject = async (subjectId, subjectName) => {
-    try {
-      setLoading(true);
-
-      // Call the API to delete the subject assignment
-      const response = await api.delete(`/api/teachers/subject-assignment/${subjectId}`);
-      console.log('Delete subject response:', response.data);
-
-      // Show success message
-      setSnackbarMessage(`Successfully removed ${subjectName} from your assignments`);
-      setSnackbarOpen(true);
-
-      // Refresh the data
-      handleRefresh();
-    } catch (error) {
-      console.error('Error deleting subject assignment:', error);
-      setSnackbarMessage(`Failed to remove ${subjectName} from your assignments`);
-      setSnackbarOpen(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Handle refresh
-  const handleRefresh = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Try to get the teacher profile
-      try {
-        const profileResponse = await api.get('/api/teachers/profile/me');
-        setTeacherProfile(profileResponse.data);
-      } catch (profileError) {
-        console.log('Error fetching teacher profile:', profileError);
-        // Continue even if profile fetch fails
-      }
-
-      // Try to get teacher's classes
-      try {
-        const classesResponse = await api.get('/api/teacher-classes/my-classes');
-        setClasses(classesResponse.data);
-      } catch (classesError) {
-        console.log('Error fetching teacher classes:', classesError);
-
-        // If user is admin, try to get all classes
-        if (user?.role === 'admin') {
-          const allClassesResponse = await api.get('/api/classes');
-          setClasses(allClassesResponse.data);
-        } else {
-          // Create a default class if no classes found
-          setClasses([{
-            _id: 'default-class',
-            name: 'Default Class',
-            stream: 'A',
-            section: 'General'
-          }]);
-        }
-      }
-
-      // Try to get teacher's subjects
-      try {
-        const subjectsResponse = await api.get('/api/teacher-classes/my-subjects');
-        setSubjects(subjectsResponse.data);
-      } catch (subjectsError) {
-        console.log('Error fetching teacher subjects:', subjectsError);
-
-        // Create default subjects with a default class
-        setSubjects([{
-          _id: 'default-subject',
-          name: 'Default Subject',
-          code: 'DEF',
-          type: 'Core',
-          classes: [{
-            _id: 'default-class',
-            name: 'Default Class',
-            stream: 'A',
-            section: 'General'
-          }]
-        }]);
-      }
-    } catch (err) {
-      console.error('Error refreshing data:', err);
-      setError('Failed to refresh data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleRefresh = useCallback(async () => {
+    await fetchTeacherData();
+  }, [fetchTeacherData]);
 
   // Safe render function for values that might be undefined
   const safeRender = (value, fallback = '-') => {
@@ -435,79 +336,77 @@ const WorkingTeacherSubjectsClasses = () => {
                 {subjects
                   .filter(subject => subject.classes && subject.classes.length > 0)
                   .map((subject) => (
-                <Grid item xs={12} sm={6} md={4} key={subject._id}>
-                  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
-                          <BookIcon />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="h6" component="div">
-                            {safeRender(subject.name)}
+                    <Grid item xs={12} sm={6} md={4} key={subject._id}>
+                      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <CardContent sx={{ flexGrow: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+                              <BookIcon />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h6" component="div">
+                                {safeRender(subject.name)}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Code: {safeRender(subject.code)}
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          <Divider sx={{ my: 1 }} />
+
+                          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                            Classes Teaching This Subject:
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Code: {safeRender(subject.code)}
-                          </Typography>
-                        </Box>
-                      </Box>
 
-                      <Divider sx={{ my: 1 }} />
-
-                      <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
-                        Classes Teaching This Subject:
-                      </Typography>
-
-                      <List dense>
-                        {subject.classes && subject.classes.length > 0 ? (
-                          subject.classes.map((cls) => (
-                            <ListItem key={cls._id}>
-                              <ListItemIcon>
-                                <ClassIcon fontSize="small" />
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={safeRender(cls.name)}
-                                secondary={<>
-                                  {safeRender(cls.stream)} {safeRender(cls.section)}
-                                </>}
-                              />
-                            </ListItem>
-                          ))
-                        ) : (
-                          <ListItem>
-                            <ListItemText primary="No classes assigned yet" />
-                          </ListItem>
-                        )}
-                      </List>
-                    </CardContent>
-                    <CardActions>
-                      <Tooltip title="Enter marks for this subject">
-                        <Button
-                          size="small"
-                          color="primary"
-                          component={Link}
-                          to={`/results/marks-entry-dashboard?subject=${subject._id}`}
-                          startIcon={<EditIcon />}
-                        >
-                          Enter Marks
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="View results for this subject">
-                        <Button
-                          size="small"
-                          color="secondary"
-                          component={Link}
-                          to={`/teacher/results?subject=${subject._id}`}
-                          startIcon={<AssessmentIcon />}
-                        >
-                          View Results
-                        </Button>
-                      </Tooltip>
-                      {/* Debug info */}
-                      {console.log(`Subject ${subject.name} (${subject._id}) has classes:`, subject.classes)}
-                    </CardActions>
-                  </Card>
-                </Grid>
+                          <List dense>
+                            {subject.classes && subject.classes.length > 0 ? (
+                              subject.classes.map((cls) => (
+                                <ListItem key={cls._id}>
+                                  <ListItemIcon>
+                                    <ClassIcon fontSize="small" />
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={safeRender(cls.name)}
+                                    secondary={<>
+                                      {safeRender(cls.stream)} {safeRender(cls.section)}
+                                    </>}
+                                  />
+                                </ListItem>
+                              ))
+                            ) : (
+                              <ListItem>
+                                <ListItemText primary="No classes assigned yet" />
+                              </ListItem>
+                            )}
+                          </List>
+                        </CardContent>
+                        <CardActions>
+                          <Tooltip title="Enter marks for this subject">
+                            <Button
+                              size="small"
+                              color="primary"
+                              component={Link}
+                              to={`/results/marks-entry-dashboard?subject=${subject._id}`}
+                              startIcon={<EditIcon />}
+                            >
+                              Enter Marks
+                            </Button>
+                          </Tooltip>
+                          <Tooltip title="View results for this subject">
+                            <Button
+                              size="small"
+                              color="secondary"
+                              component={Link}
+                              to={`/teacher/results?subject=${subject._id}`}
+                              startIcon={<AssessmentIcon />}
+                            >
+                              View Results
+                            </Button>
+                          </Tooltip>
+                        </CardActions>
+                      </Card>
+                    </Grid>
                   ))}
               </Grid>
             </Box>
@@ -580,38 +479,7 @@ const WorkingTeacherSubjectsClasses = () => {
                           </ListItem>
                         )}
                       </List>
-
-                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
-                        <PeopleIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                        <Typography variant="body2">
-                          <strong>Students:</strong> {safeRender(cls.students?.length || 0)}
-                        </Typography>
-                      </Box>
                     </CardContent>
-                    <CardActions>
-                      <Tooltip title="View class results">
-                        <Button
-                          size="small"
-                          color="primary"
-                          component={Link}
-                          to={`/teacher/results?class=${cls._id}`}
-                          startIcon={<AssessmentIcon />}
-                        >
-                          Class Results
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="Send SMS notifications">
-                        <Button
-                          size="small"
-                          color="secondary"
-                          component={Link}
-                          to={`/teacher/sms-notification?class=${cls._id}`}
-                          startIcon={<NotificationsIcon />}
-                        >
-                          Send SMS
-                        </Button>
-                      </Tooltip>
-                    </CardActions>
                   </Card>
                 </Grid>
               ))}
@@ -623,6 +491,7 @@ const WorkingTeacherSubjectsClasses = () => {
           )}
         </TabPanel>
       </Paper>
+
       {/* Cleanup Dialog */}
       <Dialog
         open={cleanupDialogOpen}

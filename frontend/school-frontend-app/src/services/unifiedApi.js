@@ -131,74 +131,33 @@ class UnifiedApiService {
       // Process the URL to ensure it's correctly formatted
       let processedUrl = url;
 
+      // Remove any duplicate /api/ prefixes
+      processedUrl = processedUrl.replace(/\/api\/api\//g, '/api/');
+
       // Check if we're in production
       const isProduction = process.env.NODE_ENV === 'production';
 
-      // In production, we need to ensure the URL is properly formatted for the backend
-      if (isProduction) {
-        // If the URL doesn't include '/api/', add it
-        if (!processedUrl.includes('/api/')) {
-          // If the URL starts with a slash, add 'api'
-          if (processedUrl.startsWith('/')) {
-            processedUrl = `/api${processedUrl}`;
-          } else {
-            // If the URL doesn't start with a slash, add '/api/'
-            processedUrl = `/api/${processedUrl}`;
-          }
-        }
-
-        // If the URL starts with a slash and we have a full API URL, remove the leading slash
-        if (processedUrl.startsWith('/')) {
-          processedUrl = processedUrl.substring(1);
-        }
-      } else {
-        // In development, use the standard URL processing
-        // Always ensure the URL starts with '/api/' if it doesn't already
+      // In development, ensure URL starts with /api/
+      if (!isProduction) {
         if (!processedUrl.startsWith('/api/') && !processedUrl.startsWith('api/')) {
-          // If the URL starts with a slash but not '/api/', add 'api'
-          if (processedUrl.startsWith('/')) {
-            processedUrl = `/api${processedUrl}`;
-          } else {
-            // If the URL doesn't start with a slash, add '/api/'
-            processedUrl = `/api/${processedUrl}`;
-          }
-        }
-
-        // If we have a full API URL and the processed URL starts with a slash,
-        // we need to remove the leading slash to avoid double slashes
-        if (processedUrl.startsWith('/') && process.env.REACT_APP_API_URL) {
-          processedUrl = processedUrl.substring(1);
+          processedUrl = processedUrl.startsWith('/') ? `/api${processedUrl}` : `/api/${processedUrl}`;
         }
       }
 
-      // Ensure the baseURL ends with a slash
-      const baseURL = this.api.defaults.baseURL.endsWith('/')
-        ? this.api.defaults.baseURL
-        : `${this.api.defaults.baseURL}/`;
+      // Remove leading slash if baseURL is a full URL
+      if (processedUrl.startsWith('/') && this.api.defaults.baseURL.match(/^https?:\/\//)) {
+        processedUrl = processedUrl.substring(1);
+      }
 
-      console.log(`Making ${method.toUpperCase()} request to ${processedUrl}${retryCount > 0 ? ` (Retry ${retryCount}/${maxRetries})` : ''}`);
-      console.log(`Full URL: ${baseURL}${processedUrl}`);
+      console.log(`Making ${method.toUpperCase()} request to ${processedUrl}`);
+      console.log(`Full URL: ${this.api.defaults.baseURL}${processedUrl}`);
 
-      // Set default timeout if not provided in config
-      const requestConfig = {
-        timeout: 20000, // 20 seconds default timeout
-        ...config
-      };
-
-      // Add request start time for logging
-      const startTime = Date.now();
-
-      // Ensure the URL is properly formatted for the request
       const response = await this.api({
         method,
         url: processedUrl,
         data,
-        ...requestConfig
+        ...config
       });
-
-      // Log response time
-      const responseTime = Date.now() - startTime;
-      console.log(`${method.toUpperCase()} ${processedUrl} completed in ${responseTime}ms with status ${response.status}`);
 
       return response;
     } catch (error) {
@@ -330,7 +289,7 @@ class UnifiedApiService {
    * @param {string} url - API endpoint
    * @param {string} filename - Name to save the file as
    * @param {function} progressCallback - Callback for download progress
-   * @returns {Promise} - Promise that resolves when download is complete
+   * @returns {Promise<boolean>} - Promise that resolves to true if download was successful
    */
   async downloadFile(url, filename, progressCallback = null) {
     const config = {
@@ -362,290 +321,10 @@ class UnifiedApiService {
       throw error;
     }
   }
-
-  // ===== DOMAIN-SPECIFIC API METHODS =====
-
-  // ----- ACADEMIC MANAGEMENT -----
-
-  /**
-   * Get current academic year
-   * @returns {Promise} - Promise with current academic year data
-   */
-  async getCurrentAcademicYear() {
-    try {
-      // Try the new endpoint first
-      console.log('Trying new academic year endpoint');
-      return await this.get('/new-academic-years/active');
-    } catch (error) {
-      console.log('Falling back to original academic year endpoint');
-      // Fall back to the original endpoint
-      return this.get('/academic-years/active');
-    }
-  }
-
-  /**
-   * Get all academic years
-   * @returns {Promise} - Promise with all academic years
-   */
-  async getAcademicYears() {
-    try {
-      // Try the new endpoint first
-      console.log('Trying new academic years endpoint');
-      return await this.get('/new-academic-years');
-    } catch (error) {
-      console.log('Falling back to original API endpoint');
-      // Fall back to the original endpoint
-      return this.get('/academic-years');
-    }
-  }
-
-  /**
-   * Get academic year terms
-   * @param {string} academicYearId - Academic year ID
-   * @returns {Promise} - Promise with academic year terms
-   */
-  async getAcademicYearTerms(academicYearId) {
-    try {
-      // Try the new endpoint first
-      console.log('Trying new academic year terms endpoint');
-      return await this.get(`/new-academic-years/${academicYearId}/terms`);
-    } catch (error) {
-      console.log('Falling back to original academic year terms endpoint');
-      // Fall back to the original endpoint
-      return this.get(`/academic-years/${academicYearId}/terms`);
-    }
-  }
-
-  /**
-   * Update academic year terms
-   * @param {string} academicYearId - Academic year ID
-   * @param {Array} terms - Array of term objects
-   * @returns {Promise} - Promise with updated academic year
-   */
-  async updateAcademicYearTerms(academicYearId, terms) {
-    try {
-      // Try the new endpoint first
-      console.log('Trying new academic year terms update endpoint');
-      return await this.put(`/new-academic-years/${academicYearId}/terms`, { terms });
-    } catch (error) {
-      console.log('Falling back to original academic year terms update endpoint');
-      // Fall back to the original endpoint
-      return this.put(`/academic-years/${academicYearId}/terms`, { terms });
-    }
-  }
-
-  /**
-   * Get classes for an academic year
-   * @param {string} academicYearId - Academic year ID
-   * @returns {Promise} - Promise with classes for the academic year
-   */
-  async getClassesByAcademicYear(academicYearId) {
-    return this.get(`/classes?academicYear=${academicYearId}`);
-  }
-
-  /**
-   * Get subjects for a class
-   * @param {string} classId - Class ID
-   * @returns {Promise} - Promise with subjects for the class
-   */
-  async getSubjectsByClass(classId) {
-    return this.get(`/subjects/class/${classId}`);
-  }
-
-  /**
-   * Get subject combinations
-   * @param {string} educationLevel - Education level (O_LEVEL or A_LEVEL)
-   * @returns {Promise} - Promise with subject combinations
-   */
-  async getSubjectCombinations(educationLevel) {
-    return this.get(`/subject-combinations?educationLevel=${educationLevel}`);
-  }
-
-  // ----- EXAM MANAGEMENT -----
-
-  /**
-   * Get exams for a class
-   * @param {string} classId - Class ID
-   * @param {string} academicYearId - Academic year ID
-   * @returns {Promise} - Promise with exams for the class
-   */
-  async getExamsByClass(classId, academicYearId) {
-    return this.get(`/exams?class=${classId}&academicYear=${academicYearId}`);
-  }
-
-  /**
-   * Create a new exam
-   * @param {object} examData - Exam data
-   * @returns {Promise} - Promise with created exam
-   */
-  async createExam(examData) {
-    return this.post('/exams', examData);
-  }
-
-  /**
-   * Get exam types
-   * @returns {Promise} - Promise with exam types
-   */
-  async getExamTypes() {
-    return this.get('/exam-types');
-  }
-
-  // ----- RESULT MANAGEMENT -----
-
-  /**
-   * Get O-Level results for a student and exam
-   * @param {string} studentId - Student ID
-   * @param {string} examId - Exam ID
-   * @returns {Promise} - Promise with O-Level results
-   */
-  async getOLevelStudentResults(studentId, examId) {
-    return this.get(`/o-level-results/student/${studentId}/${examId}`);
-  }
-
-  /**
-   * Get A-Level results for a student and exam
-   * @param {string} studentId - Student ID
-   * @param {string} examId - Exam ID
-   * @returns {Promise} - Promise with A-Level results
-   */
-  async getALevelStudentResults(studentId, examId) {
-    return this.get(`/a-level-results/student/${studentId}/${examId}`);
-  }
-
-  /**
-   * Get O-Level results for a class and exam
-   * @param {string} classId - Class ID
-   * @param {string} examId - Exam ID
-   * @returns {Promise} - Promise with O-Level class results
-   */
-  async getOLevelClassResults(classId, examId) {
-    return this.get(`/o-level-results/class/${classId}/${examId}`);
-  }
-
-  /**
-   * Get A-Level results for a class and exam
-   * @param {string} classId - Class ID
-   * @param {string} examId - Exam ID
-   * @returns {Promise} - Promise with A-Level class results
-   */
-  async getALevelClassResults(classId, examId) {
-    return this.get(`/a-level-results/class/${classId}/${examId}`);
-  }
-
-  /**
-   * Save O-Level marks
-   * @param {array} marksData - Array of marks data
-   * @returns {Promise} - Promise with saved marks
-   */
-  async saveOLevelMarks(marksData) {
-    return this.post('/o-level-results/batch', marksData);
-  }
-
-  /**
-   * Save A-Level marks
-   * @param {array} marksData - Array of marks data
-   * @returns {Promise} - Promise with saved marks
-   */
-  async saveALevelMarks(marksData) {
-    return this.post('/a-level-results/batch', marksData);
-  }
-
-  /**
-   * Save character assessment
-   * @param {object} assessmentData - Character assessment data
-   * @returns {Promise} - Promise with saved assessment
-   */
-  async saveCharacterAssessment(assessmentData) {
-    return this.post('/character-assessments', assessmentData);
-  }
-
-  /**
-   * Generate O-Level student result PDF
-   * @param {string} studentId - Student ID
-   * @param {string} examId - Exam ID
-   * @returns {Promise} - Promise with PDF blob
-   */
-  async generateOLevelStudentResultPDF(studentId, examId) {
-    return this.api.get(`/o-level-results/student/${studentId}/${examId}/pdf`, {
-      responseType: 'blob'
-    }).then(response => response.data);
-  }
-
-  /**
-   * Generate A-Level student result PDF
-   * @param {string} studentId - Student ID
-   * @param {string} examId - Exam ID
-   * @returns {Promise} - Promise with PDF blob
-   */
-  async generateALevelStudentResultPDF(studentId, examId) {
-    return this.api.get(`/a-level-results/student/${studentId}/${examId}/pdf`, {
-      responseType: 'blob'
-    }).then(response => response.data);
-  }
-
-  // ----- STUDENT MANAGEMENT -----
-
-  /**
-   * Get students by class
-   * @param {string} classId - Class ID
-   * @returns {Promise} - Promise with students in the class
-   */
-  async getStudentsByClass(classId) {
-    return this.get(`/students?class=${classId}`);
-  }
-
-  /**
-   * Get student details
-   * @param {string} studentId - Student ID
-   * @returns {Promise} - Promise with student details
-   */
-  async getStudentDetails(studentId) {
-    return this.get(`/students/${studentId}`);
-  }
-
-  /**
-   * Update student education level
-   * @param {string} studentId - Student ID
-   * @param {string} educationLevel - Education level (O_LEVEL or A_LEVEL)
-   * @returns {Promise} - Promise with updated student
-   */
-  async updateStudentEducationLevel(studentId, educationLevel) {
-    return this.put(`/students/${studentId}/education-level`, { educationLevel });
-  }
-
-  /**
-   * Update student form level
-   * @param {string} studentId - Student ID
-   * @param {number} form - Form level (1-6)
-   * @returns {Promise} - Promise with updated student
-   */
-  async updateStudentForm(studentId, form) {
-    return this.put(`/students/${studentId}/form`, { form });
-  }
-
-  // ----- COMMUNICATION -----
-
-  /**
-   * Send result SMS to parent
-   * @param {string} studentId - Student ID
-   * @param {string} examId - Exam ID
-   * @returns {Promise} - Promise with SMS status
-   */
-  async sendResultSMS(studentId, examId) {
-    return this.post(`/sms/result-notification`, { studentId, examId });
-  }
-
-  /**
-   * Send batch result SMS to parents
-   * @param {string} classId - Class ID
-   * @param {string} examId - Exam ID
-   * @returns {Promise} - Promise with SMS status
-   */
-  async sendBatchResultSMS(classId, examId) {
-    return this.post(`/sms/batch-result-notification`, { classId, examId });
-  }
 }
 
-// Create and export a singleton instance
-const unifiedApi = new UnifiedApiService();
-export default unifiedApi;
+// Create a singleton instance
+const apiService = new UnifiedApiService();
+
+// Export the singleton instance
+export default apiService;
