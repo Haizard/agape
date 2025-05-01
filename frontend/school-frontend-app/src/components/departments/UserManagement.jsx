@@ -1,4 +1,5 @@
 import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import DepartmentLayout from '../layout/DepartmentLayout';
 import TeacherManagement from '../TeacherManagement';
 import LinkUserToTeacher from '../admin/LinkUserToTeacher';
@@ -61,7 +62,16 @@ const UserManagement = () => {
       title="User Management"
       menuItems={menuItems}
       defaultSelected="teachers"
-    />
+    >
+      <Routes>
+        <Route path="teachers" element={<TeacherManagement />} />
+        <Route path="link-teacher-profiles" element={<LinkUserToTeacher />} />
+        <Route path="users" element={<AdminUserManagement />} />
+        <Route path="create-user" element={<UnifiedUserCreation />} />
+        <Route path="direct-student-register" element={<DirectStudentRegistration />} />
+        <Route path="debug-user-role" element={<DebugUserRole />} />
+      </Routes>
+    </DepartmentLayout>
   );
 };
 

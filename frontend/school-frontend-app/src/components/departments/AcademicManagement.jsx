@@ -1,4 +1,5 @@
 import React from 'react';
+import { Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
 import DepartmentLayout from '../layout/DepartmentLayout';
 import ClassManagement from '../academic/ClassManagement';
 import SubjectManagement from '../academic/SubjectManagement';
@@ -27,77 +28,92 @@ import {
 } from '@mui/icons-material';
 
 const AcademicManagement = () => {
+  const location = useLocation();
+  const currentPath = location.pathname.split('/').pop();
+
   const menuItems = [
     {
       id: 'academic-years',
       label: 'Academic Years',
       icon: <CalendarIcon />,
+      path: 'academic-years',
       component: <NewAcademicYearManagement />
     },
     {
       id: 'education-levels',
       label: 'Education Levels',
       icon: <SchoolIcon />,
+      path: 'education-levels',
       component: <EducationLevelManagement />
     },
     {
       id: 'subject-combinations',
       label: 'Subject Combinations',
       icon: <CategoryIcon />,
+      path: 'subject-combinations',
       component: <SubjectCombinationManagement />
     },
     {
       id: 'classes',
       label: 'Classes',
       icon: <ClassIcon />,
+      path: 'classes',
       component: <ClassManagement />
     },
     {
       id: 'subjects',
       label: 'Subjects',
       icon: <SubjectIcon />,
+      path: 'subjects',
       component: <SubjectManagement />
     },
     {
       id: 'core-subjects',
       label: 'Core Subjects',
       icon: <BookIcon />,
+      path: 'core-subjects',
       component: <CoreSubjectManagement />
     },
     {
       id: 'optional-subjects',
       label: 'Optional Subjects',
       icon: <MenuBookIcon />,
+      path: 'optional-subjects',
       component: <OptionalSubjectManagement />
     },
     {
       id: 'subject-class-assignment',
       label: 'Subject-Class Assignment',
       icon: <LibraryBooksIcon />,
+      path: 'subject-class-assignment',
       component: <FixedSubjectClassAssignment />
     },
     {
       id: 'subject-teacher-assignment',
       label: 'Subject-Teacher Assignment',
       icon: <AssignmentIndIcon />,
+      path: 'subject-teacher-assignment',
       component: <SubjectAssignmentPage />
     },
     {
       id: 'compulsory-subject-assignment',
       label: 'Compulsory Subjects',
       icon: <MenuBookIcon />,
+      path: 'compulsory-subject-assignment',
       component: <CompulsorySubjectAssignment />
     },
     {
       id: 'student-subject-selection',
       label: 'Student Subject Selection',
       icon: <AssignmentIcon />,
+      path: 'student-subject-selection',
       component: <StudentSubjectSelection />
     },
     {
       id: 'a-level-subject-assignment',
       label: 'A-Level Subject Assignment',
       icon: <AssignmentIcon />,
+      path: 'a-level-subject-assignment',
       component: <ALevelSubjectAssignment />
     }
   ];
@@ -107,7 +123,9 @@ const AcademicManagement = () => {
       title="Academic Management"
       menuItems={menuItems}
       defaultSelected="classes"
-    />
+    >
+      <Outlet />
+    </DepartmentLayout>
   );
 };
 

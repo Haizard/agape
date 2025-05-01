@@ -37,10 +37,18 @@ const assessmentSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: {
-      values: ['active', 'inactive'],
+      values: ['draft', 'active', 'inactive'],
       message: 'Invalid status'
     },
-    default: 'active'
+    default: 'draft'
+  },
+  displayOrder: {
+    type: Number,
+    default: 0
+  },
+  isVisible: {
+    type: Boolean,
+    default: false
   },
   description: {
     type: String,

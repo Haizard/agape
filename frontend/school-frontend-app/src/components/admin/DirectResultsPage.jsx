@@ -75,7 +75,7 @@ const DirectResultsPage = () => {
                 color="primary"
                 tags={['Grades', 'Divisions', 'Statistics']}
                 buttonText="Access A-Level Reports"
-                onClick={() => navigate('/results/a-level/class-reports')}
+                onClick={() => navigate('/admin/assessment-management/a-level-reports')}
                 icon={<SchoolIcon sx={{ fontSize: '32px', color: '#3f51b5' }} />}
               />
             </FadeIn>
@@ -90,7 +90,7 @@ const DirectResultsPage = () => {
                 color="success"
                 tags={['Grades', 'Divisions', 'Statistics']}
                 buttonText="Access O-Level Reports"
-                onClick={() => navigate('/results/o-level/class-reports')}
+                onClick={() => navigate('/admin/assessment-management/o-level-reports')}
                 icon={<SchoolIcon sx={{ fontSize: '32px', color: '#4caf50' }} />}
               />
             </FadeIn>

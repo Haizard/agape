@@ -10,18 +10,33 @@ const AssessmentContext = createContext();
  */
 export const AssessmentProvider = ({ children }) => {
   const [assessments, setAssessments] = useState([]);
+  const [activeAssessments, setActiveAssessments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Keep track of visible assessments in order
+  const [visibleAssessments, setVisibleAssessments] = useState([]);
 
   /**
    * Fetch all assessments
    */
   const fetchAssessments = useCallback(async () => {
+    const sortByDisplayOrder = (a, b) => a.displayOrder - b.displayOrder;
     setLoading(true);
     try {
       const result = await assessmentService.getAllAssessments();
       if (result.success) {
-        setAssessments(result.data);
+        const allAssessments = result.data;
+        setAssessments(allAssessments);
+        
+        // Filter active and visible assessments
+        const active = allAssessments.filter(a => a.status === 'active');
+        setActiveAssessments(active.sort(sortByDisplayOrder));
+        
+        // Filter visible assessments
+        const visible = active.filter(a => a.isVisible);
+        setVisibleAssessments(visible.sort(sortByDisplayOrder));
+        
         setError(null);
       } else {
         setError(result.error);
@@ -173,8 +188,52 @@ export const AssessmentProvider = ({ children }) => {
     return assessmentService.calculateFinalMarks(assessmentMarks);
   }, []);
 
+  // Toggle assessment visibility
+  const toggleAssessmentVisibility = useCallback(async (assessmentId, isVisible) => {
+    setLoading(true);
+    try {
+      const result = await assessmentService.updateAssessment(assessmentId, { isVisible });
+      if (result.success) {
+        await fetchAssessments();
+        return { success: true };
+      } else {
+        setError(result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      const error = 'Failed to toggle assessment visibility';
+      setError(error);
+      return { success: false, error };
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAssessments]);
+
+  // Update assessment display order
+  const updateAssessmentOrder = useCallback(async (assessmentId, displayOrder) => {
+    setLoading(true);
+    try {
+      const result = await assessmentService.updateAssessment(assessmentId, { displayOrder });
+      if (result.success) {
+        await fetchAssessments();
+        return { success: true };
+      } else {
+        setError(result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      const error = 'Failed to update assessment order';
+      setError(error);
+      return { success: false, error };
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAssessments]);
+
   const value = {
     assessments,
+    activeAssessments,
+    visibleAssessments,
     loading,
     error,
     fetchAssessments,
@@ -182,7 +241,9 @@ export const AssessmentProvider = ({ children }) => {
     updateAssessment,
     deleteAssessment,
     getAssessmentsByTerm,
-    calculateFinalMarks
+    calculateFinalMarks,
+    toggleAssessmentVisibility,
+    updateAssessmentOrder
   };
 
   return (

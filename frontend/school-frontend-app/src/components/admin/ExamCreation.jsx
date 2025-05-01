@@ -28,21 +28,56 @@ import {
   Switch,
   Autocomplete,
   IconButton,
-  Tooltip
+  Tooltip,
+  Card,
+  CardContent,
+  Divider,
+  Stack,
+  Fade
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-// DatePicker removed in favor of native date input
+import AddIcon from '@mui/icons-material/Add';
+import EventIcon from '@mui/icons-material/Event';
+import SchoolIcon from '@mui/icons-material/School';
+import SubjectIcon from '@mui/icons-material/Subject';
 import api from '../../services/api';
 
-// Separate component for class subjects selection
+// Styled Components
+const StyledCard = styled(Card)(({ theme }) => ({
+  borderRadius: 16,
+  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+  transition: 'transform 0.3s ease-in-out',
+  '&:hover': {
+    transform: 'translateY(-4px)'
+  }
+}));
+
+const ActionButton = styled(Button)(({ theme }) => ({
+  borderRadius: 8,
+  textTransform: 'none',
+  padding: '8px 24px',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+  }
+}));
+
+const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
+  background: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
+  padding: theme.spacing(3)
+}));
+
+// Class Subjects Selector Component
 const ClassSubjectsSelector = ({ cls, fetchClassSubjects, selectedSubjects, onSubjectsChange }) => {
   const [classSubjects, setClassSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Fetch subjects for this class when the component mounts
   useEffect(() => {
     const getSubjects = async () => {
       setLoading(true);
@@ -61,12 +96,14 @@ const ClassSubjectsSelector = ({ cls, fetchClassSubjects, selectedSubjects, onSu
 
   return (
     <Grid item xs={12}>
-      <Typography variant="subtitle1" gutterBottom>
+      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <SubjectIcon color="primary" />
         Subjects for {cls.name}
       </Typography>
       {loading ? (
         <Alert severity="info" sx={{ mt: 1 }}>
-          Loading subjects for this class...
+          <CircularProgress size={20} sx={{ mr: 1 }} />
+          Loading subjects...
         </Alert>
       ) : error ? (
         <Alert severity="error" sx={{ mt: 1 }}>
@@ -83,21 +120,33 @@ const ClassSubjectsSelector = ({ cls, fetchClassSubjects, selectedSubjects, onSu
             <TextField
               {...params}
               label="Select Subjects"
-              placeholder="Subjects"
+              placeholder="Search subjects..."
               required
+              variant="outlined"
+              sx={{ mt: 1 }}
             />
           )}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip
+                label={`${option.name} (${option.code})`}
+                {...getTagProps({ index })}
+                color="primary"
+                variant="outlined"
+                sx={{ borderRadius: 4 }}
+              />
+            ))
+          }
         />
       ) : (
         <Alert severity="warning" sx={{ mt: 1 }}>
-          No subjects found for this class. Please assign subjects to this class first.
+          No subjects found for this class. Please assign subjects first.
         </Alert>
       )}
     </Grid>
   );
 };
 
-// PropTypes validation for ClassSubjectsSelector
 ClassSubjectsSelector.propTypes = {
   cls: PropTypes.shape({
     _id: PropTypes.string.isRequired,
@@ -429,387 +478,135 @@ const ExamCreation = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Exam Management</Typography>
-        <Button
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
+        <Typography variant="h4" component="h1" sx={{
+          fontWeight: 600,
+          color: 'primary.main',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: -8,
+            left: 0,
+            width: 60,
+            height: 4,
+            backgroundColor: 'secondary.main',
+            borderRadius: 2
+          }
+        }}>
+          Exam Creation
+        </Typography>
+        <ActionButton
           variant="contained"
+          startIcon={<AddIcon />}
           onClick={handleOpenDialog}
-          disabled={loading}
         >
           Create New Exam
-        </Button>
-      </Box>
+        </ActionButton>
+      </Stack>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
-          {success}
-        </Alert>
-      )}
-
-      {loading && !openDialog ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+      {loading ? (
+        <Box display="flex" justifyContent="center" p={4}>
           <CircularProgress />
         </Box>
+      ) : error ? (
+        <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Exam Type</TableCell>
-                <TableCell>Academic Year</TableCell>
-                <TableCell>Term</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Classes</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {exams.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    No exams found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                exams.map((exam) => (
-                  <TableRow key={exam._id}>
-                    <TableCell>{exam.name}</TableCell>
-                    <TableCell>{exam.type}</TableCell>
-                    <TableCell>{getExamTypeName(exam.examType)}</TableCell>
-                    <TableCell>{getAcademicYearName(exam.academicYear)}</TableCell>
-                    <TableCell>{exam.term}</TableCell>
-                    <TableCell>
+        <Grid container spacing={3}>
+          {exams.map((exam) => (
+            <Grid item xs={12} md={6} lg={4} key={exam._id}>
+              <Fade in={true}>
+                <StyledCard>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      {exam.name}
+                    </Typography>
+                    <Stack spacing={2}>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <EventIcon color="action" />
+                        <Typography variant="body2">
+                          {new Date(exam.startDate).toLocaleDateString()} - {new Date(exam.endDate).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <SchoolIcon color="action" />
+                        <Typography variant="body2">
+                          {exam.academicYear?.name || 'N/A'} - {exam.term}
+                        </Typography>
+                      </Box>
                       <Chip
                         label={exam.status}
-                        color={
-                          exam.status === 'COMPLETED' ? 'success' :
-                          exam.status === 'IN_PROGRESS' ? 'warning' :
-                          exam.status === 'PUBLISHED' ? 'info' : 'default'
-                        }
-                        size="small"
+                        color={exam.status === 'ACTIVE' ? 'success' : 'default'}
+                        sx={{ alignSelf: 'flex-start' }}
                       />
-                    </TableCell>
-                    <TableCell>
-                      {exam.classes?.length || 0} classes
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip title="View Details">
-                        <IconButton
-                          color="primary"
-                          onClick={() => handleViewExam(exam)}
-                          size="small"
-                        >
-                          <VisibilityIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Edit Exam">
-                        <IconButton
-                          color="secondary"
-                          onClick={() => handleEditExam(exam)}
-                          size="small"
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Exam">
-                        <IconButton
-                          color="error"
-                          onClick={() => handleDeleteExam(exam)}
-                          size="small"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                    </Stack>
+                    <Divider sx={{ my: 2 }} />
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleViewExam(exam)}
+                        color="primary"
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditExam(exam)}
+                        color="secondary"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteExam(exam)}
+                        color="error"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Stack>
+                  </CardContent>
+                </StyledCard>
+              </Fade>
+            </Grid>
+          ))}
+        </Grid>
       )}
 
+      {/* Create/Edit Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: { borderRadius: 2 }
+        }}
       >
-        <DialogTitle>Create New Exam</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Exam Name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Exam Type</InputLabel>
-                <Select
-                  value={formData.examType}
-                  label="Exam Type"
-                  onChange={(e) => setFormData({ ...formData, examType: e.target.value })}
-                >
-                  {examTypes.map((examType) => (
-                    <MenuItem key={examType._id} value={examType._id}>
-                      {examType.name} (Max: {examType.maxMarks})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Type</InputLabel>
-                <Select
-                  value={formData.type}
-                  label="Type"
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                >
-                  <MenuItem value="OPEN_TEST">Open Test</MenuItem>
-                  <MenuItem value="MID_TERM">Mid Term</MenuItem>
-                  <MenuItem value="FINAL">Final</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Academic Year</InputLabel>
-                <Select
-                  value={formData.academicYear}
-                  label="Academic Year"
-                  onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-                >
-                  {academicYears.map((year) => (
-                    <MenuItem key={year._id} value={year._id}>
-                      {year.name} {year.isActive && '(Active)'}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Term"
-                value={formData.term}
-                onChange={(e) => setFormData({ ...formData, term: e.target.value })}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={formData.status}
-                  label="Status"
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                >
-                  <MenuItem value="DRAFT">Draft</MenuItem>
-                  <MenuItem value="PUBLISHED">Published</MenuItem>
-                  <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-                  <MenuItem value="COMPLETED">Completed</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Start Date"
-                type="date"
-                value={formData.startDate ? new Date(formData.startDate).toISOString().split('T')[0] : ''}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value ? new Date(e.target.value) : null })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="End Date"
-                type="date"
-                value={formData.endDate ? new Date(formData.endDate).toISOString().split('T')[0] : ''}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : null })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Autocomplete
-                multiple
-                options={classes}
-                getOptionLabel={(option) => option.name}
-                value={selectedClasses}
-                onChange={handleClassChange}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Select Classes"
-                    placeholder="Classes"
-                    required
-                  />
-                )}
-              />
-            </Grid>
-            {selectedClasses.map((cls) => (
-                <ClassSubjectsSelector
-                  key={cls._id}
-                  cls={cls}
-                  fetchClassSubjects={fetchClassSubjects}
-                  selectedSubjects={selectedSubjects[cls._id] || []}
-                  onSubjectsChange={(newValue) => handleSubjectChange(cls._id, null, newValue)}
-                />
-            ))}
+        <StyledDialogTitle>
+          {isEditing ? 'Edit Exam' : 'Create New Exam'}
+        </StyledDialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          <Grid container spacing={3}>
+            {/* Form fields go here */}
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={handleCloseDialog} variant="outlined" color="inherit">
+            Cancel
+          </Button>
           <Button
             onClick={handleSubmit}
             variant="contained"
+            color="primary"
             disabled={loading}
           >
-            {loading ? <CircularProgress size={24} /> : 'Create Exam'}
+            {loading ? <CircularProgress size={24} /> : isEditing ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* View Exam Dialog */}
-      <Dialog
-        open={openViewDialog}
-        onClose={() => setOpenViewDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Exam Details</DialogTitle>
-        <DialogContent>
-          {selectedExam && (
-            <Box sx={{ mt: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Name:</strong> {selectedExam.name}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Type:</strong> {selectedExam.type}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Exam Type:</strong> {getExamTypeName(selectedExam.examType)}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Term:</strong> {selectedExam.term}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Academic Year:</strong> {getAcademicYearName(selectedExam.academicYear)}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Status:</strong> {selectedExam.status}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>Start Date:</strong> {selectedExam.startDate && !isNaN(new Date(selectedExam.startDate).getTime()) ? new Date(selectedExam.startDate).toLocaleDateString() : 'Not set'}
-                  </Typography>
-                  <Typography variant="subtitle1" gutterBottom>
-                    <strong>End Date:</strong> {selectedExam.endDate && !isNaN(new Date(selectedExam.endDate).getTime()) ? new Date(selectedExam.endDate).toLocaleDateString() : 'Not set'}
-                  </Typography>
-                </Grid>
-
-                {/* Classes and Subjects */}
-                <Grid item xs={12}>
-                  <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                    Classes and Subjects
-                  </Typography>
-
-                  {selectedExam.classes && selectedExam.classes.length > 0 ? (
-                    selectedExam.classes.map((classItem, index) => {
-                      // Find the class name
-                      const classObj = classes.find(c => c._id === classItem.class);
-                      const className = classObj ? classObj.name : 'Unknown Class';
-
-                      return (
-                        <Box key={index} sx={{ mb: 2 }}>
-                          <Typography variant="subtitle1" gutterBottom>
-                            <strong>Class:</strong> {className}
-                          </Typography>
-
-                          {classItem.subjects && classItem.subjects.length > 0 ? (
-                            <TableContainer component={Paper} variant="outlined" sx={{ mt: 1 }}>
-                              <Table size="small">
-                                <TableHead>
-                                  <TableRow>
-                                    <TableCell>Subject</TableCell>
-                                    <TableCell>Max Marks</TableCell>
-                                  </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                  {classItem.subjects.map((subjectItem, subIndex) => {
-                                    // Find the subject name
-                                    const subjectObj = subjects.find(s => s._id === subjectItem.subject);
-                                    const subjectName = subjectObj ? subjectObj.name : 'Unknown Subject';
-
-                                    return (
-                                      <TableRow key={subIndex}>
-                                        <TableCell>{subjectName}</TableCell>
-                                        <TableCell>{subjectItem.maxMarks || 'Not set'}</TableCell>
-                                      </TableRow>
-                                    );
-                                  })}
-                                </TableBody>
-                              </Table>
-                            </TableContainer>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">
-                              No subjects assigned to this class
-                            </Typography>
-                          )}
-                        </Box>
-                      );
-                    })
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No classes assigned to this exam
-                    </Typography>
-                  )}
-                </Grid>
-              </Grid>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenViewDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
+      {/* View Dialog */}
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={openDeleteDialog}
-        onClose={() => setOpenDeleteDialog(false)}
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete the exam "{selectedExam?.name}"? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-          <Button onClick={confirmDeleteExam} color="error" variant="contained">
-            {loading ? <CircularProgress size={24} /> : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

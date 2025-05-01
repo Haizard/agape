@@ -54,7 +54,7 @@ const Navigation = () => {
     { text: 'Marks Entry Dashboard', icon: <GradeIcon />, path: '/results/marks-entry-dashboard' }
   ] : [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin' },
-    { text: 'Assessment Management', icon: <AssessmentIcon />, path: '/assessments' }
+    { text: 'Assessment Management', icon: <AssessmentIcon />, path: '/admin/assessment-management' }
   ];
 
   return (

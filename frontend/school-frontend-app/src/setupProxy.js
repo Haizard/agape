@@ -1,92 +1,74 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const path = require('path');
 
-// Single source of truth for API configuration
-const getApiConfig = () => {
-  const isLocalDevelopment = process.env.NODE_ENV === 'development';
-  const apiUrl = isLocalDevelopment
-    ? 'http://localhost:5000'
-    : (process.env.REACT_APP_API_URL || 'https://agape-render.onrender.com');
-
-  return {
-    baseUrl: apiUrl,
-    prefix: '/api',
-    isLocalDevelopment
-  };
-};
-
-module.exports = function(app) {
-  const apiConfig = getApiConfig();
-  console.log(`API Configuration:`);
-  console.log(`- Base URL: ${apiConfig.baseUrl}`);
-  console.log(`- API Prefix: ${apiConfig.prefix}`);
-  console.log(`- Environment: ${apiConfig.isLocalDevelopment ? 'Development' : 'Production'}`);
-
-  // Proxy middleware configuration
-  const proxyConfig = {
-    target: apiConfig.baseUrl,
+// Get API configuration based on environment
+function getApiConfig() {
+  const isDev = process.env.NODE_ENV === 'development';
+  const config = {
+    target: isDev ? 'http://localhost:5000' : 'https://agape-render.onrender.com',
     changeOrigin: true,
-    secure: !apiConfig.isLocalDevelopment,
+    secure: !isDev,
     pathRewrite: {
-      [`^${apiConfig.prefix}`]: apiConfig.prefix
+      '^/api/api/': '/api/', // Fix double /api/ issue
+      '^/api': '/api'
     },
-    logLevel: apiConfig.isLocalDevelopment ? 'debug' : 'error',
+    onProxyReq: (proxyReq, req) => {
+      // Add correlation ID for request tracking
+      const correlationId = Math.random().toString(36).substring(7);
+      proxyReq.setHeader('X-Correlation-ID', correlationId);
+      console.log(`[API Proxy] ${req.method} ${req.path} -> ${proxyReq.path} (${correlationId})`);
+    },
+    onProxyRes: (proxyRes, req) => {
+      // Log response status
+      console.log(`[API Proxy] ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+    },
     onError: (err, req, res) => {
-      console.error('Proxy Error:', err);
+      console.error('[API Proxy] Error:', err);
       res.writeHead(500, {
         'Content-Type': 'application/json'
       });
       res.end(JSON.stringify({
-        error: 'Proxy Error',
-        message: 'Unable to connect to the backend server',
-        details: apiConfig.isLocalDevelopment ? err.message : 'Internal Server Error'
+        message: 'Proxy Error',
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
       }));
-    },
-    onProxyReq: (proxyReq, req, res) => {
-      // Forward authorization header
-      const authHeader = req.headers.authorization;
-      if (authHeader) {
-        proxyReq.setHeader('Authorization', authHeader);
-      }
-
-      // Add request ID for tracking
-      const requestId = Math.random().toString(36).substring(7);
-      proxyReq.setHeader('X-Request-ID', requestId);
-      console.log(`[${requestId}] Proxying ${req.method} ${req.path} to ${apiConfig.baseUrl}`);
-
-      // Handle request body if present
-      if (req.body) {
-        const bodyData = JSON.stringify(req.body);
-        proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-        proxyReq.write(bodyData);
-      }
-    },
-    onProxyRes: (proxyRes, req, res) => {
-      const requestId = req.headers['x-request-id'];
-      console.log(`[${requestId}] Proxy response: ${proxyRes.statusCode}`);
-
-      // Add security headers
-      proxyRes.headers['X-Content-Type-Options'] = 'nosniff';
-      proxyRes.headers['X-Frame-Options'] = 'SAMEORIGIN';
-      proxyRes.headers['X-XSS-Protection'] = '1; mode=block';
-
-      // Add CORS headers in development
-      if (apiConfig.isLocalDevelopment) {
-        proxyRes.headers['Access-Control-Allow-Origin'] = '*';
-        proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-        proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
-      }
     }
   };
 
-  // Apply proxy middleware
-  app.use(apiConfig.prefix, createProxyMiddleware(proxyConfig));
+  return config;
+}
+
+module.exports = function(app) {
+  const apiConfig = getApiConfig();
+  
+  // Add security headers
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+  });
 
   // Health check endpoint
   app.get('/health', (req, res) => {
     res.json({
       status: 'ok',
-      environment: apiConfig.isLocalDevelopment ? 'development' : 'production',
-      apiUrl: apiConfig.baseUrl
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
     });
+  });
+
+  // API proxy middleware
+  app.use(
+    '/api',
+    createProxyMiddleware({
+      ...apiConfig,
+      logLevel: process.env.NODE_ENV === 'development' ? 'debug' : 'error'
+    })
+  );
+
+  // Log proxy configuration on startup
+  console.log('[API Proxy] Configuration:', {
+    target: apiConfig.target,
+    environment: process.env.NODE_ENV
   });
 };

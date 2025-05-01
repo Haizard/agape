@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -29,16 +29,54 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Save as SaveIcon
+  Save as SaveIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import { useAssessment } from '../../contexts/AssessmentContext';
 
 const AssessmentList = () => {
-  // State for assessments
-  const [assessments, setAssessments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // Get assessment context
+  const { 
+    assessments, 
+    loading, 
+    error: contextError,
+    toggleAssessmentVisibility, 
+    updateAssessmentOrder,
+    createAssessment,
+    updateAssessment,
+    deleteAssessment
+  } = useAssessment();
   const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  // Handle visibility toggle
+  const handleVisibilityToggle = async (assessmentId, isVisible) => {
+    try {
+      const result = await toggleAssessmentVisibility(assessmentId, isVisible);
+      if (result.success) {
+        setSuccess(`Assessment ${isVisible ? 'activated' : 'deactivated'} successfully`);
+      } else {
+        setError(result.error || 'Failed to update assessment visibility');
+      }
+    } catch (error) {
+      setError('Failed to update assessment visibility');
+    }
+  };
+
+  // Handle order update
+  const handleOrderUpdate = async (assessmentId, newOrder) => {
+    try {
+      const result = await updateAssessmentOrder(assessmentId, newOrder);
+      if (result.success) {
+        setSuccess('Assessment order updated successfully');
+      } else {
+        setError(result.error || 'Failed to update assessment order');
+      }
+    } catch (error) {
+      setError('Failed to update assessment order');
+    }
+  };
   
   // State for dialog
   const [openDialog, setOpenDialog] = useState(false);
@@ -55,23 +93,7 @@ const AssessmentList = () => {
     status: 'active'
   });
 
-  // Fetch assessments on component mount
-  useEffect(() => {
-    fetchAssessments();
-  }, []);
 
-  // Fetch all assessments
-  const fetchAssessments = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get('/api/assessments');
-      setAssessments(response.data);
-    } catch (error) {
-      setError('Failed to fetch assessments');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Handle dialog open
   const handleOpenDialog = (mode, assessment = null) => {
@@ -126,7 +148,6 @@ const AssessmentList = () => {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
     setSuccess('');
 
@@ -144,19 +165,24 @@ const AssessmentList = () => {
       }
 
       if (dialogMode === 'create') {
-        await axios.post('/api/assessments', formData);
-        setSuccess('Assessment created successfully');
+        const result = await createAssessment(formData);
+        if (result.success) {
+          setSuccess('Assessment created successfully');
+          handleCloseDialog();
+        } else {
+          setError(result.error || 'Failed to create assessment');
+        }
       } else {
-        await axios.put(`/api/assessments/${selectedAssessment._id}`, formData);
-        setSuccess('Assessment updated successfully');
+        const result = await updateAssessment(selectedAssessment._id, formData);
+        if (result.success) {
+          setSuccess('Assessment updated successfully');
+          handleCloseDialog();
+        } else {
+          setError(result.error || 'Failed to update assessment');
+        }
       }
-
-      handleCloseDialog();
-      fetchAssessments();
     } catch (error) {
       setError(error.message || 'Failed to save assessment');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -166,15 +192,15 @@ const AssessmentList = () => {
       return;
     }
 
-    setLoading(true);
     try {
-      await axios.delete(`/api/assessments/${assessmentId}`);
-      setSuccess('Assessment deleted successfully');
-      fetchAssessments();
+      const result = await deleteAssessment(assessmentId);
+      if (result.success) {
+        setSuccess('Assessment deleted successfully');
+      } else {
+        setError(result.error || 'Failed to delete assessment');
+      }
     } catch (error) {
       setError('Failed to delete assessment');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -184,9 +210,9 @@ const AssessmentList = () => {
         Assessment Management
       </Typography>
 
-      {error && (
+      {(error || contextError) && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+          {error || contextError}
         </Alert>
       )}
 
@@ -215,6 +241,8 @@ const AssessmentList = () => {
               <TableCell>Term</TableCell>
               <TableCell>Exam Date</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Display Order</TableCell>
+              <TableCell>Visibility</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -242,6 +270,25 @@ const AssessmentList = () => {
                     {new Date(assessment.examDate).toLocaleDateString()}
                   </TableCell>
                   <TableCell>{assessment.status}</TableCell>
+                  <TableCell>
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={assessment.displayOrder || 0}
+                      onChange={(e) => handleOrderUpdate(assessment._id, parseInt(e.target.value))}
+                      inputProps={{ min: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outlined"
+                      color={assessment.isVisible ? 'success' : 'warning'}
+                      onClick={() => handleVisibilityToggle(assessment._id, !assessment.isVisible)}
+                      size="small"
+                    >
+                      {assessment.isVisible ? 'Visible' : 'Hidden'}
+                    </Button>
+                  </TableCell>
                   <TableCell>
                     <Tooltip title="Edit">
                       <IconButton

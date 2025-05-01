@@ -39,7 +39,7 @@ const BulkAssessmentEntry = () => {
   const [error, setError] = useState('');
   const [marks, setMarks] = useState({});
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
-  
+
   const { assessments } = useAssessment();
 
   useEffect(() => {
@@ -56,9 +56,16 @@ const BulkAssessmentEntry = () => {
     try {
       const response = await fetch('/api/classes');
       const data = await response.json();
-      setClasses(data);
+
+      // Ensure classes is always an array
+      const classesArray = Array.isArray(data) ? data :
+                         Array.isArray(data.classes) ? data.classes : [];
+
+      setClasses(classesArray);
     } catch (error) {
+      console.error('Error fetching classes:', error);
       setError('Failed to fetch classes');
+      setClasses([]); // Initialize as empty array on error
     }
   };
 
@@ -67,16 +74,23 @@ const BulkAssessmentEntry = () => {
     try {
       const response = await fetch(`/api/students/class/${selectedClass}`);
       const data = await response.json();
-      setStudents(data);
-      
+
+      // Ensure data is an array
+      const studentsArray = Array.isArray(data) ? data :
+                          Array.isArray(data.students) ? data.students : [];
+
+      setStudents(studentsArray);
+
       // Initialize marks object
       const initialMarks = {};
-      data.forEach(student => {
+      studentsArray.forEach(student => {
         initialMarks[student._id] = '';
       });
       setMarks(initialMarks);
     } catch (error) {
+      console.error('Error fetching students:', error);
       setError('Failed to fetch students');
+      setStudents([]); // Initialize as empty array on error
     } finally {
       setLoading(false);
     }
@@ -183,11 +197,15 @@ const BulkAssessmentEntry = () => {
               onChange={(e) => setSelectedClass(e.target.value)}
               label="Class"
             >
-              {classes.map(cls => (
-                <MenuItem key={cls._id} value={cls._id}>
-                  {cls.name}
-                </MenuItem>
-              ))}
+              {Array.isArray(classes) && classes.length > 0 ? (
+                classes.map(cls => (
+                  <MenuItem key={cls._id} value={cls._id}>
+                    {cls.name}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>No classes available</MenuItem>
+              )}
             </Select>
           </FormControl>
         </Grid>
@@ -200,11 +218,15 @@ const BulkAssessmentEntry = () => {
               label="Assessment"
               disabled={!selectedClass}
             >
-              {assessments.map(assessment => (
-                <MenuItem key={assessment._id} value={assessment._id}>
-                  {assessment.name} ({assessment.weightage}%)
-                </MenuItem>
-              ))}
+              {Array.isArray(assessments) && assessments.length > 0 ? (
+                assessments.map(assessment => (
+                  <MenuItem key={assessment._id} value={assessment._id}>
+                    {assessment.name} ({assessment.weightage}%)
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>No assessments available</MenuItem>
+              )}
             </Select>
           </FormControl>
         </Grid>

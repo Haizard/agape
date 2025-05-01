@@ -10,8 +10,6 @@ import {
   Divider,
   useTheme,
   useMediaQuery,
-  Fade,
-  Zoom,
   Container
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -107,48 +105,31 @@ const contentVariants = {
 
 /**
  * DepartmentLayout - A component that displays a set of menu buttons and renders
- * the selected component below them.
+ * the selected component below them using React Router.
  *
  * @param {Object} props
  * @param {string} props.title - The title of the department
- * @param {Array} props.menuItems - Array of menu items with { id, label, component, icon }
+ * @param {Array} props.menuItems - Array of menu items with { id, label, path, icon }
  * @param {string} props.defaultSelected - ID of the default selected menu item
+ * @param {ReactNode} props.children - Child components (Routes)
  */
-const DepartmentLayout = ({ title, menuItems, defaultSelected }) => {
+const DepartmentLayout = ({ title, menuItems, defaultSelected, children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Get the selected menu item from URL hash or use default
-  const [selectedMenuItem, setSelectedMenuItem] = useState(
-    location.hash ? location.hash.substring(1) : defaultSelected || (menuItems[0]?.id || '')
-  );
+  // Get current path without the base path
+  const currentPath = location.pathname.split('/').pop();
 
-  // Update URL hash when selected menu item changes
-  useEffect(() => {
-    if (selectedMenuItem) {
-      navigate(`${location.pathname}#${selectedMenuItem}`, { replace: true });
-    }
-  }, [selectedMenuItem, navigate, location.pathname]);
-
-  // Update selected menu item when URL hash changes
-  useEffect(() => {
-    if (location.hash) {
-      const hash = location.hash.substring(1);
-      if (menuItems.some(item => item.id === hash)) {
-        setSelectedMenuItem(hash);
-      }
-    }
-  }, [location.hash, menuItems]);
-
-  // Handle menu item click
-  const handleMenuItemClick = (itemId) => {
-    setSelectedMenuItem(itemId);
+  // Handle menu item click using relative navigation
+  const handleMenuItemClick = (path) => {
+    navigate(path);
   };
 
-  // Get the selected component
-  const selectedComponent = menuItems.find(item => item.id === selectedMenuItem)?.component;
+  // Find the currently active menu item
+  const activeMenuItem = menuItems.find(item => item.path === currentPath) || menuItems.find(item => item.id === defaultSelected);
+
 
   return (
     <Container maxWidth="xl">
@@ -197,40 +178,40 @@ const DepartmentLayout = ({ title, menuItems, defaultSelected }) => {
               background: `linear-gradient(145deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
             }}
           >
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <Grid container spacing={isMobile ? 1 : 2}>
-              {menuItems.map((item) => (
-                <Grid
-                  item
-                  xs={6}
-                  sm={4}
-                  md={3}
-                  lg={2}
-                  key={item.id}
-                >
-                  <motion.div
-                    variants={itemVariants}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <Grid container spacing={isMobile ? 1 : 2}>
+                {menuItems.map((item) => (
+                  <Grid
+                    item
+                    xs={6}
+                    sm={4}
+                    md={3}
+                    lg={2}
+                    key={item.id}
                   >
-                    <MenuButton
-                      fullWidth
-                      startIcon={item.icon}
-                      active={selectedMenuItem === item.id ? 1 : 0}
-                      onClick={() => handleMenuItemClick(item.id)}
+                    <motion.div
+                      variants={itemVariants}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      {item.label}
-                    </MenuButton>
-                  </motion.div>
-                </Grid>
-              ))}
-            </Grid>
-          </motion.div>
-        </Paper>
+                      <MenuButton
+                        fullWidth
+                        startIcon={item.icon}
+                        active={activeMenuItem?.id === item.id ? 1 : 0}
+                        onClick={() => handleMenuItemClick(item.path)}
+                      >
+                        {item.label}
+                      </MenuButton>
+                    </motion.div>
+                  </Grid>
+                ))}
+              </Grid>
+            </motion.div>
+          </Paper>
         </motion.div>
 
         <Divider sx={{ mb: 4 }} />
@@ -240,11 +221,11 @@ const DepartmentLayout = ({ title, menuItems, defaultSelected }) => {
           initial="hidden"
           animate="visible"
           exit="exit"
-          key={selectedMenuItem} // Re-render animation when selection changes
+          key={activeMenuItem?.id} // Re-render animation when selection changes
           layout
         >
           <Box>
-            {selectedComponent}
+            {children}
           </Box>
         </motion.div>
       </Box>
@@ -252,7 +233,6 @@ const DepartmentLayout = ({ title, menuItems, defaultSelected }) => {
   );
 };
 
-// PropTypes validation
 DepartmentLayout.propTypes = {
   title: PropTypes.string.isRequired,
   menuItems: PropTypes.arrayOf(
@@ -260,10 +240,11 @@ DepartmentLayout.propTypes = {
       id: PropTypes.string.isRequired,
       label: PropTypes.string.isRequired,
       icon: PropTypes.node,
-      component: PropTypes.node.isRequired
+      path: PropTypes.string.isRequired
     })
   ).isRequired,
-  defaultSelected: PropTypes.string
+  defaultSelected: PropTypes.string,
+  children: PropTypes.node
 };
 
 export default DepartmentLayout;
