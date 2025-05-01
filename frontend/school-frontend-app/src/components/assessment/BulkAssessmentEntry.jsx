@@ -29,18 +29,25 @@ import {
 } from '@mui/icons-material';
 import { useAssessment } from '../../contexts/AssessmentContext';
 import { validateMarks } from '../../utils/assessmentValidation';
+import { useCallback } from 'react';
 
 const BulkAssessmentEntry = () => {
   const [students, setStudents] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedAssessment, setSelectedAssessment] = useState('');
+  const [selectedTerm, setSelectedTerm] = useState('1');
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [marks, setMarks] = useState({});
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [teacherSubjects, setTeacherSubjects] = useState([]);
 
   const { assessments } = useAssessment();
+  
+  // Filter active assessments by term and sort by displayOrder
+  const activeAssessments = assessments
+    .filter(a => a.isVisible && a.term === selectedTerm)
+    .sort((a, b) => a.displayOrder - b.displayOrder);
 
   useEffect(() => {
     fetchClasses();
@@ -48,13 +55,23 @@ const BulkAssessmentEntry = () => {
 
   useEffect(() => {
     if (selectedClass) {
-      fetchStudents();
+      fetchTeacherSubjects();
     }
   }, [selectedClass]);
 
+  useEffect(() => {
+    if (selectedClass && teacherSubjects.length > 0) {
+      fetchStudents();
+    }
+  }, [selectedClass, teacherSubjects]);
+
   const fetchClasses = async () => {
     try {
-      const response = await fetch('/api/classes');
+      const response = await fetch('/api/teacher/classes', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       const data = await response.json();
 
       // Ensure classes is always an array
@@ -69,21 +86,48 @@ const BulkAssessmentEntry = () => {
     }
   };
 
+  const fetchTeacherSubjects = async () => {
+    try {
+      const response = await fetch(`/api/teacher/subjects/${selectedClass}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      setTeacherSubjects(data);
+    } catch (error) {
+      console.error('Error fetching teacher subjects:', error);
+      setError('Failed to fetch teacher subjects');
+      setTeacherSubjects([]);
+    }
+  };
+
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/students/class/${selectedClass}`);
+      const response = await fetch(`/api/teacher/students/${selectedClass}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       const data = await response.json();
 
       // Ensure data is an array
       const studentsArray = Array.isArray(data) ? data :
                           Array.isArray(data.students) ? data.students : [];
 
-      setStudents(studentsArray);
+      // Filter students who take the teacher's subjects
+      const filteredStudents = studentsArray.filter(student => 
+        student.subjects.some(subjectId => 
+          teacherSubjects.some(ts => ts.subjectId === subjectId)
+        )
+      );
+
+      setStudents(filteredStudents);
 
       // Initialize marks object
       const initialMarks = {};
-      studentsArray.forEach(student => {
+      filteredStudents.forEach(student => {
         initialMarks[student._id] = '';
       });
       setMarks(initialMarks);
@@ -96,28 +140,34 @@ const BulkAssessmentEntry = () => {
     }
   };
 
-  const handleMarkChange = (studentId, value) => {
+  const handleMarkChange = (studentId, assessmentId, value) => {
     setMarks(prev => ({
       ...prev,
-      [studentId]: value
+      [studentId]: {
+        ...prev[studentId],
+        [assessmentId]: value
+      }
     }));
   };
 
   const validateAllMarks = () => {
-    const assessment = assessments.find(a => a._id === selectedAssessment);
-    if (!assessment) return false;
-
     let isValid = true;
     const errors = {};
 
-    Object.entries(marks).forEach(([studentId, mark]) => {
-      if (mark === '') return;
+    Object.entries(marks).forEach(([studentId, studentMarks]) => {
+      Object.entries(studentMarks).forEach(([assessmentId, mark]) => {
+        if (mark === '') return;
 
-      const validation = validateMarks(mark, assessment.maxMarks);
-      if (!validation.isValid) {
-        isValid = false;
-        errors[studentId] = validation.errors.marksObtained;
-      }
+        const assessment = assessments.find(a => a._id === assessmentId);
+        if (!assessment) return;
+
+        const validation = validateMarks(mark, assessment.maxMarks);
+        if (!validation.isValid) {
+          isValid = false;
+          if (!errors[studentId]) errors[studentId] = {};
+          errors[studentId][assessmentId] = validation.errors.marksObtained;
+        }
+      });
     });
 
     return { isValid, errors };
@@ -136,17 +186,25 @@ const BulkAssessmentEntry = () => {
 
     setLoading(true);
     try {
-      const marksData = Object.entries(marks)
-        .filter(([_, mark]) => mark !== '')
-        .map(([studentId, mark]) => ({
-          studentId,
-          assessmentId: selectedAssessment,
-          marksObtained: Number(mark)
-        }));
+      const marksData = [];
+      Object.entries(marks).forEach(([studentId, studentMarks]) => {
+        Object.entries(studentMarks).forEach(([assessmentId, mark]) => {
+          if (mark !== '') {
+            marksData.push({
+              studentId,
+              assessmentId,
+              marksObtained: Number(mark)
+            });
+          }
+        });
+      });
 
       const response = await fetch('/api/assessments/bulk-marks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({ marks: marksData })
       });
 
@@ -211,28 +269,21 @@ const BulkAssessmentEntry = () => {
         </Grid>
         <Grid item xs={12} md={6}>
           <FormControl fullWidth>
-            <InputLabel>Assessment</InputLabel>
+            <InputLabel>Term</InputLabel>
             <Select
-              value={selectedAssessment}
-              onChange={(e) => setSelectedAssessment(e.target.value)}
-              label="Assessment"
-              disabled={!selectedClass}
+              value={selectedTerm}
+              onChange={(e) => setSelectedTerm(e.target.value)}
+              label="Term"
             >
-              {Array.isArray(assessments) && assessments.length > 0 ? (
-                assessments.map(assessment => (
-                  <MenuItem key={assessment._id} value={assessment._id}>
-                    {assessment.name} ({assessment.weightage}%)
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem disabled>No assessments available</MenuItem>
-              )}
+              <MenuItem value="1">Term 1</MenuItem>
+              <MenuItem value="2">Term 2</MenuItem>
+              <MenuItem value="3">Term 3</MenuItem>
             </Select>
           </FormControl>
         </Grid>
       </Grid>
 
-      {selectedClass && selectedAssessment && (
+      {selectedClass && activeAssessments.length > 0 && (
         <Box sx={{ mb: 2 }}>
           <Button
             variant="contained"
@@ -260,7 +311,11 @@ const BulkAssessmentEntry = () => {
             <TableRow>
               <TableCell>Student Name</TableCell>
               <TableCell>Registration Number</TableCell>
-              <TableCell align="right">Marks</TableCell>
+              {activeAssessments.map(assessment => (
+                <TableCell key={assessment._id} align="right">
+                  {assessment.name} ({assessment.weightage}%)
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -281,20 +336,22 @@ const BulkAssessmentEntry = () => {
                 <TableRow key={student._id}>
                   <TableCell>{student.name}</TableCell>
                   <TableCell>{student.registrationNumber}</TableCell>
-                  <TableCell align="right">
-                    <TextField
-                      type="number"
-                      value={marks[student._id]}
-                      onChange={(e) => handleMarkChange(student._id, e.target.value)}
-                      disabled={!selectedAssessment || loading}
-                      inputProps={{
-                        min: 0,
-                        max: assessments.find(a => a._id === selectedAssessment)?.maxMarks || 100
-                      }}
-                      size="small"
-                      sx={{ width: 100 }}
-                    />
-                  </TableCell>
+                  {activeAssessments.map(assessment => (
+                    <TableCell key={assessment._id} align="right">
+                      <TextField
+                        type="number"
+                        value={marks[student._id]?.[assessment._id] || ''}
+                        onChange={(e) => handleMarkChange(student._id, assessment._id, e.target.value)}
+                        disabled={loading}
+                        inputProps={{
+                          min: 0,
+                          max: assessment.maxMarks
+                        }}
+                        size="small"
+                        sx={{ width: 100 }}
+                      />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             )}

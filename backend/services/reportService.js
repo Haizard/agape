@@ -29,7 +29,105 @@ class ReportService {
    * @param {String} [providedEducationLevel] - Optional education level override
    * @returns {Promise<Object>} - The report data
    */
-  static async generateStudentReportJson(studentId, examId, providedEducationLevel) {
+  static async generateStudentReportJson(studentId, term, providedEducationLevel) {
+    try {
+      // Get student details
+      const student = await Student.findById(studentId);
+      if (!student) {
+        throw new Error(`Student not found with ID: ${studentId}`);
+      }
+
+      // Get class details
+      const classObj = await Class.findById(student.class);
+      if (!classObj) {
+        throw new Error(`Class not found for student: ${studentId}`);
+      }
+
+      // Get all active assessments for the term, sorted by displayOrder
+      const assessments = await Assessment.find({
+        term,
+        status: 'active',
+        isVisible: true
+      }).sort({ displayOrder: 1, examDate: 1 });
+
+      if (!assessments || assessments.length === 0) {
+        throw new Error(`No assessments found for term ${term}`);
+      }
+
+      // Get all students in the class for ranking
+      const classStudents = await Student.find({ class: classObj._id });
+
+      // Initialize report data
+      const subjectResults = [];
+      let totalMarks = 0;
+      let totalPoints = 0;
+      let resultsCount = 0;
+      const gradeDistribution = { A: 0, B: 0, C: 0, D: 0, E: 0, S: 0, F: 0 };
+
+      // Get all subjects for this class
+      const classSubjects = classObj.subjects.map(s => s.subject).filter(Boolean);
+
+      // Process each subject
+      for (const subject of classSubjects) {
+        const subjectAssessments = [];
+        let subjectTotalMarks = 0;
+        let subjectWeightedMarks = 0;
+        let subjectTotalWeightage = 0;
+
+        // Get results for each assessment
+        for (const assessment of assessments) {
+          const result = await Result.findOne({
+            studentId: studentId,
+            assessmentId: assessment._id,
+            subjectId: subject._id
+          });
+
+          // Always include the assessment, even if no result exists
+          const assessmentEntry = {
+            assessmentName: assessment.name,
+            marks: result ? result.marksObtained : null,
+            maxMarks: assessment.maxMarks,
+            weightage: assessment.weightage,
+            weightedMarks: result ? (result.marksObtained / assessment.maxMarks) * assessment.weightage : 0
+          };
+
+          subjectAssessments.push(assessmentEntry);
+
+          if (result) {
+            subjectTotalMarks += result.marksObtained;
+            subjectWeightedMarks += (result.marksObtained / assessment.maxMarks) * assessment.weightage;
+            subjectTotalWeightage += assessment.weightage;
+          }
+        }
+
+        // Calculate final grade based on weighted average
+        const finalPercentage = subjectTotalWeightage > 0 ? (subjectWeightedMarks / subjectTotalWeightage) * 100 : 0;
+        const grade = ReportService.calculateGrade(finalPercentage);
+        const points = ReportService.calculatePoints(grade);
+
+        // Update grade distribution
+        if (gradeDistribution[grade] !== undefined) {
+          gradeDistribution[grade]++;
+        }
+
+        // Update totals
+        totalMarks += finalPercentage;
+        totalPoints += points;
+        resultsCount++;
+
+        // Add to subject results
+        subjectResults.push({
+          subject: subject.name,
+          assessments: subjectAssessments,
+          totalMarks: subjectTotalMarks,
+          weightedAverage: finalPercentage.toFixed(2),
+          grade,
+          points,
+          remarks: ReportService.getRemarksByLevel(grade, providedEducationLevel),
+          isPrincipal: subject.isPrincipal || false
+        });
+      }
+      }
     try {
       // Get student details
       const student = await Student.findById(studentId);
