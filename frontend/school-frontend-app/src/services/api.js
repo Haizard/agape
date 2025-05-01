@@ -4,7 +4,7 @@ import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 // Set the API URL based on environment
 const getBaseUrl = () => {
   if (process.env.NODE_ENV === 'development') {
-    return '';
+    return 'http://localhost:5000';
   }
   return 'https://agape-render.onrender.com';
 };
@@ -32,12 +32,9 @@ api.interceptors.request.use(
     }
 
     // Ensure URL starts with /api
-    if (!config.url.startsWith('/api/')) {
-      config.url = `/api${config.url.startsWith('/') ? config.url : `/${config.url}`}`;
+    if (!config.url.startsWith('/api')) {
+      config.url = `/api${config.url}`;
     }
-
-    // Remove duplicate /api/ in URL
-    config.url = config.url.replace(/\/api\/api\//g, '/api/');
 
     // Add timestamp to prevent caching
     if (config.method === 'get') {

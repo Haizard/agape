@@ -19,11 +19,11 @@ if (apiUrl.includes('/api')) {
   console.log('Removed /api/ from API_URL:', apiUrl);
 }
 
-// Use the current origin for API requests in development
+// Use the backend server URL for API requests in development
 if (process.env.NODE_ENV === 'development') {
-  // Use the same origin as the frontend for API requests
-  apiUrl = `${window.location.origin}/`;
-  console.log('Using current origin for API requests:', apiUrl);
+  // Use the configured backend URL with port 5000
+  apiUrl = 'http://localhost:5000/';
+  console.log('Using backend server URL for API requests:', apiUrl);
 }
 
 // Log the final API URL for debugging

@@ -14,13 +14,13 @@ class UnifiedApiService {
     console.log(`UnifiedApiService: Using API URL: ${process.env.REACT_APP_API_URL || '/api'}`);
     console.log(`UnifiedApiService: Using timeout: ${timeout}ms`);
 
-    // In production, force the API URL to the backend domain
-    const isProduction = process.env.NODE_ENV === 'production';
-    const apiUrl = isProduction
-      ? 'https://agape-render.onrender.com'
-      : (process.env.REACT_APP_API_URL || '/api');
+    // In development, use the configured backend URL
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const apiUrl = isDevelopment
+      ? 'http://localhost:5000'
+      : 'https://agape-render.onrender.com';
 
-    console.log(`${isProduction ? 'Production environment detected, forcing API URL to:' : 'Using API URL:'} ${apiUrl}`);
+    console.log(`${isDevelopment ? 'Development environment detected, using local API URL:' : 'Production environment detected, using remote API URL:'} ${apiUrl}`);
 
     this.api = axios.create({
       baseURL: apiUrl,

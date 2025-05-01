@@ -79,26 +79,43 @@ const ClassManagement = () => {
 
     try {
       console.log('Fetching classes, teachers, academic years, and subject combinations...');
-      const [classesRes, teachersRes, academicYearsRes, subjectCombinationsRes] = await Promise.all([
-        api.get(`/api/classes?page=${page}&limit=${limit}`),
+      // Fetch classes first as they are essential
+      const classesRes = await api.get(`/classes?page=${page}&limit=${limit}`);
+      if (!classesRes.data) {
+        throw new Error('Failed to fetch classes data');
+      }
+
+      // Fetch additional data in parallel, but don't block on failure
+      const [teachersRes, academicYearsRes, subjectCombinationsRes] = await Promise.allSettled([
         api.get('/api/teachers'),
         api.get('/api/academic-years'),
         api.get('/api/subject-combinations')
       ]);
 
+      // Extract data from successful responses, use empty arrays for failed ones
+      const teachers = teachersRes.status === 'fulfilled' ? teachersRes.value.data : [];
+      const academicYears = academicYearsRes.status === 'fulfilled' ? academicYearsRes.value.data : [];
+      const subjectCombinations = subjectCombinationsRes.status === 'fulfilled' ? subjectCombinationsRes.value.data : [];
+
       console.log('Classes response:', classesRes.data);
-      console.log('Teachers response:', teachersRes.data);
-      console.log('Academic years response:', academicYearsRes.data);
-      console.log('Subject combinations response:', subjectCombinationsRes.data);
+      console.log('Teachers response:', teachers);
+      console.log('Academic years response:', academicYears);
+      console.log('Subject combinations response:', subjectCombinations);
+
+      // Log any failed requests
+      if (teachersRes.status === 'rejected') console.error('Failed to fetch teachers:', teachersRes.reason);
+      if (academicYearsRes.status === 'rejected') console.error('Failed to fetch academic years:', academicYearsRes.reason);
+      if (subjectCombinationsRes.status === 'rejected') console.error('Failed to fetch subject combinations:', subjectCombinationsRes.reason);
 
       setState(prev => ({
         ...prev,
         classes: classesRes.data,
-        teachers: teachersRes.data,
-        academicYears: academicYearsRes.data,
-        subjectCombinations: subjectCombinationsRes.data,
+        teachers: teachers,
+        academicYears: academicYears,
+        subjectCombinations: subjectCombinations,
         loading: false,
-        retryCount: 0
+        retryCount: 0,
+        error: '' // Clear any previous errors since we have the essential data
       }));
     } catch (err) {
       console.error('Fetch error:', err);

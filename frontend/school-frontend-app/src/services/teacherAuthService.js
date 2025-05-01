@@ -44,6 +44,9 @@ const teacherAuthService = {
       // Get the teacher's profile to get their ID
       const profileResponse = await api.get('/api/teachers/profile/me');
       const teacherId = profileResponse.data._id;
+      
+      // Log successful profile fetch
+      console.log('[TeacherAuthService] Successfully fetched teacher profile:', profileResponse.data);
 
       if (!teacherId) {
         console.error('[TeacherAuthService] No teacher ID found in profile');

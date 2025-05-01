@@ -52,9 +52,9 @@ const FixedSubjectClassAssignment = () => {
     try {
       console.log('Fetching subjects, classes, and teachers...');
       const [subjectsRes, classesRes, teachersRes] = await Promise.all([
-        api.get('/api/subjects'),
-        api.get('/api/classes'),
-        api.get('/api/teachers?status=active')
+        api.get('/subjects'),
+        api.get('/classes'),
+        api.get('/teachers?status=active')
       ]);
 
       // Ensure we have valid data
@@ -94,7 +94,7 @@ const FixedSubjectClassAssignment = () => {
 
     setLoading(true);
     try {
-      const response = await api.get(`/api/classes/${classId}`);
+      const response = await api.get(`/classes/${classId}`);
       console.log('Fetched class details:', response.data);
 
       // Process the class data to handle academicYear and other nested objects safely
@@ -120,7 +120,7 @@ const FixedSubjectClassAssignment = () => {
       setLoading(true);
       try {
         // Get current class data
-        const classResponse = await api.get(`/api/classes/${classId}`);
+        const classResponse = await api.get(`/classes/${classId}`);
         const classData = classResponse.data;
 
         // Filter out the subject to remove
@@ -131,7 +131,7 @@ const FixedSubjectClassAssignment = () => {
         console.log('Removing subject. Updated subjects array:', updatedSubjects);
 
         // Update the class with the new subjects array
-        const updateResponse = await api.put(`/api/classes/${classId}/subjects`, {
+        const updateResponse = await api.put(`/classes/${classId}/subjects`, {
           subjects: updatedSubjects
         });
 

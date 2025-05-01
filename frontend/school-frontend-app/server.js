@@ -27,10 +27,10 @@ app.use(compression());
 
 // API proxy middleware
 const apiProxy = createProxyMiddleware('/api', {
-  target: 'http://localhost:5000',
+  target: process.env.REACT_APP_API_URL || 'http://localhost:5000',
   changeOrigin: true,
   pathRewrite: { '^/api': '/api' },
-  logLevel: 'debug',
+  logLevel: process.env.NODE_ENV === 'development' ? 'debug' : 'error',
   onError: (err, req, res) => {
     console.error('Proxy error:', err);
     res.writeHead(500, {
