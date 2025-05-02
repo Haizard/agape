@@ -12,10 +12,17 @@ const validationMiddleware = {
   validateAssessment: async (req, res, next) => {
     try {
       const assessmentData = req.body;
+      
+      // Add createdBy from authenticated user if not provided
+      if (!assessmentData.createdBy && req.user && req.user.userId) {
+        assessmentData.createdBy = req.user.userId;
+        console.log('Added createdBy from authenticated user:', assessmentData.createdBy);
+      }
 
       // Basic data validation
       const validation = validateAssessmentData(assessmentData);
       if (!validation.isValid) {
+        console.log('Assessment validation errors:', validation.errors);
         return res.status(400).json({
           success: false,
           errors: validation.errors
@@ -34,6 +41,7 @@ const validationMiddleware = {
       );
 
       if (!weightageValidation.isValid) {
+        console.log('Weightage validation error:', weightageValidation.error);
         return res.status(400).json({
           success: false,
           message: weightageValidation.error

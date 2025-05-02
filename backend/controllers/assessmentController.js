@@ -28,20 +28,25 @@ const assessmentController = {
   createAssessment: async (req, res) => {
     try {
       const assessmentData = req.body;
+      console.log('Assessment creation request body:', assessmentData);
 
       // Validate assessment data
       const validation = validateAssessmentData(assessmentData);
       if (!validation.isValid) {
+        console.log('Assessment validation errors:', validation.errors);
         return res.status(400).json({
           success: false,
           errors: validation.errors
         });
       }
 
+      // Note: createdBy is now handled in the validateAssessment middleware
+
       // Validate total weightage
       const existingAssessments = await Assessment.find();
       const weightageValidation = validateTotalWeightage(existingAssessments, assessmentData);
       if (!weightageValidation.isValid) {
+        console.log('Weightage validation error:', weightageValidation.error);
         return res.status(400).json({
           success: false,
           message: weightageValidation.error
@@ -56,9 +61,11 @@ const assessmentController = {
         data: assessment
       });
     } catch (error) {
+      console.error('Error creating assessment:', error.message);
       res.status(500).json({
         success: false,
-        message: 'Failed to create assessment'
+        message: 'Failed to create assessment',
+        error: error.message
       });
     }
   },

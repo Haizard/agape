@@ -245,6 +245,11 @@ console.log('New A-Level routes registered at /api/new-a-level');
 // Register v2 routes
 app.use('/api/v2/results', v2ResultRoutes);
 
+// Register assessment routes
+const assessmentRoutes = require('./routes/assessmentRoutes');
+app.use('/api/assessments', assessmentRoutes);
+console.log('Assessment routes registered at /api/assessments');
+
 // Apply special CORS for critical routes
 app.use('/api/exams', criticalRoutesCors, examRoutes);
 app.use('/api/classes', criticalRoutesCors, classRoutes);

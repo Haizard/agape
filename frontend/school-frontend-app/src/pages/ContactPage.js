@@ -298,7 +298,7 @@ const ContactPage = () => {
                         Email
                       </Typography>
                       <Link
-                        href={createEmailLink('agapelutheranjuniorseminary@gmail.com', 'Inquiry from Website')}
+                        href={createEmailLink('agapeljseminary@gmail.com', 'Inquiry from Website')}
                         underline="hover"
                         color="text.primary"
                         sx={{
@@ -307,7 +307,7 @@ const ContactPage = () => {
                           '&:hover': { color: 'primary.main' }
                         }}
                       >
-                        agapelutheranjuniorseminary@gmail.com
+                       agapeljseminary@gmail.com
                       </Link>
                     </Box>
                   </Box>

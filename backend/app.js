@@ -12,6 +12,7 @@ const academicYearRoutes = require('./routes/academicYearRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const examRoutes = require('./routes/examRoutes');
 const markRoutes = require('./routes/markRoutes');
+const assessmentRoutes = require('./routes/assessmentRoutes');
 // Import the unified result routes
 const unifiedResultRoutes = require('./routes/v2/resultRoutes');
 const checkMarksRoutes = require('./routes/checkMarksRoutes');
@@ -95,6 +96,7 @@ app.use('/api/academic-years', academicYearRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/marks', markRoutes);
+app.use('/api/assessments', assessmentRoutes);
 // Use the unified result routes
 app.use('/api/v2/results', unifiedResultRoutes);
 app.use('/api/marks', checkMarksRoutes);

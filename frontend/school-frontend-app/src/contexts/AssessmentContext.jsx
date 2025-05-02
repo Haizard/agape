@@ -26,7 +26,8 @@ export const AssessmentProvider = ({ children }) => {
     try {
       const result = await assessmentService.getAllAssessments();
       if (result.success) {
-        const allAssessments = result.data;
+        // Ensure data is always an array
+        const allAssessments = Array.isArray(result.data) ? result.data : [];
         setAssessments(allAssessments);
         
         // Filter active and visible assessments
@@ -40,9 +41,17 @@ export const AssessmentProvider = ({ children }) => {
         setError(null);
       } else {
         setError(result.error);
+        // Set empty arrays on error
+        setAssessments([]);
+        setActiveAssessments([]);
+        setVisibleAssessments([]);
       }
     } catch (err) {
       setError('Failed to fetch assessments');
+      // Set empty arrays on error
+      setAssessments([]);
+      setActiveAssessments([]);
+      setVisibleAssessments([]);
     } finally {
       setLoading(false);
     }

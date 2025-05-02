@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const assessmentController = require('../controllers/assessmentController');
-const { authenticate } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { validateAssessment } = require('../middleware/validation');
+const Result = require('../models/Result');
+const { generatePDF } = require('../utils/pdfGenerator'); // Assuming this is the correct path
 
 /**
  * Assessment Routes
@@ -11,49 +14,49 @@ const { validateAssessment } = require('../middleware/validation');
 
 // Get all assessments
 router.get('/',
-  authenticate,
+  authenticateToken,
   assessmentController.getAllAssessments
 );
 
 // Create new assessment
 router.post('/',
-  authenticate,
+  authenticateToken,
   validateAssessment,
   assessmentController.createAssessment
 );
 
 // Update assessment
 router.put('/:id',
-  authenticate,
+  authenticateToken,
   validateAssessment,
   assessmentController.updateAssessment
 );
 
 // Delete assessment
 router.delete('/:id',
-  authenticate,
+  authenticateToken,
   assessmentController.deleteAssessment
 );
 
 // Get assessment statistics
 router.get('/stats',
-  authenticate,
+  authenticateToken,
   assessmentController.getAssessmentStats
 );
 
 // Generate assessment report
 router.get('/report/:classId/:assessmentId',
-  authenticate,
+  authenticateToken,
   assessmentController.generateReport
 );
 
 // Bulk marks entry
 router.post('/bulk-marks',
-  authenticate,
+  authenticateToken,
   async (req, res) => {
     try {
       const { marks } = req.body;
-      
+
       if (!Array.isArray(marks)) {
         return res.status(400).json({
           success: false,
@@ -119,11 +122,11 @@ router.post('/bulk-marks',
 
 // Export PDF report
 router.post('/report/:classId/:assessmentId/pdf',
-  authenticate,
+  authenticateToken,
   async (req, res) => {
     try {
       const { classId, assessmentId } = req.params;
-      
+
       // Get report data
       const reportData = await assessmentController.generateReport(
         { params: { classId, assessmentId } },

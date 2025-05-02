@@ -283,7 +283,7 @@ const Footer = () => {
                 <Box sx={{ display: 'flex', mb: 2 }}>
                   <EmailIcon sx={{ color: 'primary.main', mr: 2, fontSize: 20 }} />
                   <Link
-                    href={createEmailLink('agapelutheranjuniorseminary@gmail.com', 'Inquiry from Website')}
+                    href={createEmailLink('agapeljseminary@gmail.com', 'Inquiry from Website')}
                     underline="hover"
                     color="text.secondary"
                     sx={{
@@ -291,7 +291,7 @@ const Footer = () => {
                       '&:hover': { color: 'primary.main' }
                     }}
                   >
-                    agapelutheranjuniorseminary@gmail.com
+                    agapeljseminary@gmail.com
                   </Link>
                 </Box>
               </Box>
