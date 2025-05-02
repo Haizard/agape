@@ -11,6 +11,23 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const enhancedTeacherAuth = require('../middleware/enhancedTeacherAuth');
 const teacherAssignmentService = require('../services/teacherAssignmentService');
 const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
+const Teacher = require('../models/Teacher');
+
+// Get all teachers (with optional status filter)
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.status) {
+      filter.status = req.query.status; // Example: "active"
+    }
+
+    const teachers = await Teacher.find(filter);
+    res.status(200).json(teachers);
+  } catch (error) {
+    console.error('Error in GET /api/teachers:', error);
+    res.status(500).json({ error: 'Failed to fetch teachers' });
+  }
+});
 
 // Check if a teacher is authorized to access a subject in a class
 router.get('/check-subject-authorization',

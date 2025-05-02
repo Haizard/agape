@@ -29,8 +29,6 @@ const standardizedOLevelRoutes = require('./routes/standardizedOLevelRoutes');
 const fixTeacherRoute = require('./routes/fixTeacherRoute');
 const enhancedTeacherRoutes = require('./routes/enhancedTeacherRoutes');
 
-
-
 const app = express();
 
 // Import custom CORS middleware
@@ -86,8 +84,8 @@ app.options('/api/users/login', openCors, (req, res) => {
   res.sendStatus(204);
 });
 
-// Routes
-app.use('/api/teachers', teacherRoutes);
+// Note: Teacher routes are now registered in index.js
+// app.use('/api/teachers', enhancedTeacherRoutes); // Removed to prevent duplicate route registration
 app.use('/api/settings', settingsRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/users', openCors, userRoutes);
@@ -149,9 +147,7 @@ console.log('Standardized O-Level routes registered at /api/o-level');
 app.use('/api/fix-teacher', fixTeacherRoute);
 console.log('Fix teacher route registered at /api/fix-teacher');
 
-// Enhanced teacher routes with improved authentication
-app.use('/api/enhanced-teachers', enhancedTeacherRoutes);
-console.log('Enhanced teacher routes registered at /api/enhanced-teachers');
+// Enhanced teacher routes are now mounted at /api/teachers
 
 
 

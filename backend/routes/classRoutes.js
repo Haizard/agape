@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const enhancedTeacherAuth = require('../middleware/enhancedTeacherAuth');
 const router = express.Router();
 const Class = require('../models/Class');
 const unifiedTeacherAssignmentService = require('../services/unifiedTeacherAssignmentService');
@@ -437,5 +438,86 @@ router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res
 });
 
 // This route is now handled by the first PUT /:id/subjects route above
+
+// Get classes assigned to the current teacher
+router.get('/teacher/me',
+  authenticateToken,
+  authorizeRole(['teacher', 'admin']),
+  enhancedTeacherAuth.ensureTeacherProfile,
+  async (req, res) => {
+    try {
+      console.log('GET /api/classes/teacher/me - Fetching classes for current teacher');
+
+      // The teacher profile is already attached to the request by the middleware
+      const teacherId = req.teacher._id;
+
+      console.log(`Teacher ID: ${teacherId}`);
+
+      // Find all classes where this teacher is assigned to teach subjects
+      const TeacherAssignment = require('../models/TeacherAssignment');
+
+      // Method 1: Find classes where the teacher is assigned to subjects
+      const classesWithTeacher = await Class.find({ 'subjects.teacher': teacherId })
+        .select('_id name section stream educationLevel')
+        .sort({ name: 1 });
+
+      console.log(`Found ${classesWithTeacher.length} classes for teacher ${teacherId} via Class model`);
+
+      // Method 2: Find classes where the teacher is assigned via TeacherAssignment
+      const teacherAssignments = await TeacherAssignment.find({ teacher: teacherId })
+        .distinct('class');
+
+      const classesFromAssignments = await Class.find({ _id: { $in: teacherAssignments } })
+        .select('_id name section stream educationLevel')
+        .sort({ name: 1 });
+
+      console.log(`Found ${classesFromAssignments.length} classes for teacher ${teacherId} via TeacherAssignment`);
+
+      // Method 3: Find classes where the teacher is the class teacher
+      const classesAsClassTeacher = await Class.find({ classTeacher: teacherId })
+        .select('_id name section stream educationLevel')
+        .sort({ name: 1 });
+
+      console.log(`Found ${classesAsClassTeacher.length} classes for teacher ${teacherId} as class teacher`);
+
+      // Combine and deduplicate classes
+      const allClasses = [...classesWithTeacher];
+
+      // Add classes from assignments if they're not already in the list
+      for (const cls of classesFromAssignments) {
+        if (!allClasses.some(c => c._id.toString() === cls._id.toString())) {
+          allClasses.push(cls);
+        }
+      }
+
+      // Add classes where the teacher is the class teacher if they're not already in the list
+      for (const cls of classesAsClassTeacher) {
+        if (!allClasses.some(c => c._id.toString() === cls._id.toString())) {
+          allClasses.push(cls);
+        }
+      }
+
+      // For admin users, return all classes if requested
+      if (req.user.role === 'admin' && req.query.all === 'true') {
+        console.log('Admin user requesting all classes');
+        const allClassesForAdmin = await Class.find()
+          .select('_id name section stream educationLevel')
+          .sort({ name: 1 });
+
+        console.log(`Returning ${allClassesForAdmin.length} total classes for admin user`);
+        return res.json(allClassesForAdmin);
+      }
+
+      console.log(`Returning ${allClasses.length} total classes for teacher ${teacherId}`);
+      res.json(allClasses);
+    } catch (error) {
+      console.error('Error fetching teacher classes:', error);
+      res.status(500).json({
+        message: 'Failed to fetch teacher classes',
+        error: error.message
+      });
+    }
+  }
+);
 
 module.exports = router;

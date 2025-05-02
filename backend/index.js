@@ -177,7 +177,8 @@ const criticalRoutesCors = cors({
 
 // Register routes
 app.use('/api/users', userRoutes);
-app.use('/api/teachers', teacherRoutes);
+// Use enhanced teacher routes for better functionality
+app.use('/api/teachers', enhancedTeacherRoutes);
 app.use('/api/students', studentRoutes);
 
 // Register standardized O-Level routes (primary implementation)
