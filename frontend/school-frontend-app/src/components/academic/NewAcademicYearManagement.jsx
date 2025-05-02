@@ -44,6 +44,10 @@ import { getAuthToken, isTokenValid } from '../../utils/authUtils';
 import directApi from '../../services/directApi';
 
 const NewAcademicYearManagement = () => {
+  // State for academic year management
+  const [hasError, setHasError] = useState(false);
+  const [errorInfo, setErrorInfo] = useState(null);
+
   const { user } = useSelector((state) => state.user);
   const isAdmin = user?.role === 'admin';
 
@@ -64,16 +68,13 @@ const NewAcademicYearManagement = () => {
       const tokenValid = isTokenValid();
 
       if (token && !tokenValid) {
-        console.warn('Token is invalid or expired');
+        // Token validation failed
       }
 
-      console.log('Fetching academic years using direct API service...');
       const data = await directApi.getAcademicYears();
-      console.log('Successfully fetched academic years');
       setAcademicYears(data);
       setError('');
     } catch (err) {
-      console.error('Error fetching academic years:', err);
       setError('Failed to load academic years. Please try again.');
     } finally {
       setLoading(false);
@@ -99,15 +100,11 @@ const NewAcademicYearManagement = () => {
     try {
       if (selectedYear) {
         // Update existing academic year
-        console.log(`Updating academic year ${selectedYear._id}`);
         await directApi.updateAcademicYear(selectedYear._id, formData);
-        console.log('Successfully updated academic year');
         setSuccessMessage('Academic year updated successfully');
       } else {
         // Create new academic year
-        console.log('Creating new academic year');
         await directApi.createAcademicYear(formData);
-        console.log('Successfully created academic year');
         setSuccessMessage('Academic year created successfully');
       }
 
@@ -122,9 +119,7 @@ const NewAcademicYearManagement = () => {
 
   const handleDelete = async (id) => {
     try {
-      console.log(`Deleting academic year ${id}`);
       await directApi.deleteAcademicYear(id);
-      console.log('Successfully deleted academic year');
       setSuccessMessage('Academic year deleted successfully');
       setDeleteConfirmOpen(false);
       fetchAcademicYears();
@@ -142,9 +137,7 @@ const NewAcademicYearManagement = () => {
         return;
       }
 
-      console.log(`Setting academic year ${id} as active`);
       await directApi.setActiveAcademicYear(id, yearToActivate);
-      console.log('Successfully set academic year as active');
 
       setSuccessMessage('Academic year set as active successfully');
       fetchAcademicYears();
@@ -154,7 +147,8 @@ const NewAcademicYearManagement = () => {
     }
   };
 
-  if (loading && academicYears.length === 0) {
+  // Show loading only if we're loading and have no data, or if we're in the initial loading state
+  if ((loading && academicYears.length === 0) || (loading && !academicYears)) {
     return (
       <AnimatedContainer animation="fadeIn" duration={0.5}>
         <Box sx={{ p: 3 }}>
@@ -191,10 +185,11 @@ const NewAcademicYearManagement = () => {
           </SectionContainer>
         </Box>
       </AnimatedContainer>
-    );
+  );
   }
 
   return (
+
     <AnimatedContainer animation="fadeIn" duration={0.8}>
       <Box sx={{ p: 3 }}>
         <PageHeader
@@ -207,16 +202,7 @@ const NewAcademicYearManagement = () => {
             </IconContainer>
           }
           actions={[
-            <GradientButton
-              key="auth-debug"
-              variant="outlined"
-              color="info"
-              component={RouterLink}
-              to="/auth-debug"
-              startIcon={<InfoIcon />}
-            >
-              Auth Debug
-            </GradientButton>,
+
             isAdmin && (
               <GradientButton
                 key="create-year"
@@ -262,6 +248,8 @@ const NewAcademicYearManagement = () => {
             </Alert>
           </FadeIn>
         )}
+
+
 
       {academicYears.length === 0 ? (
         <FadeIn delay={0.2}>

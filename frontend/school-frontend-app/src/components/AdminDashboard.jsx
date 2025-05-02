@@ -30,7 +30,7 @@ const AdminDashboard = () => {
     {
       title: 'Academic Year',
       description: 'Manage academic years and terms',
-      link: '/admin/academic-management#academic-years'
+      link: '/admin/academic-years'
     },
     {
       title: 'Assessment Management',

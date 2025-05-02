@@ -115,14 +115,20 @@ export const getAcademicYears = async () => {
     try {
       console.log('Fetching academic years from new endpoint...');
       const response = await api.get('/api/new-academic-years');
+
+      console.log('New endpoint response:', response);
+      console.log('New endpoint data:', response.data);
       return response.data;
     } catch (newApiErr) {
       console.log('Falling back to original API endpoint');
       const response = await api.get('/api/academic-years');
+      console.log('Original endpoint response:', response);
+      console.log('Original endpoint data:', response.data);
       return response.data;
     }
   } catch (error) {
     console.error('Error fetching academic years:', error);
+    console.error('Error details:', error.response?.data);
     throw error;
   }
 };

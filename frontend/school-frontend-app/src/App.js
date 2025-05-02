@@ -207,19 +207,7 @@ function App() {
                         <Routes>
                           <Route index element={<AdminDashboard />} />
                           <Route path="assessment-management/*" element={<AssessmentManagement />} />
-                          <Route path="academic-management/*" element={<AcademicManagement />}>
-            <Route path="subjects" element={<SubjectManagement />} />
-            <Route path="classes" element={<ClassManagement />} />
-            <Route path="education-levels" element={<EducationLevelManagement />} />
-            <Route path="subject-combinations" element={<SubjectCombinationManagement />} />
-            <Route path="core-subjects" element={<CoreSubjectManagement />} />
-            <Route path="optional-subjects" element={<OptionalSubjectManagement />} />
-            <Route path="subject-class-assignment" element={<FixedSubjectClassAssignment />} />
-            <Route path="subject-teacher-assignment" element={<SubjectAssignmentPage />} />
-            <Route path="compulsory-subject-assignment" element={<CompulsorySubjectAssignment />} />
-            <Route path="student-subject-selection" element={<StudentSubjectSelection />} />
-            <Route path="a-level-subject-assignment" element={<ALevelSubjectAssignment />} />
-          </Route>
+                          <Route path="academic-management/*" element={<AcademicManagement />} />
                           <Route path="communication-management/*" element={<CommunicationManagement />} />
 
                           {/* Keep individual routes for direct access */}
@@ -282,7 +270,7 @@ function App() {
                           <Route path="exam-creation" element={<ExamCreation />} />
                           <Route path="news" element={<NewsPage />} />
                           <Route path="exam-types" element={<FixedExamTypeManagement />} />
-                          <Route path="academic-years" element={<NewAcademicYearManagement />} />
+                          {/* Removed duplicate academic-years route */}
                           <Route path="subject-class-assignment" element={<FixedSubjectClassAssignment />} />
                           <Route path="subject-teacher-assignment" element={<SubjectAssignmentPage />} />
                           <Route path="fix-assignments" element={<FixAssignmentsPage />} />

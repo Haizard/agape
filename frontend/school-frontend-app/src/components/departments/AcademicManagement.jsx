@@ -124,7 +124,25 @@ const AcademicManagement = () => {
       menuItems={menuItems}
       defaultSelected="classes"
     >
-      <Outlet />
+      {/* Add Routes to handle nested routes */}
+      <Routes>
+        <Route path="academic-years" element={<NewAcademicYearManagement />} />
+        <Route path="education-levels" element={<EducationLevelManagement />} />
+        <Route path="subject-combinations" element={<SubjectCombinationManagement />} />
+        <Route path="classes" element={<ClassManagement />} />
+        <Route path="subjects" element={<SubjectManagement />} />
+        <Route path="core-subjects" element={<CoreSubjectManagement />} />
+        <Route path="optional-subjects" element={<OptionalSubjectManagement />} />
+        <Route path="subject-class-assignment" element={<FixedSubjectClassAssignment />} />
+        <Route path="subject-teacher-assignment" element={<SubjectAssignmentPage />} />
+        <Route path="compulsory-subject-assignment" element={<CompulsorySubjectAssignment />} />
+        <Route path="student-subject-selection" element={<StudentSubjectSelection />} />
+        <Route path="a-level-subject-assignment" element={<ALevelSubjectAssignment />} />
+        {/* Default route - redirect to classes if no path specified */}
+        <Route index element={<Navigate to="classes" replace />} />
+        {/* Catch-all route for any unmatched paths */}
+        <Route path="*" element={<Navigate to="classes" replace />} />
+      </Routes>
     </DepartmentLayout>
   );
 };
