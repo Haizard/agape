@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -45,8 +45,15 @@ const AssessmentList = () => {
     updateAssessmentOrder,
     createAssessment,
     updateAssessment,
-    deleteAssessment
+    deleteAssessment,
+    fetchAssessments
   } = useAssessment();
+
+  // Add useEffect to fetch assessments on mount
+  useEffect(() => {
+    fetchAssessments();
+  }, [fetchAssessments]);
+
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 

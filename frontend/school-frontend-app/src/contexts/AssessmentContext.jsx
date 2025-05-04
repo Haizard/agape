@@ -24,29 +24,37 @@ export const AssessmentProvider = ({ children }) => {
     const sortByDisplayOrder = (a, b) => a.displayOrder - b.displayOrder;
     setLoading(true);
     try {
+      console.log('Fetching assessments...');
       const result = await assessmentService.getAllAssessments();
-      if (result.success) {
-        // Ensure data is always an array
-        const allAssessments = Array.isArray(result.data) ? result.data : [];
+      console.log('Assessment API response:', result);
+
+      if (result.data.success) {
+        // Extract the actual assessment array from nested data structure
+        const allAssessments = Array.isArray(result.data.data) ? result.data.data : [];
+        console.log('Processed assessments:', allAssessments);
         setAssessments(allAssessments);
         
         // Filter active and visible assessments
         const active = allAssessments.filter(a => a.status === 'active');
+        console.log('Active assessments:', active);
         setActiveAssessments(active.sort(sortByDisplayOrder));
         
         // Filter visible assessments
         const visible = active.filter(a => a.isVisible);
+        console.log('Visible assessments:', visible);
         setVisibleAssessments(visible.sort(sortByDisplayOrder));
         
         setError(null);
       } else {
-        setError(result.error);
+        console.error('API returned error:', result.data.error);
+        setError(result.data.error);
         // Set empty arrays on error
         setAssessments([]);
         setActiveAssessments([]);
         setVisibleAssessments([]);
       }
     } catch (err) {
+      console.error('Error fetching assessments:', err);
       setError('Failed to fetch assessments');
       // Set empty arrays on error
       setAssessments([]);

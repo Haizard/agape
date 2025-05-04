@@ -11,12 +11,16 @@ const assessmentService = {
    */
   getAllAssessments: async () => {
     try {
+      console.log('Making API request to /api/assessments');
       const response = await api.get('/api/assessments');
+      console.log('API Response:', response);
       return {
         success: true,
         data: response.data
       };
     } catch (error) {
+      console.error('API Error:', error);
+      console.error('Error Response:', error.response);
       return {
         success: false,
         error: error.response?.data?.message || 'Failed to fetch assessments'

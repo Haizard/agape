@@ -18,8 +18,16 @@ console.log('Axios instance created with baseURL:', api.defaults.baseURL);
 // Add a request interceptor to add the token to all requests
 api.interceptors.request.use(
   (config) => {
+    console.log('Making API request:', {
+      url: config.url,
+      method: config.method,
+      baseURL: config.baseURL,
+      headers: config.headers
+    });
+
     // Get the token from localStorage
     const token = localStorage.getItem('token');
+    console.log('Token from localStorage:', token ? 'Present' : 'Not found');
 
     // If token exists, add it to the headers
     if (token) {
@@ -29,6 +37,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );

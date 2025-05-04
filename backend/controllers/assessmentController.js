@@ -13,8 +13,15 @@ const assessmentController = {
   getAllAssessments: async (req, res) => {
     try {
       const assessments = await Assessment.find().sort({ createdAt: -1 });
-      res.json({ success: true, data: assessments });
+      // Ensure we return an array, even if empty
+      const assessmentArray = Array.isArray(assessments) ? assessments : [];
+      
+      res.json({
+        success: true,
+        data: assessmentArray
+      });
     } catch (error) {
+      console.error('Error fetching assessments:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to fetch assessments'
