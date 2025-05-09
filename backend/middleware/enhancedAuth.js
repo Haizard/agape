@@ -68,31 +68,31 @@ const authorizeRole = (roles) => {
  */
 const authorizeTeacherForSubject = async (req, res, next) => {
   try {
-    console.log('[EnhancedAuth] Authorizing teacher for subject access...');
+    console.log(`[EnhancedAuth][${new Date().toISOString()}] Starting authorization check for subject access (Teacher: ${req.user?.userId}, Class: ${req.params.classId || req.query.classId || req.body.classId})`);
 
     // If user is admin, allow access
     if (req.user.role === 'admin') {
-      console.log('[EnhancedAuth] User is admin, granting subject access');
+      console.log(`[EnhancedAuth][${new Date().toISOString()}] Admin override for subject access (User: ${req.user.userId})`);
       return next();
     }
 
     // Check if user is a teacher
     if (req.user.role !== 'teacher') {
-      console.log('[EnhancedAuth] User is not a teacher or admin, denying subject access');
+      console.error(`[EnhancedAuth][${new Date().toISOString()}] Unauthorized role access attempt (User: ${req.user.userId}, Role: ${req.user.role})`);
       return res.status(403).json({ message: 'Only teachers and admins can access this resource' });
     }
 
     // Get subject ID from params, query, or body
     const subjectId = req.params.subjectId || req.query.subjectId || req.body.subjectId;
     if (!subjectId) {
-      console.log('[EnhancedAuth] No subjectId provided in request');
+      console.error(`[EnhancedAuth][${new Date().toISOString()}] Missing subjectId in request (Endpoint: ${req.originalUrl}, Method: ${req.method})`);
       return res.status(400).json({ message: 'Subject ID is required' });
     }
 
     // Get class ID from params, query, or body
     const classId = req.params.classId || req.query.classId || req.body.classId;
     if (!classId) {
-      console.log('[EnhancedAuth] No classId provided in request');
+      console.error(`[EnhancedAuth][${new Date().toISOString()}] Missing classId in request (Endpoint: ${req.originalUrl}, Method: ${req.method})`);
       return res.status(400).json({ message: 'Class ID is required' });
     }
 
@@ -153,8 +153,7 @@ const authorizeTeacherForClass = async (req, res, next) => {
     // Get class ID from params, query, or body
     const classId = req.params.classId || req.query.classId || req.body.classId;
     if (!classId) {
-      console.log('[EnhancedAuth] No classId provided in request');
-      return res.status(400).json({ message: 'Class ID is required' });
+      console.error(`[EnhancedAuth][${new Date().toISOString()}] Missing classId in request (Endpoint: ${req.originalUrl}, Method: ${req.method})`);
     }
 
     // Find the teacher by userId

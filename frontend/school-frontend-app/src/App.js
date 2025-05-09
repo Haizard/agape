@@ -32,6 +32,7 @@ import CampusLifePage from './pages/CampusLifePage';
 import PublicNavigation from './components/PublicNavigation';
 import Footer from './components/Footer';
 import TeacherPanel from './components/TeacherPanel';
+import BulkAssessmentEntry from './components/assessment/BulkAssessmentEntry';
 import StudentPanel from './components/StudentPanel';
 import ParentPanel from './components/ParentPanel';
 import StudentManagement from './components/StudentManagement';
@@ -90,6 +91,7 @@ import FinanceLayout from './components/finance/FinanceLayout';
 
 // Auth context
 import { AuthProvider } from './contexts/AuthContext';
+import { AssessmentProvider } from './contexts/AssessmentContext';
 import UnifiedUserCreation from './components/admin/UnifiedUserCreation';
 // Import only the new report components
 import ClassTabularReport from './components/results/ClassTabularReport';
@@ -175,7 +177,8 @@ function App() {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <AuthProvider>
-        <ResultProvider>
+        <AssessmentProvider>
+          <ResultProvider>
           <div className="App">
             <Routes>
               {/* Public Routes - No Authentication Required */}
@@ -495,7 +498,7 @@ function App() {
 
                     {/* Marks Entry Dashboard */}
                     <Route path="/results/marks-entry-dashboard" element={
-                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                      <ProtectedRoute allowedRoles={['teacher']}>
                         <MarksEntryDashboard />
                       </ProtectedRoute>
                     } />
@@ -743,6 +746,7 @@ function App() {
           )}
           </div>
         </ResultProvider>
+        </AssessmentProvider>
       </AuthProvider>
     </LocalizationProvider>
   );

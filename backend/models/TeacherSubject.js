@@ -83,4 +83,16 @@ teacherSubjectSchema.statics.checkExistingAssignment = async function(teacherId,
   return existing != null;
 };
 
+// Add virtual population for assignedSubjects
+teacherSubjectSchema.virtual('assignedSubjects', {
+  ref: 'Subject',
+  localField: 'subjectId',
+  foreignField: '_id',
+  justOne: true
+});
+
+// Enable virtuals in JSON output
+teacherSubjectSchema.set('toJSON', { virtuals: true });
+teacherSubjectSchema.set('toObject', { virtuals: true });
+
 module.exports = mongoose.model('TeacherSubject', teacherSubjectSchema);

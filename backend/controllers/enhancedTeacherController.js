@@ -73,8 +73,13 @@ exports.getAssignedSubjects = async (req, res) => {
         classId: classId,
         status: 'active'
       })
-      .populate('subjectId', 'name code type description educationLevel')
-      .lean();
+      .populate({
+        path: 'subjectId',
+        select: 'name code type description educationLevel',
+        match: { _id: { $exists: true } }
+      })
+      .lean()
+      .then(results => results.filter(ts => ts.subjectId)); // Filter out null populated subjects
 
       // If no subjects found through TeacherSubject, check TeacherAssignment
       if (subjects.length === 0) {
@@ -82,8 +87,13 @@ exports.getAssignedSubjects = async (req, res) => {
           teacher: teacher._id,
           class: classId
         })
-        .populate('subject', 'name code type description educationLevel')
-        .lean();
+        .populate({
+          path: 'subject',
+          select: 'name code type description educationLevel',
+          match: { _id: { $exists: true } }
+        })
+        .lean()
+        .then(results => results.filter(a => a.subject)); // Filter out invalid assignments
 
         // Map assignments to subject format
         const subjectsFromAssignments = assignments.map(assignment => ({

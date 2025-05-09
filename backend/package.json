@@ -23,7 +23,8 @@
     "stop:pm2": "pm2 stop st-john-vianey-api",
     "restart:pm2": "pm2 restart st-john-vianey-api",
     "dev": "nodemon --ignore 'node_modules/*' server.js",
-    "postinstall": "npm prune --production"
+    "postinstall": "npm prune --production",
+    "db:create-indexes": "node scripts/dbIndexes.js"
   },
   "engines": {
     "node": ">=16.0.0"

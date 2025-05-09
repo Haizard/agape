@@ -67,7 +67,7 @@ const BulkAssessmentEntry = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await fetch('/api/teacher/classes', {
+      const response = await fetch('/api/teacher-classes/my-classes', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -82,13 +82,13 @@ const BulkAssessmentEntry = () => {
     } catch (error) {
       console.error('Error fetching classes:', error);
       setError('Failed to fetch classes');
-      setClasses([]); // Initialize as empty array on error
+      setClasses([]); // Initialize as empty array on erro
     }
   };
 
   const fetchTeacherSubjects = async () => {
     try {
-      const response = await fetch(`/api/teacher/subjects/${selectedClass}`, {
+      const response = await fetch(`/api/teachers/subjects/${selectedClass}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

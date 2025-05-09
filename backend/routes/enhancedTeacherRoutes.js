@@ -60,7 +60,8 @@ router.get('/check-subject-authorization',
       const isAuthorized = await enhancedTeacherSubjectService.isTeacherSpecificallyAssignedToSubject(
         teacherId,
         classId,
-        subjectId
+        subjectId,
+        true // Enable strict assignment validation
       );
 
       console.log(`[EnhancedTeacherAuth] Authorization check for teacher ${teacherId}, class ${classId}, subject ${subjectId}: ${isAuthorized ? 'AUTHORIZED' : 'UNAUTHORIZED'}`);
@@ -112,6 +113,32 @@ router.get('/profile',
     }
   }
 );
+
+// Get subjects for a specific class
+router.get('/subjects/:classId',
+  authenticateToken,
+  authorizeRole(['teacher', 'admin']),
+  enhancedTeacherAuth.ensureTeacherProfile,
+  async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const teacherId = req.teacher._id;
+
+      const subjects = await enhancedTeacherSubjectService.getAssignedSubjectsForClass(teacherId, classId);
+
+      res.json({
+        success: true,
+        subjects
+      });
+    } catch (error) {
+      console.error('Error fetching class subjects:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch class subjects',
+        error: error.message
+      });
+    }
+  });
 
 // Get classes assigned to the current teacher
 router.get('/classes',

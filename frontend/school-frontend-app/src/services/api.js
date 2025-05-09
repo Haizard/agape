@@ -3,10 +3,11 @@ import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 
 // Set the API URL based on environment
 const getBaseUrl = () => {
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:5000';
-  }
-  return 'https://agape-render.onrender.com';
+  // Consolidated environment configuration
+  return process.env.REACT_APP_API_BASE_URL || 
+    (process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:5000'
+      : 'https://agape-render.onrender.com');
 };
 
 const baseURL = getBaseUrl();
@@ -32,9 +33,11 @@ api.interceptors.request.use(
     }
 
     // Ensure URL starts with /api
-    if (!config.url.startsWith('/api')) {
-      config.url = `/api${config.url}`;
-    }
+    // Remove duplicate API path segments
+    const cleanedPath = config.url.replace(/^\/api\/api/, '/api');
+    config.url = cleanedPath.startsWith('/api') 
+      ? cleanedPath 
+      : `/api${cleanedPath}`;
 
     // Add timestamp to prevent caching
     if (config.method === 'get') {

@@ -30,7 +30,7 @@ const ClassList = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await axios.get('/api/teacher/classes');
+      const response = await axios.get('/api/teacher-classes/my-classes');
       setClasses(response.data);
       setLoading(false);
     } catch (err) {
@@ -84,7 +84,7 @@ const ClassDetails = () => {
   const fetchClassDetails = async () => {
     try {
       const classId = window.location.pathname.split('/').pop();
-      const response = await axios.get(`/api/teacher/classes/${classId}`);
+      const response = await axios.get(`/api/teacher-classes/my-classes/${classId}`);
       setClassDetails(response.data);
       setLoading(false);
     } catch (err) {
@@ -148,3 +148,4 @@ const TeacherClassManagement = () => {
 };
 
 export default TeacherClassManagement;
+Modified axios requests to use correct endpoint structure

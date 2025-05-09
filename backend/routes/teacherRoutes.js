@@ -10,6 +10,7 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const mongoose = require('mongoose');
 const teacherAuthController = require('../controllers/teacherAuthController');
 const enhancedTeacherSubjectService = require('../services/enhancedTeacherSubjectService');
+const enhancedTeacherAuth = require('../middleware/enhancedTeacherAuth');
 
 // Import teacher profile middleware
 const { validateTeacherProfileData, ensureTeacherProfileCreation } = require('../middleware/teacherProfileCreation');
@@ -17,8 +18,11 @@ const { validateEnhancedTeacherProfile, ensureTeacherProfileIntegrity } = requir
 const teacherProfileService = require('../services/teacherProfileService');
 
 // Get the current teacher's profile
-router.get('/profile/me', authenticateToken, authorizeRole(['teacher', 'admin']), ensureTeacherProfileIntegrity, async (req, res) => {
-  try {
+router.get('/profile/me', 
+  authenticateToken,
+  authorizeRole(['teacher', 'admin']),
+  async (req, res) => {
+    try {
     console.log('GET /api/teachers/profile/me - Fetching current teacher profile');
 
     // Get the user ID from the authenticated user
@@ -73,17 +77,78 @@ router.get('/profile/me', authenticateToken, authorizeRole(['teacher', 'admin'])
     
     if (error.message === 'Invalid user or not a teacher') {
       return res.status(404).json({
-        success: false,
-        message: 'Teacher profile not found'
+        code: 'TEACHER_PROFILE_NOT_FOUND',
+        message: 'Complete teacher profile not found',
+        userId: req.user.userId
       });
     }
-    
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to fetch teacher profile',
-      error: error.message
+
+    res.status(500).json({
+      code: 'PROFILE_FETCH_FAILED',
+      message: 'Failed to retrieve teacher profile'
     });
   }
+});
+
+// Teacher subjects endpoint
+// Secure route with JWT auth and role validation
+router.get('/:classId/subjects', 
+  authenticateToken,
+  authorizeRole(['teacher']),
+  enhancedTeacherAuth.ensureTeacherProfile,
+  async (req, res) => {
+    try {
+      const { classId } = req.params;
+      const teacherId = req.teacher._id;
+
+      // Validate teacher-class assignment
+      const isAssigned = await TeacherAssignment.exists({
+        teacher: teacherId,
+        class: classId,
+        status: 'active'
+      });
+
+      if (!isAssigned) {
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized access - Teacher not assigned to this class'
+        });
+      }
+
+      // Get assigned subjects with population
+      const assignments = await TeacherAssignment.find({
+        teacher: teacherId,
+        class: classId
+      }).populate({
+        path: 'subject',
+        select: 'name code type assessmentCriteria',
+        model: 'Subject'
+      });
+
+      // Extract subjects with assessment criteria
+      const subjects = assignments.map(assignment => ({
+        _id: assignment.subject._id,
+        name: assignment.subject.name,
+        code: assignment.subject.code,
+        type: assignment.subject.type,
+        assessmentCriteria: assignment.subject.assessmentCriteria
+      }));
+
+      // Returns subjects with their assessment structure
+      res.json({
+        subjects: [{
+          _id: subject._id,
+          assessmentCriteria: subject.assessmentCriteria // Contains marking schema
+        }]
+      });
+    } catch (err) {
+      console.error('Error fetching teacher subjects:', err);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch subjects',
+        error: err.message
+      });
+    }
 });
 
 module.exports = router;
