@@ -17,7 +17,7 @@ const oLevelGradeCalculator = {
 
     const numericMarks = Number(marks);
 
-    if (isNaN(numericMarks)) return '';
+    if (Number.isNaN(numericMarks)) return '';
 
     // Using the standardized NECTA CSEE grading system
     if (numericMarks >= 75) return 'A';
@@ -60,7 +60,7 @@ const aLevelGradeCalculator = {
 
     const numericMarks = Number(marks);
 
-    if (isNaN(numericMarks)) return '';
+    if (Number.isNaN(numericMarks)) return '';
 
     if (numericMarks >= 80) return 'A';
     if (numericMarks >= 70) return 'B';
@@ -108,6 +108,77 @@ const calculateDivision = (totalPoints, numberOfSubjects) => {
   if (averagePoints <= 3.4) return 'III';
   if (averagePoints <= 4.4) return 'IV';
   return '0';
+};
+
+/**
+ * Unified grade calculator functions
+ */
+
+/**
+ * Calculate grade based on marks and education level
+ * @param {number} marks - The marks obtained
+ * @param {string} educationLevel - The education level ('A_LEVEL' or 'O_LEVEL')
+ * @returns {string} - The calculated grade
+ */
+export const calculateGrade = (marks, educationLevel = 'O_LEVEL') => {
+  if (marks === undefined || marks === null) return '-';
+
+  if (educationLevel === 'A_LEVEL') {
+    return aLevelGradeCalculator.calculateGrade(marks);
+  }
+  return oLevelGradeCalculator.calculateGrade(marks);
+};
+
+/**
+ * Calculate points based on grade and education level
+ * @param {string} grade - The grade
+ * @param {string} educationLevel - The education level ('A_LEVEL' or 'O_LEVEL')
+ * @returns {number} - The calculated points
+ */
+export const calculatePoints = (grade, educationLevel = 'O_LEVEL') => {
+  if (!grade) return 0;
+
+  if (educationLevel === 'A_LEVEL') {
+    return aLevelGradeCalculator.calculatePoints(grade);
+  }
+  return oLevelGradeCalculator.calculatePoints(grade);
+};
+
+/**
+ * Calculate grade and points based on marks and education level
+ * @param {number} marks - The marks obtained
+ * @param {string} educationLevel - The education level ('A_LEVEL' or 'O_LEVEL')
+ * @returns {Object} - Object containing grade and points
+ */
+export const calculateGradeAndPoints = (marks, educationLevel = 'O_LEVEL') => {
+  const grade = calculateGrade(marks, educationLevel);
+  const points = calculatePoints(grade, educationLevel);
+
+  return { grade, points };
+};
+
+/**
+ * Calculate final grade based on weighted marks
+ * @param {Array} assessmentMarks - Array of assessment marks with weightage
+ * @param {string} educationLevel - The education level ('A_LEVEL' or 'O_LEVEL')
+ * @returns {Object} - Object containing final grade and points
+ */
+export const calculateFinalGradeAndPoints = (assessmentMarks, educationLevel = 'O_LEVEL') => {
+  // Calculate weighted average
+  let totalWeightedMarks = 0;
+  let totalWeightage = 0;
+
+  for (const assessment of assessmentMarks) {
+    if (assessment.marksObtained !== undefined && assessment.weightage !== undefined) {
+      totalWeightedMarks += (assessment.marksObtained / assessment.maxMarks) * assessment.weightage;
+      totalWeightage += assessment.weightage;
+    }
+  }
+
+  if (totalWeightage === 0) return { grade: '-', points: 0 };
+
+  const finalMark = (totalWeightedMarks / totalWeightage) * 100;
+  return calculateGradeAndPoints(finalMark, educationLevel);
 };
 
 export {

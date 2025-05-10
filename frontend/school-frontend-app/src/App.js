@@ -126,6 +126,7 @@ import SimplifiedALevelBulkMarksEntry from './components/results/SimplifiedALeve
 import LegacyALevelBulkMarksEntryPage from './pages/LegacyALevelBulkMarksEntryPage';
 import OLevelBulkMarksEntry from './components/results/OLevelBulkMarksEntry';
 import EnhancedBulkMarksEntry from './components/marks/EnhancedBulkMarksEntry';
+import UnifiedBulkMarksEntry from './components/marks/UnifiedBulkMarksEntry';
 import NewALevelMarksEntry from './components/results/NewALevelMarksEntry';
 import NewALevelBulkMarksEntry from './components/results/NewALevelBulkMarksEntry';
 import NewALevelBulkMarksEntryV2 from './components/results/NewALevelBulkMarksEntryV2';
@@ -557,6 +558,15 @@ function App() {
                     <Route path="/results/new-a-level/bulk-marks-entry-v2" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <NewALevelBulkMarksEntryV2 />
+                      </ProtectedRoute>
+                    } />
+
+                    {/* Unified Marks Entry Route */}
+                    <Route path="/marks/unified-bulk-entry" element={
+                      <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+                        <ErrorBoundary>
+                          <UnifiedBulkMarksEntry />
+                        </ErrorBoundary>
                       </ProtectedRoute>
                     } />
 

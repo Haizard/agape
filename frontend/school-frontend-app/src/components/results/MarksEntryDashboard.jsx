@@ -226,6 +226,42 @@ const MarksEntryDashboard = () => {
           </Paper>
         </Grid>
 
+        {/* Unified Marks Entry Section */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <AssignmentIcon sx={{ mr: 1, color: 'error.main' }} />
+              <Typography variant="h5">Unified Marks Entry</Typography>
+            </Box>
+            <Divider sx={{ mb: 2 }} />
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Card variant="outlined" sx={{ bgcolor: '#fff8f8', border: '1px solid #f44336' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="error.main">
+                      Unified Bulk Marks Entry (NEW RECOMMENDED)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Use this new unified approach</strong> for both A-Level and O-Level marks entry. This implementation uses the assessment system for better organization and reliability.
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      endIcon={<ArrowForwardIcon />}
+                      onClick={() => navigate('/marks/unified-bulk-entry')}
+                      fullWidth
+                    >
+                      Go to Unified Bulk Marks Entry
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+
         {/* Direct Marks Entry Section */}
         <Grid item xs={12}>
           <Paper sx={{ p: 2, mb: 2 }}>
@@ -239,7 +275,7 @@ const MarksEntryDashboard = () => {
                 <Card variant="outlined" sx={{ bgcolor: '#f9fff9' }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Direct Marks Entry (Recommended)
+                      Direct Marks Entry
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Use this simplified marks entry form to directly enter marks for any class and subject. This is the most reliable way to ensure marks are correctly saved and displayed in reports.

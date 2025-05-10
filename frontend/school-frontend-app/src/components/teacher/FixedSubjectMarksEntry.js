@@ -51,15 +51,47 @@ const FixedSubjectMarksEntry = () => {
       setLoading(true);
       console.log('Fetching initial data...');
 
-      // Fetch academic years, exam types, and teacher profile in parallel
-      const [academicYearsResponse, examTypesResponse, teacherProfileResponse] = await Promise.all([
+      // Fetch academic years and exam types in parallel
+      const [academicYearsResponse, examTypesResponse] = await Promise.all([
         api.get('/api/academic-years'),
-        api.get('/api/exam-types'),
-        api.get('/api/teachers/profile/me').catch(err => {
-          console.log('Teacher profile not found, user might be admin');
-          return { data: null };
-        })
+        api.get('/api/exam-types')
       ]);
+
+      // Try multiple endpoints to get teacher profile
+      let teacherProfileResponse = { data: null };
+      try {
+        // First try the enhanced endpoint
+        console.log('Trying enhanced teacher profile endpoint');
+        teacherProfileResponse = await api.get('/api/enhanced-teachers/profile');
+        if (teacherProfileResponse?.data?.teacher) {
+          console.log('Got teacher profile from enhanced endpoint');
+          teacherProfileResponse.data = teacherProfileResponse.data.teacher;
+        }
+      } catch (enhancedError) {
+        console.log('Enhanced endpoint failed, trying original endpoint');
+
+        try {
+          // Then try the original endpoint
+          teacherProfileResponse = await api.get('/api/teachers/profile/me');
+          console.log('Got teacher profile from original endpoint');
+        } catch (originalError) {
+          console.log('Original endpoint failed, trying teacher-classes endpoint');
+
+          try {
+            // Finally try the teacher-classes endpoint
+            const teacherClassesResponse = await api.get('/api/teacher-classes/my-classes');
+            if (teacherClassesResponse?.data?.teacher) {
+              console.log('Got teacher profile from teacher-classes endpoint');
+              teacherProfileResponse.data = teacherClassesResponse.data.teacher;
+            } else {
+              console.log('Teacher profile not found, user might be admin');
+            }
+          } catch (finalError) {
+            console.error('All profile endpoints failed:', finalError);
+            console.log('Teacher profile not found, user might be admin');
+          }
+        }
+      }
 
       // Set academic years
       setAcademicYears(academicYearsResponse.data);
@@ -125,7 +157,7 @@ const FixedSubjectMarksEntry = () => {
 
       // Filter subjects that are taught in the selected class
       const subjectsForClass = subjectsResponse.data.filter(subject =>
-        subject.classes && subject.classes.some(cls => cls._id === selectedClass)
+        subject?.classes && subject.classes.some(cls => cls?._id === selectedClass)
       );
 
       console.log('Subjects for selected class:', subjectsForClass);

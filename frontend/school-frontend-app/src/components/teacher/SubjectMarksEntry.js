@@ -79,6 +79,65 @@ const SubjectMarksEntry = () => {
     }
   }, [selectedClass, selectedSubject]);
 
+  // Define fetchExistingResults before using it in useEffect
+  const fetchExistingResults = useCallback(async () => {
+    try {
+      // Skip if any required field is missing
+      if (!selectedClass || !selectedSubject || !selectedExam) {
+        console.log('Missing required fields for fetching results');
+        return;
+      }
+
+      // Get the selected exam to check if it has an exam type
+      const selectedExamObj = exams.find(exam => exam._id === selectedExam);
+      const examTypeFromExam = selectedExamObj?.examType?._id;
+
+      console.log('Fetching existing results with params:', {
+        examId: selectedExam,
+        subjectId: selectedSubject,
+        examTypeId: examTypeFromExam,
+        classId: selectedClass,
+        academicYearId: selectedAcademicYear
+      });
+
+      const response = await api.get(`/api/results/class/${selectedClass}`, {
+        params: {
+          examId: selectedExam,
+          subjectId: selectedSubject,
+          examTypeId: examTypeFromExam,
+          academicYearId: selectedAcademicYear
+        }
+      });
+
+      console.log('Existing results:', response.data);
+      setExistingResults(response.data);
+
+      // Pre-fill marks with existing results
+      const updatedMarks = {}; // Start with a fresh object to avoid stale data
+      for (const result of response.data) {
+        if (result.studentId && result.marksObtained !== undefined) {
+          const studentId = typeof result.studentId === 'object' ? result.studentId._id : result.studentId;
+          updatedMarks[studentId] = result.marksObtained.toString();
+          console.log(`Pre-filled marks for student ${studentId}: ${result.marksObtained}`);
+        }
+      }
+      setMarks(updatedMarks);
+
+      // If results have an exam type, set it
+      if (response.data.length > 0 && response.data[0].examTypeId) {
+        console.log('Setting exam type from existing results:', response.data[0].examTypeId);
+        setSelectedExamType(response.data[0].examTypeId);
+      } else if (examTypeFromExam) {
+        // Otherwise use the exam's exam type if available
+        console.log('Setting exam type from selected exam:', examTypeFromExam);
+        setSelectedExamType(examTypeFromExam);
+      }
+    } catch (err) {
+      console.error('Error fetching existing results:', err);
+      setError(err.response?.data?.message || 'Failed to fetch existing results');
+    }
+  }, [selectedClass, selectedSubject, selectedExam, selectedAcademicYear, exams]);
+
   useEffect(() => {
     if (selectedClass && selectedSubject && selectedExam) {
       fetchExistingResults();
@@ -129,8 +188,51 @@ const SubjectMarksEntry = () => {
       let teacherId = teacherIdParam;
       if (!teacherId) {
         try {
-          const profileResponse = await api.get('/api/teachers/profile/me');
-          teacherId = profileResponse.data._id;
+          // Try multiple endpoints to get teacher profile
+          console.log('Trying to get teacher profile from multiple endpoints');
+
+          // First try the enhanced endpoint
+          try {
+            console.log('Trying enhanced teacher profile endpoint');
+            const enhancedResponse = await api.get('/api/enhanced-teachers/profile');
+            if (enhancedResponse?.data?.teacher?._id) {
+              teacherId = enhancedResponse.data.teacher._id;
+              console.log('Got teacher ID from enhanced endpoint:', teacherId);
+            }
+          } catch (enhancedError) {
+            console.log('Enhanced endpoint failed, trying original endpoint');
+
+            try {
+              // Then try the original endpoint
+              const originalResponse = await api.get('/api/teachers/profile/me');
+              if (originalResponse?.data?._id) {
+                teacherId = originalResponse.data._id;
+                console.log('Got teacher ID from original endpoint:', teacherId);
+              }
+            } catch (originalError) {
+              console.log('Original endpoint failed, trying teacher-classes endpoint');
+
+              try {
+                // Finally try the teacher-classes endpoint
+                const teacherClassesResponse = await api.get('/api/teacher-classes/my-classes');
+                if (teacherClassesResponse?.data?.teacher?._id) {
+                  teacherId = teacherClassesResponse.data.teacher._id;
+                  console.log('Got teacher ID from teacher-classes endpoint:', teacherId);
+                }
+              } catch (finalError) {
+                console.error('All profile endpoints failed:', finalError);
+                // If we can't get the teacher profile, try fetching all classes as a fallback
+                await fetchAllClasses();
+                return;
+              }
+            }
+          }
+
+          if (!teacherId) {
+            console.error('Could not get teacher ID from any endpoint');
+            await fetchAllClasses();
+            return;
+          }
         } catch (profileErr) {
           console.error('Error fetching teacher profile:', profileErr);
           // If we can't get the teacher profile, try fetching all classes as a fallback
@@ -140,8 +242,26 @@ const SubjectMarksEntry = () => {
       }
 
       // Use the new simple-classes endpoint which is more reliable
-      const response = await api.get(`/api/teachers/${teacherId}/simple-classes`);
-      setTeacherClasses(response.data);
+      try {
+        const response = await api.get(`/api/teachers/${teacherId}/simple-classes`);
+        setTeacherClasses(response.data);
+      } catch (simpleClassesError) {
+        console.log('simple-classes endpoint failed, trying teacher-classes endpoint');
+
+        try {
+          // Try the teacher-classes endpoint
+          const teacherClassesResponse = await api.get('/api/teacher-classes/my-classes');
+          if (teacherClassesResponse?.data?.classes) {
+            setTeacherClasses(teacherClassesResponse.data.classes);
+          } else {
+            throw new Error('No classes found in response');
+          }
+        } catch (teacherClassesError) {
+          console.error('All teacher classes endpoints failed:', teacherClassesError);
+          // Try to fetch all classes as a fallback
+          await fetchAllClasses();
+        }
+      }
     } catch (err) {
       console.error('Error fetching teacher classes:', err);
 
@@ -204,12 +324,75 @@ const SubjectMarksEntry = () => {
       } else {
         // For teachers, fetch only assigned subjects
         console.log('Fetching teacher-specific subjects...');
-        const response = await api.get('/api/teachers/profile/me');
-        const teacherId = response.data._id;
-        // Use the new simple-subjects endpoint which is more reliable
-        const subjectsResponse = await api.get(`/api/teachers/${teacherId}/classes/${selectedClass}/simple-subjects`);
-        console.log('Teacher subjects for class:', subjectsResponse.data);
-        setTeacherSubjects(subjectsResponse.data);
+
+        // Try multiple endpoints to get teacher profile
+        let teacherId;
+        try {
+          // First try the enhanced endpoint
+          console.log('Trying enhanced teacher profile endpoint');
+          const enhancedResponse = await api.get('/api/enhanced-teachers/profile');
+          if (enhancedResponse?.data?.teacher?._id) {
+            teacherId = enhancedResponse.data.teacher._id;
+            console.log('Got teacher ID from enhanced endpoint:', teacherId);
+          }
+        } catch (enhancedError) {
+          console.log('Enhanced endpoint failed, trying original endpoint');
+
+          try {
+            // Then try the original endpoint
+            const originalResponse = await api.get('/api/teachers/profile/me');
+            if (originalResponse?.data?._id) {
+              teacherId = originalResponse.data._id;
+              console.log('Got teacher ID from original endpoint:', teacherId);
+            }
+          } catch (originalError) {
+            console.log('Original endpoint failed, trying teacher-classes endpoint');
+
+            try {
+              // Finally try the teacher-classes endpoint
+              const teacherClassesResponse = await api.get('/api/teacher-classes/my-classes');
+              if (teacherClassesResponse?.data?.teacher?._id) {
+                teacherId = teacherClassesResponse.data.teacher._id;
+                console.log('Got teacher ID from teacher-classes endpoint:', teacherId);
+              }
+            } catch (finalError) {
+              console.error('All profile endpoints failed:', finalError);
+              throw new Error('Teacher profile not found');
+            }
+          }
+        }
+
+        if (!teacherId) {
+          console.error('Could not get teacher ID from any endpoint');
+          throw new Error('Teacher profile not found');
+        }
+
+        // Try multiple endpoints to get teacher subjects
+        try {
+          // First try the simple-subjects endpoint
+          console.log('Trying simple-subjects endpoint');
+          const simpleSubjectsResponse = await api.get(`/api/teachers/${teacherId}/classes/${selectedClass}/simple-subjects`);
+          console.log('Teacher subjects for class from simple-subjects:', simpleSubjectsResponse.data);
+          setTeacherSubjects(simpleSubjectsResponse.data);
+        } catch (simpleSubjectsError) {
+          console.log('simple-subjects endpoint failed, trying teacher-classes endpoint');
+
+          try {
+            // Then try the teacher-classes endpoint
+            const teacherClassesResponse = await api.get('/api/teacher-classes/my-subjects', {
+              params: { classId: selectedClass }
+            });
+            if (teacherClassesResponse?.data?.subjects) {
+              console.log('Teacher subjects for class from teacher-classes:', teacherClassesResponse.data.subjects);
+              setTeacherSubjects(teacherClassesResponse.data.subjects);
+            } else {
+              throw new Error('No subjects found in response');
+            }
+          } catch (teacherClassesError) {
+            console.error('All teacher subjects endpoints failed:', teacherClassesError);
+            throw new Error('Failed to fetch teacher subjects');
+          }
+        }
       }
     } catch (err) {
       console.error('Error fetching subjects for class:', err);
@@ -308,7 +491,8 @@ const SubjectMarksEntry = () => {
     }
   };
 
-  const fetchExistingResults = useCallback(async () => {
+  // This function is already defined above
+  const _fetchExistingResults = useCallback(async () => {
     try {
       // Skip if any required field is missing
       if (!selectedClass || !selectedSubject || !selectedExam) {
@@ -427,7 +611,10 @@ const SubjectMarksEntry = () => {
 
       // Refresh the results after a short delay to ensure the server has processed the data
       setTimeout(() => {
-        fetchExistingResults();
+        // Use the original fetchExistingResults function
+        if (selectedClass && selectedSubject && selectedExam) {
+          fetchExistingResults();
+        }
       }, 1000);
     } catch (err) {
       console.error('Error saving marks:', err);

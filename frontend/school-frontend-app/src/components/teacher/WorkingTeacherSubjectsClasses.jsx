@@ -87,17 +87,78 @@ const WorkingTeacherSubjectsClasses = () => {
   const fetchTeacherData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch teacher profile
-      const profileResponse = await apiService.get('teachers/profile/me');
-      setTeacherProfile(profileResponse);
-      
-      // Fetch teacher classes
-      const classesResponse = await apiService.get('classes/teacher/me');
-      setTeacherClasses(classesResponse);
-      
-      // Fetch teacher subjects
-      const subjectsResponse = await apiService.get('subjects/teacher/me');
-      setTeacherSubjects(subjectsResponse);
+      // Fetch teacher profile - try multiple endpoints
+      let profileResponse;
+      try {
+        // First try the enhanced endpoint
+        profileResponse = await apiService.get('/api/enhanced-teachers/profile');
+        console.log('Successfully fetched teacher profile from enhanced endpoint');
+        setTeacherProfile(profileResponse.teacher);
+      } catch (profileError) {
+        console.log('Enhanced endpoint failed, trying original endpoint');
+        try {
+          // Then try the original endpoint
+          profileResponse = await apiService.get('/api/teachers/profile/me');
+          console.log('Successfully fetched teacher profile from original endpoint');
+          setTeacherProfile(profileResponse.teacher);
+        } catch (originalProfileError) {
+          console.log('Original endpoint failed, trying teacher-classes endpoint');
+          try {
+            // Finally try the teacher-classes endpoint
+            const teacherClassesResponse = await apiService.get('/api/teacher-classes/my-classes');
+            if (teacherClassesResponse?.teacher) {
+              console.log('Successfully fetched teacher profile from teacher-classes endpoint');
+              setTeacherProfile(teacherClassesResponse.teacher);
+            } else {
+              throw new Error('No teacher profile found in response');
+            }
+          } catch (finalError) {
+            console.error('All profile endpoints failed:', finalError);
+            throw new Error('Failed to fetch teacher profile from any endpoint');
+          }
+        }
+      }
+
+      // Fetch teacher classes - try multiple endpoints
+      let classesResponse;
+      try {
+        // First try the enhanced endpoint
+        classesResponse = await apiService.get('/api/classes/teacher/me');
+        console.log('Successfully fetched teacher classes from enhanced endpoint');
+        setClasses(classesResponse);
+      } catch (classesError) {
+        console.log('Enhanced classes endpoint failed, trying original endpoint');
+        try {
+          // Then try the original endpoint
+          classesResponse = await apiService.get('/api/teacher-classes/my-classes');
+          console.log('Successfully fetched teacher classes from original endpoint');
+          setClasses(classesResponse?.classes || []);
+        } catch (originalClassesError) {
+          console.error('All classes endpoints failed:', originalClassesError);
+          setClasses([]);
+        }
+      }
+
+      // Fetch teacher subjects - try multiple endpoints
+      let subjectsResponse;
+      try {
+        // First try the enhanced endpoint
+        subjectsResponse = await apiService.get('/api/subjects/teacher/me');
+        console.log('Successfully fetched teacher subjects from enhanced endpoint');
+        setSubjects(subjectsResponse);
+      } catch (subjectsError) {
+        console.log('Enhanced subjects endpoint failed, trying original endpoint');
+        try {
+          // Then try the original endpoint
+          subjectsResponse = await apiService.get('/api/teacher-classes/my-subjects');
+          console.log('Successfully fetched teacher subjects from original endpoint');
+          setSubjects(subjectsResponse?.subjects || []);
+        } catch (originalSubjectsError) {
+          console.error('All subjects endpoints failed:', originalSubjectsError);
+          setSubjects([]);
+        }
+      }
+
       setError(null);
     } catch (error) {
       console.error('Error fetching teacher data:', error);
@@ -134,7 +195,7 @@ const WorkingTeacherSubjectsClasses = () => {
     setCleanupResult(null);
 
     try {
-      const response = await UnifiedApiService.post('/api/teachers/cleanup-subject-assignments');
+      const response = await apiService.post('/api/teachers/cleanup-subject-assignments');
       console.log('Cleanup response:', response);
 
       setCleanupResult(response);
@@ -166,7 +227,7 @@ const WorkingTeacherSubjectsClasses = () => {
     try {
       setLoading(true);
 
-      const response = await UnifiedApiService.delete(`/api/teachers/subject-assignment/${subjectId}`);
+      const response = await apiService.delete(`/api/teachers/subject-assignment/${subjectId}`);
       console.log('Delete subject response:', response);
 
       setSnackbarMessage(`Successfully removed ${subjectName} from your assignments`);

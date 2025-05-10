@@ -97,19 +97,112 @@ const ALevelMarksEntryForm = ({
         } else {
           // Teachers can only see assigned subjects
           try {
-            // Get teacher ID
-            const teacherResponse = await api.get('/api/teachers/profile/me');
-            const teacherId = teacherResponse.data._id;
+            // Try multiple endpoints to get teacher ID
+            let teacherId;
 
-            // Fetch teacher's assigned subjects for the class
-            const assignmentsResponse = await api.get('/api/teacher-subject-assignments', {
-              params: { teacherId, classId: selectedClass }
-            });
+            // First try the enhanced endpoint
+            try {
+              console.log('Trying enhanced teacher profile endpoint');
+              const enhancedResponse = await api.get('/api/enhanced-teachers/profile');
+              if (enhancedResponse?.data?.teacher?._id) {
+                teacherId = enhancedResponse.data.teacher._id;
+                console.log('Got teacher ID from enhanced endpoint:', teacherId);
+              }
+            } catch (enhancedError) {
+              console.log('Enhanced endpoint failed, trying original endpoint');
 
-            // assignmentsResponse.data is an array of assignments
-            // Each assignment has a subjectId object
-            const subjects = assignmentsResponse.data.map(a => a.subjectId);
-            setSubjects(subjects);
+              try {
+                // Then try the original endpoint
+                const originalResponse = await api.get('/api/teachers/profile/me');
+                if (originalResponse?.data?._id) {
+                  teacherId = originalResponse.data._id;
+                  console.log('Got teacher ID from original endpoint:', teacherId);
+                }
+              } catch (originalError) {
+                console.log('Original endpoint failed, trying teacher-classes endpoint');
+
+                try {
+                  // Finally try the teacher-classes endpoint
+                  const teacherClassesResponse = await api.get('/api/teacher-classes/my-classes');
+                  if (teacherClassesResponse?.data?.teacher?._id) {
+                    teacherId = teacherClassesResponse.data.teacher._id;
+                    console.log('Got teacher ID from teacher-classes endpoint:', teacherId);
+                  }
+                } catch (finalError) {
+                  console.error('All profile endpoints failed:', finalError);
+                }
+              }
+            }
+
+            if (!teacherId) {
+              console.error('Could not get teacher ID from any endpoint');
+              throw new Error('Teacher profile not found');
+            }
+
+            // Try multiple endpoints to get teacher's assigned subjects
+            try {
+              console.log('Trying teacher-subject-assignments endpoint');
+              // Fetch teacher's assigned subjects for the class
+              const assignmentsResponse = await api.get('/api/teacher-subject-assignments', {
+                params: { teacherId, classId: selectedClass }
+              });
+
+              // assignmentsResponse.data is an array of assignments
+              // Each assignment has a subjectId object
+              if (Array.isArray(assignmentsResponse?.data) && assignmentsResponse.data.length > 0) {
+                const subjects = assignmentsResponse.data.map(a => a.subjectId);
+                console.log('Got subjects from teacher-subject-assignments:', subjects.length);
+                setSubjects(subjects);
+                return;
+              }
+            } catch (assignmentsError) {
+              console.log('teacher-subject-assignments endpoint failed, trying enhanced endpoint');
+            }
+
+            // Try enhanced endpoint
+            try {
+              console.log('Trying enhanced-teachers endpoint');
+              const enhancedResponse = await api.get(`/api/enhanced-teachers/classes/${selectedClass}/subjects`);
+
+              if (enhancedResponse?.data?.subjects && Array.isArray(enhancedResponse.data.subjects)) {
+                console.log('Got subjects from enhanced endpoint:', enhancedResponse.data.subjects.length);
+                setSubjects(enhancedResponse.data.subjects);
+                return;
+              }
+            } catch (enhancedError) {
+              console.log('enhanced-teachers endpoint failed, trying marks-entry-subjects endpoint');
+            }
+
+            // Try marks-entry-subjects endpoint
+            try {
+              console.log('Trying marks-entry-subjects endpoint');
+              const marksEntryResponse = await api.get('/api/teachers/marks-entry-subjects', {
+                params: { classId: selectedClass }
+              });
+
+              if (Array.isArray(marksEntryResponse?.data)) {
+                console.log('Got subjects from marks-entry-subjects endpoint:', marksEntryResponse.data.length);
+                setSubjects(marksEntryResponse.data);
+                return;
+              }
+            } catch (marksEntryError) {
+              console.log('marks-entry-subjects endpoint failed, trying class subjects endpoint');
+            }
+
+            // Final fallback - get all subjects for the class
+            try {
+              console.log('Trying class subjects endpoint as fallback');
+              const classSubjectsResponse = await api.get(`/api/classes/${selectedClass}/subjects`);
+
+              if (Array.isArray(classSubjectsResponse?.data)) {
+                console.log('Got subjects from class subjects endpoint:', classSubjectsResponse.data.length);
+                setSubjects(classSubjectsResponse.data);
+                return;
+              }
+            } catch (classSubjectsError) {
+              console.error('All subject endpoints failed');
+              setSubjects([]);
+            }
           } catch (error) {
             console.error('Error fetching teacher subject assignments:', error);
             setSubjects([]);

@@ -9,23 +9,49 @@ const { validateAssessmentData, validateTotalWeightage } = require('../utils/ass
 const assessmentController = {
   /**
    * Get all assessments
+   * Can filter by subjectId, term, academicYearId, and educationLevel
    */
   getAllAssessments: async (req, res) => {
     try {
-      const assessments = await Assessment.find().sort({ createdAt: -1 });
+      const { subjectId, term, academicYearId, educationLevel } = req.query;
+
+      // Build query based on provided filters
+      const query = {};
+
+      if (subjectId) {
+        query.subjectId = subjectId;
+      }
+
+      if (term) {
+        query.term = term;
+      }
+
+      if (academicYearId) {
+        query.academicYearId = academicYearId;
+      }
+
+      if (educationLevel) {
+        query.educationLevel = educationLevel;
+      }
+
+      console.log('Assessment query:', query);
+
+      const assessments = await Assessment.find(query)
+        .populate('subjectId', 'name code')
+        .sort({ displayOrder: 1, createdAt: -1 });
+
       // Ensure we return an array, even if empty
       const assessmentArray = Array.isArray(assessments) ? assessments : [];
-      
-      res.json({
-        success: true,
-        data: assessmentArray
-      });
+
+      // Log what we're returning
+      console.log('Returning assessments array with length:', assessmentArray.length);
+
+      // Return the array directly to simplify frontend processing
+      res.json(assessmentArray);
     } catch (error) {
       console.error('Error fetching assessments:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch assessments'
-      });
+      // Return an empty array with error status to maintain consistency
+      res.status(500).json([]);
     }
   },
 
@@ -172,7 +198,7 @@ const assessmentController = {
     try {
       const totalAssessments = await Assessment.countDocuments();
       const results = await Result.find().populate('assessmentId');
-      
+
       // Calculate completion rate
       const completedResults = results.filter(result => result.marksObtained != null);
       const completionRate = (completedResults.length / (results.length || 1)) * 100;
@@ -227,7 +253,7 @@ const assessmentController = {
 
       // Calculate standard deviation
       const mean = averageScore;
-      const squareDiffs = marks.map(m => Math.pow(m - mean, 2));
+      const squareDiffs = marks.map(m => (m - mean) ** 2);
       const standardDeviation = Math.sqrt(
         squareDiffs.reduce((a, b) => a + b, 0) / totalStudents
       );

@@ -54,6 +54,32 @@ const assessmentSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  // References to other models
+  subjectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subject'
+  },
+  examId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Exam'
+  },
+  academicYearId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYear'
+  },
+  examTypeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ExamType'
+  },
+  classId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Class'
+  },
+  educationLevel: {
+    type: String,
+    enum: ['O_LEVEL', 'A_LEVEL'],
+    default: 'O_LEVEL'
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -111,7 +137,7 @@ assessmentSchema.pre('save', async function(next) {
 // Method to calculate grade based on marks
 assessmentSchema.methods.calculateGrade = function(marksObtained) {
   const percentage = (marksObtained / this.maxMarks) * 100;
-  
+
   if (percentage >= 75) return 'A';
   if (percentage >= 65) return 'B';
   if (percentage >= 45) return 'C';
