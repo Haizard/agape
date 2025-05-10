@@ -565,7 +565,7 @@ function App() {
                     <Route path="/marks/unified-bulk-entry" element={
                       <ProtectedRoute allowedRoles={['admin', 'teacher']}>
                         <ErrorBoundary>
-                          <UnifiedBulkMarksEntry />
+                          <UnifiedBulkMarksEntry key="unified-bulk-entry-v2" />
                         </ErrorBoundary>
                       </ProtectedRoute>
                     } />

@@ -37,6 +37,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAssessment } from '../../contexts/AssessmentContext';
 import api from '../../utils/api';
 import { calculateGrade } from '../../utils/gradeCalculator';
+import { filterStudentsBySubject, createStudentSubjectsMap, isSubjectCore } from '../../utils/student-utils';
+import { filterALevelStudentsBySubject, createALevelCombinationsMap } from '../../utils/a-level-student-utils';
 
 /**
  * Unified Bulk Marks Entry Component
@@ -64,6 +66,7 @@ const UnifiedBulkMarksEntry = () => {
   const [academicYears, setAcademicYears] = useState([]);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [students, setStudents] = useState([]);
+  const [allStudents, setAllStudents] = useState([]); // Store all students before filtering
   const [marks, setMarks] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -73,9 +76,10 @@ const UnifiedBulkMarksEntry = () => {
   const [activeTab, setActiveTab] = useState(0);
   // Always initialize as an empty array to prevent filter errors
   const [subjectAssessments, setSubjectAssessments] = useState([]);
+  const [studentSubjectsMap, setStudentSubjectsMap] = useState({});
+  const [subjectIsCoreSubject, setSubjectIsCoreSubject] = useState(false);
 
-  // Memoize active assessments to prevent unnecessary re-renders
-  // Use a more stable dependency array
+  // Simplified active assessments logic
   const activeAssessments = useMemo(() => {
     // Ensure subjectAssessments is an array before filtering
     if (!Array.isArray(subjectAssessments)) {
@@ -106,8 +110,7 @@ const UnifiedBulkMarksEntry = () => {
 
     console.log('Filtered assessments:', filteredAssessments.length);
     return filteredAssessments;
-  // Use JSON.stringify to create a stable dependency that only changes when the content changes
-  }, [JSON.stringify(subjectAssessments.map(a => a?._id)), selectedTerm]);
+  }, [subjectAssessments, selectedTerm]);
 
   // Fetch assessments on component mount
   useEffect(() => {
@@ -251,29 +254,100 @@ const UnifiedBulkMarksEntry = () => {
     }
   }, [selectedSubject, selectedTerm, selectedAcademicYear]);
 
-  // Fetch students when class is selected - with stable dependency
+  // Function to fetch student subject selections
+  const fetchStudentSubjectSelections = useCallback(async (classId) => {
+    try {
+      console.log(`Fetching student subject selections for class ${classId}`);
+      const response = await api.get(`/api/student-subject-selections/class/${classId}`);
+      console.log(`Found ${response.data.length} student subject selections for class ${classId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching student subject selections:', error);
+      return [];
+    }
+  }, []);
+
+  // Check if a subject is a core subject
+  const checkIfSubjectIsCore = useCallback(async (subjectId) => {
+    try {
+      if (!subjectId) return false;
+
+      console.log(`Checking if subject ${subjectId} is a core subject...`);
+      const response = await api.get(`/api/subjects/${subjectId}`);
+      const subject = response.data;
+
+      const isCore = subject && subject.type === 'CORE';
+      console.log(`Subject ${subjectId} is ${isCore ? 'a core' : 'not a core'} subject`);
+
+      return isCore;
+    } catch (error) {
+      console.error(`Error checking if subject ${subjectId} is core:`, error);
+      return false;
+    }
+  }, []);
+
+  // Filter students based on subject
+  const filterStudentsForSubject = useCallback((students, subjectId, isCoreSubject, studentSubjectsMap) => {
+    if (educationLevel === 'A_LEVEL') {
+      // For A-Level, use the A-Level specific filtering logic
+      return filterALevelStudentsBySubject(students, subjectId, false, studentSubjectsMap);
+    }
+    // For O-Level, use the standard filtering logic
+    return filterStudentsBySubject(students, subjectId, isCoreSubject, studentSubjectsMap);
+  }, [educationLevel]);
+
+  // Fetch students when class is selected - with subject filtering
   useEffect(() => {
     if (!selectedClass) return;
 
     const fetchStudents = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/api/students/class/${selectedClass}`);
-        setStudents(response.data);
 
-        // Only initialize marks if we have assessments
-        // Use a stable reference to activeAssessments by capturing it in a ref
-        const currentActiveAssessments = activeAssessments;
-        if (currentActiveAssessments && currentActiveAssessments.length > 0) {
-          // Initialize marks object
-          const initialMarks = {};
-          for (const student of response.data) {
-            initialMarks[student._id] = {};
-            for (const assessment of currentActiveAssessments) {
-              initialMarks[student._id][assessment._id] = '';
-            }
-          }
-          setMarks(initialMarks);
+        // First, fetch all students in the class
+        const response = await api.get(`/api/students/class/${selectedClass}`);
+        const allStudentsData = response.data;
+        setAllStudents(allStudentsData);
+
+        // If no subject is selected yet, show all students
+        if (!selectedSubject) {
+          setStudents(allStudentsData);
+          return;
+        }
+
+        // Check if the selected subject is a core subject
+        const isCore = await checkIfSubjectIsCore(selectedSubject);
+        setSubjectIsCoreSubject(isCore);
+
+        // Get student subject selections to filter students
+        const selections = await fetchStudentSubjectSelections(selectedClass);
+
+        // Create a map of student IDs to their selected subjects
+        const subjectsMap = createStudentSubjectsMap(selections);
+        setStudentSubjectsMap(subjectsMap);
+
+        // Filter students based on subject
+        const filteredStudents = filterStudentsForSubject(
+          allStudentsData,
+          selectedSubject,
+          isCore,
+          subjectsMap
+        );
+
+        console.log(`Filtered from ${allStudentsData.length} to ${filteredStudents.length} students for subject ${selectedSubject}`);
+
+        // If no students were found after filtering, we'll still set the filtered list
+        // This will show the "No students found" message in the UI
+        setStudents(filteredStudents);
+
+        // Show a warning if no students were found
+        if (filteredStudents.length === 0) {
+          // Get the subject name directly from the subjects array
+          const subjectName = subjects.find(s => s._id === selectedSubject)?.name || 'this subject';
+          setError(`No students found who take ${subjectName}. Please check student subject assignments.`);
+        } else {
+          // Clear any previous error
+          setError('');
         }
       } catch (error) {
         console.error('Error fetching students:', error);
@@ -284,11 +358,43 @@ const UnifiedBulkMarksEntry = () => {
     };
 
     fetchStudents();
-    // Only depend on selectedClass and activeAssessments.length to prevent unnecessary re-renders
-  }, [selectedClass, activeAssessments ? activeAssessments.length : 0]);
+  }, [selectedClass, selectedSubject, filterStudentsForSubject, checkIfSubjectIsCore, fetchStudentSubjectSelections, subjects]);
 
-  // Handle mark change
-  const handleMarkChange = (studentId, assessmentId, value) => {
+  // Initialize marks when students or assessments change - with proper dependencies
+  useEffect(() => {
+    // Skip if no students or assessments
+    if (students.length === 0 || activeAssessments.length === 0) return;
+
+    console.log('Initializing marks for students and assessments');
+
+    // Use functional update to avoid dependency on marks
+    setMarks(prevMarks => {
+      // Initialize marks object
+      const initialMarks = {};
+      for (const student of students) {
+        initialMarks[student._id] = {};
+        for (const assessment of activeAssessments) {
+          // Preserve existing marks if they exist
+          if (prevMarks[student._id]?.[assessment._id] !== undefined) {
+            initialMarks[student._id][assessment._id] = prevMarks[student._id][assessment._id];
+          } else {
+            initialMarks[student._id][assessment._id] = '';
+          }
+        }
+      }
+
+      // Only update if there are changes
+      if (JSON.stringify(initialMarks) !== JSON.stringify(prevMarks)) {
+        return initialMarks;
+      }
+      return prevMarks;
+    });
+  }, [students, activeAssessments]);
+
+  // We've simplified our approach and don't need the extra effects anymore
+
+  // Handle mark change - use a stable implementation
+  const handleMarkChange = useCallback((studentId, assessmentId, value) => {
     setMarks(prevMarks => ({
       ...prevMarks,
       [studentId]: {
@@ -296,15 +402,15 @@ const UnifiedBulkMarksEntry = () => {
         [assessmentId]: value
       }
     }));
-  };
+  }, []);
 
-  // Handle tab change
-  const handleTabChange = (event, newValue) => {
+  // Handle tab change - use a stable implementation
+  const handleTabChange = useCallback((event, newValue) => {
     setActiveTab(newValue);
-  };
+  }, []);
 
-  // Save marks
-  const handleSave = async () => {
+  // Save marks - use a stable implementation with dependencies
+  const handleSave = useCallback(async () => {
     try {
       setSaving(true);
       setError('');
@@ -358,24 +464,31 @@ const UnifiedBulkMarksEntry = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [
+    marks,
+    educationLevel,
+    selectedSubject,
+    selectedAcademicYear,
+    selectedClass,
+    selectedTerm
+  ]);
 
-  // Handle snackbar close
-  const handleSnackbarClose = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
+  // Handle snackbar close - use a stable implementation
+  const handleSnackbarClose = useCallback(() => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  }, []);
 
-  // Helper function to get the selected subject name
-  const getSelectedSubjectName = () => {
+  // Helper function to get the selected subject name - memoized to avoid issues
+  const getSelectedSubjectName = useCallback(() => {
     const subject = subjects.find(s => s._id === selectedSubject);
     return subject ? subject.name : 'Unknown Subject';
-  };
+  }, [subjects, selectedSubject]);
 
-  // Helper function to get the selected class name
-  const getSelectedClassName = () => {
+  // Helper function to get the selected class name - memoized to avoid issues
+  const getSelectedClassName = useCallback(() => {
     const classObj = classes.find(c => c._id === selectedClass);
     return classObj ? `${classObj.name} ${classObj.section || ''}` : 'Unknown Class';
-  };
+  }, [classes, selectedClass]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -557,7 +670,11 @@ const UnifiedBulkMarksEntry = () => {
                   <Tab label="View Grades" />
                 </Tabs>
 
-                {activeTab === 0 ? (
+                {students.length === 0 ? (
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    No students found who take this subject. Please check student subject assignments.
+                  </Alert>
+                ) : activeTab === 0 ? (
                   <TableContainer>
                     {/* Subject information header */}
                     <Box sx={{ mb: 2, p: 1, bgcolor: '#f5f5f5', borderRadius: 1 }}>
@@ -568,6 +685,9 @@ const UnifiedBulkMarksEntry = () => {
                         Education Level: {educationLevel === 'A_LEVEL' ? 'A-Level' : 'O-Level'} |
                         Term: {selectedTerm} |
                         Class: {getSelectedClassName()}
+                      </Typography>
+                      <Typography variant="body2" color="primary">
+                        Showing {students.length} students who take this subject
                       </Typography>
                     </Box>
 
@@ -629,6 +749,9 @@ const UnifiedBulkMarksEntry = () => {
                         Education Level: {educationLevel === 'A_LEVEL' ? 'A-Level' : 'O-Level'} |
                         Term: {selectedTerm} |
                         Class: {getSelectedClassName()}
+                      </Typography>
+                      <Typography variant="body2" color="primary">
+                        Showing {students.length} students who take this subject
                       </Typography>
                     </Box>
 
@@ -700,25 +823,42 @@ const UnifiedBulkMarksEntry = () => {
   );
 };
 
-// Helper function to calculate final grade
+// Helper function to calculate final grade - memoized within the component
 const calculateFinalGrade = (studentId, marks, assessments, educationLevel) => {
-  if (!marks[studentId]) return '-';
+  // Early return if no marks for student
+  if (!marks || !marks[studentId]) return '-';
 
-  let totalWeightedMarks = 0;
-  let totalWeightage = 0;
+  // Early return if no assessments
+  if (!assessments || !Array.isArray(assessments) || assessments.length === 0) return '-';
 
-  for (const assessment of assessments) {
-    const mark = marks[studentId][assessment._id];
-    if (mark) {
-      totalWeightedMarks += (Number(mark) / assessment.maxMarks) * assessment.weightage;
-      totalWeightage += assessment.weightage;
+  try {
+    let totalWeightedMarks = 0;
+    let totalWeightage = 0;
+
+    for (const assessment of assessments) {
+      // Skip invalid assessments
+      if (!assessment || !assessment._id) continue;
+
+      const mark = marks[studentId][assessment._id];
+      if (mark) {
+        // Use default maxMarks if not provided
+        const maxMarks = assessment.maxMarks || 100;
+        // Use default weightage if not provided
+        const weightage = assessment.weightage || 1;
+
+        totalWeightedMarks += (Number(mark) / maxMarks) * weightage;
+        totalWeightage += weightage;
+      }
     }
+
+    if (totalWeightage === 0) return '-';
+
+    const finalMark = (totalWeightedMarks / totalWeightage) * 100;
+    return calculateGrade(finalMark, educationLevel);
+  } catch (error) {
+    console.error('Error calculating final grade:', error);
+    return '-';
   }
-
-  if (totalWeightage === 0) return '-';
-
-  const finalMark = (totalWeightedMarks / totalWeightage) * 100;
-  return calculateGrade(finalMark, educationLevel);
 };
 
 export default UnifiedBulkMarksEntry;
