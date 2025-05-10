@@ -15,7 +15,17 @@ const TeacherDashboard = () => {
       description: 'View all your students',
       link: '/teacher/my-students'
     },
-
+    {
+      title: 'Student Management',
+      description: 'Add or edit students',
+      link: '/teacher/student-management'
+    },
+    {
+      title: 'Import Students',
+      description: 'Bulk import students via Excel',
+      link: '/teacher/student-import',
+      highlight: true
+    },
     {
       title: 'Enter Marks',
       description: 'Record student marks and grades',

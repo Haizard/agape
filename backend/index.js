@@ -84,6 +84,7 @@ const publicReportRoutes = require('./routes/publicReportRoutes');
 const fixTeacherRoute = require('./routes/fixTeacherRoute');
 const enhancedTeacherRoutes = require('./routes/enhancedTeacherRoutes');
 const teacherSubjectAssignmentRoutes = require('./routes/teacherSubjectAssignmentRoutes');
+const studentImportRoutes = require('./routes/studentImportRoutes');
 
 const app = express();
 
@@ -123,6 +124,9 @@ mongoose.connection.on('error', (err) => {
 
 // Parse JSON request bodies
 app.use(express.json({ limit: '10mb' }));
+
+// Parse URL-encoded request bodies (for form submissions)
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files from the React app build directory
 const frontendBuildPath = path.join(__dirname, '../frontend/school-frontend-app/build');
@@ -179,7 +183,27 @@ const criticalRoutesCors = cors({
 app.use('/api/users', userRoutes);
 // Use enhanced teacher routes for better functionality
 app.use('/api/teachers', enhancedTeacherRoutes);
+
+// Register the student import route separately to avoid conflicts
+// Use openCors to allow file uploads from any origin
+// Important: This must be registered BEFORE the general student routes
+app.use('/api/students/import', openCors, studentImportRoutes);
+
+// Register general student routes AFTER the import routes
 app.use('/api/students', studentRoutes);
+
+// Add a direct test endpoint for the import feature
+app.get('/api/test-import', openCors, (req, res) => {
+  console.log('Direct test endpoint accessed');
+  return res.status(200).json({
+    message: 'Direct test endpoint is working correctly',
+    timestamp: new Date().toISOString(),
+    success: true
+  });
+});
+
+// Register the file upload test route
+app.use('/api/upload-test', openCors, require('./routes/fileUploadTestRoute'));
 
 // Register standardized O-Level routes (primary implementation)
 app.use('/api/o-level', standardizedOLevelRoutes);

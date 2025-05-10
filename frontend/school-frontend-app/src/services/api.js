@@ -4,8 +4,8 @@ import { getAuthToken, storeAuthToken, logout } from '../utils/authUtils';
 // Set the API URL based on environment
 const getBaseUrl = () => {
   // Consolidated environment configuration
-  return process.env.REACT_APP_API_BASE_URL || 
-    (process.env.NODE_ENV === 'development' 
+  return process.env.REACT_APP_API_BASE_URL ||
+    (process.env.NODE_ENV === 'development'
       ? 'http://localhost:5000'
       : 'https://agape-render.onrender.com');
 };
@@ -20,7 +20,7 @@ const api = axios.create({
     'Cache-Control': 'no-cache',
     'Pragma': 'no-cache'
   },
-  timeout: 30000
+  timeout: 60000 // Increased timeout for file uploads
 });
 
 // Add request interceptor to add auth token and handle caching
@@ -32,12 +32,24 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Ensure URL starts with /api
-    // Remove duplicate API path segments
-    const cleanedPath = config.url.replace(/^\/api\/api/, '/api');
-    config.url = cleanedPath.startsWith('/api') 
-      ? cleanedPath 
+    // Ensure URL starts with /api and prevent duplication
+    // First, remove any duplicate /api segments
+    let cleanedPath = config.url;
+    while (cleanedPath.includes('/api/api')) {
+      cleanedPath = cleanedPath.replace('/api/api', '/api');
+    }
+
+    // Then ensure it starts with /api if needed
+    config.url = cleanedPath.startsWith('/api')
+      ? cleanedPath
       : `/api${cleanedPath}`;
+
+    // Don't set Content-Type for FormData (file uploads)
+    // Let the browser set it automatically with the correct boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+      console.log('FormData detected, Content-Type header removed to allow correct multipart boundary');
+    }
 
     // Add timestamp to prevent caching
     if (config.method === 'get') {

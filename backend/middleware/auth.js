@@ -7,6 +7,13 @@ const authenticateToken = (req, res, next) => {
   console.log('Authenticating token...');
   console.log('Request path:', req.path);
   console.log('Request method:', req.method);
+  console.log('Request content type:', req.headers['content-type']);
+
+  // For file uploads, log additional information
+  if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+    console.log('File upload detected');
+    console.log('Request headers:', JSON.stringify(req.headers));
+  }
 
   // Check for token in authorization header
   const authHeader = req.headers.authorization || req.headers.Authorization;

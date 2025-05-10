@@ -57,18 +57,41 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma', 'Expires', 'expires'],
-  exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cache-Control',
+    'Pragma',
+    'Expires',
+    'expires',
+    'Content-Disposition'
+  ],
+  exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization', 'Content-Disposition'],
   maxAge: 86400, // 24 hours
   preflightContinue: false,
   optionsSuccessStatus: 204
 };
 
-// Open CORS options for critical routes (like login)
+// Open CORS options for critical routes (like login and file uploads)
 const openCorsOptions = {
   origin: '*', // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma', 'Expires', 'expires'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Cache-Control',
+    'Pragma',
+    'Expires',
+    'expires',
+    'Content-Disposition'
+  ],
+  exposedHeaders: ['Content-Length', 'Content-Type', 'Authorization', 'Content-Disposition'],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 204

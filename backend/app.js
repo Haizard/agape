@@ -29,6 +29,8 @@ const oLevelReportRoutes = require('./routes/oLevelReportRoutes');
 const standardizedOLevelRoutes = require('./routes/standardizedOLevelRoutes');
 const fixTeacherRoute = require('./routes/fixTeacherRoute');
 const enhancedTeacherRoutes = require('./routes/enhancedTeacherRoutes');
+const studentImportRoutes = require('./routes/studentImportRoutes');
+const fileUploadTestRoute = require('./routes/fileUploadTestRoute');
 
 const app = express();
 
@@ -90,7 +92,27 @@ app.options('/api/users/login', openCors, (req, res) => {
 app.use('/api/settings', settingsRoutes);
 app.use('/api/sms', smsRoutes);
 app.use('/api/users', openCors, userRoutes);
+
+// Register the student import route separately to avoid conflicts
+// Use openCors to allow file uploads from any origin
+// Important: This must be registered BEFORE the general student routes
+app.use('/api/students/import', openCors, studentImportRoutes);
+
+// Register general student routes AFTER the import routes
 app.use('/api/students', studentRoutes);
+
+// Add a direct test endpoint for the import feature
+app.get('/api/test-import', openCors, (req, res) => {
+  console.log('Direct test endpoint accessed');
+  return res.status(200).json({
+    message: 'Direct test endpoint is working correctly',
+    timestamp: new Date().toISOString(),
+    success: true
+  });
+});
+
+// Register the file upload test route
+app.use('/api/upload-test', openCors, fileUploadTestRoute);
 app.use('/api/classes', classRoutes);
 app.use('/api/academic-years', academicYearRoutes);
 app.use('/api/subjects', subjectRoutes);
