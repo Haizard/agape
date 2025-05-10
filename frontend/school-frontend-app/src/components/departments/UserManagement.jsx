@@ -23,37 +23,43 @@ const UserManagement = () => {
       id: 'teachers',
       label: 'Teachers',
       icon: <PeopleIcon />,
-      component: <TeacherManagement />
+      component: <TeacherManagement />,
+      path: 'teachers'
     },
     {
       id: 'link-teacher-profiles',
       label: 'Link Teacher Profiles',
       icon: <LinkIcon />,
-      component: <LinkUserToTeacher />
+      component: <LinkUserToTeacher />,
+      path: 'link-teacher-profiles'
     },
     {
       id: 'users',
       label: 'User Management',
       icon: <SupervisorAccountIcon />,
-      component: <AdminUserManagement />
+      component: <AdminUserManagement />,
+      path: 'users'
     },
     {
       id: 'create-user',
       label: 'Create User',
       icon: <PersonAddIcon />,
-      component: <UnifiedUserCreation />
+      component: <UnifiedUserCreation />,
+      path: 'create-user'
     },
     {
       id: 'direct-student-register',
       label: 'Student Registration',
       icon: <PersonIcon />,
-      component: <DirectStudentRegistration />
+      component: <DirectStudentRegistration />,
+      path: 'direct-student-register'
     },
     {
       id: 'debug-user-role',
       label: 'Debug User Role',
       icon: <BugReportIcon />,
-      component: <DebugUserRole />
+      component: <DebugUserRole />,
+      path: 'debug-user-role'
     }
   ];
 

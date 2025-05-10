@@ -1,4 +1,5 @@
 import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import DepartmentLayout from '../layout/DepartmentLayout';
 import ParentContactManagement from '../admin/ParentContactManagement';
 import SMSSettings from '../admin/SMSSettings';
@@ -16,19 +17,22 @@ const CommunicationManagement = () => {
       id: 'parent-contacts',
       label: 'Parent Contacts',
       icon: <ContactPhoneIcon />,
-      component: <ParentContactManagement />
+      component: <ParentContactManagement />,
+      path: 'parent-contacts'
     },
     {
       id: 'sms-settings',
       label: 'SMS Settings',
       icon: <SmsIcon />,
-      component: <SMSSettings />
+      component: <SMSSettings />,
+      path: 'sms-settings'
     },
     {
       id: 'news',
       label: 'News',
       icon: <AnnouncementIcon />,
-      component: <NewsPage />
+      component: <NewsPage />,
+      path: 'news'
     }
   ];
 
@@ -37,7 +41,13 @@ const CommunicationManagement = () => {
       title="Communication Management"
       menuItems={menuItems}
       defaultSelected="parent-contacts"
-    />
+    >
+      <Routes>
+        <Route path="parent-contacts" element={<ParentContactManagement />} />
+        <Route path="sms-settings" element={<SMSSettings />} />
+        <Route path="news" element={<NewsPage />} />
+      </Routes>
+    </DepartmentLayout>
   );
 };
 
