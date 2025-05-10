@@ -563,247 +563,809 @@ const StudentImport = () => {
       case 0: // Select File
         return (
           <Box>
-            <Typography variant="h6" gutterBottom>
+            <Typography
+              variant="h5"
+              gutterBottom
+              sx={{
+                fontFamily: 'Georgia, serif',
+                color: '#2c3e50',
+                borderBottom: '2px solid #eaeaea',
+                pb: 1,
+                mb: 3
+              }}
+            >
               Select Excel File to Import Students
             </Typography>
-            <Paper sx={{ p: 3, textAlign: 'center' }}>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-                ref={fileInputRef}
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<CloudUpload />}
-                onClick={() => fileInputRef.current.click()}
-                sx={{ mb: 2 }}
-              >
-                Select Excel File
-              </Button>
-              <Typography variant="body2" color="text.secondary">
-                Supported formats: Excel (.xlsx, .xls)
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="subtitle2" gutterBottom>
-                File Format Requirements:
-              </Typography>
-              <Typography variant="body2" align="left">
-                <ul>
-                  <li>Excel file should have headers in the first row</li>
-                  <li>Required columns: firstName, lastName</li>
-                  <li>Optional columns: middleName, email, gender, admissionNumber</li>
-                  <li>If email is not provided, one will be generated automatically</li>
-                  <li>If admissionNumber is not provided, one will be generated automatically</li>
-                </ul>
-              </Typography>
-              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  startIcon={<CloudDownload />}
-                  onClick={generateTemplate}
-                  sx={{ mt: 2, px: 3, py: 1 }}
-                  size="large"
+
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Box
+                  sx={{
+                    border: '1px solid #d1d1d1',
+                    borderRadius: '4px',
+                    p: 3,
+                    height: '100%',
+                    backgroundColor: '#fcfcfc',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                  }}
                 >
-                  Download Excel Template
-                </Button>
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
-                Download this template, fill it with student data, and upload it to import students.
-              </Typography>
-            </Paper>
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                      fontFamily: 'Georgia, serif',
+                      color: '#2c3e50',
+                      borderBottom: '1px solid #eaeaea',
+                      pb: 1
+                    }}
+                  >
+                    File Upload
+                  </Typography>
+
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileSelect}
+                      style={{ display: 'none' }}
+                      ref={fileInputRef}
+                    />
+                    <Button
+                      variant="contained"
+                      sx={{
+                        mb: 2,
+                        backgroundColor: '#2c3e50',
+                        '&:hover': {
+                          backgroundColor: '#34495e',
+                        },
+                        fontFamily: 'Georgia, serif',
+                        textTransform: 'none',
+                        px: 3,
+                        py: 1.5
+                      }}
+                      startIcon={<CloudUpload />}
+                      onClick={() => fileInputRef.current.click()}
+                    >
+                      Select Excel File
+                    </Button>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: '#666',
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      Supported formats: Excel (.xlsx, .xls)
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Box
+                  sx={{
+                    border: '1px solid #d1d1d1',
+                    borderRadius: '4px',
+                    p: 3,
+                    height: '100%',
+                    backgroundColor: '#fcfcfc',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                      fontFamily: 'Georgia, serif',
+                      color: '#2c3e50',
+                      borderBottom: '1px solid #eaeaea',
+                      pb: 1
+                    }}
+                  >
+                    Template Download
+                  </Typography>
+
+                  <Box sx={{ textAlign: 'center', py: 2 }}>
+                    <Button
+                      variant="outlined"
+                      sx={{
+                        mb: 2,
+                        borderColor: '#2c3e50',
+                        color: '#2c3e50',
+                        '&:hover': {
+                          borderColor: '#34495e',
+                          backgroundColor: 'rgba(44, 62, 80, 0.05)',
+                        },
+                        fontFamily: 'Georgia, serif',
+                        textTransform: 'none',
+                        px: 3,
+                        py: 1.5
+                      }}
+                      startIcon={<CloudDownload />}
+                      onClick={generateTemplate}
+                    >
+                      Download Excel Template
+                    </Button>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: '#666',
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      Download this template, fill it with student data, and upload it.
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    border: '1px solid #d1d1d1',
+                    borderRadius: '4px',
+                    p: 3,
+                    mt: 2,
+                    backgroundColor: '#f9f9f9',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                      fontFamily: 'Georgia, serif',
+                      color: '#2c3e50',
+                      borderBottom: '1px solid #eaeaea',
+                      pb: 1
+                    }}
+                  >
+                    File Format Requirements
+                  </Typography>
+
+                  <Box sx={{ pl: 2 }}>
+                    <Typography
+                      variant="body1"
+                      component="div"
+                      sx={{
+                        fontFamily: 'Georgia, serif',
+                        color: '#555'
+                      }}
+                    >
+                      <ul>
+                        <li>Excel file should have headers in the first row</li>
+                        <li>Required columns: <b>firstName</b>, <b>lastName</b></li>
+                        <li>Optional columns: middleName, email, gender, admissionNumber</li>
+                        <li>If email is not provided, one will be generated automatically</li>
+                        <li>If admissionNumber is not provided, one will be generated automatically</li>
+                        <li>Default password for all imported students: <code>password123</code></li>
+                      </ul>
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
           </Box>
         );
 
       case 1: // Preview Data
         return (
           <Box>
-            <Typography variant="h6" gutterBottom>
-              Preview Data
+            <Typography
+              variant="h5"
+              gutterBottom
+              sx={{
+                fontFamily: 'Georgia, serif',
+                color: '#2c3e50',
+                borderBottom: '2px solid #eaeaea',
+                pb: 1,
+                mb: 3
+              }}
+            >
+              Preview Data and Select Class
             </Typography>
-            <Paper sx={{ p: 3 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <FormControl fullWidth required>
-                    <InputLabel>Select Class</InputLabel>
+
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={4}>
+                <Box
+                  sx={{
+                    border: '1px solid #d1d1d1',
+                    borderRadius: '4px',
+                    p: 3,
+                    backgroundColor: '#fcfcfc',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                      fontFamily: 'Georgia, serif',
+                      color: '#2c3e50',
+                      borderBottom: '1px solid #eaeaea',
+                      pb: 1
+                    }}
+                  >
+                    Select Destination Class
+                  </Typography>
+
+                  <FormControl
+                    fullWidth
+                    required
+                    sx={{ mt: 2 }}
+                  >
+                    <InputLabel
+                      sx={{
+                        fontFamily: 'Georgia, serif',
+                      }}
+                    >
+                      Select Class
+                    </InputLabel>
                     <Select
                       value={selectedClass}
                       onChange={(e) => setSelectedClass(e.target.value)}
                       label="Select Class"
+                      sx={{
+                        fontFamily: 'Georgia, serif',
+                        '& .MuiSelect-select': {
+                          padding: '12px 14px',
+                        }
+                      }}
                     >
                       <MenuItem value="">
                         <em>Select a class</em>
                       </MenuItem>
-                      {teacherClasses.map((cls) => (
-                        <MenuItem key={cls._id} value={cls._id}>
-                          {cls.name} {cls.section} - Your Class
-                        </MenuItem>
-                      ))}
-                      {classes
-                        .filter(cls => !teacherClasses.some(tc => tc._id === cls._id))
-                        .map((cls) => (
-                          <MenuItem key={cls._id} value={cls._id}>
-                            {cls.name} {cls.section}
-                          </MenuItem>
-                        ))}
+
+                      {/* Teacher's classes group */}
+                      {teacherClasses.length > 0 && (
+                        [
+                          <MenuItem
+                            key="teacher-header"
+                            disabled
+                            sx={{
+                              opacity: 1,
+                              fontWeight: 'bold',
+                              backgroundColor: '#f5f5f5',
+                              color: '#2c3e50'
+                            }}
+                          >
+                            Your Classes
+                          </MenuItem>,
+                          ...teacherClasses.map((cls) => (
+                            <MenuItem
+                              key={cls._id}
+                              value={cls._id}
+                              sx={{
+                                pl: 3,
+                                fontFamily: 'Georgia, serif',
+                              }}
+                            >
+                              {cls.name} {cls.section}
+                            </MenuItem>
+                          ))
+                        ]
+                      )}
+
+                      {/* Other classes group */}
+                      {classes.filter(cls => !teacherClasses.some(tc => tc._id === cls._id)).length > 0 && (
+                        [
+                          <MenuItem
+                            key="other-header"
+                            disabled
+                            sx={{
+                              opacity: 1,
+                              fontWeight: 'bold',
+                              backgroundColor: '#f5f5f5',
+                              color: '#2c3e50',
+                              mt: 1
+                            }}
+                          >
+                            Other Classes
+                          </MenuItem>,
+                          ...classes
+                            .filter(cls => !teacherClasses.some(tc => tc._id === cls._id))
+                            .map((cls) => (
+                              <MenuItem
+                                key={cls._id}
+                                value={cls._id}
+                                sx={{
+                                  pl: 3,
+                                  fontFamily: 'Georgia, serif',
+                                }}
+                              >
+                                {cls.name} {cls.section}
+                              </MenuItem>
+                            ))
+                        ]
+                      )}
                     </Select>
                   </FormControl>
-                </Grid>
+
+                  <Box sx={{ mt: 4, textAlign: 'center' }}>
+                    <Button
+                      variant="contained"
+                      sx={{
+                        backgroundColor: '#2c3e50',
+                        '&:hover': {
+                          backgroundColor: '#34495e',
+                        },
+                        fontFamily: 'Georgia, serif',
+                        textTransform: 'none',
+                        px: 4,
+                        py: 1.5,
+                        mt: 2
+                      }}
+                      onClick={handleImport}
+                      disabled={!selectedClass || loading}
+                      startIcon={loading ? <CircularProgress size={20} /> : <ArrowForward />}
+                    >
+                      Import Students
+                    </Button>
+                  </Box>
+                </Box>
               </Grid>
 
-              <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
-                Data Preview ({importPreview?.rows.length} students)
-              </Typography>
-
-              <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
-                <Table stickyHeader size="small">
-                  <TableHead>
-                    <TableRow>
-                      {importPreview?.headers.map((header, index) => (
-                        <TableCell key={index}>{header}</TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {importPreview?.rows.slice(0, 10).map((row, rowIndex) => (
-                      <TableRow key={rowIndex}>
-                        {importPreview.headers.map((header, colIndex) => (
-                          <TableCell key={colIndex}>
-                            {row[colIndex] || ''}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                    {importPreview?.rows.length > 10 && (
-                      <TableRow>
-                        <TableCell colSpan={importPreview.headers.length} align="center">
-                          <Typography variant="body2" color="text.secondary">
-                            {importPreview.rows.length - 10} more rows not shown in preview
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-                <Button
-                  onClick={() => {
-                    setActiveStep(0);
-                    setImportPreview(null);
-                    setImportFile(null);
-                    setSelectedClass('');
+              <Grid item xs={12} md={8}>
+                <Box
+                  sx={{
+                    border: '1px solid #d1d1d1',
+                    borderRadius: '4px',
+                    p: 3,
+                    backgroundColor: '#fcfcfc',
+                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
                   }}
                 >
-                  Back
-                </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleImport}
-                  disabled={!selectedClass || loading}
-                  startIcon={loading ? <CircularProgress size={20} /> : <ArrowForward />}
-                >
-                  Import Students
-                </Button>
-              </Box>
-            </Paper>
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                      fontFamily: 'Georgia, serif',
+                      color: '#2c3e50',
+                      borderBottom: '1px solid #eaeaea',
+                      pb: 1,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <span>Data Preview</span>
+                    <Typography
+                      variant="body2"
+                      component="span"
+                      sx={{
+                        fontFamily: 'Georgia, serif',
+                        color: '#666',
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      {importPreview?.rows.length} students found
+                    </Typography>
+                  </Typography>
+
+                  <TableContainer
+                    sx={{
+                      maxHeight: 400,
+                      border: '1px solid #eaeaea',
+                      borderRadius: '4px',
+                      mt: 2,
+                      '& .MuiTableCell-root': {
+                        fontFamily: 'Georgia, serif',
+                      }
+                    }}
+                  >
+                    <Table stickyHeader size="small">
+                      <TableHead>
+                        <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                          {importPreview?.headers.map((header, index) => (
+                            <TableCell
+                              key={`header-${header}-${index}`}
+                              sx={{
+                                fontWeight: 'bold',
+                                backgroundColor: '#f0f0f0',
+                                color: '#2c3e50'
+                              }}
+                            >
+                              {header}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {importPreview?.rows.slice(0, 10).map((row, rowIndex) => (
+                          <TableRow
+                            key={`row-${rowIndex}-${row[0]}`}
+                            sx={{
+                              '&:nth-of-type(odd)': {
+                                backgroundColor: '#fafafa',
+                              },
+                              '&:hover': {
+                                backgroundColor: '#f5f5f5',
+                              }
+                            }}
+                          >
+                            {importPreview.headers.map((header, colIndex) => (
+                              <TableCell
+                                key={`cell-${rowIndex}-${colIndex}-${header}`}
+                                sx={{
+                                  color: '#555'
+                                }}
+                              >
+                                {row[colIndex] || ''}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                        {importPreview?.rows.length > 10 && (
+                          <TableRow>
+                            <TableCell
+                              colSpan={importPreview.headers.length}
+                              align="center"
+                              sx={{
+                                fontStyle: 'italic',
+                                color: '#666',
+                                py: 2
+                              }}
+                            >
+                              {importPreview.rows.length - 10} more rows not shown in preview
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Box
+              sx={{
+                mt: 3,
+                pt: 2,
+                borderTop: '1px solid #eaeaea',
+                display: 'flex',
+                justifyContent: 'space-between'
+              }}
+            >
+              <Button
+                onClick={() => {
+                  setActiveStep(0);
+                  setImportPreview(null);
+                  setImportFile(null);
+                  setSelectedClass('');
+                }}
+                sx={{
+                  fontFamily: 'Georgia, serif',
+                  textTransform: 'none',
+                  color: '#2c3e50'
+                }}
+              >
+                Back to File Selection
+              </Button>
+            </Box>
           </Box>
         );
 
       case 2: // Import Results
         return (
           <Box>
-            <Typography variant="h6" gutterBottom>
+            <Typography
+              variant="h5"
+              gutterBottom
+              sx={{
+                fontFamily: 'Georgia, serif',
+                color: '#2c3e50',
+                borderBottom: '2px solid #eaeaea',
+                pb: 1,
+                mb: 3
+              }}
+            >
               Import Results
             </Typography>
-            <Paper sx={{ p: 3 }}>
-              {importResult && (
-                <>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <CheckCircle color="success" sx={{ mr: 1 }} />
-                    <Typography variant="h6">
-                      Import Completed
+
+            {importResult && (
+              <Box
+                sx={{
+                  border: '1px solid #d1d1d1',
+                  borderRadius: '8px',
+                  backgroundColor: '#fcfcfc',
+                  overflow: 'hidden'
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 3,
+                    backgroundColor: '#e8f5e9',
+                    borderBottom: '1px solid #c8e6c9',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <CheckCircle
+                    sx={{
+                      mr: 2,
+                      color: '#2e7d32',
+                      fontSize: '2rem'
+                    }}
+                  />
+                  <Box>
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        fontFamily: 'Georgia, serif',
+                        color: '#2e7d32',
+                        fontWeight: 'normal'
+                      }}
+                    >
+                      Import Completed Successfully
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontFamily: 'Georgia, serif',
+                        color: '#388e3c',
+                        mt: 0.5
+                      }}
+                    >
+                      {importResult.success} of {importResult.total} students were imported successfully
                     </Typography>
                   </Box>
+                </Box>
 
-                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3} sx={{ mb: 4 }}>
                     <Grid item xs={12} md={4}>
-                      <Paper sx={{ p: 2, bgcolor: 'success.light', color: 'success.contrastText' }}>
-                        <Typography variant="h4" align="center">
+                      <Box
+                        sx={{
+                          p: 3,
+                          textAlign: 'center',
+                          border: '1px solid #c8e6c9',
+                          borderRadius: '8px',
+                          backgroundColor: '#f1f8e9',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}
+                      >
+                        <Typography
+                          variant="h3"
+                          sx={{
+                            fontFamily: 'Georgia, serif',
+                            color: '#2e7d32',
+                            mb: 1
+                          }}
+                        >
                           {importResult.success || 0}
                         </Typography>
-                        <Typography variant="body2" align="center">
-                          Students Successfully Imported
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontFamily: 'Georgia, serif',
+                            color: '#388e3c'
+                          }}
+                        >
+                          Successfully Imported
                         </Typography>
-                      </Paper>
+                      </Box>
                     </Grid>
+
                     <Grid item xs={12} md={4}>
-                      <Paper sx={{ p: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
-                        <Typography variant="h4" align="center">
+                      <Box
+                        sx={{
+                          p: 3,
+                          textAlign: 'center',
+                          border: '1px solid #ffcdd2',
+                          borderRadius: '8px',
+                          backgroundColor: '#ffebee',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}
+                      >
+                        <Typography
+                          variant="h3"
+                          sx={{
+                            fontFamily: 'Georgia, serif',
+                            color: '#c62828',
+                            mb: 1
+                          }}
+                        >
                           {importResult.failed || 0}
                         </Typography>
-                        <Typography variant="body2" align="center">
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontFamily: 'Georgia, serif',
+                            color: '#d32f2f'
+                          }}
+                        >
                           Failed Imports
                         </Typography>
-                      </Paper>
+                      </Box>
                     </Grid>
+
                     <Grid item xs={12} md={4}>
-                      <Paper sx={{ p: 2, bgcolor: 'info.light', color: 'info.contrastText' }}>
-                        <Typography variant="h4" align="center">
+                      <Box
+                        sx={{
+                          p: 3,
+                          textAlign: 'center',
+                          border: '1px solid #bbdefb',
+                          borderRadius: '8px',
+                          backgroundColor: '#e3f2fd',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}
+                      >
+                        <Typography
+                          variant="h3"
+                          sx={{
+                            fontFamily: 'Georgia, serif',
+                            color: '#1565c0',
+                            mb: 1
+                          }}
+                        >
                           {importResult.total || 0}
                         </Typography>
-                        <Typography variant="body2" align="center">
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontFamily: 'Georgia, serif',
+                            color: '#1976d2'
+                          }}
+                        >
                           Total Processed
                         </Typography>
-                      </Paper>
+                      </Box>
                     </Grid>
                   </Grid>
 
                   {importResult.students && importResult.students.length > 0 && (
-                    <>
-                      <Typography variant="subtitle1" gutterBottom>
-                        Imported Students
-                      </Typography>
-                      <TableContainer component={Paper} sx={{ maxHeight: 300, mb: 3 }}>
+                    <Box
+                      sx={{
+                        mt: 2,
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          p: 2,
+                          backgroundColor: '#f5f5f5',
+                          borderBottom: '1px solid #e0e0e0'
+                        }}
+                      >
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            fontFamily: 'Georgia, serif',
+                            color: '#2c3e50',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          Imported Students
+                        </Typography>
+                      </Box>
+
+                      <TableContainer sx={{ maxHeight: 300 }}>
                         <Table stickyHeader size="small">
                           <TableHead>
                             <TableRow>
-                              <TableCell>Name</TableCell>
-                              <TableCell>Email</TableCell>
-                              <TableCell>Admission Number</TableCell>
-                              <TableCell>Status</TableCell>
+                              <TableCell
+                                sx={{
+                                  fontFamily: 'Georgia, serif',
+                                  fontWeight: 'bold',
+                                  backgroundColor: '#f0f0f0',
+                                  color: '#2c3e50'
+                                }}
+                              >
+                                Name
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  fontFamily: 'Georgia, serif',
+                                  fontWeight: 'bold',
+                                  backgroundColor: '#f0f0f0',
+                                  color: '#2c3e50'
+                                }}
+                              >
+                                Email
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  fontFamily: 'Georgia, serif',
+                                  fontWeight: 'bold',
+                                  backgroundColor: '#f0f0f0',
+                                  color: '#2c3e50'
+                                }}
+                              >
+                                Admission Number
+                              </TableCell>
+                              <TableCell
+                                sx={{
+                                  fontFamily: 'Georgia, serif',
+                                  fontWeight: 'bold',
+                                  backgroundColor: '#f0f0f0',
+                                  color: '#2c3e50'
+                                }}
+                              >
+                                Status
+                              </TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {importResult.students.map((student, index) => (
-                              <TableRow key={index}>
-                                <TableCell>
+                              <TableRow
+                                key={`student-${student.email || index}-${student.admissionNumber || index}`}
+                                sx={{
+                                  '&:nth-of-type(odd)': {
+                                    backgroundColor: '#fafafa',
+                                  },
+                                  '&:hover': {
+                                    backgroundColor: '#f5f5f5',
+                                  }
+                                }}
+                              >
+                                <TableCell sx={{ fontFamily: 'Georgia, serif' }}>
                                   {student.firstName} {student.middleName} {student.lastName}
                                 </TableCell>
-                                <TableCell>{student.email}</TableCell>
-                                <TableCell>{student.admissionNumber}</TableCell>
+                                <TableCell sx={{ fontFamily: 'Georgia, serif' }}>
+                                  {student.email}
+                                </TableCell>
+                                <TableCell sx={{ fontFamily: 'Georgia, serif' }}>
+                                  {student.admissionNumber}
+                                </TableCell>
                                 <TableCell>
                                   <Chip
                                     label={student.status === 'success' ? 'Success' : 'Failed'}
-                                    color={student.status === 'success' ? 'success' : 'error'}
+                                    sx={{
+                                      backgroundColor: student.status === 'success' ? '#e8f5e9' : '#ffebee',
+                                      color: student.status === 'success' ? '#2e7d32' : '#c62828',
+                                      fontFamily: 'Georgia, serif',
+                                      border: `1px solid ${student.status === 'success' ? '#c8e6c9' : '#ffcdd2'}`,
+                                      '& .MuiChip-label': {
+                                        px: 1
+                                      }
+                                    }}
                                     size="small"
                                   />
+                                  {student.error && (
+                                    <Typography
+                                      variant="caption"
+                                      display="block"
+                                      sx={{
+                                        color: '#d32f2f',
+                                        mt: 0.5,
+                                        fontStyle: 'italic'
+                                      }}
+                                    >
+                                      {student.error}
+                                    </Typography>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
                         </Table>
                       </TableContainer>
-                    </>
+                    </Box>
                   )}
 
-                  <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+                  <Box
+                    sx={{
+                      mt: 4,
+                      pt: 2,
+                      borderTop: '1px solid #e0e0e0',
+                      display: 'flex',
+                      justifyContent: 'space-between'
+                    }}
+                  >
                     <Button
+                      variant="outlined"
+                      sx={{
+                        borderColor: '#2c3e50',
+                        color: '#2c3e50',
+                        fontFamily: 'Georgia, serif',
+                        textTransform: 'none',
+                        '&:hover': {
+                          borderColor: '#34495e',
+                          backgroundColor: 'rgba(44, 62, 80, 0.05)',
+                        },
+                      }}
                       onClick={() => {
                         setActiveStep(0);
                         setImportPreview(null);
@@ -816,16 +1378,23 @@ const StudentImport = () => {
                     </Button>
                     <Button
                       variant="contained"
-                      color="primary"
+                      sx={{
+                        backgroundColor: '#2c3e50',
+                        '&:hover': {
+                          backgroundColor: '#34495e',
+                        },
+                        fontFamily: 'Georgia, serif',
+                        textTransform: 'none',
+                      }}
                       component="a"
                       href="/teacher/student-management"
                     >
                       Go to Student Management
                     </Button>
                   </Box>
-                </>
-              )}
-            </Paper>
+                </Box>
+              </Box>
+            )}
           </Box>
         );
 
@@ -836,32 +1405,121 @@ const StudentImport = () => {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Import Students
-        </Typography>
+      <Box sx={{
+        mt: 4,
+        mb: 4,
+        backgroundColor: '#f8f8f8',
+        border: '1px solid #ddd',
+        borderRadius: '8px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.05)',
+        overflow: 'hidden'
+      }}>
+        <Box sx={{
+          p: 3,
+          backgroundColor: '#2c3e50',
+          color: 'white',
+          borderBottom: '1px solid #ddd'
+        }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontFamily: 'Georgia, serif',
+              fontWeight: 'normal',
+              letterSpacing: '0.5px'
+            }}
+          >
+            Student Import Utility
+          </Typography>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              fontFamily: 'Georgia, serif',
+              mt: 1,
+              opacity: 0.9
+            }}
+          >
+            Import students from Excel spreadsheets
+          </Typography>
+        </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
+        <Box sx={{ p: 3 }}>
+          {error && (
+            <Alert
+              severity="error"
+              sx={{
+                mb: 3,
+                border: '1px solid #f5c6cb',
+                borderRadius: '4px',
+                backgroundColor: '#f8d7da',
+                color: '#721c24'
+              }}
+              onClose={() => setError('')}
+            >
+              {error}
+            </Alert>
+          )}
 
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
-            {success}
-          </Alert>
-        )}
+          {success && (
+            <Alert
+              severity="success"
+              sx={{
+                mb: 3,
+                border: '1px solid #c3e6cb',
+                borderRadius: '4px',
+                backgroundColor: '#d4edda',
+                color: '#155724'
+              }}
+              onClose={() => setSuccess('')}
+            >
+              {success}
+            </Alert>
+          )}
 
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            mb: 4,
+            borderBottom: '1px solid #ddd',
+            pb: 3
+          }}>
+            <Stepper
+              activeStep={activeStep}
+              sx={{
+                width: '100%',
+                maxWidth: '800px',
+                '& .MuiStepLabel-label': {
+                  fontFamily: 'Georgia, serif',
+                },
+                '& .MuiStepIcon-root': {
+                  color: '#2c3e50',
+                },
+                '& .MuiStepIcon-root.Mui-active': {
+                  color: '#3498db',
+                },
+                '& .MuiStepIcon-root.Mui-completed': {
+                  color: '#27ae60',
+                }
+              }}
+            >
+              {steps.map((label) => (
+                <Step key={label}>
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Box>
 
-        {renderContent()}
+          <Box sx={{
+            backgroundColor: 'white',
+            p: 3,
+            borderRadius: '4px',
+            border: '1px solid #eaeaea',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.05)'
+          }}>
+            {renderContent()}
+          </Box>
+        </Box>
       </Box>
     </Container>
   );
