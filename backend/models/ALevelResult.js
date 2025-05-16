@@ -12,7 +12,9 @@ const ALevelResultSchema = new mongoose.Schema({
   subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
   classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
   marksObtained: { type: Number, required: true },
-  
+  // Link to assessment if this result came from an assessment
+  assessmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Assessment' },
+
   // Assessment marks
   assessments: [{
     name: { type: String, required: true },
@@ -71,7 +73,7 @@ ALevelResultSchema.pre('save', function(next) {
       return sum + (assessment.marksObtained * (assessment.weightage / 100));
     }, 0);
     this.marksObtained = Math.round(totalWeightedMarks * 100) / 100; // Round to 2 decimal places
-    
+
     logger.debug(`[A-LEVEL] Calculated weighted marks: ${this.marksObtained} from ${this.assessments.length} assessments`);
   }
 

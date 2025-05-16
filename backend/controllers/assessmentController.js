@@ -140,6 +140,37 @@ const assessmentController = {
   },
 
   /**
+   * Get assessment by ID
+   */
+  getAssessmentById: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const assessment = await Assessment.findById(id)
+        .populate('subjectId', 'name code');
+
+      if (!assessment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Assessment not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: assessment
+      });
+    } catch (error) {
+      console.error('Error fetching assessment by ID:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch assessment',
+        error: error.message
+      });
+    }
+  },
+
+  /**
    * Create a new assessment
    * Now supports universal assessments
    */
@@ -260,6 +291,42 @@ const assessmentController = {
       res.status(500).json({
         success: false,
         message: 'Failed to update assessment',
+        error: error.message
+      });
+    }
+  },
+
+  /**
+   * Get assessment results
+   */
+  getAssessmentResults: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // First, check if the assessment exists
+      const assessment = await Assessment.findById(id);
+      if (!assessment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Assessment not found'
+        });
+      }
+
+      // Get all results for this assessment
+      const results = await Result.find({ assessmentId: id })
+        .populate('studentId', 'firstName lastName admissionNumber')
+        .populate('subjectId', 'name code')
+        .sort({ 'studentId.firstName': 1, 'studentId.lastName': 1 });
+
+      res.json({
+        success: true,
+        data: results
+      });
+    } catch (error) {
+      console.error('Error fetching assessment results:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch assessment results',
         error: error.message
       });
     }

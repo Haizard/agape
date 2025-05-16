@@ -481,6 +481,35 @@ const UnifiedBulkMarksEntry = () => {
 
     console.log('Initializing marks for students and assessments');
 
+    // Try to load cached marks from localStorage
+    const cacheKey = `marks_cache_${selectedClass}_${selectedSubject}_${selectedTerm}`;
+    const cachedMarks = localStorage.getItem(cacheKey);
+
+    if (cachedMarks) {
+      try {
+        const parsedCache = JSON.parse(cachedMarks);
+        console.log('Loaded marks from cache:', parsedCache);
+
+        // Check if cache is still valid (has the same students and assessments)
+        const isValid = students.every(student =>
+          parsedCache[student._id] &&
+          activeAssessments.every(assessment =>
+            parsedCache[student._id][assessment._id] !== undefined
+          )
+        );
+
+        if (isValid) {
+          setMarks(parsedCache);
+          console.log('Using cached marks data');
+          return;
+        } else {
+          console.log('Cache is invalid or outdated, initializing new marks');
+        }
+      } catch (error) {
+        console.error('Error parsing cached marks:', error);
+      }
+    }
+
     // Use functional update to avoid dependency on marks
     setMarks(prevMarks => {
       // Initialize marks object
@@ -503,7 +532,27 @@ const UnifiedBulkMarksEntry = () => {
       }
       return prevMarks;
     });
-  }, [students, activeAssessments]);
+  }, [students, activeAssessments, selectedClass, selectedSubject, selectedTerm]);
+
+  // Cache marks whenever they change
+  useEffect(() => {
+    // Skip if no marks to cache
+    if (Object.keys(marks).length === 0) return;
+
+    // Skip if no class or subject selected
+    if (!selectedClass || !selectedSubject) return;
+
+    // Create a cache key based on the current selection
+    const cacheKey = `marks_cache_${selectedClass}_${selectedSubject}_${selectedTerm}`;
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(marks));
+      console.log('Cached marks data:', marks);
+    } catch (error) {
+      console.error('Error caching marks:', error);
+    }
+  }, [marks, selectedClass, selectedSubject, selectedTerm]);
 
   // We've simplified our approach and don't need the extra effects anymore
 
@@ -522,6 +571,73 @@ const UnifiedBulkMarksEntry = () => {
   const handleTabChange = useCallback((event, newValue) => {
     setActiveTab(newValue);
   }, []);
+
+  // Function to fetch existing marks data
+  const fetchExistingMarks = useCallback(async () => {
+    if (!selectedClass || !selectedSubject || !activeAssessments.length) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      // Create a map of assessment IDs to help with data organization
+      const assessmentMap = {};
+      activeAssessments.forEach(assessment => {
+        assessmentMap[assessment._id] = assessment;
+      });
+
+      // Fetch existing marks for each assessment
+      const existingMarksPromises = activeAssessments.map(assessment =>
+        api.get('/api/assessments/results', {
+          params: {
+            assessmentId: assessment._id,
+            subjectId: selectedSubject,
+            classId: selectedClass
+          }
+        })
+      );
+
+      const results = await Promise.all(existingMarksPromises);
+
+      // Process the results and update the marks state
+      const newMarks = { ...marks };
+
+      results.forEach((response, index) => {
+        const assessmentId = activeAssessments[index]._id;
+        const assessmentResults = response.data?.results || [];
+
+        assessmentResults.forEach(result => {
+          if (!newMarks[result.studentId]) {
+            newMarks[result.studentId] = {};
+          }
+          newMarks[result.studentId][assessmentId] = result.marksObtained;
+        });
+      });
+
+      // Update the marks state with the fetched data
+      setMarks(newMarks);
+
+      // Show success message
+      setSuccess('Marks data refreshed successfully');
+      setSnackbar({
+        open: true,
+        message: 'Marks data refreshed successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error fetching existing marks:', error);
+      setError('Failed to refresh marks data. Please try again.');
+      setSnackbar({
+        open: true,
+        message: 'Failed to refresh marks data. Please try again.',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedClass, selectedSubject, activeAssessments, marks]);
 
   // Save marks - use a stable implementation with dependencies
   const handleSave = useCallback(async () => {
@@ -550,31 +666,119 @@ const UnifiedBulkMarksEntry = () => {
 
       if (marksData.length === 0) {
         setError('No marks to save. Please enter at least one mark.');
+        setSnackbar({
+          open: true,
+          message: 'No marks to save. Please enter at least one mark.',
+          severity: 'warning'
+        });
         setSaving(false);
         return;
       }
 
-      console.log('Saving marks data:', marksData);
+      console.log('DEBUGGING - Saving marks data:', marksData);
       const response = await api.post('/api/assessments/bulk-marks', { marks: marksData });
+      console.log('DEBUGGING - Save response:', response);
 
-      if (response.data.success) {
-        setSuccess('Marks saved successfully');
+      // Check if the response contains data and success flag
+      if (!response?.data) {
+        // If response is empty or doesn't have data, throw an error
+        throw new Error('Invalid response from server');
+      }
+
+      // Check for partial success (some marks saved, some failed)
+      if (response.data.success && response.data.errors && response.data.errors.length > 0) {
+        // Create a detailed message about partial success
+        const savedCount = response.data.data ? response.data.data.length : 0;
+        const errorCount = response.data.errors.length;
+        const partialSuccessMessage = `Saved ${savedCount} marks successfully, but ${errorCount} marks failed to save.`;
+
+        // Group errors by type for better reporting
+        const errorsByType = {};
+        response.data.errors.forEach(err => {
+          const errorType = err.error.split(':')[0];
+          if (!errorsByType[errorType]) {
+            errorsByType[errorType] = [];
+          }
+          errorsByType[errorType].push(err);
+        });
+
+        // Create a detailed error message
+        let detailedError = 'Errors encountered:\n';
+        Object.entries(errorsByType).forEach(([type, errors]) => {
+          detailedError += `- ${type}: ${errors.length} occurrences\n`;
+        });
+
+        console.warn('Partial success saving marks:', detailedError);
+
+        setSuccess(partialSuccessMessage);
         setSnackbar({
           open: true,
-          message: 'Marks saved successfully',
-          severity: 'success'
+          message: partialSuccessMessage,
+          severity: 'warning'
         });
-      } else {
+
+        // Also set a detailed error message for the UI
+        setError(detailedError);
+      }
+      // If success flag is explicitly false, throw an error
+      else if (response.data.success === false) {
         throw new Error(response.data.message || 'Failed to save marks');
       }
+      // Complete success
+      else {
+        // Otherwise, consider it a success (even if success flag is missing)
+        const successMessage = `Successfully saved ${marksData.length} marks`;
+        setSuccess(successMessage);
+        setSnackbar({
+          open: true,
+          message: successMessage,
+          severity: 'success'
+        });
+        console.log('DEBUGGING - Marks saved successfully');
+      }
+
+      // Refresh the marks data after saving
+      await fetchExistingMarks();
     } catch (error) {
-      console.error('Error saving marks:', error);
-      setError(error.response?.data?.message || error.message || 'Failed to save marks');
-      setSnackbar({
-        open: true,
-        message: error.response?.data?.message || error.message || 'Failed to save marks',
-        severity: 'error'
-      });
+      console.error('DEBUGGING - Error saving marks:', error);
+      if (error.response) {
+        console.error('DEBUGGING - Error response:', error.response);
+      }
+
+      // Check if this is a network error but marks might have been saved
+      if (error.message && (
+        error.message.includes('network') ||
+        error.message.includes('timeout') ||
+        error.message.includes('Network Error')
+      )) {
+        // Show a warning instead of an error
+        const warningMessage = 'Marks may have been saved, but there was a network issue. Please use the Refresh button to verify.';
+        setSuccess(warningMessage);
+        setSnackbar({
+          open: true,
+          message: warningMessage,
+          severity: 'warning'
+        });
+      } else {
+        // Show the actual error with more details
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to save marks';
+        let detailedError = errorMessage;
+
+        // Add more details if available
+        if (error.response?.data?.errors) {
+          detailedError += '\n\nDetails:\n';
+          error.response.data.errors.forEach((err, index) => {
+            detailedError += `${index + 1}. ${err.error || err.message || 'Unknown error'}\n`;
+          });
+        }
+
+        setError(detailedError);
+        setSnackbar({
+          open: true,
+          message: errorMessage,
+          severity: 'error'
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -584,7 +788,8 @@ const UnifiedBulkMarksEntry = () => {
     selectedSubject,
     selectedAcademicYear,
     selectedClass,
-    selectedTerm
+    selectedTerm,
+    fetchExistingMarks
   ]);
 
   // Handle snackbar close - use a stable implementation
@@ -760,6 +965,16 @@ const UnifiedBulkMarksEntry = () => {
               sx={{ mr: 1 }}
             >
               {saving ? 'Saving...' : 'Save Marks'}
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={fetchExistingMarks}
+              disabled={loading || saving}
+              startIcon={loading ? <CircularProgress size={20} /> : <RefreshIcon />}
+              sx={{ mr: 1 }}
+            >
+              {loading ? 'Refreshing...' : 'Refresh Marks'}
             </Button>
             <Button
               variant="outlined"

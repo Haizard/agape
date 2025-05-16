@@ -4,10 +4,9 @@ const mongoose = require('mongoose');
 const assessmentController = require('../controllers/assessmentController');
 const { authenticateToken } = require('../middleware/auth');
 const { validateAssessment } = require('../middleware/validation');
-const Assessment = require('../models/Assessment');
-const { generatePDF } = require('../utils/pdfGenerator');
-// Import the result service instead of the deprecated Result model
-const resultService = require('../services/resultService');
+const Result = require('../models/Result');
+const Assessment = require('../models/Assessment'); // Add missing Assessment model import
+const { generatePDF } = require('../utils/pdfGenerator'); // Assuming this is the correct path
 
 // Get all assessments
 router.get('/',
@@ -57,10 +56,6 @@ router.get('/report/:classId/:assessmentId',
 router.post('/bulk-marks',
   authenticateToken,
   async (req, res) => {
-    // Start a MongoDB session for transaction support
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
       const { marks } = req.body;
 
@@ -93,43 +88,36 @@ router.post('/bulk-marks',
       console.log(`Processing ${marks.length} marks entries with subject-specific association`);
 
       // Validate that all required models are available
+      if (!Result) {
+        throw new Error('Result model is not defined');
+      }
       if (!Assessment) {
         throw new Error('Assessment model is not defined');
       }
-      if (!resultService) {
-        throw new Error('Result service is not defined');
-      }
 
-      // Process marks in a transaction
+      // Process marks one by one to avoid transaction issues
       const savedMarks = [];
-      const errors = [];
-
+      
       for (const mark of marks) {
         try {
           // Get assessment details first to get required fields
-          const assessment = await Assessment.findById(mark.assessmentId).session(session);
+          const assessment = await Assessment.findById(mark.assessmentId);
           if (!assessment) {
-            const error = `Assessment not found: ${mark.assessmentId}`;
-            console.warn(error);
-            errors.push({ studentId: mark.studentId, error });
+            console.warn(`Assessment not found: ${mark.assessmentId}`);
             continue; // Skip this mark if assessment not found
           }
 
           // Get student details
-          const student = await mongoose.model('Student').findById(mark.studentId).session(session);
+          const student = await mongoose.model('Student').findById(mark.studentId);
           if (!student) {
-            const error = `Student not found: ${mark.studentId}`;
-            console.warn(error);
-            errors.push({ studentId: mark.studentId, error });
+            console.warn(`Student not found: ${mark.studentId}`);
             continue; // Skip this mark if student not found
           }
 
           // Get class details
-          const classObj = await mongoose.model('Class').findById(student.class).session(session);
+          const classObj = await mongoose.model('Class').findById(student.class);
           if (!classObj) {
-            const error = `Class not found for student: ${mark.studentId}`;
-            console.warn(error);
-            errors.push({ studentId: mark.studentId, error });
+            console.warn(`Class not found for student: ${mark.studentId}`);
             continue; // Skip this mark if class not found
           }
 
@@ -137,7 +125,7 @@ router.post('/bulk-marks',
           let examId = assessment.examId;
           let academicYearId = assessment.academicYearId;
           let examTypeId = assessment.examTypeId;
-
+          
           // If no exam ID is set, try to find an existing exam or create a default one
           if (!examId || examId === 'default-exam') {
             try {
@@ -145,17 +133,17 @@ router.post('/bulk-marks',
               const Exam = mongoose.model('Exam');
               const ExamType = mongoose.model('ExamType');
               const AcademicYear = mongoose.model('AcademicYear');
-
+              
               // First, ensure we have a valid academicYearId
               if (!academicYearId) {
                 // Try to find the active academic year
-                const activeYear = await AcademicYear.findOne({ isActive: true }).session(session);
+                const activeYear = await AcademicYear.findOne({ isActive: true });
                 if (activeYear) {
                   academicYearId = activeYear._id;
                   console.log(`Using active academic year: ${activeYear.name || activeYear.year}`);
                 } else {
                   // If no active year, get the most recent one
-                  const mostRecentYear = await AcademicYear.findOne().sort({ year: -1 }).session(session);
+                  const mostRecentYear = await AcademicYear.findOne().sort({ year: -1 });
                   if (mostRecentYear) {
                     academicYearId = mostRecentYear._id;
                     console.log(`No active academic year found, using most recent: ${mostRecentYear.name || mostRecentYear.year}`);
@@ -164,16 +152,16 @@ router.post('/bulk-marks',
                   }
                 }
               }
-
+              
               // Find an existing exam for this academic year
-              let exam = await Exam.findOne({
+              let exam = await Exam.findOne({ 
                 academicYear: academicYearId,
                 status: { $in: ['DRAFT', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED'] }
-              }).session(session);
-
+              });
+              
               if (!exam) {
                 // Find or create a default exam type
-                let examType = await ExamType.findOne({ name: 'Midterm' }).session(session);
+                let examType = await ExamType.findOne({ name: 'Midterm' });
                 if (!examType) {
                   examType = new ExamType({
                     name: 'Midterm',
@@ -181,13 +169,13 @@ router.post('/bulk-marks',
                     maxMarks: 100,
                     isActive: true
                   });
-                  await examType.save({ session });
+                  await examType.save();
                   console.log(`Created default exam type with ID: ${examType._id}`);
                 }
-
+                
                 // Determine education level (default to O_LEVEL if not specified)
-                const educationLevel = mark.educationLevel || student.educationLevel || 'O_LEVEL';
-
+                const educationLevel = mark.educationLevel || 'O_LEVEL';
+                
                 // If no exam exists, create a default one
                 console.log('Creating a default exam for marks entry');
                 exam = new Exam({
@@ -201,26 +189,21 @@ router.post('/bulk-marks',
                   startDate: new Date(),
                   endDate: new Date(new Date().setDate(new Date().getDate() + 7))
                 });
-                await exam.save({ session });
+                await exam.save();
                 console.log(`Created default exam with ID: ${exam._id}`);
               }
-
+              
               examId = exam._id;
               examTypeId = exam.examType;
             } catch (examError) {
               console.error('Error finding or creating exam:', examError);
-              errors.push({
-                studentId: mark.studentId,
-                error: `Error finding or creating exam: ${examError.message}`
-              });
               continue; // Skip this mark if we can't get a valid exam ID
             }
           }
 
           // Ensure we have all required fields before saving
           if (!mark.studentId || !mark.subjectId || !examId || !academicYearId || !examTypeId || !student.class) {
-            const error = 'Missing required fields for result';
-            console.warn(error, {
+            console.warn('Missing required fields for result:', {
               studentId: mark.studentId,
               subjectId: mark.subjectId,
               examId,
@@ -228,87 +211,106 @@ router.post('/bulk-marks',
               examTypeId,
               classId: student.class
             });
-            errors.push({ studentId: mark.studentId, error });
             continue; // Skip this mark if any required field is missing
           }
 
-          // Determine education level from student or mark
-          const educationLevel = mark.educationLevel || student.educationLevel || 'O_LEVEL';
-
-          // Prepare result data for the education-level specific model
-          const resultData = {
-            studentId: mark.studentId,
-            examId: examId,
-            academicYearId: academicYearId,
-            examTypeId: examTypeId,
-            subjectId: mark.subjectId || assessment.subjectId, // Prefer mark.subjectId over assessment.subjectId
-            classId: student.class,
-            marksObtained: mark.marksObtained,
-            educationLevel: educationLevel,
-            assessmentId: mark.assessmentId // Link to the assessment
-          };
-
-          // Save directly to the appropriate education-level specific model
-          try {
-            // Use the resultService to save the marks with the session
-            const result = await resultService.enterMarksWithSession(resultData, session);
-            console.log(`Saved ${educationLevel} result for student ${mark.studentId}, subject ${resultData.subjectId}, assessment ${mark.assessmentId}`);
-
-            if (result) {
-              savedMarks.push(result);
-            }
-          } catch (saveError) {
-            console.error(`Error saving marks for student ${mark.studentId}, subject ${mark.subjectId}:`, saveError);
-            errors.push({
+          // Save to assessment result with all required fields
+          const result = await Result.findOneAndUpdate(
+            {
               studentId: mark.studentId,
-              error: `Error saving marks: ${saveError.message}`
-            });
+              assessmentId: mark.assessmentId,
+              subjectId: mark.subjectId,
+              examId: examId,
+              academicYearId: academicYearId,
+              examTypeId: examTypeId,
+              classId: student.class
+            },
+            {
+              marksObtained: mark.marksObtained,
+              subjectId: mark.subjectId,
+              examId: examId,
+              academicYearId: academicYearId,
+              examTypeId: examTypeId,
+              classId: student.class
+            },
+            {
+              new: true,
+              upsert: true
+            }
+          );
+
+          if (result) {
+            savedMarks.push(result);
+          }
+
+          // If educationLevel is provided, also save to the appropriate result model
+          if (mark.educationLevel && result) {
+            try {
+              // Determine which endpoint to use based on education level
+              let endpoint = '';
+              let resultData = {};
+              
+              if (mark.educationLevel === 'A_LEVEL') {
+                endpoint = '/api/a-level-results/batch';
+                resultData = {
+                  studentId: mark.studentId,
+                  examId: examId, // Use the real exam ID
+                  academicYearId: academicYearId,
+                  examTypeId: examTypeId,
+                  subjectId: mark.subjectId || assessment.subjectId, // Prefer mark.subjectId over assessment.subjectId
+                  classId: student.class,
+                  marksObtained: mark.marksObtained,
+                  educationLevel: 'A_LEVEL'
+                };
+              } else {
+                endpoint = '/api/o-level/marks/batch';
+                resultData = {
+                  studentId: mark.studentId,
+                  examId: examId, // Use the real exam ID
+                  academicYearId: academicYearId,
+                  examTypeId: examTypeId,
+                  subjectId: mark.subjectId || assessment.subjectId, // Prefer mark.subjectId over assessment.subjectId
+                  classId: student.class,
+                  marksObtained: mark.marksObtained,
+                  educationLevel: 'O_LEVEL'
+                };
+              }
+
+              // Forward to the appropriate endpoint
+              if (endpoint && Object.keys(resultData).length > 0) {
+                try {
+                  // Use internal API call to avoid HTTP overhead
+                  const resultService = require('../services/resultService');
+                  await resultService.enterMarks(resultData);
+                  console.log(`Saved ${mark.educationLevel} result for student ${mark.studentId}, subject ${resultData.subjectId}, assessment ${mark.assessmentId}`);
+                } catch (forwardError) {
+                  console.error(`Error forwarding to ${endpoint}:`, forwardError);
+                }
+              }
+            } catch (educationLevelError) {
+              console.error('Error processing education level:', educationLevelError);
+            }
           }
         } catch (markError) {
           console.error(`Error processing mark for student ${mark.studentId}, subject ${mark.subjectId}:`, markError);
-          errors.push({
-            studentId: mark.studentId,
-            error: `Error processing mark: ${markError.message}`
-          });
+          // Continue with the next mark even if this one fails
         }
       }
-
-      // If no marks were saved but we have errors, abort the transaction
-      if (savedMarks.length === 0 && errors.length > 0) {
-        await session.abortTransaction();
-        console.error('No marks saved, transaction aborted. Errors:', errors);
-
-        return res.status(400).json({
-          success: false,
-          message: 'Failed to save any marks',
-          errors: errors
-        });
-      }
-
-      // Commit the transaction
-      await session.commitTransaction();
-      console.log(`Transaction committed successfully. Saved ${savedMarks.length} marks.`);
 
       // Always include a success flag in the response
       res.json({
         success: true,
         message: `Successfully saved ${savedMarks.length} marks`,
-        data: savedMarks,
-        errors: errors.length > 0 ? errors : undefined
+        data: savedMarks
       });
     } catch (error) {
-      // Abort the transaction on error
-      await session.abortTransaction();
-      console.error('Error in bulk marks entry, transaction aborted:', error);
-
+      console.error('Error in bulk marks entry:', error);
+      
       res.status(500).json({
         success: false,
         message: 'Failed to save marks',
         error: error.message
       });
-    } finally {
-      // End the session
-      session.endSession();
     }
   }
 );

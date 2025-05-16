@@ -27,6 +27,8 @@ const ResultSchema = new mongoose.Schema({
   examTypeId: { type: mongoose.Schema.Types.ObjectId, ref: 'ExamType', required: true },
   subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
   classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
+  // Add assessmentId field to properly link results to assessments
+  assessmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Assessment' },
   marksObtained: { type: Number, required: true },
 
   // Education level field
@@ -111,10 +113,35 @@ ResultSchema.pre('save', async function(next) {
       return next();
     }
 
-    // Check if this student already has a result for this exam, academic year, and exam type
-    // but for a different subject
+    // Ensure subjectId is present to prevent cross-contamination
+    if (!this.subjectId) {
+      const error = new Error('SubjectId is required to prevent marks from being applied to the wrong subject');
+      logger.error(error.message);
+      return next(error);
+    }
+
+    // Check if this student already has a result for this assessment but for a different subject
+    // This would indicate a potential cross-contamination issue
     const Result = this.constructor;
     const existingResult = await Result.findOne({
+      studentId: this.studentId,
+      assessmentId: this.assessmentId,
+      subjectId: { $ne: this.subjectId } // Different subject
+    });
+
+    if (existingResult) {
+      logger.warn(`CROSS-CONTAMINATION RISK: Found existing result for student ${this.studentId}, assessment ${this.assessmentId} but with different subject (${existingResult.subjectId} vs ${this.subjectId})`);
+      logger.warn('This could indicate marks being incorrectly applied across subjects');
+
+      // If the marks are exactly the same, it's even more suspicious
+      if (existingResult.marksObtained === this.marksObtained) {
+        logger.error(`DUPLICATE MARKS DETECTED: ${this.marksObtained} for student ${this.studentId} across subjects ${existingResult.subjectId} and ${this.subjectId}`);
+        // We'll allow it but log an error, as it's highly suspicious
+      }
+    }
+
+    // Also check for the traditional case (same student, exam, academic year, exam type, class but different subject)
+    const traditionalDuplicate = await Result.findOne({
       studentId: this.studentId,
       examId: this.examId,
       academicYearId: this.academicYearId,
@@ -123,13 +150,13 @@ ResultSchema.pre('save', async function(next) {
       subjectId: { $ne: this.subjectId } // Different subject
     });
 
-    if (existingResult) {
-      logger.debug(`Found existing result for student ${this.studentId} in exam ${this.examId} for subject ${existingResult.subjectId}`);
-      logger.debug(`Ensuring marks are not duplicated from subject ${existingResult.subjectId} to ${this.subjectId}`);
+    if (traditionalDuplicate) {
+      logger.debug(`Found existing result for student ${this.studentId} in exam ${this.examId} for subject ${traditionalDuplicate.subjectId}`);
+      logger.debug(`Current entry is for subject ${this.subjectId}`);
 
       // If the marks are exactly the same, it might be a duplicate
-      if (existingResult.marksObtained === this.marksObtained) {
-        logger.warn(`Potential duplicate marks detected: ${this.marksObtained} for student ${this.studentId} across subjects ${existingResult.subjectId} and ${this.subjectId}`);
+      if (traditionalDuplicate.marksObtained === this.marksObtained) {
+        logger.warn(`Potential duplicate marks detected: ${this.marksObtained} for student ${this.studentId} across subjects ${traditionalDuplicate.subjectId} and ${this.subjectId}`);
         // We'll allow it but log a warning, as it could be legitimate that a student got the same marks in different subjects
       }
     }

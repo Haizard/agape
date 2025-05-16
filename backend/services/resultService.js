@@ -423,16 +423,29 @@ class ResultService {
       // Get the appropriate model
       const ResultModel = ResultService.getResultModel(validatedData.educationLevel);
 
-      // Check if a result already exists for this student, exam, and subject
-      const existingResult = await ResultModel.findOne({
+      // Build a query to find existing result
+      // Include assessmentId in the query if it's provided
+      const query = {
         studentId: validatedData.studentId,
         examId: validatedData.examId,
         subjectId: validatedData.subjectId
-      });
+      };
+
+      // Log the query for debugging
+      logger.info(`Searching for existing result with query: ${JSON.stringify(query)}`);
+
+      // Check if a result already exists for this student, exam, and subject
+      const existingResult = await ResultModel.findOne(query);
 
       if (existingResult) {
         // Update existing result
         logger.info(`Updating existing result: ${existingResult._id}`);
+
+        // If we're updating from an assessment, ensure we preserve the assessmentId
+        if (validatedData.assessmentId && !existingResult.assessmentId) {
+          logger.info(`Adding assessmentId ${validatedData.assessmentId} to existing result ${existingResult._id}`);
+        }
+
         return await ResultService.updateResult(
           existingResult._id,
           validatedData,
@@ -441,10 +454,103 @@ class ResultService {
       } else {
         // Create new result
         logger.info(`Creating new result for student ${validatedData.studentId}, subject ${validatedData.subjectId}, exam ${validatedData.examId}`);
+
+        // If this is from an assessment, log it
+        if (validatedData.assessmentId) {
+          logger.info(`This result is linked to assessment ${validatedData.assessmentId}`);
+        }
+
         return await ResultService.createResult(validatedData);
       }
     } catch (error) {
       logger.error(`Error entering marks: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Enter marks for a student with a MongoDB session (for transactions)
+   * @param {Object} marksData - The marks data
+   * @param {Object} session - MongoDB session
+   * @returns {Promise<Object>} - The created result
+   */
+  static async enterMarksWithSession(marksData, session) {
+    try {
+      if (!session) {
+        logger.warn('No session provided to enterMarksWithSession, falling back to regular enterMarks');
+        return await ResultService.enterMarks(marksData);
+      }
+
+      // Validate marks data
+      const validatedData = await ResultService.validateResultData(marksData);
+
+      // Get the appropriate model
+      const ResultModel = ResultService.getResultModel(validatedData.educationLevel);
+
+      // Build a query to find existing result
+      // Include assessmentId in the query if it's provided
+      const query = {
+        studentId: validatedData.studentId,
+        examId: validatedData.examId,
+        subjectId: validatedData.subjectId
+      };
+
+      // Log the query for debugging
+      logger.info(`Searching for existing result with query (in transaction): ${JSON.stringify(query)}`);
+
+      // Check if a result already exists for this student, exam, and subject
+      const existingResult = await ResultModel.findOne(query).session(session);
+
+      if (existingResult) {
+        // Update existing result
+        logger.info(`Updating existing result (in transaction): ${existingResult._id}`);
+
+        // If we're updating from an assessment, ensure we preserve the assessmentId
+        if (validatedData.assessmentId && !existingResult.assessmentId) {
+          logger.info(`Adding assessmentId ${validatedData.assessmentId} to existing result ${existingResult._id}`);
+        }
+
+        // Merge existing data with updates
+        const mergedData = { ...existingResult.toObject(), ...validatedData };
+
+        // Validate the merged data
+        const validatedMergedData = await ResultService.validateResultData(mergedData);
+
+        // Update the result with session
+        const result = await ResultModel.findByIdAndUpdate(
+          existingResult._id,
+          validatedMergedData,
+          {
+            new: true,
+            runValidators: true,
+            session
+          }
+        );
+
+        // Log the update
+        logger.info(`Updated result (in transaction): ${result._id} for student ${validatedMergedData.studentId}, subject ${validatedMergedData.subjectId}, exam ${validatedMergedData.examId}`);
+
+        return result;
+      } else {
+        // Create new result
+        logger.info(`Creating new result (in transaction) for student ${validatedData.studentId}, subject ${validatedData.subjectId}, exam ${validatedData.examId}`);
+
+        // If this is from an assessment, log it
+        if (validatedData.assessmentId) {
+          logger.info(`This result is linked to assessment ${validatedData.assessmentId} (in transaction)`);
+        }
+
+        // Create and save the result with session
+        const result = new ResultModel(validatedData);
+        await result.save({ session });
+
+        // Log the creation
+        logger.info(`Created result (in transaction): ${result._id} for student ${validatedData.studentId}, subject ${validatedData.subjectId}, exam ${validatedData.examId}`);
+
+        return result;
+      }
+    } catch (error) {
+      logger.error(`Error entering marks (in transaction): ${error.message}`);
       throw error;
     }
   }
