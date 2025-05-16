@@ -87,19 +87,41 @@ const UnifiedBulkMarksEntry = () => {
       return [];
     }
 
+    console.log('DEBUGGING - All subject assessments before filtering:', subjectAssessments);
+
+    // Log assessments with missing properties
+    const missingProps = subjectAssessments.filter(a => !a || a.isVisible === undefined || a.term === undefined);
+    if (missingProps.length > 0) {
+      console.warn('DEBUGGING - Assessments with missing properties:', missingProps);
+    }
+
     // Create a stable filtered array
     const filteredAssessments = subjectAssessments
       .filter(a => {
         // Check if the assessment has the required properties
-        if (!a) return false;
+        if (!a) {
+          console.warn('DEBUGGING - Null assessment found');
+          return false;
+        }
 
         // Handle isVisible property (default to true if not present)
         const isVisible = a.isVisible !== undefined ? a.isVisible : true;
 
-        // Check term match
-        const termMatch = a.term === selectedTerm;
+        // Check if status is active (default to true if not present)
+        const isActive = a.status === undefined ? true : a.status === 'active';
 
-        return isVisible && termMatch;
+        // Check term match (convert both to strings for comparison)
+        const assessmentTerm = String(a.term || '');
+        const currentTerm = String(selectedTerm || '');
+        const termMatch = assessmentTerm === currentTerm;
+
+        const result = isVisible && termMatch && isActive;
+
+        if (!result) {
+          console.log(`DEBUGGING - Assessment filtered out: ${a.name}, isVisible=${isVisible}, isActive=${isActive}, termMatch=${termMatch}, term=${a.term}, selectedTerm=${selectedTerm}`);
+        }
+
+        return result;
       })
       .sort((a, b) => {
         // Handle missing displayOrder (default to 0)
@@ -108,7 +130,13 @@ const UnifiedBulkMarksEntry = () => {
         return orderA - orderB;
       });
 
-    console.log('Filtered assessments:', filteredAssessments.length);
+    console.log('DEBUGGING - Filtered assessments:', filteredAssessments);
+
+    // If no assessments were found after filtering, log a warning
+    if (filteredAssessments.length === 0 && subjectAssessments.length > 0) {
+      console.warn('DEBUGGING - No assessments passed the filter criteria. Check term, visibility, and status.');
+    }
+
     return filteredAssessments;
   }, [subjectAssessments, selectedTerm]);
 
@@ -217,8 +245,14 @@ const UnifiedBulkMarksEntry = () => {
     const fetchSubjectAssessments = async () => {
       try {
         setLoading(true);
+        console.log('DEBUGGING - Fetching assessments with params:', {
+          subjectId: selectedSubject,
+          term: selectedTerm,
+          academicYearId: selectedAcademicYear
+        });
 
         // Try to get assessments for the selected subject
+        // The backend now handles universal assessments automatically
         const response = await api.get('/api/assessments', {
           params: {
             subjectId: selectedSubject,
@@ -227,21 +261,96 @@ const UnifiedBulkMarksEntry = () => {
           }
         });
 
-        console.log('Subject assessments:', response.data);
+        console.log('DEBUGGING - Raw API response:', response);
+        console.log('DEBUGGING - Subject assessments data:', response.data);
 
         // Ensure we're setting an array
-        const assessmentsArray = Array.isArray(response.data)
+        let assessmentsArray = Array.isArray(response.data)
           ? response.data
           : response.data?.data && Array.isArray(response.data.data)
             ? response.data.data
             : [];
 
-        console.log('Processed assessments array:', assessmentsArray);
+        console.log('DEBUGGING - Processed assessments array:', assessmentsArray);
+
+        // If no assessments were found, try to get universal assessments as a fallback
+        if (assessmentsArray.length === 0) {
+          console.log('DEBUGGING - No assessments found, trying universal assessments endpoint');
+
+          try {
+            const universalResponse = await api.get('/api/assessments/universal', {
+              params: {
+                term: selectedTerm
+              }
+            });
+
+            console.log('DEBUGGING - Universal assessments response:', universalResponse.data);
+
+            const universalAssessments = Array.isArray(universalResponse.data)
+              ? universalResponse.data
+              : [];
+
+            if (universalAssessments.length > 0) {
+              console.log(`DEBUGGING - Found ${universalAssessments.length} universal assessments to use as fallback`);
+              assessmentsArray = universalAssessments;
+            }
+          } catch (universalError) {
+            console.error('DEBUGGING - Error fetching universal assessments:', universalError);
+          }
+        }
+
+        // Log universal assessments for debugging
+        const universalAssessments = assessmentsArray.filter(a => a.isUniversal);
+        const subjectSpecificAssessments = assessmentsArray.filter(a => !a.isUniversal);
+        console.log(`DEBUGGING - Found ${universalAssessments.length} universal assessments and ${subjectSpecificAssessments.length} subject-specific assessments`);
+
+        // Log assessment properties in detail
+        console.log('DEBUGGING - Assessment properties:');
+        assessmentsArray.forEach((assessment, index) => {
+          console.log(`Assessment ${index + 1}: ${assessment.name}`, {
+            id: assessment._id,
+            isUniversal: assessment.isUniversal,
+            isVisible: assessment.isVisible,
+            status: assessment.status,
+            term: assessment.term,
+            subjectId: assessment.subjectId
+          });
+        });
+
         setSubjectAssessments(assessmentsArray);
       } catch (error) {
-        console.error('Error fetching subject assessments:', error);
-        setError('Failed to fetch assessments');
-        setSubjectAssessments([]);
+        console.error('DEBUGGING - Error fetching subject assessments:', error);
+        console.error('DEBUGGING - Error details:', error.response?.data || error.message);
+
+        // Try to get universal assessments as a fallback
+        console.log('DEBUGGING - Error occurred, trying universal assessments endpoint as fallback');
+
+        try {
+          const universalResponse = await api.get('/api/assessments/universal', {
+            params: {
+              term: selectedTerm
+            }
+          });
+
+          console.log('DEBUGGING - Universal assessments response:', universalResponse.data);
+
+          const universalAssessments = Array.isArray(universalResponse.data)
+            ? universalResponse.data
+            : [];
+
+          if (universalAssessments.length > 0) {
+            console.log(`DEBUGGING - Found ${universalAssessments.length} universal assessments to use as fallback`);
+            setSubjectAssessments(universalAssessments);
+            setError(''); // Clear error since we found fallback assessments
+          } else {
+            setError('Failed to fetch assessments');
+            setSubjectAssessments([]);
+          }
+        } catch (universalError) {
+          console.error('DEBUGGING - Error fetching universal assessments:', universalError);
+          setError('Failed to fetch assessments');
+          setSubjectAssessments([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -250,6 +359,11 @@ const UnifiedBulkMarksEntry = () => {
     if (selectedSubject && selectedTerm && selectedAcademicYear) {
       fetchSubjectAssessments();
     } else {
+      console.log('DEBUGGING - Not fetching assessments because:', {
+        selectedSubject,
+        selectedTerm,
+        selectedAcademicYear
+      });
       setSubjectAssessments([]);
     }
   }, [selectedSubject, selectedTerm, selectedAcademicYear]);
@@ -689,6 +803,12 @@ const UnifiedBulkMarksEntry = () => {
                       <Typography variant="body2" color="primary">
                         Showing {students.length} students who take this subject
                       </Typography>
+                      <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+                        <span style={{ color: '#2196f3', fontSize: '1.2em', marginRight: '4px' }}>*</span>
+                        <Typography variant="caption" color="text.secondary">
+                          Universal assessment (applies to all subjects)
+                        </Typography>
+                      </Box>
                     </Box>
 
                     <Table size="small">
@@ -705,8 +825,15 @@ const UnifiedBulkMarksEntry = () => {
                           <TableCell>Registration Number</TableCell>
                           {activeAssessments.map(assessment => (
                             <TableCell key={assessment._id} align="right">
-                              <Tooltip title={`${assessment.name} (${assessment.weightage}%)`}>
-                                <span>{assessment.name}</span>
+                              <Tooltip title={`${assessment.name} (${assessment.weightage}%) ${assessment.isUniversal ? '- Universal Assessment' : ''}`}>
+                                <span>
+                                  {assessment.name}
+                                  {assessment.isUniversal && (
+                                    <span style={{ color: '#2196f3', fontSize: '0.8em', marginLeft: '4px' }}>
+                                      *
+                                    </span>
+                                  )}
+                                </span>
                               </Tooltip>
                             </TableCell>
                           ))}
@@ -806,7 +933,11 @@ const UnifiedBulkMarksEntry = () => {
                   'Please select a class to view students.' :
                   !selectedSubject ?
                   'Please select a subject to view assessments.' :
-                  'No assessments found for the selected subject and term. Please create assessments first.'}
+                  `No assessments found for the selected subject and term. Please create assessments first.
+                  Debug info: Found ${subjectAssessments.length} assessments, but ${subjectAssessments.filter(a => a.isVisible).length} visible,
+                  ${subjectAssessments.filter(a => a.status === 'active').length} active,
+                  ${subjectAssessments.filter(a => a.term === selectedTerm).length} matching term,
+                  ${subjectAssessments.filter(a => a.isUniversal).length} universal.`}
               </Alert>
             )}
           </>

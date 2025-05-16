@@ -38,6 +38,12 @@ router.delete('/:id',
   assessmentController.deleteAssessment
 );
 
+// Get universal assessments
+router.get('/universal',
+  authenticateToken,
+  assessmentController.getUniversalAssessments
+);
+
 // Get assessment statistics
 router.get('/stats',
   authenticateToken,

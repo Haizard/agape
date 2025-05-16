@@ -23,7 +23,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Tooltip
+  Tooltip,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,11 +39,11 @@ import { useAssessment } from '../../contexts/AssessmentContext';
 
 const AssessmentList = () => {
   // Get assessment context
-  const { 
-    assessments, 
-    loading, 
+  const {
+    assessments,
+    loading,
     error: contextError,
-    toggleAssessmentVisibility, 
+    toggleAssessmentVisibility,
     updateAssessmentOrder,
     createAssessment,
     updateAssessment,
@@ -84,12 +86,12 @@ const AssessmentList = () => {
       setError('Failed to update assessment order');
     }
   };
-  
+
   // State for dialog
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState('create'); // 'create' or 'edit'
   const [selectedAssessment, setSelectedAssessment] = useState(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -97,7 +99,9 @@ const AssessmentList = () => {
     maxMarks: 100,
     term: '1',
     examDate: '',
-    status: 'active'
+    status: 'active',
+    isVisible: true,  // Explicitly set to true
+    isUniversal: true // Default to true since subject field is missing
   });
 
 
@@ -113,7 +117,9 @@ const AssessmentList = () => {
         maxMarks: assessment.maxMarks,
         term: assessment.term,
         examDate: assessment.examDate,
-        status: assessment.status
+        status: assessment.status || 'active',
+        isVisible: assessment.isVisible !== false, // Default to true if not explicitly false
+        isUniversal: assessment.isUniversal !== false // Default to true if not explicitly false
       });
     } else {
       setSelectedAssessment(null);
@@ -123,7 +129,9 @@ const AssessmentList = () => {
         maxMarks: 100,
         term: '1',
         examDate: '',
-        status: 'active'
+        status: 'active',
+        isVisible: true,
+        isUniversal: true // Default to true for new assessments
       });
     }
     setOpenDialog(true);
@@ -139,17 +147,28 @@ const AssessmentList = () => {
       maxMarks: 100,
       term: '1',
       examDate: '',
-      status: 'active'
+      status: 'active',
+      isVisible: true,
+      isUniversal: true
     });
   };
 
   // Handle form input change
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    const { name, value, checked, type } = e.target;
+
+    // Handle checkbox/switch inputs differently
+    if (type === 'checkbox') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   // Handle form submission
@@ -248,6 +267,7 @@ const AssessmentList = () => {
               <TableCell>Term</TableCell>
               <TableCell>Exam Date</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Universal</TableCell>
               <TableCell>Display Order</TableCell>
               <TableCell>Visibility</TableCell>
               <TableCell>Actions</TableCell>
@@ -278,11 +298,26 @@ const AssessmentList = () => {
                   </TableCell>
                   <TableCell>{assessment.status}</TableCell>
                   <TableCell>
+                    {assessment.isUniversal ? (
+                      <Tooltip title="This assessment applies to all subjects">
+                        <Button size="small" variant="outlined" color="success">
+                          Universal
+                        </Button>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="This assessment is subject-specific">
+                        <Button size="small" variant="outlined" color="info">
+                          Subject-specific
+                        </Button>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <TextField
                       type="number"
                       size="small"
                       value={assessment.displayOrder || 0}
-                      onChange={(e) => handleOrderUpdate(assessment._id, parseInt(e.target.value))}
+                      onChange={(e) => handleOrderUpdate(assessment._id, Number.parseInt(e.target.value, 10))}
                       inputProps={{ min: 0 }}
                     />
                   </TableCell>
@@ -404,6 +439,38 @@ const AssessmentList = () => {
                   <MenuItem value="inactive">Inactive</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.isUniversal}
+                    onChange={(e) => setFormData({...formData, isUniversal: e.target.checked})}
+                    name="isUniversal"
+                    color="primary"
+                  />
+                }
+                label="Universal Assessment (applies to all subjects)"
+              />
+              <Typography variant="caption" color="textSecondary" display="block">
+                Enable this option to make this assessment available for all subjects
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.isVisible}
+                    onChange={(e) => setFormData({...formData, isVisible: e.target.checked})}
+                    name="isVisible"
+                    color="primary"
+                  />
+                }
+                label="Visible in Marks Entry"
+              />
+              <Typography variant="caption" color="textSecondary" display="block">
+                Assessment will only appear in marks entry if this is enabled
+              </Typography>
             </Grid>
           </Grid>
         </DialogContent>

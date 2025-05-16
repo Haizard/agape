@@ -28,9 +28,9 @@ export const AssessmentProvider = ({ children }) => {
       const result = await assessmentService.getAllAssessments();
       console.log('Assessment API response:', result);
 
-      if (result.data.success) {
-        // Extract the actual assessment array from nested data structure
-        const allAssessments = Array.isArray(result.data.data) ? result.data.data : [];
+      if (result.success) {
+        // Extract the actual assessment array from the response
+        const allAssessments = Array.isArray(result.data) ? result.data : [];
         console.log('Processed assessments:', allAssessments);
         setAssessments(allAssessments);
         

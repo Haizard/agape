@@ -1,6 +1,6 @@
 /**
  * Assessment Validation Utilities
- * 
+ *
  * Provides validation functions for assessment data
  */
 
@@ -11,41 +11,47 @@
  */
 const validateAssessmentData = (assessmentData) => {
   const errors = [];
-  
+
   // Check required fields
   if (!assessmentData.name) {
     errors.push('Assessment name is required');
   }
-  
+
   if (assessmentData.weightage === undefined || assessmentData.weightage === null) {
     errors.push('Weightage is required');
-  } else if (isNaN(assessmentData.weightage) || assessmentData.weightage < 0 || assessmentData.weightage > 100) {
+  } else if (Number.isNaN(Number(assessmentData.weightage)) || assessmentData.weightage < 0 || assessmentData.weightage > 100) {
     errors.push('Weightage must be a number between 0 and 100');
   }
-  
+
   if (assessmentData.maxMarks === undefined || assessmentData.maxMarks === null) {
     errors.push('Maximum marks is required');
-  } else if (isNaN(assessmentData.maxMarks) || assessmentData.maxMarks <= 0) {
+  } else if (Number.isNaN(Number(assessmentData.maxMarks)) || assessmentData.maxMarks <= 0) {
     errors.push('Maximum marks must be a positive number');
   }
-  
+
   if (!assessmentData.term) {
     errors.push('Term is required');
   }
-  
+
   if (!assessmentData.examDate) {
     errors.push('Exam date is required');
   }
-  
+
   if (!assessmentData.createdBy) {
     errors.push('Creator ID is required');
   }
-  
+
+  // Only validate subjectId if not a universal assessment
+  if (!assessmentData.isUniversal && !assessmentData.subjectId) {
+    // We'll handle this by making it universal instead of throwing an error
+    console.log('No subject ID provided, will be converted to universal assessment');
+  }
+
   // Validate status if provided
   if (assessmentData.status && !['draft', 'active', 'inactive'].includes(assessmentData.status)) {
     errors.push('Status must be one of: draft, active, inactive');
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors
@@ -61,25 +67,25 @@ const validateAssessmentData = (assessmentData) => {
  */
 const validateTotalWeightage = (existingAssessments, newAssessment, excludeId) => {
   // Calculate total weightage of existing assessments for the same term
-  const termAssessments = existingAssessments.filter(a => 
-    a.term === newAssessment.term && 
+  const termAssessments = existingAssessments.filter(a =>
+    a.term === newAssessment.term &&
     a.status !== 'inactive' &&
     (!excludeId || a._id.toString() !== excludeId)
   );
-  
+
   const existingWeightage = termAssessments.reduce((total, assessment) => {
     return total + (assessment.weightage || 0);
   }, 0);
-  
+
   const totalWeightage = existingWeightage + (newAssessment.weightage || 0);
-  
+
   if (totalWeightage > 100) {
     return {
       isValid: false,
       error: `Total weightage (${totalWeightage}%) exceeds 100%. Current term already has ${existingWeightage}% allocated.`
     };
   }
-  
+
   return { isValid: true };
 };
 

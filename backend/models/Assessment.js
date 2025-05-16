@@ -40,7 +40,7 @@ const assessmentSchema = new mongoose.Schema({
       values: ['draft', 'active', 'inactive'],
       message: 'Invalid status'
     },
-    default: 'draft'
+    default: 'active'  // Changed default from 'draft' to 'active'
   },
   displayOrder: {
     type: Number,
@@ -48,7 +48,7 @@ const assessmentSchema = new mongoose.Schema({
   },
   isVisible: {
     type: Boolean,
-    default: false
+    default: true  // Changed default from false to true
   },
   description: {
     type: String,
@@ -80,6 +80,11 @@ const assessmentSchema = new mongoose.Schema({
     enum: ['O_LEVEL', 'A_LEVEL'],
     default: 'O_LEVEL'
   },
+  isUniversal: {
+    type: Boolean,
+    default: false,
+    description: 'Whether this assessment applies to all subjects'
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -108,9 +113,10 @@ assessmentSchema.virtual('isCompleted').get(function() {
   return new Date(this.examDate) < new Date();
 });
 
-// Pre-save middleware to validate total weightage
+// Pre-save middleware to validate total weightage and handle universal assessments
 assessmentSchema.pre('save', async function(next) {
   try {
+    // Validate weightage
     if (this.isModified('weightage')) {
       const Assessment = this.constructor;
       const existingAssessments = await Assessment.find({
@@ -128,6 +134,17 @@ assessmentSchema.pre('save', async function(next) {
         throw new Error('Total weightage for the term cannot exceed 100%');
       }
     }
+
+    // Handle universal assessments
+    if (this.isUniversal) {
+      // Clear any specific subject association for universal assessments
+      this.subjectId = null;
+    } else if (!this.subjectId) {
+      // If not universal and no subjectId, make it universal
+      this.isUniversal = true;
+      console.log('No subject ID provided, defaulting to universal assessment');
+    }
+
     next();
   } catch (error) {
     next(error);
@@ -181,6 +198,14 @@ assessmentSchema.statics.getStatistics = async function() {
   ]);
 
   return stats;
+};
+
+// Static method to find universal assessments
+assessmentSchema.statics.findUniversalAssessments = function(query = {}) {
+  return this.find({
+    ...query,
+    isUniversal: true
+  });
 };
 
 const Assessment = mongoose.model('Assessment', assessmentSchema);

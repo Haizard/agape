@@ -12,7 +12,7 @@ const validationMiddleware = {
   validateAssessment: async (req, res, next) => {
     try {
       const assessmentData = req.body;
-      
+
       // Add createdBy from authenticated user if not provided
       if (!assessmentData.createdBy && req.user && req.user.userId) {
         assessmentData.createdBy = req.user.userId;
@@ -29,11 +29,22 @@ const validationMiddleware = {
         });
       }
 
+      // If isUniversal is true, we don't need to validate subjectId
+      if (assessmentData.isUniversal) {
+        console.log('Universal assessment detected, skipping subject validation');
+        // For universal assessments, we don't need a subjectId
+        assessmentData.subjectId = null;
+      } else if (!assessmentData.subjectId) {
+        // If not marked as universal and no subjectId, make it universal
+        console.log('No subject ID provided, defaulting to universal assessment');
+        assessmentData.isUniversal = true;
+      }
+
       // Validate total weightage
       const existingAssessments = await Assessment.find(
         req.params.id ? { _id: { $ne: req.params.id } } : {}
       );
-      
+
       const weightageValidation = validateTotalWeightage(
         existingAssessments,
         assessmentData,
@@ -50,9 +61,11 @@ const validationMiddleware = {
 
       next();
     } catch (error) {
+      console.error('Validation error:', error);
       res.status(500).json({
         success: false,
-        message: 'Validation error'
+        message: 'Validation error',
+        error: error.message
       });
     }
   },
